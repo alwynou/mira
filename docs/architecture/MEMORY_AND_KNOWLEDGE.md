@@ -435,6 +435,8 @@ MVP 采用显式选择单个或多个 Markdown 文件并导入快照，不做目
 
 解析和读取必须在授权资源内；跨范围符号链接、失效 Bookmark、文件读取中变化和路径替换必须检测并失败或重新授权。导入后的 Blob 属于 Mira 托管副本，原路径授权撤销不会假装已经删除托管副本；UI 分别提供撤销访问与删除导入资料。
 
+The initial snapshot implementation retains no bookmark or continuing original-file access: access ends after import, so there is no retained grant to revoke. The UI explains this distinction and provides deletion of the managed source. Exact parser, search, tool, citation, and file-lifecycle contracts are in [Markdown knowledge implementation](KNOWLEDGE_IMPLEMENTATION.md).
+
 <a id="s21-05"></a>
 
 ### 3.5 KnowledgeNote

@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Testing
 @testable import MiraData
 import MiraCore
@@ -155,13 +156,15 @@ struct SQLiteMiraStoreTests {
         let restored = directory.appendingPathComponent("config-corrupt-restored")
         defer { try? FileManager.default.removeItem(at: backup); try? FileManager.default.removeItem(at: restored) }
         try store.exportBackup(to: backup)
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         try database.write { db in try db.execute(sql: "UPDATE provider_connections SET connection_json = '{}' WHERE id = ?", arguments: [snapshot.connectionID.rawValue.uuidString.lowercased()]) }
+        try resealTestBackupManifest(backup)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
         try FileManager.default.removeItem(at: backup)
         try store.exportBackup(to: backup)
-        let secondDatabase = try DatabaseQueue(path: backup.path)
+        let secondDatabase = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         try secondDatabase.write { db in try db.execute(sql: "UPDATE route_bindings SET binding_json = '{}' WHERE id = ?", arguments: ["global:conversation"]) }
+        try resealTestBackupManifest(backup)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
         #expect(!FileManager.default.fileExists(atPath: restored.path))
     }
@@ -178,7 +181,7 @@ struct SQLiteMiraStoreTests {
         let restored = directory.appendingPathComponent("route-snapshot-corrupt-restored")
         defer { try? FileManager.default.removeItem(at: backup); try? FileManager.default.removeItem(at: restored) }
         try store.exportBackup(to: backup)
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let originalRouteJSON = try database.read { db in try String.fetchOne(db, sql: "SELECT route_json FROM executions")! }
         var routeObject = try JSONSerialization.jsonObject(with: Data(originalRouteJSON.utf8)) as! [String: Any]
         routeObject["adapterVersion"] = "unknown-adapter/1"
@@ -190,6 +193,7 @@ struct SQLiteMiraStoreTests {
         let routeJSON = try database.read { db in try String.fetchOne(db, sql: "SELECT route_json FROM executions") }
         #expect(changedRows == 1)
         #expect(routeJSON?.contains("unknown-adapter\\/1") == true)
+        try resealTestBackupManifest(backup)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
         #expect(!FileManager.default.fileExists(atPath: restored.path))
     }
@@ -205,8 +209,9 @@ struct SQLiteMiraStoreTests {
         let restored = directory.appendingPathComponent("allowlist-corrupt-restored")
         defer { try? FileManager.default.removeItem(at: backup); try? FileManager.default.removeItem(at: restored) }
         try store.exportBackup(to: backup)
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         try database.write { db in try db.execute(sql: "UPDATE workspaces SET allowed_connection_ids_json = '[\"malformed\"]' WHERE id = ?", arguments: [workspace.id.rawValue.uuidString.lowercased()]) }
+        try resealTestBackupManifest(backup)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
         #expect(!FileManager.default.fileExists(atPath: restored.path))
     }
@@ -242,8 +247,9 @@ struct SQLiteMiraStoreTests {
         let restored = directory.appendingPathComponent("restored")
         try store.exportBackup(to: backup)
         do {
-            let database = try DatabaseQueue(path: backup.path)
+            let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
             try database.write { db in try db.execute(sql: "DROP INDEX executions_one_active_per_conversation") }
+            try resealTestBackupManifest(backup)
         }
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
         #expect(!FileManager.default.fileExists(atPath: restored.path))
@@ -351,13 +357,17 @@ struct SQLiteMiraStoreTests {
         let conversation = Conversation(id: ConversationID(), workspaceID: nil, title: "Live", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
         try store.exportBackup(to: backup)
-        let backupDB = try DatabaseQueue(path: backup.path)
-        try backupDB.write { db in try db.execute(sql: "PRAGMA user_version = 99") }
-        let sourceBytes = try Data(contentsOf: backup)
+        do {
+            let backupDB = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
+            try backupDB.write { db in try db.execute(sql: "PRAGMA user_version = 99") }
+        }
+        try resealTestBackupManifest(backup)
+        let sourceBytes = try Data(contentsOf: testBackupDatabaseURL(backup))
+        #expect(SQLiteMiraStore.currentSchemaVersion == 7)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
         #expect(!FileManager.default.fileExists(atPath: restore.path))
-        #expect(try Data(contentsOf: backup) == sourceBytes)
+        #expect(try Data(contentsOf: testBackupDatabaseURL(backup)) == sourceBytes)
     }
 
     @Test func unknownMigrationIsRejectedAndExistingParentModeIsPreserved() throws {
@@ -374,8 +384,11 @@ struct SQLiteMiraStoreTests {
         let conversation = Conversation(id: ConversationID(), workspaceID: nil, title: "Migration", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
         try store.exportBackup(to: backup)
-        let backupDB = try DatabaseQueue(path: backup.path)
-        try backupDB.write { db in try db.execute(sql: "UPDATE grdb_migrations SET identifier = 'future_migration' WHERE identifier = 'm0_core'") }
+        do {
+            let backupDB = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
+            try backupDB.write { db in try db.execute(sql: "UPDATE grdb_migrations SET identifier = 'future_migration' WHERE identifier = 'm0_core'") }
+        }
+        try resealTestBackupManifest(backup)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
         let afterMode = try FileManager.default.attributesOfItem(atPath: outputParent.path)[.posixPermissions] as? NSNumber
@@ -392,8 +405,11 @@ struct SQLiteMiraStoreTests {
         let conversation = Conversation(id: ConversationID(), workspaceID: nil, title: "Safe", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
         try store.exportBackup(to: backup)
-        let backupDB = try DatabaseQueue(path: backup.path)
-        try backupDB.write { db in try db.execute(sql: "UPDATE conversations SET id = 'malformed'") }
+        do {
+            let backupDB = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
+            try backupDB.write { db in try db.execute(sql: "UPDATE conversations SET id = 'malformed'") }
+        }
+        try resealTestBackupManifest(backup)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(!FileManager.default.fileExists(atPath: restore.path))
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
@@ -454,7 +470,7 @@ struct SQLiteMiraStoreTests {
 
         let corrupted = directory.appendingPathComponent("audit-corrupted.sqlite")
         try FileManager.default.copyItem(at: backup, to: corrupted)
-        let corruptedDB = try DatabaseQueue(path: corrupted.path)
+        let corruptedDB = try DatabaseQueue(path: testBackupDatabaseURL(corrupted).path)
         try corruptedDB.write { db in
             guard let original = try String.fetchOne(db, sql: "SELECT output_json FROM model_attempts WHERE id = ?", arguments: [attemptID.uuidString.lowercased()]) else { throw MiraError(.storage, "missing audit output") }
             var output = try JSONDecoder().decode(ModelOutput.self, from: Data(original.utf8))
@@ -462,6 +478,7 @@ struct SQLiteMiraStoreTests {
             let changed = String(decoding: try JSONEncoder().encode(output), as: UTF8.self)
             try db.execute(sql: "UPDATE model_attempts SET output_json = ? WHERE id = ?", arguments: [changed, attemptID.uuidString.lowercased()])
         }
+        try resealTestBackupManifest(corrupted)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: corrupted, to: directory.appendingPathComponent("corrupted-restored")) }
     }
 
@@ -558,4 +575,22 @@ struct SQLiteMiraStoreTests {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         return url
     }
+}
+
+func testBackupDatabaseURL(_ backup: URL) -> URL {
+    backup.appendingPathComponent("Mira.sqlite")
+}
+
+func resealTestBackupManifest(_ backup: URL) throws {
+    let databaseURL = testBackupDatabaseURL(backup)
+    let databaseBytes = try Data(contentsOf: databaseURL)
+    let manifestURL = backup.appendingPathComponent("manifest.json")
+    let manifestData = try Data(contentsOf: manifestURL)
+    var manifest = try #require(JSONSerialization.jsonObject(with: manifestData) as? [String: Any])
+    var database = try #require(manifest["database"] as? [String: Any])
+    database["digest"] = SHA256.hash(data: databaseBytes).map { String(format: "%02x", $0) }.joined()
+    database["byteCount"] = databaseBytes.count
+    manifest["database"] = database
+    try JSONSerialization.data(withJSONObject: manifest, options: [.sortedKeys, .withoutEscapingSlashes]).write(to: manifestURL, options: .atomic)
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: manifestURL.path)
 }

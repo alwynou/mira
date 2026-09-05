@@ -8,6 +8,17 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     private var failFinalization = true
     init(_ base: any MiraStore) { self.base = base }
     func allowFinalization() { lock.withLock { failFinalization = false } }
+    func knowledgeSources(workspaceID: WorkspaceID?, limit: Int) throws -> [KnowledgeSource] { try base.knowledgeSources(workspaceID: workspaceID, limit: limit) }
+    func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID?, workspaceID: WorkspaceID?, connectionID: ConnectionID?) throws -> KnowledgeSourceDetail { try base.knowledgeSource(id, versionID: versionID, workspaceID: workspaceID, connectionID: connectionID) }
+    func sourceChunk(_ id: SourceChunkID, workspaceID: WorkspaceID?, connectionID: ConnectionID?) throws -> SourceChunk { try base.sourceChunk(id, workspaceID: workspaceID, connectionID: connectionID) }
+    func importMarkdownFile(_ url: URL, workspaceID: WorkspaceID?, updating: KnowledgeSourceID?, expectedRevision: Int?, at: Date) throws -> KnowledgeImportReceipt { try base.importMarkdownFile(url, workspaceID: workspaceID, updating: updating, expectedRevision: expectedRevision, at: at) }
+    func setSourceRemoteUse(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, allowed: Bool, expectedRevision: Int, at: Date) throws -> KnowledgeSource { try base.setSourceRemoteUse(id, workspaceID: workspaceID, allowed: allowed, expectedRevision: expectedRevision, at: at) }
+    func deleteKnowledgeSource(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int, at: Date) throws { try base.deleteKnowledgeSource(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: at) }
+    func searchKnowledge(query: String, workspaceID: WorkspaceID?, connectionID: ConnectionID?, limit: Int) throws -> KnowledgeSearchResult { try base.searchKnowledge(query: query, workspaceID: workspaceID, connectionID: connectionID, limit: limit) }
+    func recordSourceUsage(_ usages: [SourceUsage], executionID: ExecutionID, at: Date) throws { try base.recordSourceUsage(usages, executionID: executionID, at: at) }
+    func validateSourceUsage(executionID: ExecutionID) throws { try base.validateSourceUsage(executionID: executionID) }
+    func sourceCitation(_ reference: SourceCitationReference, executionID: ExecutionID, conversationID: ConversationID) throws -> SourceCitationDetail { try base.sourceCitation(reference, executionID: executionID, conversationID: conversationID) }
+    func collectUnreferencedBlobs(at: Date) throws -> BlobCollectionReport { try base.collectUnreferencedBlobs(at: at) }
     func memoryCapturePolicy() throws -> MemoryCapturePolicy { try base.memoryCapturePolicy() }
     func saveMemoryCapturePolicy(_ policy: MemoryCapturePolicy, expectedRevision: Int, at: Date) throws { try base.saveMemoryCapturePolicy(policy, expectedRevision: expectedRevision, at: at) }
     func memoryExtractionJobs(conversationID: ConversationID?, limit: Int) throws -> [MemoryExtractionJob] { try base.memoryExtractionJobs(conversationID: conversationID, limit: limit) }

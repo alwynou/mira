@@ -10,6 +10,7 @@ struct ConversationRoot: View {
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
     @State private var showsMemories = false
+    @State private var showsKnowledge = false
     @State private var initialMemoryID: MemoryID?
     let isDemo: Bool
 
@@ -50,6 +51,9 @@ struct ConversationRoot: View {
                         Button("Execution details", systemImage: "sidebar.right") { showsInspector.toggle() }
                             .disabled(model.executions.isEmpty)
                     }
+                    ToolbarItem {
+                        Button("Knowledge", systemImage: "book.closed") { showsKnowledge = true }
+                    }
                 }
                 .inspector(isPresented: $showsInspector) { ExecutionInspector(model: model).environment(\.locale, locale).inspectorColumnWidth(min: 280, ideal: 340, max: 480) }
             }
@@ -67,6 +71,10 @@ struct ConversationRoot: View {
             }
         }
         .sheet(isPresented: $showsWorkspaceSheet) { WorkspaceEditor(application: model.application, workspace: editingWorkspace).environment(\.locale, locale) }
+        .sheet(isPresented: $showsKnowledge) {
+            KnowledgeRootView(application: model.application, workspaceID: model.selectedWorkspaceID, workspaces: model.workspaces)
+                .environment(\.locale, locale)
+        }
         .alert("Operation incomplete", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK", role: .cancel) { model.error = nil }
         } message: { Text(model.error.map { L10n.error($0, locale: locale) } ?? "") }
@@ -233,6 +241,9 @@ private struct ConversationDetail: View {
                                                        conversationID: conversationID, application: model.application) { sourceID in
                                         Task { await model.selectConversation(sourceID) }
                                     }.padding(.leading, 40)
+                                    KnowledgeCitationList(references: SourceCitationReference.references(in: item.text), executionID: executionID,
+                                                          conversationID: conversationID, application: model.application)
+                                        .padding(.leading, 40)
                                 }
                             }
                         } else {

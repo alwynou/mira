@@ -8,10 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		097EBE7FE4859C6A04093FD1 /* ProviderConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3720ABBF862F199F70DC7FB3 /* ProviderConfigurationView.swift */; };
+		0BBBC3B6717484F878C1B247 /* KnowledgeCitationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 896C33BFC18AA2225A79BA30 /* KnowledgeCitationView.swift */; };
 		183AEEB1883EE1B4B3C71D0D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
 		1B547271AFD1F2FE409828CD /* ConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB989EFFEC2CDE956AA80EE4 /* ConversationView.swift */; };
 		1C441AC730240E409B811592 /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28A3E756EB962B0188361E5F /* MiraCore */; };
 		1D36C6B028A05C1FC1A93603 /* RendererLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */; };
+		1ED4A028E97D0117BCBFDB87 /* KnowledgeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F5EAD287EB9FF6801A6B90 /* KnowledgeModel.swift */; };
 		28EECC3B307F65286511CD3E /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7414ED665B7697D8DE9FC89A /* ConversationModel.swift */; };
 		2DAF87FA6D8AE4AEAD27DFE0 /* MemoryExtractionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38F7BA3F5211ECCF6B6B8CC /* MemoryExtractionStatusView.swift */; };
 		428F1D24B591079FFFA63E38 /* ThirdPartyLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = 46B54F5A9D2A1543C991E57D /* ThirdPartyLicenses.txt */; };
@@ -30,8 +32,10 @@
 		85EF30561973EC65CEE71927 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */; };
 		877A78FA00188ECFD8CBFD4F /* MiraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A0B282D1687FAC585A18E1 /* MiraApp.swift */; };
 		95E735EAFEDFB6BBA66FE294 /* ExecutionInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6C0280EF68017B5D62B312 /* ExecutionInspector.swift */; };
+		9F7B48FD7D835B7CD383E8D4 /* KnowledgeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900D6888628C03E3B2A360B8 /* KnowledgeDetailView.swift */; };
 		9FE81D95B7B72B1598BDCBA5 /* CredentialCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33B878F8A325859FD21031 /* CredentialCleanup.swift */; };
 		A7025808A771F4BA782FFCFF /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
+		ACCD6C8C994AD6F9ABBE8B5D /* KnowledgeRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C840E99C4DA1D9B42FBE6BE7 /* KnowledgeRootView.swift */; };
 		B38C6089D06D325082314E26 /* MiraData in Frameworks */ = {isa = PBXBuildFile; productRef = EEB28E75FC8A07BD9B1491B3 /* MiraData */; };
 		B954BFD513020A24D6B72B70 /* MemorySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40BF1595EDAFC35D927D3E9 /* MemorySettingsView.swift */; };
 		BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
@@ -67,13 +71,17 @@
 		6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentials.swift; sourceTree = "<group>"; };
 		7414ED665B7697D8DE9FC89A /* ConversationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationModel.swift; sourceTree = "<group>"; };
 		85EA3748455364D356BD274D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		896C33BFC18AA2225A79BA30 /* KnowledgeCitationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeCitationView.swift; sourceTree = "<group>"; };
+		900D6888628C03E3B2A360B8 /* KnowledgeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeDetailView.swift; sourceTree = "<group>"; };
 		98A8C961C696CDAE5414FE68 /* MemoryCitationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCitationView.swift; sourceTree = "<group>"; };
 		9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
+		A6F5EAD287EB9FF6801A6B90 /* KnowledgeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeModel.swift; sourceTree = "<group>"; };
 		B05FBFB2CE9557A6F94C37FF /* MemoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryModel.swift; sourceTree = "<group>"; };
 		B38F7BA3F5211ECCF6B6B8CC /* MemoryExtractionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryExtractionStatusView.swift; sourceTree = "<group>"; };
 		C03AC927AAD07459E44A6846 /* MemoryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryEditorView.swift; sourceTree = "<group>"; };
 		C40BF1595EDAFC35D927D3E9 /* MemorySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsView.swift; sourceTree = "<group>"; };
+		C840E99C4DA1D9B42FBE6BE7 /* KnowledgeRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeRootView.swift; sourceTree = "<group>"; };
 		CDED64867AEC6D60C7D2415C /* WorkspaceEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceEditor.swift; sourceTree = "<group>"; };
 		D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTests.swift; sourceTree = "<group>"; };
 		E80A2536843B79B7161B2B7E /* MiraKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MiraKit; path = Packages/MiraKit; sourceTree = SOURCE_ROOT; };
@@ -152,6 +160,7 @@
 			isa = PBXGroup;
 			children = (
 				7414ED665B7697D8DE9FC89A /* ConversationModel.swift */,
+				A6F5EAD287EB9FF6801A6B90 /* KnowledgeModel.swift */,
 				B05FBFB2CE9557A6F94C37FF /* MemoryModel.swift */,
 			);
 			path = Presentation;
@@ -220,6 +229,7 @@
 			isa = PBXGroup;
 			children = (
 				75ACDFF7FBA3AC3E1ECCDF3C /* Conversation */,
+				EB95AC84531CCDB2DCD7B92F /* Knowledge */,
 				7F619D2ABBCABAFC5EA8AFB1 /* Memory */,
 				9408A86C4F850B8EC16B66DC /* Settings */,
 				E7EDB7C1B4DAC64CC964C27D /* Workspace */,
@@ -342,6 +352,16 @@
 				308F99C3BDCE132DCC37FFD8 /* SwiftStreamingMarkdown */,
 			);
 			path = Vendor;
+			sourceTree = "<group>";
+		};
+		EB95AC84531CCDB2DCD7B92F /* Knowledge */ = {
+			isa = PBXGroup;
+			children = (
+				896C33BFC18AA2225A79BA30 /* KnowledgeCitationView.swift */,
+				900D6888628C03E3B2A360B8 /* KnowledgeDetailView.swift */,
+				C840E99C4DA1D9B42FBE6BE7 /* KnowledgeRootView.swift */,
+			);
+			path = Knowledge;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -468,6 +488,10 @@
 				DABB39FF64C311B5242A3912 /* CredentialCleanup.swift in Sources */,
 				95E735EAFEDFB6BBA66FE294 /* ExecutionInspector.swift in Sources */,
 				BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */,
+				0BBBC3B6717484F878C1B247 /* KnowledgeCitationView.swift in Sources */,
+				9F7B48FD7D835B7CD383E8D4 /* KnowledgeDetailView.swift in Sources */,
+				1ED4A028E97D0117BCBFDB87 /* KnowledgeModel.swift in Sources */,
+				ACCD6C8C994AD6F9ABBE8B5D /* KnowledgeRootView.swift in Sources */,
 				A7025808A771F4BA782FFCFF /* L10n.swift in Sources */,
 				D4249D84C50F335989738E70 /* MemoryCitationView.swift in Sources */,
 				F9AAF3D97FB1153E758F32BC /* MemoryDetailPane.swift in Sources */,

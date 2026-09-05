@@ -49,7 +49,7 @@ final class AppContainer {
         }
         do {
             let store = try SQLiteMiraStore(directory: directory)
-            let memoryTools = MemoryTools.readOnly(store: store) + [MemoryRememberTool(store: store, approvals: memoryApprovals)]
+            let memoryTools = MemoryTools.readOnly(store: store) + [MemoryRememberTool(store: store, approvals: memoryApprovals)] + KnowledgeTools.readOnly(store: store)
             application = try MiraApplication(store: store, provider: provider, tools: ToolRegistry(memoryTools), memoryApprovals: memoryApprovals)
             startupError = nil
             if let application { Task { await application.startBackgroundWork() } }

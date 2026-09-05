@@ -45,7 +45,7 @@ for key, entry in catalog['strings'].items():
 quoted = r'"((?:\\.|[^"\\])*)"'
 for folder in ('Apps/MiraMac', 'Packages/MiraKit/Sources'):
     for path in (ROOT / folder).rglob('*.swift'):
-        for match in re.finditer(r'(?:MiraError|\.init)\(\.[A-Za-z]+,\s*' + quoted, path.read_text()):
+        for match in re.finditer(r'(?:MiraError|\.init|(?:Self\.)?error)\(\.[A-Za-z]+,\s*' + quoted, path.read_text()):
             raw = match.group(1)
             if '\\(' in raw: continue
             try: key = json.loads('"' + raw + '"')

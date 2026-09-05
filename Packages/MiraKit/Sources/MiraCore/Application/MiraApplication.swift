@@ -121,6 +121,40 @@ public actor MiraApplication {
     public func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int = 100) throws -> MemorySearchResult {
         try store.memoryList(workspaceID: workspaceID, states: states, query: query, limit: limit)
     }
+    public func knowledgeSources(workspaceID: WorkspaceID?, limit: Int = 100) throws -> [KnowledgeSource] {
+        try store.knowledgeSources(workspaceID: workspaceID, limit: limit)
+    }
+    public func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID? = nil, workspaceID: WorkspaceID?) throws -> KnowledgeSourceDetail {
+        try store.knowledgeSource(id, versionID: versionID, workspaceID: workspaceID, connectionID: nil)
+    }
+    public func sourceChunk(_ id: SourceChunkID, workspaceID: WorkspaceID?) throws -> SourceChunk {
+        try store.sourceChunk(id, workspaceID: workspaceID, connectionID: nil)
+    }
+    public func importMarkdownFile(_ url: URL, workspaceID: WorkspaceID?, updating: KnowledgeSourceID? = nil, expectedRevision: Int? = nil) throws -> KnowledgeImportReceipt {
+        let receipt = try store.importMarkdownFile(url, workspaceID: workspaceID, updating: updating, expectedRevision: expectedRevision, at: environment.now())
+        emit(.changed)
+        return receipt
+    }
+    public func setSourceRemoteUse(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, allowed: Bool, expectedRevision: Int) async throws -> KnowledgeSource {
+        let source = try store.setSourceRemoteUse(id, workspaceID: workspaceID, allowed: allowed, expectedRevision: expectedRevision, at: environment.now())
+        if !allowed { await cancelMemoryConsumers() }
+        emit(.changed)
+        return source
+    }
+    public func deleteKnowledgeSource(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int) async throws {
+        try store.deleteKnowledgeSource(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: environment.now())
+        await cancelMemoryConsumers()
+        emit(.changed)
+    }
+    public func searchKnowledge(query: String, workspaceID: WorkspaceID?, limit: Int = 100) throws -> KnowledgeSearchResult {
+        try store.searchKnowledge(query: query, workspaceID: workspaceID, connectionID: nil, limit: limit)
+    }
+    public func sourceCitation(_ reference: SourceCitationReference, executionID: ExecutionID, conversationID: ConversationID) throws -> SourceCitationDetail {
+        try store.sourceCitation(reference, executionID: executionID, conversationID: conversationID)
+    }
+    public func collectUnreferencedBlobs() throws -> BlobCollectionReport {
+        try store.collectUnreferencedBlobs(at: environment.now())
+    }
     public func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) throws -> MemoryDetail {
         try store.memoryDetail(id, workspaceID: workspaceID)
     }
@@ -478,6 +512,7 @@ public actor MiraApplication {
 
     private func validateDispatch(_ execution: Execution) throws {
         try store.validateMemoryUsage(executionID: execution.id, at: environment.now())
+        try store.validateSourceUsage(executionID: execution.id)
         try Task.checkCancellation()
         let configuration = try store.modelConfiguration()
         guard let current = try? configuration.snapshot(routeID: execution.route.id, purpose: execution.route.purpose, selection: execution.route.selectionSource), current == execution.route else { throw MiraError(.connectionChanged, "Model configuration changed. Send the request again.") }

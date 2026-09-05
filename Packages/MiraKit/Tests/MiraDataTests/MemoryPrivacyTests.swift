@@ -22,7 +22,7 @@ struct MemoryPrivacyTests {
         _ = try store.forgetMemory(memory.id, workspaceID: nil, expectedRevision: memory.revision, at: date(11))
 
         let backup = try export(store, in: directory, name: "retained-evidence")
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let before = try database.read { db in
             try String.fetchOne(db, sql: "SELECT evidence_json FROM memory_evidence WHERE memory_id = ?", arguments: [id(memory.id)])
         }
@@ -37,6 +37,7 @@ struct MemoryPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         let after = try database.read { db in
             try String.fetchOne(db, sql: "SELECT evidence_json FROM memory_evidence WHERE memory_id = ?", arguments: [id(memory.id)])
         }
@@ -56,7 +57,7 @@ struct MemoryPrivacyTests {
         _ = try store.forgetMemory(memory.id, workspaceID: nil, expectedRevision: memory.revision, at: date(11))
 
         let backup = try export(store, in: directory, name: "retained-revision")
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let before = try database.read { db in
             try Row.fetchOne(db, sql: "SELECT draft_json, revision_json FROM memory_revisions WHERE memory_id = ? AND revision = 1", arguments: [id(memory.id)])
         }
@@ -70,6 +71,7 @@ struct MemoryPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         let after = try database.read { db in
             try Row.fetchOne(db, sql: "SELECT draft_json, revision_json FROM memory_revisions WHERE memory_id = ? AND revision = 1", arguments: [id(memory.id)])
         }
@@ -90,7 +92,7 @@ struct MemoryPrivacyTests {
         _ = try store.forgetMemory(memory.id, workspaceID: nil, expectedRevision: memory.revision, at: date(11))
 
         let backup = try export(store, in: directory, name: "recreated-fts")
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let before = try database.read { db in
             try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_search WHERE memory_id = ?", arguments: [id(memory.id)]) ?? 0
         }
@@ -100,6 +102,7 @@ struct MemoryPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         let after = try database.read { db in
             try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_search WHERE memory_id = ?", arguments: [id(memory.id)]) ?? 0
         }
@@ -124,7 +127,7 @@ struct MemoryPrivacyTests {
         _ = try store.forgetMemory(memory.id, workspaceID: nil, expectedRevision: memory.revision, at: date(4))
 
         let backup = try export(store, in: directory, name: "suppression-\(mutation)")
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let sourceID = id(source.id)
         let before = try database.read { db in
             try Row.fetchOne(db, sql: "SELECT reason, suppression_json FROM memory_source_suppressions WHERE source_kind = 'message' AND source_id = ?", arguments: [sourceID])
@@ -136,6 +139,7 @@ struct MemoryPrivacyTests {
                 return db.changesCount
             }
             #expect(changed == 1)
+            try resealTestBackupManifest(backup)
             let after = try database.read { db in
                 try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_source_suppressions WHERE source_kind = 'message' AND source_id = ?", arguments: [sourceID]) ?? 0
             }
@@ -151,6 +155,7 @@ struct MemoryPrivacyTests {
                 return db.changesCount
             }
             #expect(changed == 1)
+            try resealTestBackupManifest(backup)
             let after = try database.read { db in
                 try String.fetchOne(db, sql: "SELECT suppression_json FROM memory_source_suppressions WHERE source_kind = 'message' AND source_id = ?", arguments: [sourceID])
             }
@@ -183,7 +188,7 @@ struct MemoryPrivacyTests {
         _ = try store.forgetMemory(memory.id, workspaceID: nil, expectedRevision: memory.revision, at: date(10))
 
         let backup = try export(store, in: directory, name: "retained-audit")
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let stepBefore = try database.read { db in try Row.fetchOne(db, sql: "SELECT body_purged_at, output_json FROM execution_steps WHERE execution_id = ?", arguments: [id(execution.id)]) }
         let toolBefore = try database.read { db in try Row.fetchOne(db, sql: "SELECT body_purged_at, arguments_json, result_json FROM tool_invocations WHERE execution_id = ?", arguments: [id(execution.id)]) }
         let draftBefore = try database.read { db in try Row.fetchOne(db, sql: "SELECT body_purged_at, text FROM assistant_drafts WHERE execution_id = ?", arguments: [id(execution.id)]) }
@@ -199,6 +204,7 @@ struct MemoryPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         let retainedRows = try database.read { db in
             (
                 try Int.fetchOne(db, sql: "SELECT count(*) FROM execution_steps WHERE execution_id = ? AND body_purged_at IS NULL AND output_json IS NOT NULL", arguments: [id(execution.id)]) ?? 0,

@@ -10,7 +10,7 @@ public struct StorageDiagnostics: Sendable, Equatable {
 }
 
 /// Synchronous bounded transactions, called from the application actor, never directly from views.
-public protocol MiraStore: MemoryStore, MemoryExtractionStore {
+public protocol MiraStore: MemoryStore, MemoryExtractionStore, KnowledgeStore {
     func workspaces() throws -> [Workspace]
     func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws
     func conversations(includeArchived: Bool) throws -> [Conversation]
@@ -51,7 +51,7 @@ public protocol MiraStore: MemoryStore, MemoryExtractionStore {
     /// Marks unfinished executions interrupted and materializes their last durable draft. Never sends requests.
     func recoverInterrupted(at: Date) throws
     func diagnostics() throws -> StorageDiagnostics
-    /// SQLite backup API, destination must not exist. Credentials are outside this store.
+    /// Verified directory bundle containing a SQLite snapshot and referenced immutable blobs; destination must not exist.
     func exportBackup(to destination: URL) throws
     /// Validate and restore into an unused directory; never replace the live database.
     func restoreBackup(from source: URL, to directory: URL) throws

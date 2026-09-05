@@ -157,6 +157,8 @@ Working Memory 只组合用户固定项与当前 Workspace 的有效决定；尚
 
 ### M4：Markdown 资料与 Agent 检索
 
+当前工程证据：[Markdown 资料与备份验收](engineering/KNOWLEDGE_VERIFICATION.md)。原生交互与规模性能仍分别记录。
+
 **依赖：** M3。
 
 **交付：** 显式文件选择、托管 Blob、Source Version / Chunk、Markdown 解析、中文 / 英文 / 代码搜索、Source 工具与有效引用、文件发送策略。
@@ -219,7 +221,7 @@ Apple Calendar / Reminders 单向发布作为其后的独立增量：实现 Noti
 
 ## 5. 开发前条件与发布前条件
 
-**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并实现手动管理、可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动提取、M4 资料工具、真实 Provider、Keychain 故障演练及完整平台交互验收仍待补；M3–M5 尚未完成里程碑验收。
+**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并实现手动管理、可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆已有独立配置、任务、预算与审核实现，并通过确定性验收；M4 资料工具、完整文件备份与界面正在集成验收。真实 Provider、Keychain 故障演练及完整平台交互验收仍待补；M3–M5 尚未完成里程碑验收。
 
 **实施时填写的证据：** 实际选用的模型 ID / 端点及能力验证结果、Package.resolved、最低系统与各 CPU 的验证环境。无需在文档中写入密钥。
 

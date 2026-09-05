@@ -24,7 +24,13 @@ open .build/xcode/Build/Products/Debug/Mira.app
 
 Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Purpose Routing**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
 
-This increment uses fresh schema v6. Previous development libraries are rejected intact; use a separate disposable `--data-directory` when testing. Actual model quality and native walkthrough gates remain pending.
+The current development library uses fresh schema v7. Previous development libraries are rejected intact; use a separate disposable `--data-directory` when testing. Actual model quality and native walkthrough gates remain pending.
+
+## Markdown knowledge
+
+Open **Knowledge** from a conversation to import Markdown snapshots. New imports stay local-only; explicitly save **Allow model use** to make their snippets and chunks available to the configured provider. Each update creates an immutable version. Search, inspect exact chunks, and open verified source references from replies. Importing never watches or modifies the original file.
+
+Library backups are directory bundles containing the database, referenced files, and a checksum manifest. Restore creates a new directory and leaves the current library open. **Settings → Data → Clean Up Unreferenced Files** collects file copies after a seven-day grace period; referenced historical versions are retained. See the [knowledge contract](docs/architecture/KNOWLEDGE_IMPLEMENTATION.md).
 
 ## Interface language
 
@@ -43,7 +49,7 @@ open .build/xcode/Build/Products/Debug/Mira.app --args \
 
 切换运行模式或资料库前先退出当前 Mira。快捷键：`⌘ N` 新对话、`⌘ Return` 发送、`⌘ .` 停止、`⌘ ,` 设置。数据路径、恢复步骤和已知限制见 [开发约定](docs/engineering/DEVELOPMENT.md)。
 
-The current development library uses schema v5. Older development libraries are preserved and rejected; use a fresh directory when testing this build. In **Memories**, add a reviewed entry or save a committed user message, then edit, replace, archive, remove, or forget it. Tool-created memories stay local-only until you enable remote use in the editor. Verified reference buttons open the version actually used by a reply.
+In **Memories**, add a reviewed entry or save a committed user message, then edit, replace, archive, remove, or forget it. Tool-created memories stay local-only until you enable remote use in the editor. Verified reference buttons open the version actually used by a reply.
 
 ## 核心方向
 

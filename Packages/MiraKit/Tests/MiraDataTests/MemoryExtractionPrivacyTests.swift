@@ -79,7 +79,7 @@ struct MemoryExtractionPrivacyTests {
         _ = try fixture.store.forgetMemory(fixture.memoryID, workspaceID: nil, expectedRevision: 1, at: date(1010))
         let backup = try export(fixture.store, directory: fixture.directory, name: "resurrected-attempt")
         defer { remove(backup) }
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let request = try MemoryExtractionRequestBuilder.request(for: fixture.claim)
         let output = ModelOutput(text: "retained extraction body", toolCalls: [], finishReason: .stop)
         let requestJSON = try encode(request)
@@ -89,6 +89,7 @@ struct MemoryExtractionPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         let resurrected = try database.read { db in
             try Row.fetchOne(db, sql: "SELECT body_purged_at, request_json, output_json FROM memory_extraction_attempts WHERE id = ?", arguments: [id(fixture.claim.attemptID)])
         }
@@ -103,7 +104,7 @@ struct MemoryExtractionPrivacyTests {
         defer { remove(fixture.directory) }
         let backup = try export(fixture.store, directory: fixture.directory, name: "mismatch-" + mutation)
         defer { remove(backup) }
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let changed = try database.write { db -> Int in
             switch mutation {
             case "source":
@@ -119,6 +120,7 @@ struct MemoryExtractionPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         try expectStorageRestoreError(fixture.store, backup: backup, name: "mismatch-" + mutation + "-restored")
     }
 
@@ -128,7 +130,7 @@ struct MemoryExtractionPrivacyTests {
         defer { remove(fixture.directory) }
         let backup = try export(fixture.store, directory: fixture.directory, name: "running-" + mutation)
         defer { remove(backup) }
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let changed = try database.write { db -> Int in
             if mutation == "lease" {
                 try db.execute(sql: "UPDATE memory_extraction_jobs SET lease_id = ? WHERE id = ?", arguments: [UUID().uuidString.lowercased(), id(fixture.claim.job.id)])
@@ -138,6 +140,7 @@ struct MemoryExtractionPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         try expectStorageRestoreError(fixture.store, backup: backup, name: "running-" + mutation + "-restored")
     }
 
@@ -147,7 +150,7 @@ struct MemoryExtractionPrivacyTests {
         defer { remove(fixture.directory) }
         let backup = try export(fixture.store, directory: fixture.directory, name: "budget-" + mutation)
         defer { remove(backup) }
-        let database = try DatabaseQueue(path: backup.path)
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let changed = try database.write { db -> Int in
             if mutation == "settlement" {
                 try db.execute(sql: "UPDATE memory_extraction_attempts SET charged_tokens = 100001 WHERE id = ?", arguments: [id(fixture.claim.attemptID)])
@@ -157,6 +160,7 @@ struct MemoryExtractionPrivacyTests {
             return db.changesCount
         }
         #expect(changed == 1)
+        try resealTestBackupManifest(backup)
         try expectStorageRestoreError(fixture.store, backup: backup, name: "budget-" + mutation + "-restored")
     }
 

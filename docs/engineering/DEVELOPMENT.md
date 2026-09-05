@@ -151,9 +151,9 @@ CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](htt
 
 ### 基础备份恢复
 
-设置 → 数据 → 导出资料库备份，使用 SQLite Backup API 生成可独立使用的文件，不复制活动 WAL 主文件。导出不覆盖已有文件。
+Settings → Data → Export Library Backup creates a new `.mirabackup` directory containing `Mira.sqlite`, `manifest.json`, and the exact referenced `Blobs`. The database snapshot uses SQLite Backup API; the exporter does not copy a live WAL main file or overwrite an existing destination. Keep the entire directory together.
 
-设置 → 数据 → 恢复到新目录，选备份与父目录。恢复器先复制到自己持有的暂存目录，校验版本、结构、索引 / 约束、完整性、外键及领域值，成功后安装新目录。原备份与当前资料库均保留。During early development, only the current version 4 schema is supported. Older development libraries/backups are rejected without modifying them; use a fresh development directory. Historical-format compatibility is added only when explicitly requested.
+Settings → Data → Restore to New Directory selects a backup bundle and a parent directory. Restore verifies bounded file reads and hashes before opening an owned staged database, then checks exact schema/constraints, integrity, foreign keys, typed values, and immutable chunk/blob relationships. It installs a new directory only after validation and leaves both the original backup and current library intact. Only fresh schema v7 libraries and current-format bundles are supported; older development data is rejected intact. Use a separate development directory instead of converting old data.
 
 验证恢复后的目录可以先在隔离环境打开：
 
@@ -162,7 +162,7 @@ open .build/xcode/Build/Products/Debug/Mira.app --args \
   --data-directory /absolute/path/to/Mira-Restored-directory
 ```
 
-打开恢复目录不会自动发送请求或重放执行。凭据不会随备份恢复，已轮换或其他机器上的密钥需要重新配置。此阶段还没有托管资料文件，Blob 一致备份和一键切换资料库属于后续交付。
+Opening a restored directory does not send requests, reauthorize external files, or replay executions. Automatic memory capture is disabled in the restored copy, and uncertain extraction work is paused. Credentials are not included and must be reconfigured when unavailable. One-click switching between libraries remains deferred. The cleanup action removes only unreferenced managed files after at least seven days; retained historical source versions remain referenced, and previous backup copies are not rewritten.
 
 ## 流式 Markdown 依赖
 
