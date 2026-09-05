@@ -36,4 +36,4 @@ The user explicitly authorizes recording and skipping work that needs their part
 
 Model-purpose configuration implementation is complete in the package; final acceptance evidence for native UI, host tests, CI, real endpoints, and attended platform behavior remains pending. M3–M5 are not yet accepted. No real endpoint calls, signing, or seven-day usage have been performed for this goal.
 
-The routing increment passed 91 package tests, 16 host tests, Debug/Release builds, and 436-key language coverage. Native demo verification is in [Routing verification](ROUTING_VERIFICATION.md); CI is pending the implementation push.
+The routing increment passed 91 package tests, 16 host tests, Debug/Release builds, and 436-key language coverage. Native demo verification is in [Routing verification](ROUTING_VERIFICATION.md); The implementation commit `a5347317f26bf2b819eb1e74ee53346a72eee51d` also passed [CI 33964811120](https://github.com/alwynou/mira/actions/runs/33964811120). M3 manual memory is now in progress.

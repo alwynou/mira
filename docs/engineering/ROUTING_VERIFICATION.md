@@ -32,7 +32,7 @@ The following evidence was not established by this package run:
 
 - **Platform credentials:** an attended real Keychain lock, rejection, cleanup, and disposable credential exercise remains deferred.
 - **Native macOS:** macOS 15 runtime, Intel runtime, complete keyboard/VoiceOver flows, and real configuration saves remain unverified.
-- **CI:** no CI run is claimed here. Parent-owned CI and exact host/native verification must be recorded separately.
+- **CI:** implementation commit `a5347317f26bf2b819eb1e74ee53346a72eee51d` passed package tests, Host tests, and compiler-extracted language coverage on macos-15 / Xcode 26.3: [run 33964811120](https://github.com/alwynou/mira/actions/runs/33964811120). This does not establish native macOS 15 UI behavior.
 - **Providers:** no real OpenAI-compatible or Anthropic endpoint calls, model probing, billing behavior, or credential handling against a paid endpoint was tested.
 - **Quality datasets:** synthetic agent fixtures do not satisfy the human labeling gate for Q04–Q06 datasets or actual model evaluation. Seven-day use and memory quality remain user-dependent.
 
