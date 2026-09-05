@@ -180,7 +180,7 @@ struct ManagedBlobStoreTests {
     }
 
     @Test func canonicalTemporaryAliasIsAccepted() throws {
-        let directory = URL(fileURLWithPath: "/tmp/mira-managed-alias-(UUID().uuidString)", isDirectory: true)
+        let directory = URL(fileURLWithPath: "/tmp/mira-managed-alias-\(UUID().uuidString)", isDirectory: true)
         defer { remove(directory) }
         let store = try ManagedBlobStore(directory: directory)
         let data = Data("canonical alias".utf8)
@@ -192,24 +192,12 @@ struct ManagedBlobStoreTests {
         let directory = try testDirectory(); defer { remove(directory) }
         let first = try ManagedBlobStore(directory: directory)
         let second = try ManagedBlobStore(directory: directory)
-        let entered = DispatchSemaphore(value: 0)
-        let release = DispatchSemaphore(value: 0)
-        let finished = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
-            do {
-                try first.withMaintenanceLock {
-                    entered.signal()
-                    release.wait()
-                }
-            } catch {
-                Issue.record("The first maintenance lock unexpectedly failed: \(error)")
-            }
-            finished.signal()
+        // Distinct open file descriptions must conflict even in the same process.
+        // Nest the operations to prove overlap without relying on queue scheduling.
+        try first.withMaintenanceLock {
+            #expect(throws: MiraError.self) { try second.withMaintenanceLock {} }
+            #expect(throws: MiraError.self) { try first.withMaintenanceLock {} }
         }
-        #expect(entered.wait(timeout: .now() + 2) == .success)
-        #expect(throws: MiraError.self) { try second.withMaintenanceLock {} }
-        release.signal()
-        #expect(finished.wait(timeout: .now() + 2) == .success)
         #expect(try second.withMaintenanceLock { true })
     }
 

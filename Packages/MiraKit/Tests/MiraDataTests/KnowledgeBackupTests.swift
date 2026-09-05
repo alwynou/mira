@@ -134,7 +134,7 @@ struct KnowledgeBackupTests {
         private let sourceFile: URL
 
         init() throws {
-            root = URL(fileURLWithPath: "/Users/alwyn/dev/mira", isDirectory: true).appendingPathComponent(".mira-knowledge-backup-\(UUID().uuidString)")
+            root = FileManager.default.temporaryDirectory.appendingPathComponent("mira-knowledge-backup-\(UUID().uuidString)", isDirectory: true)
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             let library = root.appendingPathComponent("library")
             try FileManager.default.createDirectory(at: library, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -144,7 +144,7 @@ struct KnowledgeBackupTests {
 
         func importFile(_ text: String, workspaceID: WorkspaceID?, updating: KnowledgeSourceID? = nil, expectedRevision: Int? = nil) throws -> KnowledgeImportReceipt {
             try Data(text.utf8).write(to: sourceFile, options: .atomic)
-            return try store.importMarkdownFile(sourceFile, workspaceID: workspaceID, updating: updating, expectedRevision: expectedRevision, at: Date(timeIntervalSince1970: 2_000_000 + Double(UUID().uuidString.hashValue & 0xFFFF)))
+            return try store.importMarkdownFile(sourceFile, workspaceID: workspaceID, updating: updating, expectedRevision: expectedRevision, at: Date(timeIntervalSince1970: 2_000_000))
         }
 
         func firstManifestDigest(at bundle: URL) throws -> String? {
