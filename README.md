@@ -1,75 +1,64 @@
 # Mira
 
-Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个人记忆知识系统。它以本地数据为事实源，通过用户自带的模型访问能力（BYOK，Bring Your Own Key）连接多个模型服务商，让对话、行动、记忆与知识形成可追溯、可纠正的长期连续性。
+Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个人记忆知识系统。通过用户自带的模型访问能力（BYOK），它连接多个模型服务商，将对话、工具执行与长期知识组织为可追溯、可纠正的个人工作空间。
 
-项目采用原生 Swift，首发平台为 macOS，后续考虑 iOS。
+项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 当前处于产品与架构文档阶段。仓库仅包含文档，尚未创建应用工程或实现功能；以下内容描述设计基线。
+> 当前处于开发前文档阶段，工作分支为 `dev`。产品与架构基线已修订，MVP 已拆分；尚未创建应用工程或实现功能。
 
-## 文档
+## 核心方向
 
-建议先阅读产品需求，再阅读技术架构。
+Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保存来源与范围 → 在新对话中恰当召回 → 查看来源 → 编辑、撤销或遗忘。
 
-| 文档 | 内容 |
-| --- | --- |
-| [产品需求（PRD）](docs/PRD.md) | 产品定位、用户场景、核心闭环、产品不变量与待验证假设 |
-| [技术架构](docs/ARCHITECTURE.md) | 领域模型、模块依赖、Agent 运行机制、上下文与记忆、本地存储和评估策略 |
+本地数据库与文件保存规范数据，用户配置自己的 Provider 和凭据。Conversation 保存原始交流，Execution 记录如何执行，Memory 与 Knowledge 保存可复用的认知和资料；检索、摘要与索引具有明确的派生关系。
 
-两份文档共同构成当前 v1.1 基线，并区分不变量、可调整的基线默认和待验证假设。产品语义以 PRD 为准，技术契约以架构文档为准，历史由 Git 保存。独立 MVP 文档和架构决策记录（ADR）留待后续工作。
+首个 MVP 包含对话、可纠正记忆、Markdown 文件检索与最小 Agent 工具循环，首批支持 OpenAI Chat Completions 兼容接口与 Anthropic Messages。任务和提醒紧随其后；具体版本边界以 MVP 文档为准。
 
-## 产品核心
+## 阅读顺序
 
-Mira 首先要验证的价值是：一条值得记住的内容，能够被正确提取，在未来对话中恰当召回，展示来源，并在出错时由用户低成本纠正。
+| 入口 | 职责 |
+|---|---|
+| [产品总纲](docs/PRD.md) | 定位、目标用户、产品不变量与成功标准 |
+| [架构总览](docs/ARCHITECTURE.md) | 系统结构、模块依赖、架构不变量与并发所有权 |
+| [MVP 拆分](docs/MVP.md) | 首版范围、M0–M6 依赖、交付内容与退出条件 |
+| [开发约定](docs/engineering/DEVELOPMENT.md) | 平台、工具链、工程结构、直接分发与协作方式 |
+| [质量标准](docs/engineering/QUALITY.md) | Fixture、记忆评估、性能与发布门槛 |
+| [开发前评审](docs/reviews/2026-09-05-DOCUMENT_REVIEW.md) | 发现的问题、修正位置、已确认决策与待验证证据 |
+| [参考资料](docs/REFERENCES.md) | 外部借鉴边界与官方依据 |
 
-```text
-对话与资料
-    ↓
-形成有来源的长期记忆
-    ↓
-在新对话中召回并使用
-    ↓
-查看来源、编辑、撤销或遗忘
-```
+详细规则按职责维护，同一状态机、字段表或验收阈值只在一个文件中完整定义。
 
-围绕这一闭环，产品区分以下对象：
+## 领域文档
 
-- **Workspace / Conversation**：组织长期项目与具体讨论，保存原始交流。
-- **Execution**：记录 Agent 的模型调用、工具执行、权限决策、结果与失败。
-- **Memory**：保存可独立复用的长期认知，区分全局与项目范围，保留来源、时间和演化关系。
-- **Knowledge**：保存原始资料与 Markdown 笔记，通过搜索、链接和证据关联知识。
-- **Structured Data**：独立管理任务、提醒、日程、已发生事件与轻量财务记录。
-
-## 设计原则
-
-- **本地优先**：SQLite 与本地文件保存规范数据，本地浏览、编辑和搜索不依赖远程模型；不建设 Mira 自有业务后端。
-- **用户掌控模型与数据**：用户配置 Provider、模型和凭据，密钥进入系统安全存储；发送给远程模型的内容受明确策略约束。
-- **原始记录与派生内容分开**：记忆、上下文压缩和搜索索引不能静默改写原始消息或资料。
-- **记忆可追溯、可纠正**：明确要求记住的内容直接生效；清晰稳定的用户陈述可自动生效并可撤销；推断、敏感或冲突内容进入候选，不参与普通事实召回。
-- **上下文可解释**：采用少量相关记忆预取与 Agent 主动检索；临时检索内容只在当前请求有效，实际模型输入通过请求快照审计。
-- **执行可控**：工具能力、系统权限与用户策略分别管理，副作用、取消、重试和恢复具有明确边界。
-- **按需演进**：知识图谱、向量检索、高级综合、iOS、同步与独立后台进程随实际需求推进。
+| 领域 | 产品行为 | 技术设计 |
+|---|---|---|
+| 工作空间与对话 | [用户场景与交互](docs/product/WORKSPACE_AND_CONVERSATION.md) | [Runtime](docs/architecture/RUNTIME.md) |
+| 记忆与知识 | [记忆、知识与纠正体验](docs/product/MEMORY_AND_KNOWLEDGE.md) | [领域模型与处理管线](docs/architecture/MEMORY_AND_KNOWLEDGE.md) |
+| Agent、Provider 与 Context | [用户可见行为](docs/product/AGENT_AND_CONTEXT.md) | [Provider](docs/architecture/PROVIDERS.md)、[Context](docs/architecture/CONTEXT.md) |
+| 任务、提醒与其他记录 | [记录语义](docs/product/RECORDS.md) | [结构化数据与通知](docs/architecture/STRUCTURED_DATA.md) |
+| 数据与隐私 | [生命周期与隐私承诺](docs/product/DATA_AND_PRIVACY.md) | [存储与恢复](docs/architecture/DOMAIN_AND_STORAGE.md)、[平台与安全](docs/architecture/PLATFORM_AND_SECURITY.md) |
+| 本地检索 | 见记忆与知识规范 | [Search](docs/architecture/SEARCH.md) |
 
 ## 技术基线
 
-| 模块 | 规划职责 |
-| --- | --- |
-| `MiraMac` | SwiftUI / AppKit 原生界面、展示状态、依赖组装与 macOS 平台适配 |
-| `MiraCore` | 领域模型、用例、Agent Runtime、工具策略、Provider 契约、Context、Memory 与 Knowledge |
-| `MiraData` | GRDB / SQLite、迁移、事务、FTS5 搜索、内容寻址 Blob Store 与可重建投影 |
-| `MiraProviders` | 多服务商协议适配、统一流式事件、模型发现与使用量归一化 |
+规划中的 `MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例、Runtime、Context 和知识逻辑；`MiraData` 实现 GRDB / SQLite、FTS5 与 Blob 存储；`MiraProviders` 适配模型协议。
 
-`MiraCore` 定义接口，由外层模块实现适配。UI 不直接访问数据库或调用模型；Core 不依赖 Apple UI、GRDB 或平台能力的具体实现。
+Core 定义接口，外层实现适配。UI 不直接访问数据库或调用 Provider，Core 不依赖 Apple UI 或 GRDB 实现。Mira 不建设自有业务后端。
 
-Apple Calendar / Reminders 在当前设计中只接收 Mira 的单向发布，每条记录保持单一通知所有者。未来同步保留稳定身份与修订语义，当前不建设同步运行时。
-
-## 当前仓库结构
+## 仓库结构
 
 ```text
 mira/
 ├── README.md
 └── docs/
     ├── PRD.md
-    └── ARCHITECTURE.md
+    ├── ARCHITECTURE.md
+    ├── MVP.md
+    ├── REFERENCES.md
+    ├── product/
+    ├── architecture/
+    ├── engineering/
+    └── reviews/
 ```
 
-应用工程、依赖安装、构建命令与测试将在进入实现阶段后补充。
+应用工程、准确的构建 / 测试命令和执行证据在 M0 开始后补充。当前文档中的设计目标与质量门槛不代表已经实现或验证。
