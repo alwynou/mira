@@ -4,7 +4,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持用途级模型配置、Workspace / Inbox、流式 Markdown 对话、取消 / 重试、草稿恢复、请求审计与基础备份。手动记忆、纠正与遗忘、记忆工具和历史引用已有实现及确定性测试；自动提取与 Markdown 资料检索仍在开发。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md) 和 [记忆验收记录](docs/engineering/MEMORY_VERIFICATION.md)。
+> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持用途级模型配置、Workspace / Inbox、流式 Markdown 对话、取消 / 重试、草稿恢复、请求审计与基础备份。手动记忆、纠正与遗忘、记忆工具、历史引用和默认关闭的自动记忆已有实现及确定性测试；Markdown 资料检索仍在开发。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md) 和 [手动记忆验收记录](docs/engineering/MEMORY_VERIFICATION.md)、[自动记忆验收记录](docs/engineering/AUTOMATIC_MEMORY_VERIFICATION.md)。
 
 ## 构建与运行
 
@@ -19,6 +19,12 @@ open .build/xcode/Build/Products/Debug/Mira.app
 ```
 
 也可打开 `Mira.xcodeproj`，选择共享 Scheme `Mira` 运行。工程已提交；修改 `project.yml` 或文件组织后，使用 XcodeGen 2.46.0 执行 `xcodegen generate`。
+
+## Automatic memory
+
+Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Purpose Routing**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
+
+This increment uses fresh schema v6. Previous development libraries are rejected intact; use a separate disposable `--data-directory` when testing. Actual model quality and native walkthrough gates remain pending.
 
 ## Interface language
 

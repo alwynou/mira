@@ -67,6 +67,20 @@ final class MemoryModel {
         isLoading = false
     }
 
+    /// Selects a memory opened from another surface. The all-state filter is
+    /// required because extraction results can be candidates or removed rows.
+    /// The existing workspace scope remains authoritative for both list and detail loads.
+    func selectInitialMemory(_ id: MemoryID?) {
+        guard let id else { return }
+        guard selectedID != id || filter != .all || selectedDetail?.memory.id != id else { return }
+        filter = .all
+        reloadGeneration += 1
+        detailGeneration += 1
+        selectedID = id
+        selectedDetail = nil
+        error = nil
+    }
+
     func observe() async {
         await reload()
         let stream = await application.events()

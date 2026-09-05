@@ -26,6 +26,8 @@ public actor MiraApplication {
     private let tools: ToolRegistry
     private let limits: ExecutionLimits
     private let memoryApprovals: MemoryApprovalCoordinator
+    private let memoryExtraction: MemoryExtractionWorker
+    private var memoryExtractionEvents: Task<Void, Never>?
     private var expired: Set<ExecutionID> = []
     private var tasks: [ExecutionID: Task<Void, Never>] = [:]
     private var active: [ExecutionID: Execution] = [:]
@@ -43,7 +45,9 @@ public actor MiraApplication {
               limits.turnTimeout > .zero else { throw MiraError(.configuration, "Execution limits are invalid.") }
         self.store = store; self.provider = provider; self.environment = environment; self.tools = tools; self.limits = limits
         self.memoryApprovals = memoryApprovals
+        self.memoryExtraction = MemoryExtractionWorker(store: store, provider: provider, environment: environment)
         try store.recoverInterrupted(at: environment.now())
+        try store.recoverMemoryExtraction(at: environment.now())
     }
 
     public func events() -> AsyncStream<ApplicationEvent> {
@@ -56,6 +60,59 @@ public actor MiraApplication {
     }
     private func removeObserver(_ id: UUID) { observers[id] = nil }
     private func emit(_ event: ApplicationEvent) { for observer in observers.values { observer.yield(event) } }
+
+    /// Called once by composition after opening the library, independent of view lifetime.
+    public func startBackgroundWork() async {
+        guard memoryExtractionEvents == nil, !isShuttingDown else { return }
+        let stream = await memoryExtraction.events()
+        memoryExtractionEvents = Task { [weak self] in
+            for await event in stream {
+                guard !Task.isCancelled else { return }
+                await self?.receiveMemoryExtractionEvent(event)
+            }
+        }
+        await memoryExtraction.wake()
+    }
+
+    private func receiveMemoryExtractionEvent(_ event: MemoryExtractionWorkerEvent) {
+        switch event {
+        case .changed: emit(.changed)
+        // Persistent job errors appear with their source; background failures
+        // should not replace an unrelated foreground conversation's error.
+        case .failure: emit(.changed)
+        }
+    }
+
+    public func memoryCapturePolicy() throws -> MemoryCapturePolicy { try store.memoryCapturePolicy() }
+    public func memoryExtractionBudget() throws -> MemoryExtractionBudget { try store.memoryExtractionBudget(at: environment.now()) }
+    public func memoryExtractionJobs(conversationID: ConversationID? = nil, limit: Int = 50) throws -> [MemoryExtractionJob] {
+        try store.memoryExtractionJobs(conversationID: conversationID, limit: limit)
+    }
+    public func saveMemoryCapturePolicy(mode: MemoryCaptureMode, dailyTokenLimit: Int, expectedRevision: Int) async throws {
+        guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot start a new request.") }
+        let current = try store.memoryCapturePolicy()
+        guard current.revision == expectedRevision, current.revision < Int.max else { throw MiraError(.conflict, "The memory capture policy revision is out of date.") }
+        let now = environment.now()
+        let enabledAt: Date? = mode == .manualOnly ? nil : (current.mode == .manualOnly ? now : current.enabledAt)
+        let next = MemoryCapturePolicy(revision: current.revision + 1, mode: mode, dailyTokenLimit: dailyTokenLimit, enabledAt: enabledAt)
+        try store.saveMemoryCapturePolicy(next, expectedRevision: expectedRevision, at: now)
+        await memoryExtraction.cancelCurrent()
+        emit(.changed)
+        await startBackgroundWork()
+        await memoryExtraction.wake()
+    }
+    public func retryMemoryExtraction(_ id: MemoryExtractionJobID) async throws {
+        guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot start a new request.") }
+        _ = try store.retryMemoryExtraction(id, at: environment.now())
+        emit(.changed)
+        await startBackgroundWork()
+        await memoryExtraction.wake()
+    }
+
+    private func invalidateMemoryExtraction() async {
+        await memoryExtraction.cancelCurrent()
+        if !isShuttingDown { await memoryExtraction.wake() }
+    }
 
     public func library(includeArchived: Bool = false) throws -> LibrarySnapshot {
         .init(workspaces: try store.workspaces(), conversations: try store.conversations(includeArchived: includeArchived), configuration: try store.modelConfiguration())
@@ -72,39 +129,41 @@ public actor MiraApplication {
     }
     public func memoryApprovalEvents() async -> AsyncStream<[MemoryApprovalRequest]> { await memoryApprovals.events() }
     public func respondToMemoryApproval(_ id: UUID, approved: Bool) async { await memoryApprovals.respond(id, approved: approved) }
-    public func createMemory(draft: MemoryDraft, source: MemorySourceInput, operationID: UUID, replacing: MemoryID? = nil, expectedRevision: Int? = nil) throws -> MemoryWriteReceipt {
+    public func createMemory(draft: MemoryDraft, source: MemorySourceInput, operationID: UUID, replacing: MemoryID? = nil, expectedRevision: Int? = nil) async throws -> MemoryWriteReceipt {
         let receipt = try store.createMemory(draft: draft, source: source, operationID: operationID, replacing: replacing, expectedRevision: expectedRevision, at: environment.now())
-        if replacing != nil { cancelMemoryConsumers() }
+        if replacing != nil { await cancelMemoryConsumers() }
         emit(.changed)
         return receipt
     }
-    public func reviseMemory(_ id: MemoryID, workspaceID: WorkspaceID?, draft: MemoryDraft, expectedRevision: Int) throws -> Memory {
+    public func reviseMemory(_ id: MemoryID, workspaceID: WorkspaceID?, draft: MemoryDraft, expectedRevision: Int) async throws -> Memory {
         let memory = try store.reviseMemory(id, workspaceID: workspaceID, draft: draft, expectedRevision: expectedRevision, at: environment.now())
-        cancelMemoryConsumers(); emit(.changed)
+        await cancelMemoryConsumers(); emit(.changed)
         return memory
     }
-    public func changeMemoryState(_ id: MemoryID, workspaceID: WorkspaceID?, state: MemoryState, expectedRevision: Int) throws -> Memory {
+    public func changeMemoryState(_ id: MemoryID, workspaceID: WorkspaceID?, state: MemoryState, expectedRevision: Int) async throws -> Memory {
         let memory = try store.changeMemoryState(id, workspaceID: workspaceID, state: state, expectedRevision: expectedRevision, at: environment.now())
-        cancelMemoryConsumers(); emit(.changed)
+        await cancelMemoryConsumers(); emit(.changed)
         return memory
     }
-    public func forgetMemory(_ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int) throws -> MemoryForgetReceipt {
+    public func forgetMemory(_ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int) async throws -> MemoryForgetReceipt {
         let receipt = try store.forgetMemory(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: environment.now())
         for executionID in receipt.redactedExecutionIDs {
             tasks[executionID]?.cancel(); text[executionID] = nil; pendingSaves[executionID] = nil
             emit(.draft(executionID, ""))
         }
-        cancelMemoryConsumers(); emit(.changed)
+        await cancelMemoryConsumers(); emit(.changed)
         return receipt
     }
-    public func confirmMemoryReplacement(_ candidateID: MemoryID, workspaceID: WorkspaceID?, replacingCurrent currentID: MemoryID, expectedCandidateRevision: Int, expectedCurrentRevision: Int) throws -> Memory {
+    public func confirmMemoryReplacement(_ candidateID: MemoryID, workspaceID: WorkspaceID?, replacingCurrent currentID: MemoryID, expectedCandidateRevision: Int, expectedCurrentRevision: Int) async throws -> Memory {
         let memory = try store.confirmMemoryReplacement(candidateID, workspaceID: workspaceID, replacingCurrent: currentID, expectedCandidateRevision: expectedCandidateRevision, expectedCurrentRevision: expectedCurrentRevision, at: environment.now())
-        cancelMemoryConsumers(); emit(.changed)
+        await cancelMemoryConsumers(); emit(.changed)
         return memory
     }
-    private func cancelMemoryConsumers() {
+    private func cancelMemoryConsumers() async {
         // Conservative until dependency-specific live cancellation is needed. Store checks remain authoritative.
         for task in tasks.values { task.cancel() }
+        await memoryExtraction.cancelCurrent()
+        if !isShuttingDown { await memoryExtraction.wake() }
     }
     public func conversation(_ id: ConversationID) throws -> ConversationSnapshot {
         let executions = try store.executions(in: id)
@@ -128,7 +187,7 @@ public actor MiraApplication {
         try store.saveWorkspace(workspace, expectedRevision: nil); emit(.changed)
         return workspace.id
     }
-    public func updateWorkspace(_ workspace: Workspace) throws {
+    public func updateWorkspace(_ workspace: Workspace) async throws {
         guard !workspace.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               workspace.name.count <= 100, workspace.background.utf8.count <= 32_768 else { throw MiraError(.invalidInput, "Workspace name or background exceeds the limit.") }
         var updated = workspace; updated.revision += 1
@@ -138,7 +197,7 @@ public actor MiraApplication {
             let ids = Set(try store.conversations(includeArchived: true).filter { $0.workspaceID == updated.id }.map(\.id))
             for execution in active.values where ids.contains(execution.conversationID) { tasks[execution.id]?.cancel() }
         }
-        emit(.changed)
+        await invalidateMemoryExtraction(); emit(.changed)
     }
     @discardableResult
     public func createConversation(workspaceID: WorkspaceID?) throws -> ConversationID {
@@ -146,32 +205,32 @@ public actor MiraApplication {
         try store.createConversation(.init(id: id, workspaceID: workspaceID, title: "", createdAt: now, updatedAt: now))
         emit(.changed); return id
     }
-    public func archiveConversation(_ id: ConversationID) throws {
-        try store.archiveConversation(id, at: environment.now()); emit(.changed)
+    public func archiveConversation(_ id: ConversationID) async throws {
+        try store.archiveConversation(id, at: environment.now()); await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) throws {
+    public func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) async throws {
         try connection.validate()
         try store.saveConnection(connection, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.connectionID == connection.id { tasks[execution.id]?.cancel() }
-        emit(.changed)
+        await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func removeConnection(_ id: ConnectionID) throws {
+    public func removeConnection(_ id: ConnectionID) async throws {
         try store.removeConnection(id)
         for execution in active.values where execution.route.connectionID == id { tasks[execution.id]?.cancel() }
-        emit(.changed)
+        await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) throws {
+    public func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) async throws {
         try model.validate()
         try store.saveModel(model, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.modelDescriptorID == model.id { tasks[execution.id]?.cancel() }
-        emit(.changed)
+        await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func removeModel(_ id: ModelDescriptorID) throws {
+    public func removeModel(_ id: ModelDescriptorID) async throws {
         try store.removeModel(id)
         for execution in active.values where execution.route.modelDescriptorID == id { tasks[execution.id]?.cancel() }
-        emit(.changed)
+        await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func saveProbe(_ observation: ProbeObservation, for snapshot: ResolvedModelRouteSnapshot) throws {
+    public func saveProbe(_ observation: ProbeObservation, for snapshot: ResolvedModelRouteSnapshot) async throws {
         try Task.checkCancellation()
         guard observation.state == .verified || observation.state == .failed else { return }
         let configuration = try store.modelConfiguration()
@@ -185,24 +244,24 @@ public actor MiraApplication {
         else { model.toolCapability = observation.state }
         model.connectionRevision = snapshot.connectionRevision
         model.probeObservation = observation; model.revision += 1
-        try saveModel(model, expectedRevision: previousRevision)
+        try await saveModel(model, expectedRevision: previousRevision)
     }
-    public func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws {
+    public func saveRoute(_ route: ModelRoute, expectedRevision: Int?) async throws {
         try route.validate()
         try store.saveRoute(route, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.id == route.id { tasks[execution.id]?.cancel() }
-        emit(.changed)
+        await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func removeRoute(_ id: RouteID) throws {
+    public func removeRoute(_ id: RouteID) async throws {
         try store.removeRoute(id)
         for execution in active.values where execution.route.id == id { tasks[execution.id]?.cancel() }
-        emit(.changed)
+        await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func saveRouteBinding(_ binding: RouteBinding, expectedRevision: Int?) throws {
-        try store.saveRouteBinding(binding, expectedRevision: expectedRevision); emit(.changed)
+    public func saveRouteBinding(_ binding: RouteBinding, expectedRevision: Int?) async throws {
+        try store.saveRouteBinding(binding, expectedRevision: expectedRevision); await invalidateMemoryExtraction(); emit(.changed)
     }
-    public func removeRouteBinding(_ binding: RouteBinding) throws {
-        try store.removeRouteBinding(binding); emit(.changed)
+    public func removeRouteBinding(_ binding: RouteBinding) async throws {
+        try store.removeRouteBinding(binding); await invalidateMemoryExtraction(); emit(.changed)
     }
     public func exportBackup(to destination: URL) throws { try store.exportBackup(to: destination) }
     public func restoreBackup(from source: URL, to directory: URL) throws { try store.restoreBackup(from: source, to: directory) }
@@ -230,6 +289,7 @@ public actor MiraApplication {
         guard let pending = pendingSaves[id], let execution = active[id] else { return }
         try finish(execution, status: pending.status, error: pending.error)
         pendingSaves[id] = nil; clearLiveState(id); emit(.changed)
+        Task { if !isShuttingDown { await memoryExtraction.wake() } }
     }
     @discardableResult
     public func shutdown() async -> Bool {
@@ -243,6 +303,8 @@ public actor MiraApplication {
             emit(.failure(.init(.storage, "There are still replies that could not be saved, so shutdown was cancelled. Check available disk space, then retry saving.")))
             return false
         }
+        await memoryExtraction.shutdown()
+        memoryExtractionEvents?.cancel(); memoryExtractionEvents = nil
         return true
     }
 
@@ -365,6 +427,7 @@ public actor MiraApplication {
             emit(.failure(.init(.storage, "Reply has not been saved and is being kept in the current app. Check available disk space, then click \"Retry Save.\"")))
         }
         await memoryApprovals.cancel(executionID: execution.id)
+        if !isShuttingDown { await memoryExtraction.wake() }
     }
     private func expireExecution(_ id: ExecutionID) {
         guard !Task.isCancelled, tasks[id] != nil else { return }

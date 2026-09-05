@@ -10,6 +10,7 @@ struct ConversationRoot: View {
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
     @State private var showsMemories = false
+    @State private var initialMemoryID: MemoryID?
     let isDemo: Bool
 
     init(application: MiraApplication, isDemo: Bool) {
@@ -23,8 +24,10 @@ struct ConversationRoot: View {
                 .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 320)
         } detail: {
             if showsMemories {
-                MemoryRootView(application: model.application, workspaceID: model.selectedWorkspaceID, workspaces: model.workspaces) { id in
+                MemoryRootView(application: model.application, workspaceID: model.selectedWorkspaceID, workspaces: model.workspaces,
+                               initialMemoryID: initialMemoryID) { id in
                     showsMemories = false
+                    initialMemoryID = nil
                     if let conversation = model.conversations.first(where: { $0.id == id }) {
                         model.selectedWorkspaceID = conversation.workspaceID
                         model.showArchived = conversation.isArchived
@@ -32,7 +35,11 @@ struct ConversationRoot: View {
                     Task { await model.selectConversation(id) }
                 }.navigationTitle(L10n.string("Memories", locale: locale))
             } else {
-            ConversationDetail(model: model, isDemo: isDemo)
+            ConversationDetail(model: model, isDemo: isDemo,
+                               onOpenMemory: { id in
+                                   initialMemoryID = id
+                                   showsMemories = true
+                               })
                 .navigationTitle(displayedConversationTitle)
                 .toolbar {
                     ToolbarItem {
@@ -50,6 +57,9 @@ struct ConversationRoot: View {
         .frame(minWidth: 850, minHeight: 580)
         .task { await model.observe() }
         .task { await model.observeMemoryApprovals() }
+        .onChange(of: showsMemories) { _, isShowing in
+            if !isShowing { initialMemoryID = nil }
+        }
         .safeAreaInset(edge: .bottom) {
             if let request = model.memoryApprovals.first {
                 MemoryToolApprovalView(request: request, application: model.application, workspaces: model.workspaces)
@@ -147,9 +157,12 @@ struct ConversationRoot: View {
 private struct ConversationDetail: View {
     @Bindable var model: ConversationModel
     let isDemo: Bool
+    let onOpenMemory: (MemoryID) -> Void
     @Environment(\.locale) private var locale
     @FocusState private var composerFocused: Bool
     @State private var rememberedMessage: Message?
+    @State private var showsExtractionStatus = false
+    @State private var revealedMessageID: MessageID?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -165,7 +178,21 @@ private struct ConversationDetail: View {
             }
             if model.currentConversation?.isArchived == true {
                 Label("This conversation is archived", systemImage: "archivebox").foregroundStyle(.secondary).padding(20)
-            } else { composer }
+            }
+            if let conversationID = model.selectedConversationID {
+                DisclosureGroup(isExpanded: $showsExtractionStatus) {
+                    MemoryExtractionStatusView(application: model.application, conversationID: conversationID,
+                                               onOpenMemory: onOpenMemory, onOpenSource: revealMessage)
+                        .frame(minHeight: 72, maxHeight: 220)
+                        .environment(\.locale, locale)
+                } label: {
+                    Label("Memory extraction", systemImage: "sparkles")
+                        .font(.callout.weight(.semibold))
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 8)
+            }
+            if model.currentConversation?.isArchived != true { composer }
         }
         .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $rememberedMessage) { message in
@@ -221,8 +248,19 @@ private struct ConversationDetail: View {
                 }.padding(28).frame(maxWidth: 860).frame(maxWidth: .infinity)
             }
             .defaultScrollAnchor(.bottom)
+            .onChange(of: revealedMessageID) { _, messageID in
+                guard let messageID,
+                      model.messages.contains(where: { $0.id == messageID && $0.role == .user && $0.status == .committed }) else { return }
+                proxy.scrollTo("message:\(messageID.rawValue.uuidString)", anchor: .center)
+                revealedMessageID = nil
+            }
             .onChange(of: model.messages.count) { _, _ in proxy.scrollTo("transcript-end", anchor: .bottom) }
         }
+    }
+
+    private func revealMessage(_ messageID: MessageID) {
+        guard model.messages.contains(where: { $0.id == messageID && $0.role == .user && $0.status == .committed }) else { return }
+        revealedMessageID = messageID
     }
 
     private var transcriptItems: [TranscriptItem] {

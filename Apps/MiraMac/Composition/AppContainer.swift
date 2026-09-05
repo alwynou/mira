@@ -52,6 +52,7 @@ final class AppContainer {
             let memoryTools = MemoryTools.readOnly(store: store) + [MemoryRememberTool(store: store, approvals: memoryApprovals)]
             application = try MiraApplication(store: store, provider: provider, tools: ToolRegistry(memoryTools), memoryApprovals: memoryApprovals)
             startupError = nil
+            if let application { Task { await application.startBackgroundWork() } }
             if !isDemo {
                 do { maintenanceMessage = try credentialCleanup.reconcile(retaining: store.modelConfiguration().connections, credentials: credentials) }
                 catch { maintenanceMessage = MiraError.safe(error).message }

@@ -1,0 +1,45 @@
+{
+  "preferencePrefixes": [
+    "i prefer ",
+    "i like ",
+    "i love ",
+    "i dislike ",
+    "i don't like ",
+    "i avoid ",
+    "我喜欢",
+    "我偏好",
+    "我不喜欢",
+    "我避免"
+  ],
+  "constraintPrefixes": [
+    "i need ",
+    "i require ",
+    "i must ",
+    "i cannot ",
+    "i want to avoid ",
+    "我需要",
+    "我必须",
+    "我不能",
+    "我要求"
+  ],
+  "questionPrefixes": [
+    "请问",
+    "为什么",
+    "如何",
+    "是否"
+  ],
+  "hypothesisPrefixes": [
+    "假如",
+    "如果",
+    "可能",
+    "也许"
+  ],
+  "temporaryCues": [
+    "今天",
+    "暂时",
+    "最近"
+  ],
+  "negatedReportCues": [
+    "否认"
+  ]
+}

@@ -7,12 +7,14 @@ struct MemoryRootView: View {
     @State private var editorRequest: MemoryEditorRequest?
     let workspaceID: WorkspaceID?
     let workspaces: [Workspace]
+    let initialMemoryID: MemoryID?
     let onOpenConversation: (ConversationID) -> Void
 
-    init(application: MiraApplication, workspaceID: WorkspaceID?, workspaces: [Workspace], onOpenConversation: @escaping (ConversationID) -> Void) {
+    init(application: MiraApplication, workspaceID: WorkspaceID?, workspaces: [Workspace], initialMemoryID: MemoryID? = nil, onOpenConversation: @escaping (ConversationID) -> Void) {
         _model = State(initialValue: MemoryModel(application: application, workspaceID: workspaceID))
         self.workspaceID = workspaceID
         self.workspaces = workspaces
+        self.initialMemoryID = initialMemoryID
         self.onOpenConversation = onOpenConversation
     }
 
@@ -64,6 +66,10 @@ struct MemoryRootView: View {
         .task { await model.observe() }
         .task(id: model.searchIdentity) { await model.reload() }
         .task(id: model.selectedID) { await model.loadSelectedDetail() }
+        .onAppear { model.selectInitialMemory(initialMemoryID) }
+        .onChange(of: initialMemoryID) { _, newMemoryID in
+            model.selectInitialMemory(newMemoryID)
+        }
         .onChange(of: workspaceID) { _, newWorkspaceID in
             model.updateWorkspace(newWorkspaceID)
         }

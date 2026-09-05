@@ -10,7 +10,7 @@ public struct StorageDiagnostics: Sendable, Equatable {
 }
 
 /// Synchronous bounded transactions, called from the application actor, never directly from views.
-public protocol MiraStore: MemoryStore {
+public protocol MiraStore: MemoryStore, MemoryExtractionStore {
     func workspaces() throws -> [Workspace]
     func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws
     func conversations(includeArchived: Bool) throws -> [Conversation]

@@ -3,7 +3,7 @@ import Foundation
 import GRDB
 import MiraCore
 
-private func memoryTimestampMatches(_ date: Date, _ stored: Double?) -> Bool {
+func memoryTimestampMatches(_ date: Date, _ stored: Double?) -> Bool {
     guard let stored else { return false }
     let seconds = date.timeIntervalSince1970
     guard seconds.isFinite, stored.isFinite else { return false }
@@ -258,7 +258,7 @@ extension SQLiteMiraStore: MemoryStore {
                 guard current.forgottenAt == nil, current.state.rawValue != MemoryState.removed.rawValue else { throw MiraError(.conflict, "A forgotten memory cannot be revised.") }
                 guard current.revision == expectedRevision else { throw MiraError(.conflict, "The memory revision is out of date.") }
                 guard current.scope == draft.scope, current.subject == draft.subject else { throw MiraError(.invalidInput, "Memory revisions cannot change scope or subject.") }
-                let updated = Memory(id: current.id, draft: draft, scope: current.scope, subject: current.subject, state: current.state, origin: current.origin, authority: current.authority, supersededBy: current.supersededBy, revision: current.revision + 1, createdAt: current.createdAt, updatedAt: at, deletedAt: current.deletedAt, forgottenAt: current.forgottenAt)
+                let updated = Memory(id: current.id, draft: draft, scope: current.scope, subject: current.subject, state: current.state, origin: current.origin, authority: .explicitUser, supersededBy: current.supersededBy, revision: current.revision + 1, createdAt: current.createdAt, updatedAt: at, deletedAt: current.deletedAt, forgottenAt: current.forgottenAt)
                 try updateMemory(updated, in: db)
                 try insertMemoryRevision(MemoryRevision(memoryID: memoryID, revision: updated.revision, draft: draft, changedAt: at), in: db)
                 try indexMemory(updated, in: db)
@@ -282,7 +282,7 @@ extension SQLiteMiraStore: MemoryStore {
                   let previousID = try? memoryID(proposal["previous_id"] as String),
                   try successorChain(from: previousID, to: currentID, in: db) else { throw MiraError(.conflict, "The selected memory is not the proposed replacement successor.") }
 
-            let nextCandidate = Memory(id: candidate.id, draft: candidate.draft, scope: candidate.scope, subject: candidate.subject, state: .active, origin: candidate.origin, authority: candidate.authority, supersededBy: nil, revision: candidate.revision + 1, createdAt: candidate.createdAt, updatedAt: at, deletedAt: nil, forgottenAt: nil)
+            let nextCandidate = Memory(id: candidate.id, draft: candidate.draft, scope: candidate.scope, subject: candidate.subject, state: .active, origin: candidate.origin, authority: .explicitUser, supersededBy: nil, revision: candidate.revision + 1, createdAt: candidate.createdAt, updatedAt: at, deletedAt: nil, forgottenAt: nil)
             let nextCurrent = Memory(id: current.id, draft: current.draft, scope: current.scope, subject: current.subject, state: current.state, origin: current.origin, authority: current.authority, supersededBy: candidateID, revision: current.revision + 1, createdAt: current.createdAt, updatedAt: at, deletedAt: current.deletedAt, forgottenAt: current.forgottenAt)
             try updateMemory(nextCandidate, in: db)
             try updateMemory(nextCurrent, in: db)
@@ -305,7 +305,7 @@ extension SQLiteMiraStore: MemoryStore {
             if state.rawValue == MemoryState.active.rawValue, try Int.fetchOne(db, sql: "SELECT 1 FROM memory_replacements WHERE replacement_id = ? AND state = 'proposed' LIMIT 1", arguments: [memoryIDString(memoryID)]) != nil {
                 throw MiraError(.conflict, "A memory with an unresolved replacement cannot be approved.")
             }
-            let updated = Memory(id: current.id, draft: current.draft, scope: current.scope, subject: current.subject, state: state, origin: current.origin, authority: current.authority, supersededBy: current.supersededBy, revision: current.revision + 1, createdAt: current.createdAt, updatedAt: at, deletedAt: state.rawValue == MemoryState.removed.rawValue ? at : nil, forgottenAt: current.forgottenAt)
+            let updated = Memory(id: current.id, draft: current.draft, scope: current.scope, subject: current.subject, state: state, origin: current.origin, authority: state == .active ? .explicitUser : current.authority, supersededBy: current.supersededBy, revision: current.revision + 1, createdAt: current.createdAt, updatedAt: at, deletedAt: state.rawValue == MemoryState.removed.rawValue ? at : nil, forgottenAt: current.forgottenAt)
             try updateMemory(updated, in: db)
             try insertMemoryRevision(MemoryRevision(memoryID: memoryID, revision: updated.revision, draft: current.draft, changedAt: at), in: db)
             if state.rawValue == MemoryState.rejected.rawValue || state.rawValue == MemoryState.removed.rawValue { try suppressSources(for: memoryID, at: at, reason: state.rawValue, in: db) }
@@ -324,6 +324,7 @@ extension SQLiteMiraStore: MemoryStore {
             try updateMemory(updated, in: db)
             try insertMemoryRevision(MemoryRevision(memoryID: memoryID, revision: updated.revision, draft: nil, actor: "user", changedAt: at, bodyPurgedAt: at), in: db)
             try suppressSources(for: memoryID, at: at, reason: "forgotten", in: db)
+            try purgeMemoryExtractionForMemory(memoryID, at: at, in: db)
             for row in try Row.fetchAll(db, sql: "SELECT id, memory_id, source_kind, source_id, source_revision, conversation_id, excerpt, source_hash, speaker_role, created_at, body_purged_at, evidence_json FROM memory_evidence WHERE memory_id = ?", arguments: [memoryIDString(memoryID)]) {
                 let evidence = try memoryEvidence(row)
                 let purged = MemoryEvidence(id: evidence.id, memoryID: evidence.memoryID, sourceKind: evidence.sourceKind, sourceID: evidence.sourceID, sourceRevision: evidence.sourceRevision, conversationID: evidence.conversationID, excerpt: nil, sourceHash: nil, speakerRole: evidence.speakerRole, createdAt: evidence.createdAt, bodyPurgedAt: at)
@@ -339,6 +340,9 @@ extension SQLiteMiraStore: MemoryStore {
             let executionIDs = Set(try executionRows.map { try executionID($0["id"] as String) })
             for executionID in executionIDs {
                 let executionKey = executionIDString(executionID)
+                for sourceKey in try String.fetchAll(db, sql: "SELECT trigger_message_id FROM executions WHERE id = ?", arguments: [executionKey]) {
+                    try purgeMemoryExtractionForSourceMessage(MessageID(try uuid(sourceKey)), at: at, in: db)
+                }
                 try db.execute(sql: "UPDATE executions SET body_purged_at = ?, error_json = NULL, status = CASE WHEN status IN ('queued', 'waitingForModel') THEN 'interrupted' ELSE status END, updated_at = ? WHERE id = ?", arguments: [at.timeIntervalSince1970, at.timeIntervalSince1970, executionKey])
                 try db.execute(sql: "UPDATE model_attempts SET request_json = NULL, output_json = NULL, error_json = NULL, body_purged_at = ?, status = CASE WHEN status = 'prepared' THEN 'interrupted' ELSE status END, completed_at = CASE WHEN status = 'prepared' THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [at.timeIntervalSince1970, at.timeIntervalSince1970, executionKey])
                 try db.execute(sql: "UPDATE tool_invocations SET arguments_json = NULL, result_json = NULL, body_purged_at = ?, status = CASE WHEN status = 'pending' THEN 'cancelledBeforeDispatch' WHEN status = 'dispatched' THEN 'interrupted' ELSE status END, completed_at = CASE WHEN status IN ('pending', 'dispatched') THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [at.timeIntervalSince1970, at.timeIntervalSince1970, executionKey])
@@ -690,7 +694,7 @@ extension SQLiteMiraStore {
             guard let existing = try String.fetchOne(db, sql: "SELECT assertion_hash FROM memories WHERE id = ?", arguments: [memoryIDString(value.id)]) else { throw MiraError(.storage, "The memory does not exist.") }
             assertionHash = existing
         }
-        try db.execute(sql: "UPDATE memories SET state = ?, superseded_by = ?, revision = ?, updated_at = ?, deleted_at = ?, forgotten_at = ?, draft_json = ?, assertion_hash = ?, memory_json = ? WHERE id = ? AND revision = ?", arguments: [value.state.rawValue, value.supersededBy.map(memoryIDString), value.revision, value.updatedAt.timeIntervalSince1970, value.deletedAt?.timeIntervalSince1970, value.forgottenAt?.timeIntervalSince1970, value.draft.map { try encodeMemory($0) }, assertionHash, try encodeMemory(value), memoryIDString(value.id), value.revision - 1])
+        try db.execute(sql: "UPDATE memories SET state = ?, origin = ?, authority = ?, superseded_by = ?, revision = ?, updated_at = ?, deleted_at = ?, forgotten_at = ?, draft_json = ?, assertion_hash = ?, memory_json = ? WHERE id = ? AND revision = ?", arguments: [value.state.rawValue, value.origin.rawValue, value.authority.rawValue, value.supersededBy.map(memoryIDString), value.revision, value.updatedAt.timeIntervalSince1970, value.deletedAt?.timeIntervalSince1970, value.forgottenAt?.timeIntervalSince1970, value.draft.map { try encodeMemory($0) }, assertionHash, try encodeMemory(value), memoryIDString(value.id), value.revision - 1])
         guard db.changesCount == 1 else { throw MiraError(.conflict, "The memory revision is out of date.") }
     }
 
@@ -727,6 +731,13 @@ extension SQLiteMiraStore {
             guard let sourceKind = MemoryEvidenceKind(rawValue: kind), let sourceUUID = UUID(uuidString: sourceID) else { throw MiraError(.storage, "The memory suppression source is invalid.") }
             let payload = try encodeMemory(StoredMemorySuppression(sourceKind: sourceKind, sourceID: sourceUUID, reason: reason))
             try db.execute(sql: "INSERT INTO memory_source_suppressions (source_kind, source_id, suppressed_at, reason, suppression_json) VALUES (?, ?, ?, ?, ?) ON CONFLICT(source_kind, source_id) DO UPDATE SET suppressed_at = CASE WHEN CASE memory_source_suppressions.reason WHEN 'forgotten' THEN 3 WHEN 'rejected' THEN 2 ELSE 1 END >= CASE excluded.reason WHEN 'forgotten' THEN 3 WHEN 'rejected' THEN 2 ELSE 1 END THEN memory_source_suppressions.suppressed_at ELSE excluded.suppressed_at END, reason = CASE WHEN CASE memory_source_suppressions.reason WHEN 'forgotten' THEN 3 WHEN 'rejected' THEN 2 ELSE 1 END >= CASE excluded.reason WHEN 'forgotten' THEN 3 WHEN 'rejected' THEN 2 ELSE 1 END THEN memory_source_suppressions.reason ELSE excluded.reason END, suppression_json = CASE WHEN CASE memory_source_suppressions.reason WHEN 'forgotten' THEN 3 WHEN 'rejected' THEN 2 ELSE 1 END >= CASE excluded.reason WHEN 'forgotten' THEN 3 WHEN 'rejected' THEN 2 ELSE 1 END THEN memory_source_suppressions.suppression_json ELSE excluded.suppression_json END", arguments: [kind, sourceID, at.timeIntervalSince1970, reason, payload])
+            if sourceKind == .message {
+                if reason == "forgotten" {
+                    try purgeMemoryExtractionForSourceMessage(MessageID(sourceUUID), at: at, in: db)
+                } else {
+                    try suppressMemoryExtractionForSourceMessage(MessageID(sourceUUID), at: at, in: db)
+                }
+            }
         }
     }
 

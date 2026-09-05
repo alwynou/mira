@@ -8,6 +8,17 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     private var failFinalization = true
     init(_ base: any MiraStore) { self.base = base }
     func allowFinalization() { lock.withLock { failFinalization = false } }
+    func memoryCapturePolicy() throws -> MemoryCapturePolicy { try base.memoryCapturePolicy() }
+    func saveMemoryCapturePolicy(_ policy: MemoryCapturePolicy, expectedRevision: Int, at: Date) throws { try base.saveMemoryCapturePolicy(policy, expectedRevision: expectedRevision, at: at) }
+    func memoryExtractionJobs(conversationID: ConversationID?, limit: Int) throws -> [MemoryExtractionJob] { try base.memoryExtractionJobs(conversationID: conversationID, limit: limit) }
+    func memoryExtractionBudget(at: Date) throws -> MemoryExtractionBudget { try base.memoryExtractionBudget(at: at) }
+    func claimMemoryExtraction(at: Date) throws -> MemoryExtractionClaim? { try base.claimMemoryExtraction(at: at) }
+    func prepareMemoryExtraction(_ claim: MemoryExtractionClaim, request: CanonicalModelRequest, at: Date) throws -> Int { try base.prepareMemoryExtraction(claim, request: request, at: at) }
+    func markMemoryExtractionDispatched(_ claim: MemoryExtractionClaim, at: Date) throws { try base.markMemoryExtractionDispatched(claim, at: at) }
+    func completeMemoryExtraction(_ claim: MemoryExtractionClaim, output: ModelOutput, usage: TokenUsage, at: Date) throws -> MemoryExtractionJob { try base.completeMemoryExtraction(claim, output: output, usage: usage, at: at) }
+    func failMemoryExtraction(_ claim: MemoryExtractionClaim, error: MiraError, at: Date) throws { try base.failMemoryExtraction(claim, error: error, at: at) }
+    func retryMemoryExtraction(_ id: MemoryExtractionJobID, at: Date) throws -> MemoryExtractionJobID { try base.retryMemoryExtraction(id, at: at) }
+    func recoverMemoryExtraction(at: Date) throws { try base.recoverMemoryExtraction(at: at) }
     func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) throws -> MemorySearchResult { try base.memoryList(workspaceID: workspaceID, states: states, query: query, limit: limit) }
     func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) throws -> MemoryDetail { try base.memoryDetail(id, workspaceID: workspaceID) }
     func memoryCitation(_ reference: MemoryCitationReference, executionID: ExecutionID, conversationID: ConversationID) throws -> MemoryCitationDetail { try base.memoryCitation(reference, executionID: executionID, conversationID: conversationID) }

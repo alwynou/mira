@@ -34,3 +34,5 @@ Run `python3 scripts/check_language_policy.py`, the MiraKit package suite, and `
 ## Early development policy
 
 Backward compatibility is not required in this phase. Change contracts and schemas directly instead of maintaining historical formats. This increment uses a fresh version 3 library, rejects older development libraries without deleting them, and restores only current-schema backups. There are no old-language error aliases or text-based audit-message parsers. Context omissions are typed records localized only in the inspector. Request snapshots are stored only on model attempts, and tool capability uses an explicit `unknown` initial state.
+
+Automatic-memory source recognition uses `MemoryExtractionLexicon.json` as a narrow English/Chinese lexical resource exception. Its contents are evidence-recognition cues, not UI strings or prompts; validator tests mark Chinese fixtures inline.

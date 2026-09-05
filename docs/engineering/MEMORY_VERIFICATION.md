@@ -34,4 +34,4 @@ Further detail, replacement, citation, forgetting, and Chinese-screen walkthroug
 
 ## Remaining boundary
 
-Automatic extraction, persisted extraction jobs and budgets, Markdown knowledge, and complete M5 delivery remain subsequent increments. These synthetic fixtures do not establish actual model extraction quality. Human-reviewed Q04–Q06 evaluation, real endpoints, attended Keychain behavior, signing/notarization, additional platform runtime checks, and seven-day actual use remain recorded in [MVP execution](MVP_EXECUTION.md).
+This document records the manual increment. The subsequent automatic extraction, persisted job, and budget implementation is tracked in [Automatic memory verification](AUTOMATIC_MEMORY_VERIFICATION.md). Markdown knowledge and complete M5 delivery remain subsequent increments. These synthetic fixtures do not establish actual model extraction quality. Human-reviewed Q04–Q06 evaluation, real endpoints, attended Keychain behavior, signing/notarization, additional platform runtime checks, and seven-day actual use remain recorded in [MVP execution](MVP_EXECUTION.md).

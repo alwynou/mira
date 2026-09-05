@@ -1,0 +1,45 @@
+# Automatic memory implementation contract
+
+Status: active implementation increment after manual memory commit `673e545`. This document fixes the bounded v0.1 execution contract; it is not acceptance evidence.
+
+## Authorization and source
+
+The library starts in `manualOnly`. Settings offer `candidateOnly` and `automaticWithUndo`, explain the dedicated extraction route, additional model usage, memory recall, and the daily token limit, and require an explicit save to enable processing. The editable initial token limit is 10,000 per UTC day. Changing policy increments its revision; enabling sets an activation timestamp. No earlier conversation history is silently backfilled.
+
+The initial input is one committed user message created after activation, whose foreground execution subsequently completed successfully. A successful retry may supply completion while preserving the original message identity. Assistant/tool output is not evidence. Queuing happens in the same transaction as foreground completion. A job retains source identity/revision/hash, an immutable policy snapshot and policy/extractor versions, lifecycle and attempt identity; its source text is resolved from canonical storage when claimed. Workspace sources retain workspace scope and outbound restrictions. Inbox statements use global user scope only; workspace subjects are invalid without a workspace. Markdown extraction waits for owned source versions in M4.
+
+Only the configured `memoryExtraction` purpose is resolved. Conversation routes do not act as an implicit fallback. The job freezes the route and validates its connection, model, purpose binding, workspace policy, source, suppression, and policy revision before preparation, dispatch, and commit. Settings changes or suppression invalidate pending and late work.
+
+## Jobs and accounting
+
+One background job may hold a lease. New background dispatch waits for foreground executions; an already dispatched call remains independently cancellable. A claim owns a unique lease and attempt ID with a 120-second expiry. The worker uses a shorter 90-second call deadline. Source and job identities are separate from the provider request ID.
+
+The canonical extraction request uses the originating foreground execution ID as source correlation and a unique extraction attempt request ID. It is stored in the extraction attempt audit, not appended as a new foreground turn or assistant message. Its frozen route purpose is `memoryExtraction`.
+
+Preparation reserves the conservative serialized input byte estimate plus the route's maximum output tokens. Each attempt retains its own immutable route, original reservation ceiling, reservation day, dispatch marker, usage, charged amount, and terminal state. Reported usage above the reservation is charged as reported within the bounded valid counter range; it is never silently clamped down. A dispatch crossing midnight transfers an unsent reservation to the new UTC day after checking that day's capacity. Known valid usage settles the actual total; absent/invalid usage conservatively charges the reserved ceiling. A dispatched cancellation or uncertain interruption also charges the ceiling. Unsent cancellation releases its reservation. Settlement is idempotent. Prices are not invented and this token budget is not a provider billing guarantee.
+
+Unsent expired leases can return to the queue. At process startup all previous-process leases are recovered immediately: unsent claims requeue and dispatched attempts pause. A dispatched attempt whose result is unknown pauses and requires an explicit retry; reopening Mira does not automatically repeat it. Retry creates or reuses the current source/policy/extractor job identity after source and suppression checks. A new policy creates a distinct job; prior jobs and attempts retain their original authorization. Explicit retry records its own timestamp, allowing a previously eligible paused job to run after re-enabling capture or restoring a backup. This does not authorize initial backfill of earlier conversation history. Restoring a backup pauses jobs and disables automatic capture until the user explicitly enables it again.
+
+## Output and triage
+
+The output is bounded JSON with `version: 1` and at most six `items`. The item schema contains content, exact quote, kind, subject, sensitivity, inference/stability/confidence classification, and nullable validity dates. Model-supplied IDs, scopes, unknown keys, wrong types, uncommitted evidence, nonmatching excerpts, or invalid time intervals fail validation. Source input is limited to 16 KiB and output to 32 KiB; each assertion/excerpt is limited to 8 KiB.
+
+Confidence is advisory. The first automatic-active gate is deliberately conservative: only an entire, exact, direct first-person user preference or constraint matching a reviewed English/Chinese lexical rule may become active. Explicit validity dates and workspace-subject classifications remain candidates in this increment. Questions, quotation, hypothetical/temporary wording, paraphrase, inference, sensitive content, and unclear classifications require review. Other valid facts remain candidates. Missing lexical resources fail closed to review. This narrow initial gate does not establish Q04 recall or precision; human/model qualification remains deferred.
+
+The store also checks existing assertions and source decisions. The business key excludes policy/extractor versions, so upgrades do not bypass duplicates or suppression. When any active, current memory occupies the same scope/subject/kind, a new assertion becomes a candidate. This intentionally broad category barrier does not claim semantic conflict detection and creates no automatic replacement relationship; existing higher-authority facts are never replaced automatically. Sensitive candidates remain local-only. Other captured memories inherit the explicitly enabled automatic-memory disclosure policy and all source restrictions, and candidates cannot enter recall before review.
+
+Memory, Evidence, Revision, ExtractionDecision, usage/capture links, search changes, reservation settlement, and successful job state commit together. A successful provider response by itself is not a save receipt. Manual revision, approval, and confirmed replacement raise current authority to explicit user while preserving capture origin and revision history. The UI reports processing, completed, no memories extracted, review required, paused, or failed from persisted state, with undo/edit/source actions for committed memories.
+
+## Cleanup and validation
+
+Remove, reject, and forget maintain source suppression across policy/extractor versions. Forget also clears extraction request/output and decision excerpts/hashes that retain the forgotten body; body-free source IDs, decisions, accounting and job status remain. A late worker cannot recreate a purged body or overwrite a terminal decision.
+
+New persistence uses normalized columns and only the necessary immutable request/route payloads, avoiding mirrored whole-row JSON. Backup validation checks lifecycle, lease/attempt ownership, source references, disclosure provenance, budget accounting and purge propagation. Deterministic fixtures cover those boundaries separately from the deferred human-reviewed Q04–Q06 datasets and actual model runs.
+
+## Source language exception
+
+`MemoryExtractionLexicon.json` contains English and Simplified Chinese recognition cues. These are the narrow language-recognition resource exception allowed by `AGENTS.md`; they do not localize system prompts or follow the display language. Chinese test text is individually marked as an i18n fixture. The JSON response schema, system instructions, identifiers, and diagnostics remain English.
+
+## Current storage
+
+Fresh schema v6 adds normalized capture policy, extraction jobs, attempts, and decisions. Only immutable policy/route/request/output payloads use typed JSON; full row state is not duplicated. The original reserved ceiling remains after settlement so backup validation can distinguish real reported usage from conservative unknown usage. Validation checks job/attempt ownership and ordinals, immutable disclosure provenance, exact request construction, complete response decisions, historical evidence, budget settlement, and purge propagation before installing a restored library. Older development schemas are rejected intact.

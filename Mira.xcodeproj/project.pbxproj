@@ -13,6 +13,7 @@
 		1C441AC730240E409B811592 /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28A3E756EB962B0188361E5F /* MiraCore */; };
 		1D36C6B028A05C1FC1A93603 /* RendererLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */; };
 		28EECC3B307F65286511CD3E /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7414ED665B7697D8DE9FC89A /* ConversationModel.swift */; };
+		2DAF87FA6D8AE4AEAD27DFE0 /* MemoryExtractionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38F7BA3F5211ECCF6B6B8CC /* MemoryExtractionStatusView.swift */; };
 		428F1D24B591079FFFA63E38 /* ThirdPartyLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = 46B54F5A9D2A1543C991E57D /* ThirdPartyLicenses.txt */; };
 		46B8C3FF5956D7C40A0721F2 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
 		49F70C245913992C36B10EB2 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF55273DE92E33D4AE636F5 /* AppContainer.swift */; };
@@ -32,6 +33,7 @@
 		9FE81D95B7B72B1598BDCBA5 /* CredentialCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33B878F8A325859FD21031 /* CredentialCleanup.swift */; };
 		A7025808A771F4BA782FFCFF /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
 		B38C6089D06D325082314E26 /* MiraData in Frameworks */ = {isa = PBXBuildFile; productRef = EEB28E75FC8A07BD9B1491B3 /* MiraData */; };
+		B954BFD513020A24D6B72B70 /* MemorySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40BF1595EDAFC35D927D3E9 /* MemorySettingsView.swift */; };
 		BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
 		C3B2191D8745302C447AB9C6 /* MemoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03AC927AAD07459E44A6846 /* MemoryEditorView.swift */; };
 		D050E36FA0D51F69F501CB77 /* KeychainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */; };
@@ -69,7 +71,9 @@
 		9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		B05FBFB2CE9557A6F94C37FF /* MemoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryModel.swift; sourceTree = "<group>"; };
+		B38F7BA3F5211ECCF6B6B8CC /* MemoryExtractionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryExtractionStatusView.swift; sourceTree = "<group>"; };
 		C03AC927AAD07459E44A6846 /* MemoryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryEditorView.swift; sourceTree = "<group>"; };
+		C40BF1595EDAFC35D927D3E9 /* MemorySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsView.swift; sourceTree = "<group>"; };
 		CDED64867AEC6D60C7D2415C /* WorkspaceEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceEditor.swift; sourceTree = "<group>"; };
 		D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTests.swift; sourceTree = "<group>"; };
 		E80A2536843B79B7161B2B7E /* MiraKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MiraKit; path = Packages/MiraKit; sourceTree = SOURCE_ROOT; };
@@ -237,6 +241,7 @@
 				98A8C961C696CDAE5414FE68 /* MemoryCitationView.swift */,
 				385A5CB3ABD3840104BFEEB7 /* MemoryDetailPane.swift */,
 				C03AC927AAD07459E44A6846 /* MemoryEditorView.swift */,
+				B38F7BA3F5211ECCF6B6B8CC /* MemoryExtractionStatusView.swift */,
 				FF2768B837981B9C3BDAE3AD /* MemoryReplacementReviewView.swift */,
 				4739BCC21E72088E4A69A33A /* MemoryRootView.swift */,
 				3F7CC6F2F307BA7D8745123F /* MemoryToolApprovalView.swift */,
@@ -256,6 +261,7 @@
 		9408A86C4F850B8EC16B66DC /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				C40BF1595EDAFC35D927D3E9 /* MemorySettingsView.swift */,
 				9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */,
 				56185B2EBA6E158A4601D778 /* Configuration */,
 			);
@@ -466,9 +472,11 @@
 				D4249D84C50F335989738E70 /* MemoryCitationView.swift in Sources */,
 				F9AAF3D97FB1153E758F32BC /* MemoryDetailPane.swift in Sources */,
 				C3B2191D8745302C447AB9C6 /* MemoryEditorView.swift in Sources */,
+				2DAF87FA6D8AE4AEAD27DFE0 /* MemoryExtractionStatusView.swift in Sources */,
 				60C1C6D4ABC44FC268F10C08 /* MemoryModel.swift in Sources */,
 				EB8145B108D72B06C6B29343 /* MemoryReplacementReviewView.swift in Sources */,
 				E58F2574AB7B32265411CFB7 /* MemoryRootView.swift in Sources */,
+				B954BFD513020A24D6B72B70 /* MemorySettingsView.swift in Sources */,
 				4C3C1243D449397661610D77 /* MemoryToolApprovalView.swift in Sources */,
 				877A78FA00188ECFD8CBFD4F /* MiraApp.swift in Sources */,
 				097EBE7FE4859C6A04093FD1 /* ProviderConfigurationView.swift in Sources */,

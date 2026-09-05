@@ -16,7 +16,7 @@
 | M2 限额与恢复 | 每回合 20 Step / 32 Tool / 4 并行工具、Token 输出预留与完整上下文预算、活动期限、无进展检测、current v4 schema and audit-preserving backup/restore (early development; no historical format conversion) |
 | M1 配置路由 | Normalized provider connections, model descriptors, route presets, purpose bindings, scope precedence, capability validation, and immutable execution snapshots are implemented; endpoint and attended platform acceptance remain pending |
 
-The production registry now includes `memory.search`, `memory.get`, and `memory.remember`. Manual memory, exact citations, correction, and cleanup use fresh schema v5; [Memory verification](MEMORY_VERIFICATION.md) records current deterministic evidence and native limitations. Automatic extraction and Markdown knowledge remain in development. The table above retains the earlier M0–M2 scope.
+The production registry now includes `memory.search`, `memory.get`, and `memory.remember`. Manual memory, exact citations, correction, and cleanup were delivered in the v5 increment; [Memory verification](MEMORY_VERIFICATION.md) records current deterministic evidence and native limitations. Opt-in automatic extraction, leased jobs, review, usage accounting, suppression, and recovery now have deterministic acceptance; [Automatic memory verification](AUTOMATIC_MEMORY_VERIFICATION.md) records the fresh v6 increment. Markdown knowledge remains in development. The table above retains the earlier M0–M2 scope.
 
 ## 2. 实际验证
 
@@ -49,7 +49,7 @@ Current language conventions and verification are in [Localization](LOCALIZATION
 
 - 当前一个 Execution 代表一个用户回合，可包含多个 Step。每个 Attempt 在发送前保存独立 ID 与完整请求。Request snapshots are stored only on model attempts; execution-level snapshot compatibility has been removed. 每个工具提案和回执持久化，终态保持唯一。
 - 当前输入预算采用 UTF-8 字节数、协议开销与安全余量的保守估算，超预算提示新建对话，不静默截断或伪造精确 Tokenizer。
-- The current v4 schema includes normalized provider configuration, Step / Attempt / ToolInvocation, immutable execution route snapshots, and native empty conversation titles. Message 仍使用受约束的纯文本列；Typed Parts、Blob、Memory、Source 等按实际里程碑迁移加入。
+- The routing increment introduced normalized provider configuration, Step / Attempt / ToolInvocation, immutable execution route snapshots, and native empty conversation titles. Message 仍使用受约束的纯文本列；Typed Parts、Blob、Memory、Source 等按实际里程碑迁移加入。
 - Provider 请求默认 HTTPS，HTTP 仅在明确配置的 loopback 范围开放；每个请求都有不含内容的唯一标识用于取消。原生输送层拒绝重定向，凭据不进入请求快照或备份。
 - 保存失败时保留当前回复并提供“重试保存”；仍有未保存回复时普通退出会被取消。进程强制终止只能恢复最后一个已落盘检查点。
 

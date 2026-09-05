@@ -261,7 +261,7 @@ fts_*, vector_metadata（未来）
 
 ### 3.3.1 Current provider configuration
 
-The current v4 implementation stores provider configuration in normalized tables:
+Provider configuration is stored in normalized tables:
 
 - `provider_connections`: endpoint, provider kind, credential reference/version, loopback policy, and connection revision.
 - `model_descriptors`: connection identity/revision, model ID, optional context window, independently tracked text/tool capabilities, and probe observation.
@@ -359,10 +359,12 @@ Before enqueue, resolution selects the first matching binding in explicit, conve
 > **参考设计标注｜SQLite / GRDB**  
 > 采用 SQLite 作为应用文件格式、事务与 WAL；采用 GRDB 管理 Swift 数据访问、迁移与观察。规范数据和可重建索引分开，大型文件不塞入数据库正文列。
 
-## Current development schema (v4)
+## Current development schema (v6)
 
 The current bootstrap uses `m0_core` and `m2_execution_audit` to create the library and execution audit tables. Fresh v4 libraries also contain normalized provider configuration tables and immutable route snapshots on execution attempts. Empty conversation titles are stored directly as untitled; the first user message assigns the preview title. Step sequences begin at 1, Attempt identities match their execution and Step, and tool proposals preserve provider IDs and model order. Requests are stored only in `model_attempts`; preparing an Attempt is the single path that persists a request before network dispatch. ModelOutput and its proposal batch commit atomically; each ToolResult has one CAS-protected terminal receipt.
 
 Interrupted execution recovery closes prepared Attempts and tools without replaying requests or writes. Unscheduled tools become cancelledBeforeDispatch; dispatched tools with unknown results become interrupted.
 
-This is early development: only fresh libraries and the current v4 schema are accepted. Historical v1/v2 conversion is intentionally removed. Current backups are copied into owned staging, checked against the exact schema, constraints, migration list, integrity, foreign keys, typed rows, and ModelOutput/tool pairing, then installed in a new directory. The source backup is not changed. SQLite Backup API remains the supported export path.
+The v5 manual-memory increment added Memory, Evidence, revisions, replacements, source suppression, recall/capture usage, local search, and execution history dependencies. The current fresh v6 schema also stores capture policy, extraction jobs with immutable authorization, leased attempts with independent routes and budgets, and extraction decisions. Body purge markers cover the audit objects affected by forgetting. [Automatic memory implementation](AUTOMATIC_MEMORY_IMPLEMENTATION.md) owns the background processing and recovery contract. [Memory implementation](MEMORY_IMPLEMENTATION.md) owns those contracts and historical citation rules.
+
+This is early development: only fresh libraries and the current v6 schema are accepted. Historical conversion is intentionally removed. Current backups are copied into owned staging, checked against the exact schema, constraints, migration list, integrity, foreign keys, typed rows, and ModelOutput/tool pairing, then installed in a new directory. The source backup is not changed. SQLite Backup API remains the supported export path.

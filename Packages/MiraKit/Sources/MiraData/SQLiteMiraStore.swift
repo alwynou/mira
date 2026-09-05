@@ -12,7 +12,7 @@ private struct PreparedMemoryContext {
 /// The store deliberately exposes synchronous operations.  Its owning application
 /// actor is responsible for keeping these bounded operations off view tasks.
 public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
-    private static let currentSchemaVersion = 5
+    private static let currentSchemaVersion = 6
     private static let baseMigrationName = "m0_core"
     private static let auditMigrationName = "m2_execution_audit"
     let pool: DatabasePool
@@ -511,6 +511,9 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                     let messageStatus: MessageStatus = status == .completed ? .committed : .interrupted
                     try db.execute(sql: "INSERT INTO messages (id, conversation_id, execution_id, sequence, role, status, text, created_at) VALUES (?, ?, ?, ?, 'assistant', ?, ?, ?)", arguments: [id(assistantMessageID), id(conversationID), id(executionID), sequence, messageStatus.rawValue, text, at.timeIntervalSince1970])
                 }
+                if status == .completed {
+                    try enqueueMemoryExtractionIfEligible(executionID: executionID, at: at, in: db)
+                }
                 try db.execute(sql: "DELETE FROM assistant_drafts WHERE execution_id = ?", arguments: [id(executionID)])
                 try db.execute(sql: "UPDATE conversations SET updated_at = ?, revision = revision + 1 WHERE id = ?", arguments: [at.timeIntervalSince1970, execution["conversation_id"] as String])
                 return true
@@ -639,6 +642,10 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                     guard foreign.isEmpty else { throw MiraError(.storage, "Backup foreign-key validation failed.") }
                     try Self.validateContents(in: db)
                 }
+                try sourcePool.write { db in
+                    try prepareRestoredMemoryExtractionState(in: db, at: Date())
+                    try Self.validateContents(in: db)
+                }
                 let destination = try DatabaseQueue(path: destinationPath)
                 try sourcePool.backup(to: destination)
             }
@@ -657,7 +664,8 @@ extension SQLiteMiraStore {
         migrator.registerMigration(auditMigrationName) { db in
             try createAuditSchema(in: db)
             try createMemorySchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 5")
+            try createMemoryExtractionSchema(in: db)
+            try db.execute(sql: "PRAGMA user_version = 6")
         }
         return migrator
     }
@@ -666,7 +674,7 @@ extension SQLiteMiraStore {
         var migrator = DatabaseMigrator()
         migrator.registerMigration(baseMigrationName) { db in
             try createSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 5")
+            try db.execute(sql: "PRAGMA user_version = 6")
         }
         return migrator
     }
@@ -1273,7 +1281,7 @@ extension SQLiteMiraStore {
         let expectedMigrations = [baseMigrationName, auditMigrationName]
         guard migrations == expectedMigrations else { throw MiraError(.unsupported, "The backup contains unknown database migrations.") }
         let tables = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
-        let expectedTables: Set<String> = ["grdb_migrations", "workspaces", "conversations", "provider_connections", "model_descriptors", "model_routes", "route_bindings", "executions", "messages", "assistant_drafts", "execution_steps", "model_attempts", "tool_invocations", "memories", "memory_evidence", "memory_revisions", "memory_replacements", "memory_operation_receipts", "memory_source_suppressions", "memory_usages", "execution_history_dependencies", "memory_search", "memory_search_config", "memory_search_data", "memory_search_docsize", "memory_search_idx", "memory_search_content"]
+        let expectedTables: Set<String> = ["grdb_migrations", "workspaces", "conversations", "provider_connections", "model_descriptors", "model_routes", "route_bindings", "executions", "messages", "assistant_drafts", "execution_steps", "model_attempts", "tool_invocations", "memories", "memory_evidence", "memory_revisions", "memory_replacements", "memory_operation_receipts", "memory_source_suppressions", "memory_usages", "execution_history_dependencies", "memory_capture_policy", "memory_extraction_jobs", "memory_extraction_attempts", "memory_extraction_decisions", "memory_search", "memory_search_config", "memory_search_data", "memory_search_docsize", "memory_search_idx", "memory_search_content"]
         guard Set(tables) == expectedTables else { throw MiraError(.unsupported, "The backup contains an unknown database schema.") }
         let unexpectedProgrammableObjects = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type IN ('trigger', 'view')")
         guard unexpectedProgrammableObjects.isEmpty else { throw MiraError(.unsupported, "The backup contains unknown database objects.") }
@@ -1330,6 +1338,7 @@ extension SQLiteMiraStore {
                 guard invocation.attemptID == storedAttemptID, validDispatchState else { throw MiraError(.storage, "The database tool call association is invalid.") }
         }
         try validateMemoryContents(in: db)
+        try Self.validateMemoryExtractionContents(in: db)
         // Ensure the structural constraints that are not represented by a
         // Codable payload also hold for hand-edited files.
         guard try Int.fetchOne(db, sql: "SELECT 1 FROM execution_steps WHERE sequence < 0 OR state NOT IN ('running','waitingForTool','completed','failed','interrupted') LIMIT 1") == nil,
