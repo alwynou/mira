@@ -33,6 +33,7 @@ final class ConversationModel {
     var isSending = false
     var inspectionRevision = 0
     var showArchived = false
+    var memoryApprovals: [MemoryApprovalRequest] = []
     @ObservationIgnored let application: MiraApplication
     @ObservationIgnored private var selectionGeneration = 0
 
@@ -58,6 +59,12 @@ final class ConversationModel {
             }
         }
     }
+    func observeMemoryApprovals() async {
+        for await requests in await application.memoryApprovalEvents() {
+            if Task.isCancelled { return }
+            memoryApprovals = requests
+        }
+    }
     func reload() async {
         do {
             let library = try await application.library(includeArchived: true)
@@ -69,6 +76,10 @@ final class ConversationModel {
         selectionGeneration += 1; selectedConversationID = id
         messages = []; executions = []; drafts = [:]; pendingSaveIDs = []; composer = ""; selectedRouteID = nil
         guard let id else { return }
+        if let conversation = conversations.first(where: { $0.id == id }) {
+            selectedWorkspaceID = conversation.workspaceID
+            showArchived = conversation.isArchived
+        }
         do { try await loadConversation(id) } catch { self.error = MiraError.safe(error) }
     }
     private func loadConversation(_ id: ConversationID) async throws {

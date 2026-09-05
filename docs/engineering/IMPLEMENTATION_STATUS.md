@@ -16,7 +16,7 @@
 | M2 限额与恢复 | 每回合 20 Step / 32 Tool / 4 并行工具、Token 输出预留与完整上下文预算、活动期限、无进展检测、current v4 schema and audit-preserving backup/restore (early development; no historical format conversion) |
 | M1 配置路由 | Normalized provider connections, model descriptors, route presets, purpose bindings, scope precedence, capability validation, and immutable execution snapshots are implemented; endpoint and attended platform acceptance remain pending |
 
-当前生产工具注册表为空。记忆保存与 Markdown 资料导入检索按 M3 / M4 开放；M2 的工具调用通过独立合成 Fixture 验收，不在真实对话中假装执行尚未实现的业务工具。
+The production registry now includes `memory.search`, `memory.get`, and `memory.remember`. Manual memory, exact citations, correction, and cleanup use fresh schema v5; [Memory verification](MEMORY_VERIFICATION.md) records current deterministic evidence and native limitations. Automatic extraction and Markdown knowledge remain in development. The table above retains the earlier M0–M2 scope.
 
 ## 2. 实际验证
 
@@ -43,7 +43,7 @@ Current language conventions and verification are in [Localization](LOCALIZATION
 3. Keychain write-ahead cleanup registration and post-commit/startup cleanup retries are implemented. The `MiraHostTests` target contains isolated platform fixtures; attended Keychain lock / rejection / cleanup-failure exercises and real credentials remain pending.
 4. 完成多窗口与键盘 / 可访问性流程验收、恢复目录切换体验、实际端点兼容性记录。当前费用尚未估算。
 
-这些条目使 M1 保持“进行中”。M2 不依赖真实密钥的工具管线与审计基础已并行实现；生产注册表继续为空，实际业务工具按后续领域验收再开放。
+这些条目使 M1 保持“进行中”。M2 不依赖真实密钥的工具管线与审计基础已实现；当前记忆工具与 M3 增量的验收状态见上述记忆记录。
 
 ## 4. 实现范围与设计目标的关系
 

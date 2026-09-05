@@ -25,6 +25,7 @@ public actor MiraApplication {
     private let environment: RuntimeEnvironment
     private let tools: ToolRegistry
     private let limits: ExecutionLimits
+    private let memoryApprovals: MemoryApprovalCoordinator
     private var expired: Set<ExecutionID> = []
     private var tasks: [ExecutionID: Task<Void, Never>] = [:]
     private var active: [ExecutionID: Execution] = [:]
@@ -36,11 +37,12 @@ public actor MiraApplication {
     private var isShuttingDown = false
     private var observers: [UUID: AsyncStream<ApplicationEvent>.Continuation] = [:]
 
-    public init(store: any MiraStore, provider: any ModelProviderPort, environment: RuntimeEnvironment = .init(), tools: ToolRegistry = .empty, limits: ExecutionLimits = .init()) throws {
+    public init(store: any MiraStore, provider: any ModelProviderPort, environment: RuntimeEnvironment = .init(), tools: ToolRegistry = .empty, limits: ExecutionLimits = .init(), memoryApprovals: MemoryApprovalCoordinator = .init()) throws {
         guard limits.maxSteps > 0, limits.maxSteps <= 20, limits.maxToolCalls > 0, limits.maxToolCalls <= 32,
               limits.maxParallelTools > 0, limits.maxParallelTools <= 4, limits.maxReservedOutputTokens > 0,
               limits.turnTimeout > .zero else { throw MiraError(.configuration, "Execution limits are invalid.") }
         self.store = store; self.provider = provider; self.environment = environment; self.tools = tools; self.limits = limits
+        self.memoryApprovals = memoryApprovals
         try store.recoverInterrupted(at: environment.now())
     }
 
@@ -57,6 +59,52 @@ public actor MiraApplication {
 
     public func library(includeArchived: Bool = false) throws -> LibrarySnapshot {
         .init(workspaces: try store.workspaces(), conversations: try store.conversations(includeArchived: includeArchived), configuration: try store.modelConfiguration())
+    }
+
+    public func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int = 100) throws -> MemorySearchResult {
+        try store.memoryList(workspaceID: workspaceID, states: states, query: query, limit: limit)
+    }
+    public func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) throws -> MemoryDetail {
+        try store.memoryDetail(id, workspaceID: workspaceID)
+    }
+    public func memoryCitation(_ reference: MemoryCitationReference, executionID: ExecutionID, conversationID: ConversationID) throws -> MemoryCitationDetail {
+        try store.memoryCitation(reference, executionID: executionID, conversationID: conversationID)
+    }
+    public func memoryApprovalEvents() async -> AsyncStream<[MemoryApprovalRequest]> { await memoryApprovals.events() }
+    public func respondToMemoryApproval(_ id: UUID, approved: Bool) async { await memoryApprovals.respond(id, approved: approved) }
+    public func createMemory(draft: MemoryDraft, source: MemorySourceInput, operationID: UUID, replacing: MemoryID? = nil, expectedRevision: Int? = nil) throws -> MemoryWriteReceipt {
+        let receipt = try store.createMemory(draft: draft, source: source, operationID: operationID, replacing: replacing, expectedRevision: expectedRevision, at: environment.now())
+        if replacing != nil { cancelMemoryConsumers() }
+        emit(.changed)
+        return receipt
+    }
+    public func reviseMemory(_ id: MemoryID, workspaceID: WorkspaceID?, draft: MemoryDraft, expectedRevision: Int) throws -> Memory {
+        let memory = try store.reviseMemory(id, workspaceID: workspaceID, draft: draft, expectedRevision: expectedRevision, at: environment.now())
+        cancelMemoryConsumers(); emit(.changed)
+        return memory
+    }
+    public func changeMemoryState(_ id: MemoryID, workspaceID: WorkspaceID?, state: MemoryState, expectedRevision: Int) throws -> Memory {
+        let memory = try store.changeMemoryState(id, workspaceID: workspaceID, state: state, expectedRevision: expectedRevision, at: environment.now())
+        cancelMemoryConsumers(); emit(.changed)
+        return memory
+    }
+    public func forgetMemory(_ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int) throws -> MemoryForgetReceipt {
+        let receipt = try store.forgetMemory(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: environment.now())
+        for executionID in receipt.redactedExecutionIDs {
+            tasks[executionID]?.cancel(); text[executionID] = nil; pendingSaves[executionID] = nil
+            emit(.draft(executionID, ""))
+        }
+        cancelMemoryConsumers(); emit(.changed)
+        return receipt
+    }
+    public func confirmMemoryReplacement(_ candidateID: MemoryID, workspaceID: WorkspaceID?, replacingCurrent currentID: MemoryID, expectedCandidateRevision: Int, expectedCurrentRevision: Int) throws -> Memory {
+        let memory = try store.confirmMemoryReplacement(candidateID, workspaceID: workspaceID, replacingCurrent: currentID, expectedCandidateRevision: expectedCandidateRevision, expectedCurrentRevision: expectedCurrentRevision, at: environment.now())
+        cancelMemoryConsumers(); emit(.changed)
+        return memory
+    }
+    private func cancelMemoryConsumers() {
+        // Conservative until dependency-specific live cancellation is needed. Store checks remain authoritative.
+        for task in tasks.values { task.cancel() }
     }
     public func conversation(_ id: ConversationID) throws -> ConversationSnapshot {
         let executions = try store.executions(in: id)
@@ -253,9 +301,15 @@ public actor MiraApplication {
                 try Task.checkCancellation()
                 guard reservedOutput <= limits.maxReservedOutputTokens - execution.route.maxOutputTokens else { throw MiraError(.outputLimit, "Output reservation for this turn reached its limit. Start a new conversation.") }
                 reservedOutput += execution.route.maxOutputTokens
-                let base = try ContextBuilder.build(execution: execution, conversations: store.conversations(includeArchived: true),
-                                                    workspaces: store.workspaces(), messages: store.messages(in: execution.conversationID),
-                                                    executions: store.executions(in: execution.conversationID))
+                let conversations = try store.conversations(includeArchived: true)
+                let messages = try store.messages(in: execution.conversationID)
+                let workspaceID = conversations.first { $0.id == execution.conversationID }?.workspaceID
+                let query = messages.first { $0.id == execution.triggerMessageID }?.text ?? ""
+                let recalled = try store.recallMemories(query: query, workspaceID: workspaceID, connectionID: execution.route.connectionID, limit: 6, at: environment.now())
+                let base = try ContextBuilder.build(execution: execution, conversations: conversations,
+                                                    workspaces: store.workspaces(), messages: messages,
+                                                    executions: store.executions(in: execution.conversationID),
+                                                    memories: recalled.memories, suppressedMessageIDs: store.suppressedMemorySourceMessageIDs(), at: environment.now())
                 let attemptID = environment.uuid()
                 let request = try ContextBuilder.extending(base, requestID: attemptID, exchanges: exchanges, tools: definitions, route: execution.route)
                 try validateDispatch(execution)
@@ -310,6 +364,7 @@ public actor MiraApplication {
             pendingSaves[execution.id] = .init(status: finalStatus, error: finalError)
             emit(.failure(.init(.storage, "Reply has not been saved and is being kept in the current app. Check available disk space, then click \"Retry Save.\"")))
         }
+        await memoryApprovals.cancel(executionID: execution.id)
     }
     private func expireExecution(_ id: ExecutionID) {
         guard !Task.isCancelled, tasks[id] != nil else { return }
@@ -359,6 +414,7 @@ public actor MiraApplication {
     }
 
     private func validateDispatch(_ execution: Execution) throws {
+        try store.validateMemoryUsage(executionID: execution.id, at: environment.now())
         try Task.checkCancellation()
         let configuration = try store.modelConfiguration()
         guard let current = try? configuration.snapshot(routeID: execution.route.id, purpose: execution.route.purpose, selection: execution.route.selectionSource), current == execution.route else { throw MiraError(.connectionChanged, "Model configuration changed. Send the request again.") }

@@ -8,6 +8,20 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     private var failFinalization = true
     init(_ base: any MiraStore) { self.base = base }
     func allowFinalization() { lock.withLock { failFinalization = false } }
+    func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) throws -> MemorySearchResult { try base.memoryList(workspaceID: workspaceID, states: states, query: query, limit: limit) }
+    func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) throws -> MemoryDetail { try base.memoryDetail(id, workspaceID: workspaceID) }
+    func memoryCitation(_ reference: MemoryCitationReference, executionID: ExecutionID, conversationID: ConversationID) throws -> MemoryCitationDetail { try base.memoryCitation(reference, executionID: executionID, conversationID: conversationID) }
+    func createMemory(draft: MemoryDraft, source: MemorySourceInput, operationID: UUID, replacing: MemoryID?, expectedRevision: Int?, at: Date) throws -> MemoryWriteReceipt { try base.createMemory(draft: draft, source: source, operationID: operationID, replacing: replacing, expectedRevision: expectedRevision, at: at) }
+    func rememberMemory(draft: MemoryDraft, quote: String, invocationID: UUID, at: Date) throws -> MemoryWriteReceipt { try base.rememberMemory(draft: draft, quote: quote, invocationID: invocationID, at: at) }
+    func reviseMemory(_ id: MemoryID, workspaceID: WorkspaceID?, draft: MemoryDraft, expectedRevision: Int, at: Date) throws -> Memory { try base.reviseMemory(id, workspaceID: workspaceID, draft: draft, expectedRevision: expectedRevision, at: at) }
+    func changeMemoryState(_ id: MemoryID, workspaceID: WorkspaceID?, state: MemoryState, expectedRevision: Int, at: Date) throws -> Memory { try base.changeMemoryState(id, workspaceID: workspaceID, state: state, expectedRevision: expectedRevision, at: at) }
+    func forgetMemory(_ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int, at: Date) throws -> MemoryForgetReceipt { try base.forgetMemory(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: at) }
+    func confirmMemoryReplacement(_ candidateID: MemoryID, workspaceID: WorkspaceID?, replacingCurrent currentID: MemoryID, expectedCandidateRevision: Int, expectedCurrentRevision: Int, at: Date) throws -> Memory { try base.confirmMemoryReplacement(candidateID, workspaceID: workspaceID, replacingCurrent: currentID, expectedCandidateRevision: expectedCandidateRevision, expectedCurrentRevision: expectedCurrentRevision, at: at) }
+    func recallMemories(query: String, workspaceID: WorkspaceID?, connectionID: ConnectionID, limit: Int, at: Date) throws -> MemorySearchResult { try base.recallMemories(query: query, workspaceID: workspaceID, connectionID: connectionID, limit: limit, at: at) }
+    func recallMemory(_ id: MemoryID, workspaceID: WorkspaceID?, connectionID: ConnectionID, at: Date) throws -> Memory { try base.recallMemory(id, workspaceID: workspaceID, connectionID: connectionID, at: at) }
+    func recordMemoryUsage(_ usages: [MemoryUsage], executionID: ExecutionID, at: Date) throws { try base.recordMemoryUsage(usages, executionID: executionID, at: at) }
+    func validateMemoryUsage(executionID: ExecutionID, at: Date) throws { try base.validateMemoryUsage(executionID: executionID, at: at) }
+    func suppressedMemorySourceMessageIDs() throws -> Set<MessageID> { try base.suppressedMemorySourceMessageIDs() }
     func workspaces() throws -> [Workspace] { try base.workspaces() }
     func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws { try base.saveWorkspace(workspace, expectedRevision: expectedRevision) }
     func conversations(includeArchived: Bool) throws -> [Conversation] { try base.conversations(includeArchived: includeArchived) }

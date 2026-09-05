@@ -24,6 +24,8 @@ The user explicitly authorizes recording and skipping work that needs their part
 | Human-reviewed Q04–Q06 datasets and actual model evaluation | User labeling/review and access to the selected model; the evaluation must use the agreed Q04–Q06 datasets | Deferred; agent-created synthetic fixtures are engineering evidence and do not satisfy the human labeling gate |
 | Seven-day actual use and real-model memory quality | User participation and elapsed real usage | Deferred; deterministic synthetic evaluations remain engineering evidence only |
 | macOS 15 native UI and additional CPU runtime acceptance | Matching machines or an available attended test environment | Deferred; CI compilation and hostless tests remain in scope |
+| Default remote reuse of tool-captured memories | A separate user decision on disclosure defaults | Deferred; tool captures are local-only, and the Memory editor exposes an explicit remote-use choice |
+| Remaining manual memory native walkthrough | Recovery of the native automation service, or an attended UI session | Deferred after repeated SkyComputerUseService crashes; manual creation/save was verified, remaining flows are recorded in Memory verification |
 
 ## Implementation defaults
 
@@ -34,6 +36,8 @@ The user explicitly authorizes recording and skipping work that needs their part
 
 ## Current increment
 
-Model-purpose configuration implementation is complete in the package; final acceptance evidence for native UI, host tests, CI, real endpoints, and attended platform behavior remains pending. M3–M5 are not yet accepted. No real endpoint calls, signing, or seven-day usage have been performed for this goal.
+Model-purpose configuration has passed deterministic package, host, native demo, and CI checks. Real endpoints and attended platform behavior remain deferred. M3–M5 are not yet accepted. No real endpoint calls, signing, or seven-day usage have been performed for this goal.
 
 The routing increment passed 91 package tests, 16 host tests, Debug/Release builds, and 436-key language coverage. Native demo verification is in [Routing verification](ROUTING_VERIFICATION.md); The implementation commit `a5347317f26bf2b819eb1e74ee53346a72eee51d` also passed [CI 33964811120](https://github.com/alwynou/mira/actions/runs/33964811120). M3 manual memory is now in progress.
+
+The manual memory increment includes local management, explicit remember approval, scoped recall, exact historical citations, competing replacement review, and transitive cleanup of derived execution history. Parent acceptance passed 142 package tests, 16 host tests, Debug/Release builds, and bilingual string coverage. Native creation/save passed; remaining native flows are deferred after automation service crashes. See [Memory verification](MEMORY_VERIFICATION.md). Automatic extraction and Markdown knowledge remain the next increments.

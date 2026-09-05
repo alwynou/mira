@@ -69,6 +69,22 @@
         }
       }
     },
+    "A competing replacement is awaiting review. Reject it or review the current successor before approving.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A competing replacement is awaiting review. Reject it or review the current successor before approving."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "竞争性的替代记忆正在等待审核。请先拒绝它，或查看当前后继记忆，再进行批准。"
+          }
+        }
+      }
+    },
     "A dispatched tool call cannot be marked as cancelled before dispatch.": {
       "extractionState": "manual",
       "localizations": {
@@ -82,6 +98,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "已调度的工具调用不能标记为未调度取消。"
+          }
+        }
+      }
+    },
+    "A forgotten memory cannot be recreated by reusing an operation.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A forgotten memory cannot be recreated by reusing an operation."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已遗忘的记忆不能通过重复使用操作重新创建。"
+          }
+        }
+      }
+    },
+    "A forgotten memory cannot be revised.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A forgotten memory cannot be revised."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已遗忘的记忆不能修订。"
+          }
+        }
+      }
+    },
+    "A forgotten memory cannot change state.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A forgotten memory cannot change state."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已遗忘的记忆不能更改状态。"
+          }
+        }
+      }
+    },
+    "A memory refers to a missing workspace.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A memory refers to a missing workspace."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆引用了不存在的工作空间。"
+          }
+        }
+      }
+    },
+    "A memory with an unresolved replacement cannot be approved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A memory with an unresolved replacement cannot be approved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有未解决替代项的记忆不能批准。"
           }
         }
       }
@@ -119,6 +215,22 @@
         }
       }
     },
+    "A new memory cannot include an expected revision.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new memory cannot include an expected revision."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新记忆不能包含预期修订版本。"
+          }
+        }
+      }
+    },
     "A new user message exists after this execution.": {
       "extractionState": "manual",
       "localizations": {
@@ -132,6 +244,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "该执行之后已经有新的用户消息。"
+          }
+        }
+      }
+    },
+    "A project memory requires a workspace scope.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A project memory requires a workspace scope."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目记忆需要工作空间范围。"
+          }
+        }
+      }
+    },
+    "A replacement must keep the same memory scope and subject.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A replacement must keep the same memory scope and subject."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替代记忆必须保留相同的记忆范围和主体。"
+          }
+        }
+      }
+    },
+    "A replacement must use distinct memories.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A replacement must use distinct memories."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换必须使用不同的记忆。"
           }
         }
       }
@@ -180,6 +340,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "API 密钥"
+          }
+        }
+      }
+    },
+    "Active": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有效"
           }
         }
       }
@@ -298,6 +474,38 @@
         }
       }
     },
+    "Agent inference": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent inference"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "助手推断"
+          }
+        }
+      }
+    },
+    "All states": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All states"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有状态"
+          }
+        }
+      }
+    },
     "Allow explicitly configured local HTTP services": {
       "localizations": {
         "en": {
@@ -327,6 +535,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "允许发送此工作空间的对话和背景到模型服务"
+          }
+        }
+      }
+    },
+    "Allow use in remote model requests": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow use in remote model requests"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许用于远程模型请求"
+          }
+        }
+      }
+    },
+    "Allowed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allowed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许"
           }
         }
       }
@@ -381,6 +621,38 @@
         }
       }
     },
+    "Approve": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approve"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批准"
+          }
+        }
+      }
+    },
+    "Archive": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档"
+          }
+        }
+      }
+    },
     "Archive conversation": {
       "extractionState": "manual",
       "localizations": {
@@ -415,6 +687,22 @@
         }
       }
     },
+    "Assistant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistant"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "助手"
+          }
+        }
+      }
+    },
     "At most two replies can be processed at once. Wait for generation or saving to finish.": {
       "extractionState": "manual",
       "localizations": {
@@ -428,6 +716,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "最多同时处理两段回复，请等待生成或保存完成。"
+          }
+        }
+      }
+    },
+    "Audit content cleared after forgetting a memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audit content cleared after forgetting a memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遗忘记忆后，审计内容已清除"
+          }
+        }
+      }
+    },
+    "Authority": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authority"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "权威级别"
           }
         }
       }
@@ -661,6 +981,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "执行前取消"
+          }
+        }
+      }
+    },
+    "Candidate body unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Candidate body unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候选记忆正文不可用。"
           }
         }
       }
@@ -916,6 +1252,22 @@
         }
       }
     },
+    "Checking memory reference…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking memory reference…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在核对记忆引用…"
+          }
+        }
+      }
+    },
     "Chinese (Simplified)": {
       "extractionState": "manual",
       "localizations": {
@@ -979,6 +1331,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "为每种用途和范围选择路由。不绑定范围时，会从父级解析继承；如果未配置路由，系统会报告未配置。"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "Committed message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Committed message"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已提交的消息"
+          }
+        }
+      }
+    },
+    "Compare the proposed memory with the current version before confirming the replacement.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare the proposed memory with the current version before confirming the replacement."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认替代前，请比较提议的记忆与当前版本。"
+          }
+        }
+      }
+    },
+    "Competing replacement created and needs review before it becomes active.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Competing replacement created and needs review before it becomes active."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "竞争性的替代记忆已创建，在生效前需要审核。"
           }
         }
       }
@@ -1117,6 +1533,22 @@
         }
       }
     },
+    "Confirm replacement": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm replacement"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认替代"
+          }
+        }
+      }
+    },
     "Confirm that this model supports streaming text conversations.": {
       "extractionState": "manual",
       "localizations": {
@@ -1130,6 +1562,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "请确认此模型支持流式文本对话。"
+          }
+        }
+      }
+    },
+    "Confirmed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已确认"
           }
         }
       }
@@ -1295,6 +1743,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "连接"
+          }
+        }
+      }
+    },
+    "Constraint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Constraint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "约束"
+          }
+        }
+      }
+    },
+    "Context": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背景"
           }
         }
       }
@@ -1531,6 +2011,22 @@
         }
       }
     },
+    "Create a memory from a committed user message or add one manually.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a memory from a committed user message or add one manually."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从已提交的用户消息创建记忆，或手动添加记忆。"
+          }
+        }
+      }
+    },
     "Create a named route preset to use a model.": {
       "localizations": {
         "en": {
@@ -1564,6 +2060,22 @@
         }
       }
     },
+    "Creates a new current memory and keeps the previous version in history. A competing replacement needs review.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creates a new current memory and keeps the previous version in history. A competing replacement needs review."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会创建一条新的当前记忆，并在历史记录中保留之前的版本。竞争性的替代记忆需要审核。"
+          }
+        }
+      }
+    },
     "Current authorization or connection changed; the tool was not executed.": {
       "extractionState": "manual",
       "localizations": {
@@ -1581,6 +2093,38 @@
         }
       }
     },
+    "Current body unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current body unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前记忆正文不可用。"
+          }
+        }
+      }
+    },
+    "Current memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前记忆"
+          }
+        }
+      }
+    },
     "Data": {
       "extractionState": "manual",
       "localizations": {
@@ -1594,6 +2138,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "数据"
+          }
+        }
+      }
+    },
+    "Decision": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decision"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "决定"
           }
         }
       }
@@ -1663,6 +2223,38 @@
         }
       }
     },
+    "Deny": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deny"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拒绝"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "详细信息"
+          }
+        }
+      }
+    },
     "Directory": {
       "extractionState": "manual",
       "localizations": {
@@ -1693,6 +2285,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示语言"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
           }
         }
       }
@@ -1778,6 +2386,22 @@
         }
       }
     },
+    "Edit memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑记忆"
+          }
+        }
+      }
+    },
     "Edit workspace": {
       "extractionState": "manual",
       "localizations": {
@@ -1842,6 +2466,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "请填写 Base URL，不要包含 chat/completions 或 messages。"
+          }
+        }
+      }
+    },
+    "Enter a memory search query of at most 500 characters.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a memory search query of at most 500 characters."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入不超过 500 个字符的记忆搜索查询。"
           }
         }
       }
@@ -2012,6 +2652,54 @@
         }
       }
     },
+    "Evidence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Evidence"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "证据"
+          }
+        }
+      }
+    },
+    "Evidence body is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Evidence body is unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "证据正文不可用。"
+          }
+        }
+      }
+    },
+    "Evidence excerpt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Evidence excerpt"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "证据摘录"
+          }
+        }
+      }
+    },
     "Execution %@: failed, cancelled, or interrupted replies are excluded from history.": {
       "extractionState": "manual",
       "localizations": {
@@ -2113,6 +2801,22 @@
         }
       }
     },
+    "Explicit user": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explicit user"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户明确指定"
+          }
+        }
+      }
+    },
     "Export Library Backup…": {
       "extractionState": "manual",
       "localizations": {
@@ -2147,6 +2851,22 @@
         }
       }
     },
+    "Fact": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fact"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "事实"
+          }
+        }
+      }
+    },
     "Failed": {
       "localizations": {
         "en": {
@@ -2176,6 +2896,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "请先配置大于 128 Token 的上下文窗口，再检测能力。"
+          }
+        }
+      }
+    },
+    "Forget memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遗忘记忆"
+          }
+        }
+      }
+    },
+    "Forget this memory?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget this memory?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要遗忘这条记忆吗？"
+          }
+        }
+      }
+    },
+    "Forget…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遗忘……"
+          }
+        }
+      }
+    },
+    "Forgotten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forgotten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已遗忘"
           }
         }
       }
@@ -2263,6 +3047,38 @@
         }
       }
     },
+    "Global memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全局记忆"
+          }
+        }
+      }
+    },
+    "Goal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goal"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标"
+          }
+        }
+      }
+    },
     "I confirm this model supports streaming text conversations": {
       "extractionState": "manual",
       "localizations": {
@@ -2327,6 +3143,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "未完成"
+          }
+        }
+      }
+    },
+    "Inferred": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inferred"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推断"
           }
         }
       }
@@ -2415,6 +3247,22 @@
         }
       }
     },
+    "Keep an exact excerpt from the original message, up to 8 KiB.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep an exact excerpt from the original message, up to 8 KiB."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留原始消息中的精确摘录，最多 8 KiB。"
+          }
+        }
+      }
+    },
     "Keychain could not remove the old credentials.": {
       "extractionState": "manual",
       "localizations": {
@@ -2461,6 +3309,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "钥匙串凭据"
+          }
+        }
+      }
+    },
+    "Kind": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kind"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "类型"
           }
         }
       }
@@ -2531,6 +3395,22 @@
         }
       }
     },
+    "Learning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Learning"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "经验"
+          }
+        }
+      }
+    },
     "Limit exceeded": {
       "extractionState": "manual",
       "localizations": {
@@ -2544,6 +3424,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "超出限额"
+          }
+        }
+      }
+    },
+    "Loading current version": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading current version"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载当前版本"
+          }
+        }
+      }
+    },
+    "Loading memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载记忆"
           }
         }
       }
@@ -2633,6 +3545,54 @@
         }
       }
     },
+    "Local only": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local only"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅限本机"
+          }
+        }
+      }
+    },
+    "Manual entry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual entry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动输入"
+          }
+        }
+      }
+    },
+    "Manual memory evidence is required and must be at most 8 KiB.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual memory evidence is required and must be at most 8 KiB."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动记忆证据为必填，且不得超过 8 KiB。"
+          }
+        }
+      }
+    },
     "Maximum Output (tokens)": {
       "extractionState": "manual",
       "localizations": {
@@ -2698,6 +3658,54 @@
         }
       }
     },
+    "May be included in future model requests": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "May be included in future model requests"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可能包含在未来的模型请求中"
+          }
+        }
+      }
+    },
+    "Memories": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memories"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆"
+          }
+        }
+      }
+    },
+    "Memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆"
+          }
+        }
+      }
+    },
     "Memory Extraction": {
       "localizations": {
         "en": {
@@ -2710,6 +3718,358 @@
           "stringUnit": {
             "state": "translated",
             "value": "记忆提取"
+          }
+        }
+      }
+    },
+    "Memory approval timed out.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory approval timed out."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆审批已超时。"
+          }
+        }
+      }
+    },
+    "Memory arguments are incomplete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory arguments are incomplete."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆参数不完整。"
+          }
+        }
+      }
+    },
+    "Memory body unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory body unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆正文不可用"
+          }
+        }
+      }
+    },
+    "Memory content": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory content"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆内容"
+          }
+        }
+      }
+    },
+    "Memory content is required and must be at most 8 KiB.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory content is required and must be at most 8 KiB."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆内容为必填，且不得超过 8 KiB。"
+          }
+        }
+      }
+    },
+    "Memory content is stored locally. Scope controls where it may be recalled; remote use is a separate disclosure choice.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory content is stored locally. Scope controls where it may be recalled; remote use is a separate disclosure choice."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆内容存储在本机。范围决定记忆可在哪里召回；远程使用是单独的披露选项。"
+          }
+        }
+      }
+    },
+    "Memory content was forgotten and is no longer available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory content was forgotten and is no longer available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该记忆已被遗忘，正文不再可用。"
+          }
+        }
+      }
+    },
+    "Memory evidence excerpt is required and must be short.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory evidence excerpt is required and must be short."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据摘录为必填且必须较短。"
+          }
+        }
+      }
+    },
+    "Memory evidence must be an exact excerpt from the source message.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory evidence must be an exact excerpt from the source message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据必须是源消息中的精确摘录。"
+          }
+        }
+      }
+    },
+    "Memory evidence must be an exact excerpt of at most 8 KiB from the original message.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory evidence must be an exact excerpt of at most 8 KiB from the original message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据必须是原始消息中不超过 8 KiB 的精确摘录。"
+          }
+        }
+      }
+    },
+    "Memory evidence must cite a committed user message.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory evidence must cite a committed user message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据必须引用已提交的用户消息。"
+          }
+        }
+      }
+    },
+    "Memory intent configuration is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory intent configuration is unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆意图配置不可用。"
+          }
+        }
+      }
+    },
+    "Memory operation incomplete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory operation incomplete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆操作未完成"
+          }
+        }
+      }
+    },
+    "Memory reference": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory reference"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆引用"
+          }
+        }
+      }
+    },
+    "Memory reference unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory reference unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆引用不可用"
+          }
+        }
+      }
+    },
+    "Memory result limit must be positive.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory result limit must be positive."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆结果数量限制必须为正数。"
+          }
+        }
+      }
+    },
+    "Memory revisions cannot change scope or subject.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory revisions cannot change scope or subject."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆修订不能更改范围或主体。"
+          }
+        }
+      }
+    },
+    "Memory scope and sensitivity are required.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory scope and sensitivity are required."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆范围和敏感度为必填项。"
+          }
+        }
+      }
+    },
+    "Memory search query is too long.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory search query is too long."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆搜索查询过长。"
+          }
+        }
+      }
+    },
+    "Memory state": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory state"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆状态"
+          }
+        }
+      }
+    },
+    "Memory validity must end after it starts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory validity must end after it starts."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆有效期结束时间必须晚于开始时间。"
+          }
+        }
+      }
+    },
+    "Memory · revision %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory · revision %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆 · 版本 %lld"
           }
         }
       }
@@ -3028,6 +4388,22 @@
         }
       }
     },
+    "Needs review": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs review"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要审核"
+          }
+        }
+      }
+    },
     "New API Key (leave blank to keep)": {
       "localizations": {
         "en": {
@@ -3057,6 +4433,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "新对话"
+          }
+        }
+      }
+    },
+    "New memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建记忆"
           }
         }
       }
@@ -3176,6 +4568,22 @@
         }
       }
     },
+    "No memories": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No memories"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有记忆"
+          }
+        }
+      }
+    },
     "No model configured": {
       "extractionState": "manual",
       "localizations": {
@@ -3205,6 +4613,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "未配置提供商连接。"
+          }
+        }
+      }
+    },
+    "Not allowed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not allowed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不允许"
           }
         }
       }
@@ -3239,6 +4663,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "好"
+          }
+        }
+      }
+    },
+    "Observed user": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observed user"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观察到的用户"
+          }
+        }
+      }
+    },
+    "Observed user statement": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observed user statement"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观察到的用户陈述"
+          }
+        }
+      }
+    },
+    "Only a committed user message can be used as memory evidence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only a committed user message can be used as memory evidence."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只有已提交的用户消息可以用作记忆证据。"
           }
         }
       }
@@ -3310,6 +4782,22 @@
         }
       }
     },
+    "Open conversation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open conversation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开对话"
+          }
+        }
+      }
+    },
     "OpenAI Chat Completions Compatible": {
       "localizations": {
         "en": {
@@ -3373,6 +4861,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "整理思路、讨论项目，或提出一个问题。\n选择模型后，写下第一条消息。"
+          }
+        }
+      }
+    },
+    "Origin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Origin"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源"
+          }
+        }
+      }
+    },
+    "Original user excerpt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original user excerpt"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原始用户摘录"
           }
         }
       }
@@ -3461,6 +4981,54 @@
         }
       }
     },
+    "Preference": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preference"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "偏好"
+          }
+        }
+      }
+    },
+    "Previous %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原记忆 %@"
+          }
+        }
+      }
+    },
+    "Procedure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Procedure"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流程"
+          }
+        }
+      }
+    },
     "Project background": {
       "extractionState": "manual",
       "localizations": {
@@ -3474,6 +5042,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "项目背景"
+          }
+        }
+      }
+    },
+    "Proposed memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proposed memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提议的记忆"
           }
         }
       }
@@ -3592,6 +5176,102 @@
         }
       }
     },
+    "Reject": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reject"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拒绝"
+          }
+        }
+      }
+    },
+    "Reject candidate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reject candidate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拒绝候选记忆"
+          }
+        }
+      }
+    },
+    "Rejected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rejected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已拒绝"
+          }
+        }
+      }
+    },
+    "Reload review": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload review"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新加载审核"
+          }
+        }
+      }
+    },
+    "Remember this message…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remember this message…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记住这条消息……"
+          }
+        }
+      }
+    },
+    "Remote use": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote use"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "远程使用"
+          }
+        }
+      }
+    },
     "Remove": {
       "localizations": {
         "en": {
@@ -3624,6 +5304,22 @@
         }
       }
     },
+    "Removed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已移除"
+          }
+        }
+      }
+    },
     "Removing a connection also removes its model descriptors, routes, and purpose bindings.": {
       "localizations": {
         "en": {
@@ -3636,6 +5332,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "移除连接也会移除其模型描述、路由和用途绑定。"
+          }
+        }
+      }
+    },
+    "Replace memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换记忆"
+          }
+        }
+      }
+    },
+    "Replacement %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replacement %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替代记忆 %@"
+          }
+        }
+      }
+    },
+    "Replacement history": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replacement history"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替代历史"
+          }
+        }
+      }
+    },
+    "Reply content cleared after forgetting a memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply content cleared after forgetting a memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遗忘记忆后，回复内容已清除"
           }
         }
       }
@@ -3775,6 +5535,38 @@
         }
       }
     },
+    "Restore": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复"
+          }
+        }
+      }
+    },
+    "Restore for review": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore for review"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复以供审核"
+          }
+        }
+      }
+    },
     "Restore to New Directory…": {
       "extractionState": "manual",
       "localizations": {
@@ -3872,6 +5664,150 @@
           "stringUnit": {
             "state": "translated",
             "value": "重试保存"
+          }
+        }
+      }
+    },
+    "Review its content, evidence, and lifecycle here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review its content, evidence, and lifecycle here."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此查看其内容、证据和生命周期。"
+          }
+        }
+      }
+    },
+    "Review memory request": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review memory request"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看记忆请求"
+          }
+        }
+      }
+    },
+    "Review replacement": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review replacement"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "审核替代记忆"
+          }
+        }
+      }
+    },
+    "Revision": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本"
+          }
+        }
+      }
+    },
+    "Revision %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修订 %@"
+          }
+        }
+      }
+    },
+    "Revision %lld used in this reply": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision %lld used in this reply"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此回复使用的版本 %lld"
+          }
+        }
+      }
+    },
+    "Revision body was cleared after forgetting this memory.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision body was cleared after forgetting this memory."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遗忘这条记忆后，修订正文已被清除。"
+          }
+        }
+      }
+    },
+    "Revision content unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision content unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修订内容不可用。"
+          }
+        }
+      }
+    },
+    "Revisions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revisions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修订记录"
           }
         }
       }
@@ -4039,6 +5975,38 @@
         }
       }
     },
+    "Save memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存记忆"
+          }
+        }
+      }
+    },
+    "Save revision": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save revision"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存修订"
+          }
+        }
+      }
+    },
     "Scope": {
       "localizations": {
         "en": {
@@ -4055,6 +6023,22 @@
         }
       }
     },
+    "Search memories": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search memories"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索记忆"
+          }
+        }
+      }
+    },
     "Select a connection": {
       "localizations": {
         "en": {
@@ -4067,6 +6051,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "选择连接"
+          }
+        }
+      }
+    },
+    "Select a memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择一条记忆"
           }
         }
       }
@@ -4150,6 +6150,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "发送到所选模型服务 · ⌘ Return 发送"
+          }
+        }
+      }
+    },
+    "Sensitive": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensitive"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敏感"
+          }
+        }
+      }
+    },
+    "Sensitive memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensitive memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敏感记忆"
+          }
+        }
+      }
+    },
+    "Sensitivity": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensitivity"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "敏感度"
           }
         }
       }
@@ -4256,6 +6304,38 @@
         }
       }
     },
+    "Set valid from": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set valid from"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置有效开始时间"
+          }
+        }
+      }
+    },
+    "Set valid until": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set valid until"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置有效结束时间"
+          }
+        }
+      }
+    },
     "Settings": {
       "extractionState": "manual",
       "localizations": {
@@ -4303,6 +6383,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示归档对话"
+          }
+        }
+      }
+    },
+    "Showing the first 100 results. Refine your search to see more.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing the first 100 results. Refine your search to see more."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在显示前 100 条结果。请细化搜索以查看更多内容。"
+          }
+        }
+      }
+    },
+    "Source revision %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source revision %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源修订 %@"
+          }
+        }
+      }
+    },
+    "Source: committed user message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: committed user message"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源：已提交的用户消息"
+          }
+        }
+      }
+    },
+    "Standard": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通"
           }
         }
       }
@@ -4405,6 +6549,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "已停止，工具尚未执行。"
+          }
+        }
+      }
+    },
+    "Subject": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主体"
+          }
+        }
+      }
+    },
+    "Superseded by %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Superseded by %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已被 %@ 替代"
           }
         }
       }
@@ -4590,6 +6766,22 @@
         }
       }
     },
+    "The assistant proposes saving this memory. Review its content, source, and scope before allowing it.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The assistant proposes saving this memory. Review its content, source, and scope before allowing it."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "助手建议保存这条记忆。请在允许前查看其内容、来源和范围。"
+          }
+        }
+      }
+    },
     "The attempt index for a new step is invalid.": {
       "extractionState": "manual",
       "localizations": {
@@ -4726,6 +6918,54 @@
         }
       }
     },
+    "The candidate and current memory have different scopes. Reload review or reject this candidate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The candidate and current memory have different scopes. Reload review or reject this candidate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候选记忆与当前记忆的范围不同。请重新加载审核，或拒绝此候选记忆。"
+          }
+        }
+      }
+    },
+    "The candidate and current memory have different subjects. Reload review or reject this candidate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The candidate and current memory have different subjects. Reload review or reject this candidate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候选记忆与当前记忆的主体不同。请重新加载审核，或拒绝此候选记忆。"
+          }
+        }
+      }
+    },
+    "The captured memory is no longer available for this execution.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The captured memory is no longer available for this execution."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "捕获的记忆不再可用于此执行。"
+          }
+        }
+      }
+    },
     "The connection changed. Test results did not overwrite the new configuration.": {
       "extractionState": "manual",
       "localizations": {
@@ -4823,6 +7063,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "凭据清理记录版本不受支持。"
+          }
+        }
+      }
+    },
+    "The current memory is no longer available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current memory is no longer available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前记忆已不可用。"
+          }
+        }
+      }
+    },
+    "The current user message no longer authorizes this memory.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current user message no longer authorizes this memory."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前用户消息已不再授权此记忆。"
+          }
+        }
+      }
+    },
+    "The current version is unavailable. Reload review or reject this candidate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current version is unavailable. Reload review or reject this candidate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前版本不可用。请重新加载审核，或拒绝此候选记忆。"
           }
         }
       }
@@ -4929,6 +7217,38 @@
         }
       }
     },
+    "The database purged attempt marker is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The database purged attempt marker is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据库中的模型尝试清除标记无效。"
+          }
+        }
+      }
+    },
+    "The database purged draft marker is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The database purged draft marker is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资料库已清除草稿标记无效。"
+          }
+        }
+      }
+    },
     "The database request contents are invalid.": {
       "extractionState": "manual",
       "localizations": {
@@ -5014,6 +7334,22 @@
         }
       }
     },
+    "The execution body has been purged or the execution has already finished.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The execution body has been purged or the execution has already finished."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行正文已清除，或执行已完成。"
+          }
+        }
+      }
+    },
     "The execution does not exist.": {
       "extractionState": "manual",
       "localizations": {
@@ -5065,6 +7401,22 @@
         }
       }
     },
+    "The execution history dependency is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The execution history dependency is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行历史依赖无效。"
+          }
+        }
+      }
+    },
     "The execution is no longer waiting.": {
       "extractionState": "manual",
       "localizations": {
@@ -5094,6 +7446,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "执行路由快照无效。"
+          }
+        }
+      }
+    },
+    "The execution step body has been purged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The execution step body has been purged."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行步骤正文已清除。"
           }
         }
       }
@@ -5149,6 +7517,22 @@
         }
       }
     },
+    "The execution trigger message is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The execution trigger message is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行触发消息无效。"
+          }
+        }
+      }
+    },
     "The execution was interrupted.": {
       "extractionState": "manual",
       "localizations": {
@@ -5183,6 +7567,70 @@
         }
       }
     },
+    "The forgotten memory still contains a body.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The forgotten memory still contains a body."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已忘记的记忆仍包含正文。"
+          }
+        }
+      }
+    },
+    "The history execution dependency is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The history execution dependency is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史执行依赖无效。"
+          }
+        }
+      }
+    },
+    "The history message execution reference is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The history message execution reference is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史消息执行引用无效。"
+          }
+        }
+      }
+    },
+    "The history message reference is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The history message reference is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史消息引用无效。"
+          }
+        }
+      }
+    },
     "The library is not open.": {
       "localizations": {
         "en": {
@@ -5195,6 +7643,838 @@
           "stringUnit": {
             "state": "translated",
             "value": "库尚未打开。"
+          }
+        }
+      }
+    },
+    "The manual memory source ID is already bound to different or purged content.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The manual memory source ID is already bound to different or purged content."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动记忆源 ID 已绑定到不同内容或已清除的内容。"
+          }
+        }
+      }
+    },
+    "The memory and its revisions will be cleared. Original user messages remain visible in conversation history. Linked generated replies and audit bodies will be cleared.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory and its revisions will be cleared. Original user messages remain visible in conversation history. Linked generated replies and audit bodies will be cleared."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这条记忆及其修订记录将被清除。原始用户消息仍会显示在对话历史中。关联的生成回复和审计正文将被清除。"
+          }
+        }
+      }
+    },
+    "The memory contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆内容不一致。"
+          }
+        }
+      }
+    },
+    "The memory context reference is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory context reference is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆上下文引用无效。"
+          }
+        }
+      }
+    },
+    "The memory context references disagree.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory context references disagree."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆上下文引用不一致。"
+          }
+        }
+      }
+    },
+    "The memory deletion state is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory deletion state is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆删除状态无效。"
+          }
+        }
+      }
+    },
+    "The memory disclosure policy does not match the reviewed content.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory disclosure policy does not match the reviewed content."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆披露策略与已审核内容不匹配。"
+          }
+        }
+      }
+    },
+    "The memory does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆不存在。"
+          }
+        }
+      }
+    },
+    "The memory draft scope or subject is inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory draft scope or subject is inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆草稿的范围或主体不一致。"
+          }
+        }
+      }
+    },
+    "The memory draft scope, subject, or assertion hash is inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory draft scope, subject, or assertion hash is inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆草稿的范围、主体或断言哈希不一致。"
+          }
+        }
+      }
+    },
+    "The memory evidence contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory evidence contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据内容不一致。"
+          }
+        }
+      }
+    },
+    "The memory evidence purge marker is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory evidence purge marker is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据清除标记无效。"
+          }
+        }
+      }
+    },
+    "The memory evidence source is outside its workspace scope.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory evidence source is outside its workspace scope."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据源不在其工作空间范围内。"
+          }
+        }
+      }
+    },
+    "The memory evidence source message is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory evidence source message is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆证据源消息无效。"
+          }
+        }
+      }
+    },
+    "The memory has already been forgotten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory has already been forgotten."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆已经遗忘。"
+          }
+        }
+      }
+    },
+    "The memory identifier is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory identifier is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆标识无效。"
+          }
+        }
+      }
+    },
+    "The memory identity points to missing data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory identity points to missing data."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆标识指向的数据不存在。"
+          }
+        }
+      }
+    },
+    "The memory is no longer authorized for this execution.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory is no longer authorized for this execution."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆已不再获此执行授权。"
+          }
+        }
+      }
+    },
+    "The memory is not available for recall.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory is not available for recall."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆不可用于召回。"
+          }
+        }
+      }
+    },
+    "The memory operation ID was already used with different content.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory operation ID was already used with different content."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该记忆操作 ID 已用于不同内容。"
+          }
+        }
+      }
+    },
+    "The memory operation receipt is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory operation receipt is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆操作回执无效。"
+          }
+        }
+      }
+    },
+    "The memory operation receipt points to missing data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory operation receipt points to missing data."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆操作回执指向的数据不存在。"
+          }
+        }
+      }
+    },
+    "The memory proposal changed after authorization.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory proposal changed after authorization."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提案在授权后发生了变化。"
+          }
+        }
+      }
+    },
+    "The memory proposal does not contain a valid scope value.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory proposal does not contain a valid scope value."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提案不包含有效的范围值。"
+          }
+        }
+      }
+    },
+    "The memory proposal does not contain a valid sensitivity value.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory proposal does not contain a valid sensitivity value."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提案不包含有效的敏感性值。"
+          }
+        }
+      }
+    },
+    "The memory proposal does not match the reviewed content.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory proposal does not match the reviewed content."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提案与已审核内容不匹配。"
+          }
+        }
+      }
+    },
+    "The memory proposal is no longer active.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory proposal is no longer active."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提案已不再有效。"
+          }
+        }
+      }
+    },
+    "The memory proposal was not dispatched.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory proposal was not dispatched."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提案尚未发送。"
+          }
+        }
+      }
+    },
+    "The memory replacement contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory replacement contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆替代内容不一致。"
+          }
+        }
+      }
+    },
+    "The memory replacement state is out of date.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory replacement state is out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆替换状态已过期。"
+          }
+        }
+      }
+    },
+    "The memory revision contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory revision contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆修订内容不一致。"
+          }
+        }
+      }
+    },
+    "The memory revision is no longer available for this execution.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory revision is no longer available for this execution."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆修订版本不再可用于此执行。"
+          }
+        }
+      }
+    },
+    "The memory revision is out of date for this execution.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory revision is out of date for this execution."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该执行使用的记忆修订号已过期。"
+          }
+        }
+      }
+    },
+    "The memory revision is out of date.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory revision is out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆修订已过期。"
+          }
+        }
+      }
+    },
+    "The memory revision scope or subject is inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory revision scope or subject is inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆修订范围或主题不一致。"
+          }
+        }
+      }
+    },
+    "The memory save was not approved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory save was not approved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆保存未获批准。"
+          }
+        }
+      }
+    },
+    "The memory scope does not match the reviewed content.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory scope does not match the reviewed content."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆范围与已审核内容不匹配。"
+          }
+        }
+      }
+    },
+    "The memory scope is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory scope is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆范围无效。"
+          }
+        }
+      }
+    },
+    "The memory source fields do not match its evidence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory source fields do not match its evidence."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆源字段与其证据不匹配。"
+          }
+        }
+      }
+    },
+    "The memory source suppression is missing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory source suppression is missing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少记忆源抑制记录。"
+          }
+        }
+      }
+    },
+    "The memory suppression record is inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory suppression record is inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆抑制记录不一致。"
+          }
+        }
+      }
+    },
+    "The memory suppression record is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory suppression record is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆抑制记录无效。"
+          }
+        }
+      }
+    },
+    "The memory suppression source is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory suppression source is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆抑制源无效。"
+          }
+        }
+      }
+    },
+    "The memory to replace does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory to replace does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要替换的记忆不存在。"
+          }
+        }
+      }
+    },
+    "The memory to replace is no longer available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory to replace is no longer available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要替换的记忆已不可用。"
+          }
+        }
+      }
+    },
+    "The memory tool context is no longer authorized.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory tool context is no longer authorized."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆工具上下文已不再获得授权。"
+          }
+        }
+      }
+    },
+    "The memory tool invocation arguments are missing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory tool invocation arguments are missing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆工具调用参数缺失。"
+          }
+        }
+      }
+    },
+    "The memory tool invocation does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory tool invocation does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆工具调用不存在。"
+          }
+        }
+      }
+    },
+    "The memory tool invocation is no longer authorized.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory tool invocation is no longer authorized."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆工具调用已不再获得授权。"
+          }
+        }
+      }
+    },
+    "The memory usage record is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory usage record is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆使用记录无效。"
+          }
+        }
+      }
+    },
+    "The memory usage revision is out of date.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory usage revision is out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆使用修订已过期。"
+          }
+        }
+      }
+    },
+    "The memory usage revisions disagree.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory usage revisions disagree."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆使用修订号不一致。"
           }
         }
       }
@@ -5229,6 +8509,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "模型尝试不存在。"
+          }
+        }
+      }
+    },
+    "The model attempt has already finished or its body was purged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model attempt has already finished or its body was purged."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型尝试已完成，或其正文已清除。"
           }
         }
       }
@@ -5463,6 +8759,22 @@
         }
       }
     },
+    "The previous memory is no longer the current active version. Reload review or reject this candidate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous memory is no longer the current active version. Reload review or reject this candidate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "之前的记忆已不再是当前有效版本。请重新加载审核，或拒绝此候选记忆。"
+          }
+        }
+      }
+    },
     "The previous model output has not been submitted.": {
       "extractionState": "manual",
       "localizations": {
@@ -5645,6 +8957,22 @@
         }
       }
     },
+    "The provider model no longer exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider model no longer exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商模型已不存在。"
+          }
+        }
+      }
+    },
     "The provider rejected the request.": {
       "extractionState": "manual",
       "localizations": {
@@ -5679,6 +9007,38 @@
         }
       }
     },
+    "The provider route changed before the memory could be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider route changed before the memory could be saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存记忆前提供商路由已发生变化。"
+          }
+        }
+      }
+    },
+    "The provider route no longer exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider route no longer exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商路由已不存在。"
+          }
+        }
+      }
+    },
     "The provider stream exceeded its size limit.": {
       "extractionState": "manual",
       "localizations": {
@@ -5692,6 +9052,182 @@
           "stringUnit": {
             "state": "translated",
             "value": "服务流超出了大小限制。"
+          }
+        }
+      }
+    },
+    "The purged execution still contains an error body.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purged execution still contains an error body."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已清除的执行仍包含错误正文。"
+          }
+        }
+      }
+    },
+    "The purged message still contains a body.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purged message still contains a body."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已清除的消息仍包含正文。"
+          }
+        }
+      }
+    },
+    "The purged model attempt still contains a body.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purged model attempt still contains a body."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已清除的模型尝试仍包含正文。"
+          }
+        }
+      }
+    },
+    "The purged tool result has an invalid completion state.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purged tool result has an invalid completion state."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已清除的工具结果完成状态无效."
+          }
+        }
+      }
+    },
+    "The purged tool result still contains a body.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purged tool result still contains a body."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已清除的工具结果仍包含正文。"
+          }
+        }
+      }
+    },
+    "The quote must be an exact substring of the current user message.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The quote must be an exact substring of the current user message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "引用必须是当前用户消息中的精确子串。"
+          }
+        }
+      }
+    },
+    "The referenced memory revision is no longer available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The referenced memory revision is no longer available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "引用的记忆版本已无法查看。"
+          }
+        }
+      }
+    },
+    "The replacement candidate is no longer available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The replacement candidate is no longer available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换候选已不可用。"
+          }
+        }
+      }
+    },
+    "The replacement chain contains a cycle. Reload review or reject this candidate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The replacement chain contains a cycle. Reload review or reject this candidate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替代链包含循环。请重新加载审核，或拒绝此候选记忆。"
+          }
+        }
+      }
+    },
+    "The replacement chain is too long to review safely. Reload review or reject this candidate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The replacement chain is too long to review safely. Reload review or reject this candidate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替代链过长，无法安全审核。请重新加载审核，或拒绝此候选记忆。"
+          }
+        }
+      }
+    },
+    "The replacement memory has incompatible validity dates.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The replacement memory has incompatible validity dates."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替代记忆的有效日期不兼容。"
           }
         }
       }
@@ -5927,6 +9463,22 @@
         }
       }
     },
+    "The selected memory is not the proposed replacement successor.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected memory is not the proposed replacement successor."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选记忆不是提议替换的后继记忆。"
+          }
+        }
+      }
+    },
     "The selected provider connection no longer exists.": {
       "localizations": {
         "en": {
@@ -5939,6 +9491,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "所选提供商连接已不存在。"
+          }
+        }
+      }
+    },
+    "The source message does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The source message does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "源消息不存在。"
+          }
+        }
+      }
+    },
+    "The source message is outside the memory workspace scope.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The source message is outside the memory workspace scope."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "源消息不在记忆工作空间范围内。"
+          }
+        }
+      }
+    },
+    "The suppressed memory source ID is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The suppressed memory source ID is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已抑制的记忆源 ID 无效。"
           }
         }
       }
@@ -6214,6 +9814,38 @@
         }
       }
     },
+    "This candidate is no longer available for confirmation. Reload review or reject it.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This candidate is no longer available for confirmation. Reload review or reject it."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此候选记忆已无法确认。请重新加载审核，或拒绝它。"
+          }
+        }
+      }
+    },
+    "This candidate is not linked to the proposed replacement. Reload review or reject it.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This candidate is not linked to the proposed replacement. Reload review or reject it."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此候选记忆未关联到提议的替代关系。请重新加载审核，或拒绝它。"
+          }
+        }
+      }
+    },
     "This conversation already has an execution in progress.": {
       "extractionState": "manual",
       "localizations": {
@@ -6312,6 +9944,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "此资料库使用不受支持的开发版本。请创建新的资料库继续使用；原有数据未被修改。"
+          }
+        }
+      }
+    },
+    "This memory has changed since the reply. The quoted version is shown here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This memory has changed since the reply. The quoted version is shown here."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此记忆在回复后已有修改。此处显示回复当时引用的版本。"
+          }
+        }
+      }
+    },
+    "This memory proposal already has an approval decision.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This memory proposal already has an approval decision."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此记忆提案已有审批决定。"
+          }
+        }
+      }
+    },
+    "This memory proposal is not approved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This memory proposal is not approved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此记忆提案未获批准。"
+          }
+        }
+      }
+    },
+    "This memory reference was not used in this reply or is no longer available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This memory reference was not used in this reply or is no longer available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此记忆引用未在这条回复中使用，或已无法查看。"
           }
         }
       }
@@ -6448,6 +10144,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "本回合已达到模型决策步骤上限。"
+          }
+        }
+      }
+    },
+    "This workspace does not allow sending to model services.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This workspace does not allow sending to model services."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此工作空间不允许向模型服务发送内容。"
           }
         }
       }
@@ -6650,6 +10362,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "已声明工具能力"
+          }
+        }
+      }
+    },
+    "Tool content cleared after forgetting a memory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tool content cleared after forgetting a memory"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遗忘记忆后，工具内容已清除"
           }
         }
       }
@@ -7085,6 +10813,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "使用用途路由"
+          }
+        }
+      }
+    },
+    "User": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户"
+          }
+        }
+      }
+    },
+    "Valid from": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valid from"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有效开始"
+          }
+        }
+      }
+    },
+    "Valid until": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valid until"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有效结束"
+          }
+        }
+      }
+    },
+    "Validity": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Validity"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有效期"
           }
         }
       }

@@ -101,9 +101,11 @@ public struct ToolInvocation: Identifiable, Codable, Sendable, Equatable {
     public var result: ToolResult?
     public var dispatchedAt: Date?
     public var completedAt: Date?
-    public init(id: UUID, attemptID: UUID, modelOrder: Int, call: CanonicalToolCall, result: ToolResult? = nil, dispatchedAt: Date? = nil, completedAt: Date? = nil) {
+    public var bodyPurgedAt: Date?
+    public init(id: UUID, attemptID: UUID, modelOrder: Int, call: CanonicalToolCall, result: ToolResult? = nil, dispatchedAt: Date? = nil, completedAt: Date? = nil, bodyPurgedAt: Date? = nil) {
         self.id = id; self.attemptID = attemptID; self.modelOrder = modelOrder; self.call = call
         self.result = result; self.dispatchedAt = dispatchedAt; self.completedAt = completedAt
+        self.bodyPurgedAt = bodyPurgedAt
     }
 }
 public struct ModelOutput: Codable, Sendable, Equatable {
@@ -121,17 +123,19 @@ public struct ModelAttempt: Identifiable, Codable, Sendable, Equatable {
     public var stepID: UUID
     public var stepIndex: Int
     public var attemptIndex: Int
-    public var request: CanonicalModelRequest
+    public var request: CanonicalModelRequest?
     public var status: AttemptStatus
     public var output: ModelOutput?
     public var usage: TokenUsage
     public var error: MiraError?
     public var createdAt: Date
     public var completedAt: Date?
-    public init(id: UUID, executionID: ExecutionID, stepID: UUID, stepIndex: Int, attemptIndex: Int = 1, request: CanonicalModelRequest, createdAt: Date) {
+    public var bodyPurgedAt: Date?
+    public init(id: UUID, executionID: ExecutionID, stepID: UUID, stepIndex: Int, attemptIndex: Int = 1, request: CanonicalModelRequest?, createdAt: Date, bodyPurgedAt: Date? = nil) {
         self.id = id; self.executionID = executionID; self.stepID = stepID; self.stepIndex = stepIndex
         self.attemptIndex = attemptIndex; self.request = request; self.createdAt = createdAt
         status = .prepared; usage = .init()
+        self.bodyPurgedAt = bodyPurgedAt
     }
 }
 public struct ExecutionAudit: Sendable {

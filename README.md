@@ -4,7 +4,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持连接设置与合成能力探测、Workspace / Inbox、流式 Markdown 对话、取消 / 重试、草稿恢复、逐次请求审计与基础备份。最小工具循环已有实现及合成测试；记忆与文件检索工具将在 M3 / M4 开放。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md)。
+> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持用途级模型配置、Workspace / Inbox、流式 Markdown 对话、取消 / 重试、草稿恢复、请求审计与基础备份。手动记忆、纠正与遗忘、记忆工具和历史引用已有实现及确定性测试；自动提取与 Markdown 资料检索仍在开发。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md) 和 [记忆验收记录](docs/engineering/MEMORY_VERIFICATION.md)。
 
 ## 构建与运行
 
@@ -24,7 +24,7 @@ open .build/xcode/Build/Products/Debug/Mira.app
 
 Choose **Settings → General → Display Language** to switch between English (`en`) and Simplified Chinese (`zh-CN`). Mira updates its windows immediately and remembers your selection. User content and model response language are independent of this setting. macOS controls system menu and file dialog language.
 
-Implementation code, comments, and built-in prompts use English. Translations live in the string catalog; see [localization conventions](docs/engineering/LOCALIZATION.md). Run `python3 scripts/check_language_policy.py` and the `MiraLocalizationTests` tests when changing UI copy.
+Implementation code, comments, and built-in prompts use English. Translations live in the string catalog; see [localization conventions](docs/engineering/LOCALIZATION.md). Run `python3 scripts/check_language_policy.py` and the `MiraHostTests` target when changing UI copy.
 
 首次启动在设置中添加 OpenAI Chat Completions 兼容连接或 Anthropic Messages 连接，填写 Model ID、API Key、上下文窗口与输出上限。未知窗口可以保存，但发送前须补齐；保存配置不会自动调用模型。API Key 仅保存在本机 Keychain。设置中的能力检测由用户主动触发，只发送固定合成提示，可能产生少量 API 费用。
 
@@ -36,6 +36,8 @@ open .build/xcode/Build/Products/Debug/Mira.app --args \
 ```
 
 切换运行模式或资料库前先退出当前 Mira。快捷键：`⌘ N` 新对话、`⌘ Return` 发送、`⌘ .` 停止、`⌘ ,` 设置。数据路径、恢复步骤和已知限制见 [开发约定](docs/engineering/DEVELOPMENT.md)。
+
+The current development library uses schema v5. Older development libraries are preserved and rejected; use a fresh directory when testing this build. In **Memories**, add a reviewed entry or save a committed user message, then edit, replace, archive, remove, or forget it. Tool-created memories stay local-only until you enable remote use in the editor. Verified reference buttons open the version actually used by a reply.
 
 ## 核心方向
 

@@ -2,15 +2,20 @@ import Foundation
 import GRDB
 import MiraCore
 
+private struct PreparedMemoryContext {
+    var usages: [MemoryUsage]
+    var kinds: [MemoryID: MemoryUsageKind]
+}
+
 /// The first on-disk implementation of `MiraStore`.
 ///
 /// The store deliberately exposes synchronous operations.  Its owning application
 /// actor is responsible for keeping these bounded operations off view tasks.
 public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
-    private static let currentSchemaVersion = 4
+    private static let currentSchemaVersion = 5
     private static let baseMigrationName = "m0_core"
     private static let auditMigrationName = "m2_execution_audit"
-    private let pool: DatabasePool
+    let pool: DatabasePool
 
     public init(directory: URL) throws {
         do {
@@ -113,26 +118,26 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
 
     public func messages(in conversationID: ConversationID) throws -> [Message] {
         try safely { try pool.read { db in
-            try Row.fetchAll(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, created_at FROM messages WHERE conversation_id = ? ORDER BY sequence", arguments: [id(conversationID)]).map { try Self.message($0) }
+            try Row.fetchAll(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, body_purged_at, created_at FROM messages WHERE conversation_id = ? ORDER BY sequence", arguments: [id(conversationID)]).map { try Self.message($0) }
         }}
     }
 
     public func executions(in conversationID: ConversationID) throws -> [Execution] {
         try safely { try pool.read { db in
-            try Row.fetchAll(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at FROM executions WHERE conversation_id = ? ORDER BY rowid", arguments: [id(conversationID)]).map { try Self.execution($0) }
+            try Row.fetchAll(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at, body_purged_at FROM executions WHERE conversation_id = ? ORDER BY rowid", arguments: [id(conversationID)]).map { try Self.execution($0) }
         }}
     }
 
     public func execution(_ executionID: ExecutionID) throws -> Execution? {
         try safely { try pool.read { db in
-            guard let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at FROM executions WHERE id = ?", arguments: [id(executionID)]) else { return nil }
+            guard let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at, body_purged_at FROM executions WHERE id = ?", arguments: [id(executionID)]) else { return nil }
             return try Self.execution(row)
         }}
     }
 
     public func draft(for executionID: ExecutionID) throws -> Draft? {
         try safely { try pool.read { db in
-            guard let row = try Row.fetchOne(db, sql: "SELECT execution_id, text, updated_at FROM assistant_drafts WHERE execution_id = ?", arguments: [id(executionID)]) else { return nil }
+            guard let row = try Row.fetchOne(db, sql: "SELECT execution_id, text, body_purged_at, updated_at FROM assistant_drafts WHERE execution_id = ?", arguments: [id(executionID)]) else { return nil }
             return Draft(executionID: try executionIDValue(row["execution_id"] as String), text: row["text"] as String, updatedAt: Date(timeIntervalSince1970: row["updated_at"] as Double))
         }}
     }
@@ -325,14 +330,20 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
     public func prepareAttempt(_ attempt: ModelAttempt) throws {
         try safely {
             guard attempt.stepIndex >= 0, attempt.attemptIndex > 0 else { throw MiraError(.invalidInput, "The execution step index is invalid.") }
-            guard attempt.request.executionID == attempt.executionID,
-                  attempt.request.requestID == attempt.id else { throw MiraError(.invalidInput, "The request does not match the model attempt.") }
+            guard let request = attempt.request,
+                  request.executionID == attempt.executionID,
+                  request.requestID == attempt.id else { throw MiraError(.invalidInput, "The request does not match the model attempt.") }
             try pool.write { db in
-                guard let execution = try Row.fetchOne(db, sql: "SELECT status FROM executions WHERE id = ?", arguments: [id(attempt.executionID)]) else {
+                guard let execution = try Row.fetchOne(db, sql: "SELECT status, body_purged_at FROM executions WHERE id = ?", arguments: [id(attempt.executionID)]) else {
                     throw MiraError(.notFound, "The execution does not exist.")
                 }
-                guard let status = ExecutionStatus(rawValue: execution["status"] as String), !status.isTerminal else {
-                    throw MiraError(.conflict, "The execution has already finished.")
+                guard let status = ExecutionStatus(rawValue: execution["status"] as String), !status.isTerminal, (execution["body_purged_at"] as Double?) == nil else {
+                    throw MiraError(.conflict, "The execution body has been purged or the execution has already finished.")
+                }
+                let memoryContext = try prepareMemoryContext(request, executionID: attempt.executionID, in: db)
+                try validateExecutionMemoryContext(attempt.executionID, usages: memoryContext.usages, usageKinds: memoryContext.kinds, at: attempt.createdAt, in: db)
+                for kind in [MemoryUsageKind.recall, .capture] {
+                    try persistMemoryUsages(memoryContext.usages.filter { memoryContext.kinds[$0.memoryID] == kind }, executionID: attempt.executionID, at: attempt.createdAt, kind: kind, in: db)
                 }
 
                 let lastStep = try Int.fetchOne(db, sql: "SELECT MAX(sequence) FROM execution_steps WHERE execution_id = ?", arguments: [id(attempt.executionID)])
@@ -355,7 +366,8 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                     let pending = try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations WHERE execution_id = ? AND attempt_id = ? AND result_json IS NULL LIMIT 1", arguments: [id(attempt.executionID), previousAttempt["id"] as String])
                     guard pending == nil else { throw MiraError(.conflict, "The previous tool result has not been submitted.") }
                     stepID = attempt.stepID.uuidString.lowercased()
-                    try db.execute(sql: "UPDATE execution_steps SET state = 'running', output_json = NULL, error_json = NULL, completed_at = NULL WHERE execution_id = ? AND sequence = ?", arguments: [id(attempt.executionID), lastStep!])
+                    try db.execute(sql: "UPDATE execution_steps SET state = 'running', output_json = NULL, error_json = NULL, body_purged_at = NULL, completed_at = NULL WHERE execution_id = ? AND sequence = ? AND body_purged_at IS NULL", arguments: [id(attempt.executionID), lastStep!])
+                    guard db.changesCount == 1 else { throw MiraError(.conflict, "The execution step body has been purged.") }
                 } else if attempt.stepIndex == lastStep! + 1 {
                     guard attempt.attemptIndex == 1 else { throw MiraError(.conflict, "The attempt index for a new step is invalid.") }
                     let previous = lastStep!
@@ -368,13 +380,13 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                     guard previousOutput.finishReason == .toolCalls else { throw MiraError(.conflict, "Only tool-call output can continue to the next step.") }
                     let pending = try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations WHERE execution_id = ? AND attempt_id = ? AND result_json IS NULL LIMIT 1", arguments: [id(attempt.executionID), previousAttempt["id"] as String])
                     guard pending == nil else { throw MiraError(.conflict, "The previous tool result has not been submitted.") }
-                    try db.execute(sql: "UPDATE execution_steps SET state = 'completed', completed_at = COALESCE(completed_at, ?) WHERE execution_id = ? AND sequence = ? AND state = 'waitingForTool'", arguments: [attempt.createdAt.timeIntervalSince1970, id(attempt.executionID), previous])
+                    try db.execute(sql: "UPDATE execution_steps SET state = 'completed', completed_at = COALESCE(completed_at, ?) WHERE execution_id = ? AND sequence = ? AND state = 'waitingForTool' AND body_purged_at IS NULL", arguments: [attempt.createdAt.timeIntervalSince1970, id(attempt.executionID), previous])
                     stepID = attempt.stepID.uuidString.lowercased()
                     try db.execute(sql: "INSERT INTO execution_steps (id, execution_id, sequence, state, output_json, error_json, started_at, completed_at) VALUES (?, ?, ?, 'running', NULL, NULL, ?, NULL)", arguments: [stepID, id(attempt.executionID), attempt.stepIndex, attempt.createdAt.timeIntervalSince1970])
                 } else {
                     throw MiraError(.conflict, "Execution steps must be created in order.")
                 }
-                try db.execute(sql: "INSERT INTO model_attempts (id, execution_id, step_id, step_index, attempt_index, request_json, status, output_json, usage_input, usage_output, error_json, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, 'prepared', NULL, NULL, NULL, NULL, ?, NULL)", arguments: [attempt.id.uuidString.lowercased(), id(attempt.executionID), stepID, attempt.stepIndex, attempt.attemptIndex, try encode(attempt.request), attempt.createdAt.timeIntervalSince1970])
+                try db.execute(sql: "INSERT INTO model_attempts (id, execution_id, step_id, step_index, attempt_index, request_json, status, output_json, usage_input, usage_output, error_json, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, 'prepared', NULL, NULL, NULL, NULL, ?, NULL)", arguments: [attempt.id.uuidString.lowercased(), id(attempt.executionID), stepID, attempt.stepIndex, attempt.attemptIndex, try encode(request), attempt.createdAt.timeIntervalSince1970])
                 try db.execute(sql: "UPDATE executions SET status = 'waitingForModel', updated_at = ? WHERE id = ? AND status IN ('queued', 'waitingForModel')", arguments: [attempt.createdAt.timeIntervalSince1970, id(attempt.executionID)])
                 guard db.changesCount > 0 else { throw MiraError(.conflict, "The execution is no longer waiting.") }
             }
@@ -383,15 +395,16 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
 
     public func attempts(for executionID: ExecutionID) throws -> [ModelAttempt] {
         try safely { try pool.read { db in
-            try Row.fetchAll(db, sql: "SELECT id, execution_id, step_id, step_index, attempt_index, request_json, status, output_json, usage_input, usage_output, error_json, created_at, completed_at FROM model_attempts WHERE execution_id = ? ORDER BY step_index, attempt_index, rowid", arguments: [id(executionID)]).map { try Self.modelAttempt($0) }
+            try Row.fetchAll(db, sql: "SELECT id, execution_id, step_id, step_index, attempt_index, request_json, status, output_json, usage_input, usage_output, error_json, body_purged_at, created_at, completed_at FROM model_attempts WHERE execution_id = ? ORDER BY step_index, attempt_index, rowid", arguments: [id(executionID)]).map { try Self.modelAttempt($0) }
         }}
     }
 
     public func finishAttempt(_ id: UUID, output: ModelOutput?, invocations: [ToolInvocation], usage: TokenUsage, error: MiraError?, at: Date) throws {
         try safely {
             try pool.write { db in
-                guard let row = try Row.fetchOne(db, sql: "SELECT execution_id, step_id, step_index, status FROM model_attempts WHERE id = ?", arguments: [id.uuidString.lowercased()]) else { throw MiraError(.notFound, "The model attempt does not exist.") }
-                guard (row["status"] as String) == AttemptStatus.prepared.rawValue else { throw MiraError(.conflict, "The model attempt has already finished.") }
+                guard let row = try Row.fetchOne(db, sql: "SELECT ma.execution_id, ma.step_id, ma.step_index, ma.status, ma.body_purged_at, e.body_purged_at AS execution_body_purged_at FROM model_attempts ma JOIN executions e ON e.id = ma.execution_id WHERE ma.id = ?", arguments: [id.uuidString.lowercased()]) else { throw MiraError(.notFound, "The model attempt does not exist.") }
+                guard (row["status"] as String) == AttemptStatus.prepared.rawValue, (row["body_purged_at"] as Double?) == nil else { throw MiraError(.conflict, "The model attempt has already finished or its body was purged.") }
+                guard (row["execution_body_purged_at"] as Double?) == nil else { throw MiraError(.conflict, "The execution body has been purged or the execution has already finished.") }
                 let executionID = row["execution_id"] as String
                 let toolCalls = output?.toolCalls ?? []
                 guard output != nil || error != nil else { throw MiraError(.invalidInput, "The model attempt has neither output nor an error.") }
@@ -419,7 +432,8 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                 }
                 let stepState = output?.toolCalls.isEmpty == false ? "waitingForTool" : (output == nil ? "failed" : "completed")
                 let stepCompletedAt: Double? = output?.toolCalls.isEmpty == false ? nil : at.timeIntervalSince1970
-                try db.execute(sql: "UPDATE execution_steps SET state = ?, output_json = ?, error_json = ?, completed_at = ? WHERE id = ? AND execution_id = ?", arguments: [stepState, outputJSON, errorJSON, stepCompletedAt, row["step_id"] as String, executionID])
+                try db.execute(sql: "UPDATE execution_steps SET state = ?, output_json = ?, error_json = ?, body_purged_at = NULL, completed_at = ? WHERE id = ? AND execution_id = ? AND body_purged_at IS NULL", arguments: [stepState, outputJSON, errorJSON, stepCompletedAt, row["step_id"] as String, executionID])
+                guard db.changesCount == 1 else { throw MiraError(.conflict, "The execution step body has been purged.") }
                 try db.execute(sql: "UPDATE executions SET updated_at = ? WHERE id = ?", arguments: [at.timeIntervalSince1970, executionID])
             }
         }
@@ -427,14 +441,14 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
 
     public func toolInvocations(for executionID: ExecutionID) throws -> [ToolInvocation] {
         try safely { try pool.read { db in
-            try Row.fetchAll(db, sql: "SELECT id, attempt_id, model_order, provider_call_id, tool_name, arguments_json, status, result_json, dispatched_at, completed_at FROM tool_invocations WHERE execution_id = ? ORDER BY (SELECT step_index FROM model_attempts WHERE id = tool_invocations.attempt_id), (SELECT attempt_index FROM model_attempts WHERE id = tool_invocations.attempt_id), model_order, rowid", arguments: [id(executionID)]).map { try Self.toolInvocation($0) }
+            try Row.fetchAll(db, sql: "SELECT id, attempt_id, model_order, provider_call_id, tool_name, arguments_json, status, result_json, body_purged_at, dispatched_at, completed_at FROM tool_invocations WHERE execution_id = ? ORDER BY (SELECT step_index FROM model_attempts WHERE id = tool_invocations.attempt_id), (SELECT attempt_index FROM model_attempts WHERE id = tool_invocations.attempt_id), model_order, rowid", arguments: [id(executionID)]).map { try Self.toolInvocation($0) }
         }}
     }
 
     public func markToolDispatched(_ id: UUID, at: Date) throws {
         try safely {
             try pool.write { db in
-                try db.execute(sql: "UPDATE tool_invocations SET status = 'dispatched', dispatched_at = ? WHERE id = ? AND status = 'pending' AND result_json IS NULL", arguments: [at.timeIntervalSince1970, id.uuidString.lowercased()])
+                try db.execute(sql: "UPDATE tool_invocations SET status = 'dispatched', dispatched_at = ? WHERE id = ? AND status = 'pending' AND result_json IS NULL AND body_purged_at IS NULL AND EXISTS (SELECT 1 FROM executions WHERE executions.id = tool_invocations.execution_id AND executions.body_purged_at IS NULL)", arguments: [at.timeIntervalSince1970, id.uuidString.lowercased()])
                 guard db.changesCount == 1 else { throw MiraError(.conflict, "The tool call was dispatched or has already finished.") }
                 try db.execute(sql: "UPDATE executions SET updated_at = ? WHERE id = (SELECT execution_id FROM tool_invocations WHERE id = ?)", arguments: [at.timeIntervalSince1970, id.uuidString.lowercased()])
             }
@@ -445,7 +459,10 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
     public func finishToolInvocation(_ id: UUID, result: ToolResult, at: Date) throws -> Bool {
         try safely {
             try pool.write { db in
-                guard let status = try String.fetchOne(db, sql: "SELECT status FROM tool_invocations WHERE id = ?", arguments: [id.uuidString.lowercased()]) else { throw MiraError(.notFound, "The tool call does not exist.") }
+                guard let row = try Row.fetchOne(db, sql: "SELECT ti.status, ti.body_purged_at, e.body_purged_at AS execution_body_purged_at FROM tool_invocations ti JOIN executions e ON e.id = ti.execution_id WHERE ti.id = ?", arguments: [id.uuidString.lowercased()]) else { throw MiraError(.notFound, "The tool call does not exist.") }
+                let status: String = row["status"]
+                if row["body_purged_at"] as Double? != nil { return false }
+                if row["execution_body_purged_at"] as Double? != nil { return false }
                 if ToolResultStatus(rawValue: status) != nil { return false }
                 let dispatchFree: Set<ToolResultStatus> = [.invalidArguments, .notFound, .denied, .timedOut, .cancelledBeforeDispatch, .failed, .outputLimit]
                 if status == "pending" && !dispatchFree.contains(result.status) { throw MiraError(.conflict, "The result status is invalid for an undispatched tool call.") }
@@ -462,8 +479,8 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
     public func checkpoint(executionID: ExecutionID, text: String, at: Date) throws {
         try safely {
             try pool.write { db in
-                guard try Int.fetchOne(db, sql: "SELECT 1 FROM executions WHERE id = ? AND status IN ('queued', 'waitingForModel')", arguments: [id(executionID)]) != nil else { throw MiraError(.conflict, "The execution has finished; the draft cannot be saved.") }
-                try db.execute(sql: "INSERT INTO assistant_drafts (execution_id, text, updated_at) VALUES (?, ?, ?) ON CONFLICT(execution_id) DO UPDATE SET text = excluded.text, updated_at = excluded.updated_at", arguments: [id(executionID), text, at.timeIntervalSince1970])
+                guard try Int.fetchOne(db, sql: "SELECT 1 FROM executions WHERE id = ? AND status IN ('queued', 'waitingForModel') AND body_purged_at IS NULL", arguments: [id(executionID)]) != nil else { throw MiraError(.conflict, "The execution has finished; the draft cannot be saved.") }
+                try db.execute(sql: "INSERT INTO assistant_drafts (execution_id, text, body_purged_at, updated_at) VALUES (?, ?, NULL, ?) ON CONFLICT(execution_id) DO UPDATE SET text = excluded.text, body_purged_at = NULL, updated_at = excluded.updated_at", arguments: [id(executionID), text, at.timeIntervalSince1970])
             }
         }
     }
@@ -473,7 +490,8 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
         try safely {
             guard status.isTerminal else { throw MiraError(.invalidInput, "The execution terminal state is invalid.") }
             return try pool.write { db in
-                guard let execution = try Row.fetchOne(db, sql: "SELECT conversation_id, status FROM executions WHERE id = ?", arguments: [id(executionID)]) else { throw MiraError(.notFound, "The execution does not exist.") }
+                guard let execution = try Row.fetchOne(db, sql: "SELECT conversation_id, status, body_purged_at FROM executions WHERE id = ?", arguments: [id(executionID)]) else { throw MiraError(.notFound, "The execution does not exist.") }
+                if execution["body_purged_at"] as Double? != nil { return false }
                 let unfinishedAttempts = try Int.fetchOne(db, sql: "SELECT 1 FROM model_attempts WHERE execution_id = ? AND status = 'prepared' LIMIT 1", arguments: [id(executionID)]) != nil
                 let unfinishedTools = try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations WHERE execution_id = ? AND result_json IS NULL LIMIT 1", arguments: [id(executionID)]) != nil
                 if status == .completed && (unfinishedAttempts || unfinishedTools) {
@@ -487,7 +505,7 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                 if status != .completed {
                     try closeOpenAudit(in: db, executionID: executionID, at: at)
                 }
-                if !text.isEmpty {
+                if !text.isEmpty, (execution["body_purged_at"] as Double?) == nil {
                     let conversationID = try conversationIDValue(execution["conversation_id"] as String)
                     let sequence = (try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sequence), 0) + 1 FROM messages WHERE conversation_id = ?", arguments: [id(conversationID)]) ?? 1)
                     let messageStatus: MessageStatus = status == .completed ? .committed : .interrupted
@@ -503,14 +521,14 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
     public func recoverInterrupted(at: Date) throws {
         try safely {
             try pool.write { db in
-                let rows = try Row.fetchAll(db, sql: "SELECT id, conversation_id FROM executions WHERE status IN ('queued', 'waitingForModel')")
+                let rows = try Row.fetchAll(db, sql: "SELECT id, conversation_id, body_purged_at FROM executions WHERE status IN ('queued', 'waitingForModel')")
                 for row in rows {
                     let executionID = try executionIDValue(row["id"] as String)
                     let conversationID = try conversationIDValue(row["conversation_id"] as String)
-                    let draft = try Row.fetchOne(db, sql: "SELECT text FROM assistant_drafts WHERE execution_id = ?", arguments: [id(executionID)])
+                    let draft = try Row.fetchOne(db, sql: "SELECT text, body_purged_at FROM assistant_drafts WHERE execution_id = ?", arguments: [id(executionID)])
                     try db.execute(sql: "UPDATE executions SET status = 'interrupted', updated_at = ? WHERE id = ? AND status IN ('queued', 'waitingForModel')", arguments: [at.timeIntervalSince1970, id(executionID)])
                     let interrupted = db.changesCount > 0
-                    if interrupted, let draft {
+                    if interrupted, let draft, (row["body_purged_at"] as Double?) == nil, (draft["body_purged_at"] as Double?) == nil {
                         let already = try Int.fetchOne(db, sql: "SELECT 1 FROM messages WHERE execution_id = ? AND role = 'assistant' LIMIT 1", arguments: [id(executionID)])
                         if already == nil {
                             let sequence = (try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sequence), 0) + 1 FROM messages WHERE conversation_id = ?", arguments: [id(conversationID)]) ?? 1)
@@ -518,7 +536,7 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                         }
                         try db.execute(sql: "DELETE FROM assistant_drafts WHERE execution_id = ?", arguments: [id(executionID)])
                     }
-                    if interrupted {
+                    if interrupted, (row["body_purged_at"] as Double?) == nil {
                         try closeOpenAudit(in: db, executionID: executionID, at: at)
                     }
                 }
@@ -554,10 +572,11 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
     /// interrupted because its side effect may already have happened; a call
     /// which was never dispatched is explicitly cancelled before dispatch.
     private func closeOpenAudit(in db: Database, executionID: ExecutionID, at: Date) throws {
-        try db.execute(sql: "UPDATE tool_invocations SET status = 'interrupted', result_json = ?, completed_at = ? WHERE execution_id = ? AND status = 'dispatched' AND result_json IS NULL", arguments: [try encode(ToolResult(status: .interrupted, text: "The execution was interrupted.")), at.timeIntervalSince1970, id(executionID)])
-        try db.execute(sql: "UPDATE tool_invocations SET status = 'cancelledBeforeDispatch', result_json = ?, completed_at = ? WHERE execution_id = ? AND status = 'pending' AND result_json IS NULL", arguments: [try encode(ToolResult(status: .cancelledBeforeDispatch, text: "The tool was not dispatched because the execution ended.")), at.timeIntervalSince1970, id(executionID)])
-        try db.execute(sql: "UPDATE model_attempts SET status = 'interrupted', error_json = ?, completed_at = ? WHERE execution_id = ? AND status = 'prepared'", arguments: [Self.encodeStoredError(MiraError(.interrupted, "The execution was interrupted.")), at.timeIntervalSince1970, id(executionID)])
-        try db.execute(sql: "UPDATE execution_steps SET state = 'interrupted', error_json = ?, completed_at = ? WHERE execution_id = ? AND state IN ('running', 'waitingForTool')", arguments: [Self.encodeStoredError(MiraError(.interrupted, "The execution was interrupted.")), at.timeIntervalSince1970, id(executionID)])
+        guard try Int.fetchOne(db, sql: "SELECT 1 FROM executions WHERE id = ? AND body_purged_at IS NULL", arguments: [id(executionID)]) != nil else { return }
+        try db.execute(sql: "UPDATE tool_invocations SET status = 'interrupted', result_json = ?, completed_at = ? WHERE execution_id = ? AND status = 'dispatched' AND result_json IS NULL AND body_purged_at IS NULL", arguments: [try encode(ToolResult(status: .interrupted, text: "The execution was interrupted.")), at.timeIntervalSince1970, id(executionID)])
+        try db.execute(sql: "UPDATE tool_invocations SET status = 'cancelledBeforeDispatch', result_json = ?, completed_at = ? WHERE execution_id = ? AND status = 'pending' AND result_json IS NULL AND body_purged_at IS NULL", arguments: [try encode(ToolResult(status: .cancelledBeforeDispatch, text: "The tool was not dispatched because the execution ended.")), at.timeIntervalSince1970, id(executionID)])
+        try db.execute(sql: "UPDATE model_attempts SET status = 'interrupted', error_json = ?, completed_at = ? WHERE execution_id = ? AND status = 'prepared' AND body_purged_at IS NULL", arguments: [Self.encodeStoredError(MiraError(.interrupted, "The execution was interrupted.")), at.timeIntervalSince1970, id(executionID)])
+        try db.execute(sql: "UPDATE execution_steps SET state = 'interrupted', error_json = ?, body_purged_at = NULL, completed_at = ? WHERE execution_id = ? AND state IN ('running', 'waitingForTool') AND body_purged_at IS NULL", arguments: [Self.encodeStoredError(MiraError(.interrupted, "The execution was interrupted.")), at.timeIntervalSince1970, id(executionID)])
     }
 
     public func exportBackup(to destination: URL) throws {
@@ -632,12 +651,13 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
 
 // MARK: - Schema
 
-private extension SQLiteMiraStore {
+extension SQLiteMiraStore {
     static func makeMigrator() -> DatabaseMigrator {
         var migrator = makeBaseMigrator()
         migrator.registerMigration(auditMigrationName) { db in
             try createAuditSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 4")
+            try createMemorySchema(in: db)
+            try db.execute(sql: "PRAGMA user_version = 5")
         }
         return migrator
     }
@@ -646,7 +666,7 @@ private extension SQLiteMiraStore {
         var migrator = DatabaseMigrator()
         migrator.registerMigration(baseMigrationName) { db in
             try createSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 4")
+            try db.execute(sql: "PRAGMA user_version = 5")
         }
         return migrator
     }
@@ -729,6 +749,7 @@ private extension SQLiteMiraStore {
           usage_input INTEGER,
           usage_output INTEGER,
           error_json TEXT,
+          body_purged_at REAL,
           created_at REAL NOT NULL,
           updated_at REAL NOT NULL,
           UNIQUE(id, conversation_id),
@@ -742,6 +763,7 @@ private extension SQLiteMiraStore {
           role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
           status TEXT NOT NULL CHECK(status IN ('committed', 'interrupted', 'failed')),
           text TEXT NOT NULL,
+          body_purged_at REAL,
           created_at REAL NOT NULL,
           UNIQUE(conversation_id, sequence),
           UNIQUE(id, conversation_id),
@@ -750,6 +772,7 @@ private extension SQLiteMiraStore {
         CREATE TABLE assistant_drafts (
           execution_id TEXT PRIMARY KEY NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
           text TEXT NOT NULL,
+          body_purged_at REAL,
           updated_at REAL NOT NULL
         );
         CREATE UNIQUE INDEX executions_one_active_per_conversation ON executions(conversation_id) WHERE status IN ('queued', 'waitingForModel');
@@ -772,6 +795,7 @@ private extension SQLiteMiraStore {
           state TEXT NOT NULL CHECK(state IN ('running', 'waitingForTool', 'completed', 'failed', 'interrupted')),
           output_json TEXT,
           error_json TEXT,
+          body_purged_at REAL,
           started_at REAL NOT NULL,
           completed_at REAL,
           UNIQUE(id, execution_id, sequence),
@@ -784,19 +808,20 @@ private extension SQLiteMiraStore {
           step_id TEXT NOT NULL,
           step_index INTEGER NOT NULL CHECK(step_index > 0),
           attempt_index INTEGER NOT NULL CHECK(attempt_index > 0),
-          request_json TEXT NOT NULL,
+          request_json TEXT,
           status TEXT NOT NULL CHECK(status IN ('prepared', 'completed', 'failed', 'interrupted')),
           output_json TEXT,
           usage_input INTEGER,
           usage_output INTEGER,
           error_json TEXT,
+          body_purged_at REAL,
           created_at REAL NOT NULL,
           completed_at REAL,
           UNIQUE(id, execution_id),
           UNIQUE(execution_id, step_id, step_index, attempt_index),
           FOREIGN KEY(step_id, execution_id, step_index) REFERENCES execution_steps(id, execution_id, sequence) ON DELETE CASCADE,
           CHECK((status = 'prepared' AND completed_at IS NULL) OR (status IN ('completed', 'failed', 'interrupted') AND completed_at IS NOT NULL)),
-          CHECK(status != 'completed' OR output_json IS NOT NULL)
+          CHECK(status != 'completed' OR output_json IS NOT NULL OR body_purged_at IS NOT NULL)
         );
         CREATE TABLE tool_invocations (
           id TEXT PRIMARY KEY NOT NULL,
@@ -805,16 +830,17 @@ private extension SQLiteMiraStore {
           model_order INTEGER NOT NULL CHECK(model_order >= 0),
           provider_call_id TEXT NOT NULL CHECK(length(provider_call_id) > 0),
           tool_name TEXT NOT NULL CHECK(length(tool_name) > 0),
-          arguments_json TEXT NOT NULL,
+          arguments_json TEXT,
           status TEXT NOT NULL CHECK(status IN ('pending', 'dispatched', 'succeeded', 'invalidArguments', 'notFound', 'denied', 'timedOut', 'cancelledBeforeDispatch', 'cancelled', 'failed', 'outputLimit', 'interrupted')),
           result_json TEXT,
+          body_purged_at REAL,
           dispatched_at REAL,
           completed_at REAL,
           UNIQUE(attempt_id, model_order),
           UNIQUE(attempt_id, provider_call_id),
           UNIQUE(id, execution_id),
           FOREIGN KEY(attempt_id, execution_id) REFERENCES model_attempts(id, execution_id) ON DELETE CASCADE,
-          CHECK((status IN ('pending', 'dispatched') AND result_json IS NULL AND completed_at IS NULL) OR (status NOT IN ('pending', 'dispatched') AND result_json IS NOT NULL AND completed_at IS NOT NULL)),
+          CHECK((status IN ('pending', 'dispatched') AND result_json IS NULL AND completed_at IS NULL) OR (status NOT IN ('pending', 'dispatched') AND ((result_json IS NOT NULL AND completed_at IS NOT NULL) OR body_purged_at IS NOT NULL))),
           CHECK((status = 'pending' AND dispatched_at IS NULL) OR status != 'pending'),
           CHECK((status = 'dispatched' AND dispatched_at IS NOT NULL) OR status != 'dispatched'),
           CHECK((status IN ('pending', 'invalidArguments', 'notFound', 'cancelledBeforeDispatch') AND dispatched_at IS NULL) OR (status IN ('dispatched', 'succeeded', 'cancelled', 'interrupted') AND dispatched_at IS NOT NULL) OR status IN ('denied', 'timedOut', 'failed', 'outputLimit'))
@@ -822,6 +848,104 @@ private extension SQLiteMiraStore {
         CREATE INDEX execution_steps_execution_sequence ON execution_steps(execution_id, sequence);
         CREATE INDEX model_attempts_execution_order ON model_attempts(execution_id, step_index, attempt_index);
         CREATE INDEX tool_invocations_execution_order ON tool_invocations(execution_id, attempt_id, model_order);
+        """)
+    }
+
+    static func createMemorySchema(in db: Database) throws {
+        try db.execute(sql: """
+        CREATE TABLE memories (
+          id TEXT PRIMARY KEY NOT NULL,
+          scope_key TEXT NOT NULL,
+          scope_json TEXT NOT NULL,
+          subject TEXT NOT NULL CHECK(subject IN ('user', 'workspace')),
+          state TEXT NOT NULL CHECK(state IN ('active', 'candidate', 'archived', 'rejected', 'removed')),
+          origin TEXT NOT NULL CHECK(origin IN ('explicitUser', 'observedUserStatement', 'agentInference')),
+          authority TEXT NOT NULL CHECK(authority IN ('explicitUser', 'observedUser', 'inferred')),
+          superseded_by TEXT REFERENCES memories(id) ON DELETE RESTRICT,
+          revision INTEGER NOT NULL CHECK(revision > 0),
+          created_at REAL NOT NULL,
+          updated_at REAL NOT NULL,
+          deleted_at REAL,
+          forgotten_at REAL,
+          draft_json TEXT,
+          source_kind TEXT NOT NULL CHECK(source_kind IN ('message', 'manualEntry')),
+          source_id TEXT NOT NULL,
+          assertion_hash TEXT NOT NULL,
+          memory_json TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX memories_business_identity ON memories(source_kind, source_id, subject, scope_key, assertion_hash) WHERE forgotten_at IS NULL;
+        CREATE TABLE memory_evidence (
+          id TEXT PRIMARY KEY NOT NULL,
+          memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+          source_kind TEXT NOT NULL CHECK(source_kind IN ('message', 'manualEntry')),
+          source_id TEXT NOT NULL,
+          source_revision INTEGER NOT NULL CHECK(source_revision > 0),
+          conversation_id TEXT REFERENCES conversations(id) ON DELETE RESTRICT,
+          excerpt TEXT,
+          source_hash TEXT,
+          speaker_role TEXT NOT NULL CHECK(speaker_role IN ('user', 'assistant')),
+          created_at REAL NOT NULL,
+          body_purged_at REAL,
+          evidence_json TEXT NOT NULL,
+          UNIQUE(memory_id, source_kind, source_id)
+        );
+        CREATE TABLE memory_revisions (
+          memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+          revision INTEGER NOT NULL CHECK(revision > 0),
+          draft_json TEXT,
+          actor TEXT NOT NULL,
+          changed_at REAL NOT NULL,
+          body_purged_at REAL,
+          revision_json TEXT NOT NULL,
+          PRIMARY KEY(memory_id, revision)
+        );
+        CREATE TABLE memory_replacements (
+          id TEXT PRIMARY KEY NOT NULL,
+          replacement_id TEXT NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,
+          previous_id TEXT NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,
+          state TEXT NOT NULL CHECK(state IN ('proposed', 'confirmed', 'rejected')),
+          created_at REAL NOT NULL,
+          replacement_json TEXT NOT NULL,
+          UNIQUE(replacement_id, previous_id)
+        );
+        CREATE TABLE memory_operation_receipts (
+          operation_id TEXT PRIMARY KEY NOT NULL,
+          payload_hash TEXT NOT NULL,
+          memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,
+          disposition TEXT NOT NULL CHECK(disposition IN ('created', 'existing', 'replacementProposed')),
+          created_at REAL NOT NULL,
+          receipt_json TEXT NOT NULL
+        );
+        CREATE TABLE memory_source_suppressions (
+          source_kind TEXT NOT NULL CHECK(source_kind IN ('message', 'manualEntry')),
+          source_id TEXT NOT NULL,
+          suppressed_at REAL NOT NULL,
+          reason TEXT NOT NULL,
+          suppression_json TEXT NOT NULL,
+          PRIMARY KEY(source_kind, source_id)
+        );
+        CREATE TABLE memory_usages (
+          execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+          memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,
+          revision INTEGER NOT NULL CHECK(revision > 0),
+          usage_kind TEXT NOT NULL CHECK(usage_kind IN ('recall', 'capture')),
+          created_at REAL NOT NULL,
+          usage_json TEXT NOT NULL,
+          PRIMARY KEY(execution_id, memory_id)
+        );
+        CREATE TABLE execution_history_dependencies (
+          execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+          source_execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+          PRIMARY KEY(execution_id, source_execution_id),
+          CHECK(execution_id != source_execution_id)
+        );
+        CREATE VIRTUAL TABLE memory_search USING fts5(memory_id UNINDEXED, content, tokenize='trigram');
+        CREATE INDEX memories_scope_state_updated ON memories(scope_key, state, updated_at, id);
+        CREATE INDEX memory_evidence_memory ON memory_evidence(memory_id, created_at, id);
+        CREATE INDEX memory_revisions_memory ON memory_revisions(memory_id, revision);
+        CREATE INDEX memory_replacements_previous ON memory_replacements(previous_id, created_at, id);
+        CREATE INDEX memory_usages_execution ON memory_usages(execution_id, memory_id);
+        CREATE INDEX execution_history_dependencies_source ON execution_history_dependencies(source_execution_id, execution_id);
         """)
     }
 
@@ -917,12 +1041,16 @@ private extension SQLiteMiraStore {
     static func message(_ row: Row) throws -> Message {
         guard let uuid = UUID(uuidString: row["id"] as String), let conversationUUID = UUID(uuidString: row["conversation_id"] as String), let role = MessageRole(rawValue: row["role"] as String), let status = MessageStatus(rawValue: row["status"] as String) else { throw MiraError(.storage, "The database contents are invalid.") }
         let executionID = try (row["execution_id"] as String?).map { value -> ExecutionID in guard let value = UUID(uuidString: value) else { throw MiraError(.storage, "The database contents are invalid.") }; return ExecutionID(value) }
-        return Message(id: MessageID(uuid), conversationID: ConversationID(conversationUUID), executionID: executionID, sequence: row["sequence"] as Int, role: role, status: status, text: row["text"] as String, createdAt: Date(timeIntervalSince1970: row["created_at"] as Double))
+        let bodyPurgedAt = (row["body_purged_at"] as Double?).map(Date.init(timeIntervalSince1970:))
+        if bodyPurgedAt != nil, (row["text"] as String).isEmpty == false { throw MiraError(.storage, "The purged message still contains a body.") }
+        return Message(id: MessageID(uuid), conversationID: ConversationID(conversationUUID), executionID: executionID, sequence: row["sequence"] as Int, role: role, status: status, text: row["text"] as String, createdAt: Date(timeIntervalSince1970: row["created_at"] as Double), bodyPurgedAt: (row["body_purged_at"] as Double?).map(Date.init(timeIntervalSince1970:)))
     }
     static func execution(_ row: Row) throws -> Execution {
         guard let status = ExecutionStatus(rawValue: row["status"] as String) else { throw MiraError(.storage, "The database contents are invalid.") }
         let retryID = try (row["retry_of_execution_id"] as String?).map { value -> ExecutionID in guard let value = UUID(uuidString: value) else { throw MiraError(.storage, "The database contents are invalid.") }; return ExecutionID(value) }
-        return Execution(id: ExecutionID(try uuid(row["id"] as String)), conversationID: ConversationID(try uuid(row["conversation_id"] as String)), triggerMessageID: MessageID(try uuid(row["trigger_message_id"] as String)), retryOfExecutionID: retryID, status: status, route: try decodeRoute(row["route_json"] as String), usage: TokenUsage(inputTokens: row["usage_input"] as Int?, outputTokens: row["usage_output"] as Int?), error: (row["error_json"] as String?).flatMap { try? decode($0) }, createdAt: Date(timeIntervalSince1970: row["created_at"] as Double), updatedAt: Date(timeIntervalSince1970: row["updated_at"] as Double))
+        let bodyPurgedAt = (row["body_purged_at"] as Double?).map(Date.init(timeIntervalSince1970:))
+        if bodyPurgedAt != nil, (row["error_json"] as String?) != nil { throw MiraError(.storage, "The purged execution still contains an error body.") }
+        return Execution(id: ExecutionID(try uuid(row["id"] as String)), conversationID: ConversationID(try uuid(row["conversation_id"] as String)), triggerMessageID: MessageID(try uuid(row["trigger_message_id"] as String)), retryOfExecutionID: retryID, status: status, route: try decodeRoute(row["route_json"] as String), usage: TokenUsage(inputTokens: row["usage_input"] as Int?, outputTokens: row["usage_output"] as Int?), error: (row["error_json"] as String?).flatMap { try? decode($0) }, createdAt: Date(timeIntervalSince1970: row["created_at"] as Double), updatedAt: Date(timeIntervalSince1970: row["updated_at"] as Double), bodyPurgedAt: bodyPurgedAt)
     }
     static func uuid(_ value: String) throws -> UUID { guard let value = UUID(uuidString: value) else { throw MiraError(.storage, "The database contents are invalid.") }; return value }
     static func executionIDValue(_ value: String) throws -> ExecutionID { ExecutionID(try uuid(value)) }
@@ -1021,28 +1149,123 @@ private extension SQLiteMiraStore {
         let executionID = try executionIDValue(row["execution_id"] as String)
         let stepID = try uuid(row["step_id"] as String)
         guard let status = AttemptStatus(rawValue: row["status"] as String) else { throw MiraError(.storage, "The database model attempt status is invalid.") }
-        var attempt = ModelAttempt(id: attemptID, executionID: executionID, stepID: stepID, stepIndex: row["step_index"] as Int, attemptIndex: row["attempt_index"] as Int, request: try decodeRequest(row["request_json"] as String), createdAt: Date(timeIntervalSince1970: row["created_at"] as Double))
+        let purgedAt = (row["body_purged_at"] as Double?).map(Date.init(timeIntervalSince1970:))
+        var attempt = ModelAttempt(id: attemptID, executionID: executionID, stepID: stepID, stepIndex: row["step_index"] as Int, attemptIndex: row["attempt_index"] as Int, request: try (row["request_json"] as String?).map { try decodeRequest($0) }, createdAt: Date(timeIntervalSince1970: row["created_at"] as Double), bodyPurgedAt: purgedAt)
         attempt.status = status
         attempt.output = try (row["output_json"] as String?).map { try decode($0) }
         attempt.usage = TokenUsage(inputTokens: row["usage_input"] as Int?, outputTokens: row["usage_output"] as Int?)
         attempt.error = try (row["error_json"] as String?).map { try decode($0) }
         attempt.completedAt = (row["completed_at"] as Double?).map(Date.init(timeIntervalSince1970:))
+        if purgedAt != nil, attempt.request != nil || attempt.output != nil || attempt.error != nil { throw MiraError(.storage, "The purged model attempt still contains a body.") }
         return attempt
     }
 
     static func toolInvocation(_ row: Row) throws -> ToolInvocation {
         let id = try uuid(row["id"] as String)
         let attemptID = try uuid(row["attempt_id"] as String)
-        let call = CanonicalToolCall(id: row["provider_call_id"] as String, name: row["tool_name"] as String, arguments: row["arguments_json"] as String)
+        let purgedAt = (row["body_purged_at"] as Double?).map(Date.init(timeIntervalSince1970:))
+        let arguments = (row["arguments_json"] as String?) ?? ""
+        let call = CanonicalToolCall(id: row["provider_call_id"] as String, name: row["tool_name"] as String, arguments: arguments)
         let status = row["status"] as String
-        guard ToolResultStatus(rawValue: status) != nil else {
-            guard status == "pending" || status == "dispatched" else { throw MiraError(.storage, "The database tool call status is invalid.") }
-            return ToolInvocation(id: id, attemptID: attemptID, modelOrder: row["model_order"] as Int, call: call, result: nil, dispatchedAt: (row["dispatched_at"] as Double?).map(Date.init(timeIntervalSince1970:)), completedAt: nil)
+        if purgedAt != nil {
+            guard row["arguments_json"] as String? == nil, row["result_json"] as String? == nil else { throw MiraError(.storage, "The purged tool result still contains a body.") }
+            if status == "pending" || status == "dispatched" {
+                guard row["completed_at"] as Double? == nil else { throw MiraError(.storage, "The purged tool result has an invalid completion state.") }
+            } else {
+                guard ToolResultStatus(rawValue: status) != nil, row["completed_at"] as Double? != nil else { throw MiraError(.storage, "The purged tool result has an invalid completion state.") }
+            }
+            return ToolInvocation(id: id, attemptID: attemptID, modelOrder: row["model_order"] as Int, call: call, result: nil, dispatchedAt: (row["dispatched_at"] as Double?).map(Date.init(timeIntervalSince1970:)), completedAt: (row["completed_at"] as Double?).map(Date.init(timeIntervalSince1970:)), bodyPurgedAt: purgedAt)
         }
-        guard let resultJSON = row["result_json"] as String?,
+        guard ToolResultStatus(rawValue: status) != nil else {
+            guard (status == "pending" || status == "dispatched"), row["arguments_json"] as String? != nil else { throw MiraError(.storage, "The database tool call status is invalid.") }
+            return ToolInvocation(id: id, attemptID: attemptID, modelOrder: row["model_order"] as Int, call: call, result: nil, dispatchedAt: (row["dispatched_at"] as Double?).map(Date.init(timeIntervalSince1970:)), completedAt: nil, bodyPurgedAt: purgedAt)
+        }
+        guard row["arguments_json"] as String? != nil,
+              let resultJSON = row["result_json"] as String?,
               let result: ToolResult = try? decode(resultJSON),
               result.status.rawValue == status else { throw MiraError(.storage, "The database tool result is invalid.") }
-        return ToolInvocation(id: id, attemptID: attemptID, modelOrder: row["model_order"] as Int, call: call, result: result, dispatchedAt: (row["dispatched_at"] as Double?).map(Date.init(timeIntervalSince1970:)), completedAt: (row["completed_at"] as Double?).map(Date.init(timeIntervalSince1970:)))
+        return ToolInvocation(id: id, attemptID: attemptID, modelOrder: row["model_order"] as Int, call: call, result: result, dispatchedAt: (row["dispatched_at"] as Double?).map(Date.init(timeIntervalSince1970:)), completedAt: (row["completed_at"] as Double?).map(Date.init(timeIntervalSince1970:)), bodyPurgedAt: nil)
+    }
+
+    static func memoryUsages(in request: CanonicalModelRequest) throws -> [MemoryUsage] {
+        var result: [MemoryUsage] = []
+        var seen: [MemoryID: Int] = [:]
+        for reference in request.contextInfo?.references ?? [] where reference.kind == "memory" {
+            guard let uuid = UUID(uuidString: reference.id), let revision = reference.revision, revision > 0 else {
+                throw MiraError(.storage, "The memory context reference is invalid.")
+            }
+            let id = MemoryID(uuid)
+            if let prior = seen[id] {
+                guard prior == revision else { throw MiraError(.storage, "The memory context references disagree.") }
+            } else {
+                seen[id] = revision
+                result.append(MemoryUsage(memoryID: id, revision: revision))
+            }
+        }
+        return result
+    }
+
+    fileprivate func prepareMemoryContext(_ request: CanonicalModelRequest, executionID: ExecutionID, in db: Database) throws -> PreparedMemoryContext {
+        var kinds: [MemoryID: MemoryUsageKind] = [:]
+        var usages: [MemoryUsage] = []
+        for usage in try Self.memoryUsages(in: request) {
+            kinds[usage.memoryID] = .recall
+            usages.append(usage)
+        }
+        guard let execution = try Row.fetchOne(db, sql: "SELECT conversation_id, trigger_message_id FROM executions WHERE id = ?", arguments: [id(executionID)]) else { throw MiraError(.notFound, "The execution does not exist.") }
+        let conversationID = try conversationIDValue(execution["conversation_id"] as String)
+        guard let triggerSequence = try Int.fetchOne(db, sql: "SELECT sequence FROM messages WHERE id = ? AND conversation_id = ?", arguments: [execution["trigger_message_id"] as String, id(conversationID)]) else { throw MiraError(.storage, "The execution trigger message is invalid.") }
+        let historyReferences = request.contextInfo?.references.filter { $0.kind == "historyMessage" } ?? []
+        var sourceExecutions: Set<ExecutionID> = []
+        for reference in historyReferences {
+            guard let messageUUID = UUID(uuidString: reference.id),
+                  let message = try Row.fetchOne(db, sql: "SELECT conversation_id, execution_id, sequence, body_purged_at FROM messages WHERE id = ?", arguments: [reference.id.lowercased()]),
+                  (message["conversation_id"] as String) == id(conversationID),
+                  (message["sequence"] as Int) < triggerSequence,
+                  (message["body_purged_at"] as Double?) == nil else { throw MiraError(.storage, "The history message reference is invalid.") }
+            _ = messageUUID
+            if let sourceExecutionValue = message["execution_id"] as String? {
+                guard let sourceID = try? executionIDValue(sourceExecutionValue) else { throw MiraError(.storage, "The history message execution reference is invalid.") }
+                sourceExecutions.insert(sourceID)
+            }
+            let triggered = try String.fetchAll(db, sql: "SELECT id FROM executions WHERE trigger_message_id = ?", arguments: [reference.id.lowercased()]).map { try executionIDValue($0) }
+            sourceExecutions.formUnion(triggered)
+        }
+        for sourceExecutionID in sourceExecutions {
+            guard sourceExecutionID != executionID,
+                  let source = try Row.fetchOne(db, sql: "SELECT conversation_id, trigger_message_id FROM executions WHERE id = ?", arguments: [id(sourceExecutionID)]),
+                  (source["conversation_id"] as String) == id(conversationID),
+                  let sourceSequence = try Int.fetchOne(db, sql: "SELECT sequence FROM messages WHERE id = ? AND conversation_id = ?", arguments: [source["trigger_message_id"] as String, id(conversationID)]),
+                  sourceSequence < triggerSequence else { throw MiraError(.storage, "The history execution dependency is invalid.") }
+            try db.execute(sql: "INSERT OR IGNORE INTO execution_history_dependencies (execution_id, source_execution_id) VALUES (?, ?)", arguments: [id(executionID), id(sourceExecutionID)])
+            let sourceUsages = try Row.fetchAll(db, sql: "SELECT memory_id, revision, usage_kind, usage_json FROM memory_usages WHERE execution_id = ?", arguments: [id(sourceExecutionID)])
+            for row in sourceUsages {
+                let usage: MemoryUsage = try Self.decode(row["usage_json"] as String)
+                guard Self.id(usage.memoryID) == (row["memory_id"] as String), usage.revision == (row["revision"] as Int), let kind = MemoryUsageKind(rawValue: row["usage_kind"] as String) else { throw MiraError(.storage, "The memory usage record is invalid.") }
+                if let prior = usages.first(where: { $0.memoryID == usage.memoryID }) {
+                    guard prior.revision == usage.revision else { throw MiraError(.conflict, "The memory usage revisions disagree.") }
+                    if kind == .recall { kinds[usage.memoryID] = .recall }
+                } else {
+                    usages.append(usage)
+                    kinds[usage.memoryID] = kind
+                }
+            }
+        }
+        return PreparedMemoryContext(usages: usages, kinds: kinds)
+    }
+
+    func persistMemoryUsages(_ usages: [MemoryUsage], executionID: ExecutionID, at: Date, kind: MemoryUsageKind = .recall, in db: Database) throws {
+        for usage in usages {
+            if let row = try Row.fetchOne(db, sql: "SELECT revision, usage_kind FROM memory_usages WHERE execution_id = ? AND memory_id = ?", arguments: [id(executionID), Self.id(usage.memoryID)]) {
+                guard (row["revision"] as Int) == usage.revision else { throw MiraError(.conflict, "The memory usage revision is out of date.") }
+                let existingKind = MemoryUsageKind(rawValue: row["usage_kind"] as String)
+                if existingKind == .capture, kind == .recall {
+                    try db.execute(sql: "UPDATE memory_usages SET usage_kind = 'recall' WHERE execution_id = ? AND memory_id = ?", arguments: [id(executionID), Self.id(usage.memoryID)])
+                }
+            } else {
+                try db.execute(sql: "INSERT INTO memory_usages (execution_id, memory_id, revision, usage_kind, created_at, usage_json) VALUES (?, ?, ?, ?, ?, ?)", arguments: [id(executionID), Self.id(usage.memoryID), usage.revision, kind.rawValue, at.timeIntervalSince1970, try Self.encode(usage)])
+            }
+        }
     }
 
     static func validateBackupMetadata(in db: Database) throws {
@@ -1050,7 +1273,7 @@ private extension SQLiteMiraStore {
         let expectedMigrations = [baseMigrationName, auditMigrationName]
         guard migrations == expectedMigrations else { throw MiraError(.unsupported, "The backup contains unknown database migrations.") }
         let tables = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
-        let expectedTables: Set<String> = ["grdb_migrations", "workspaces", "conversations", "provider_connections", "model_descriptors", "model_routes", "route_bindings", "executions", "messages", "assistant_drafts", "execution_steps", "model_attempts", "tool_invocations"]
+        let expectedTables: Set<String> = ["grdb_migrations", "workspaces", "conversations", "provider_connections", "model_descriptors", "model_routes", "route_bindings", "executions", "messages", "assistant_drafts", "execution_steps", "model_attempts", "tool_invocations", "memories", "memory_evidence", "memory_revisions", "memory_replacements", "memory_operation_receipts", "memory_source_suppressions", "memory_usages", "execution_history_dependencies", "memory_search", "memory_search_config", "memory_search_data", "memory_search_docsize", "memory_search_idx", "memory_search_content"]
         guard Set(tables) == expectedTables else { throw MiraError(.unsupported, "The backup contains an unknown database schema.") }
         let unexpectedProgrammableObjects = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type IN ('trigger', 'view')")
         guard unexpectedProgrammableObjects.isEmpty else { throw MiraError(.unsupported, "The backup contains unknown database objects.") }
@@ -1067,24 +1290,36 @@ private extension SQLiteMiraStore {
             try validateRouteBinding(binding)
             try validateRouteScope(binding.scope, in: db)
         }
-        for row in try Row.fetchAll(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at FROM executions") { _ = try execution(row) }
-        for row in try Row.fetchAll(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, created_at FROM messages") { _ = try message(row) }
-        for row in try Row.fetchAll(db, sql: "SELECT execution_id, text, updated_at FROM assistant_drafts") { _ = try executionIDValue(row["execution_id"] as String) }
-        for row in try Row.fetchAll(db, sql: "SELECT id, execution_id, step_id, step_index, attempt_index, request_json, status, output_json, usage_input, usage_output, error_json, created_at, completed_at FROM model_attempts") {
+        for row in try Row.fetchAll(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at, body_purged_at FROM executions") { _ = try execution(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, body_purged_at, created_at FROM messages") { _ = try message(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT execution_id, text, body_purged_at, updated_at FROM assistant_drafts") {
+            _ = try executionIDValue(row["execution_id"] as String)
+            if row["body_purged_at"] as Double? != nil {
+                guard (row["text"] as String).isEmpty,
+                      try Int.fetchOne(db, sql: "SELECT 1 FROM executions WHERE id = ? AND body_purged_at IS NOT NULL", arguments: [row["execution_id"] as String]) != nil else { throw MiraError(.storage, "The database purged draft marker is invalid.") }
+            }
+        }
+        for row in try Row.fetchAll(db, sql: "SELECT id, execution_id, step_id, step_index, attempt_index, request_json, status, output_json, usage_input, usage_output, error_json, body_purged_at, created_at, completed_at FROM model_attempts") {
                 let attempt = try modelAttempt(row)
-                guard attempt.request.executionID == attempt.executionID,
-                      attempt.request.requestID == attempt.id,
-                      !(attempt.status == .prepared && attempt.output != nil),
+                if let request = attempt.request {
+                    guard request.executionID == attempt.executionID,
+                          request.requestID == attempt.id,
+                          attempt.bodyPurgedAt == nil else { throw MiraError(.storage, "The database audit request identity is invalid.") }
+                } else {
+                    guard attempt.bodyPurgedAt != nil, attempt.output == nil, attempt.error == nil else { throw MiraError(.storage, "The database purged attempt marker is invalid.") }
+                }
+                guard !(attempt.status == .prepared && attempt.output != nil),
                       !(attempt.status == .prepared && attempt.completedAt != nil) else { throw MiraError(.storage, "The database audit request identity is invalid.") }
-                let rows = try Row.fetchAll(db, sql: "SELECT id, attempt_id, model_order, provider_call_id, tool_name, arguments_json, status, result_json, dispatched_at, completed_at FROM tool_invocations WHERE attempt_id = ? ORDER BY model_order, rowid", arguments: [attempt.id.uuidString.lowercased()])
+                let rows = try Row.fetchAll(db, sql: "SELECT id, attempt_id, model_order, provider_call_id, tool_name, arguments_json, status, result_json, body_purged_at, dispatched_at, completed_at FROM tool_invocations WHERE attempt_id = ? ORDER BY model_order, rowid", arguments: [attempt.id.uuidString.lowercased()])
                 let storedInvocations = try rows.map { try toolInvocation($0) }
                 let expectedCalls = attempt.output?.toolCalls ?? []
-                guard storedInvocations.count == expectedCalls.count,
+                guard attempt.bodyPurgedAt != nil || storedInvocations.count == expectedCalls.count,
+                      attempt.bodyPurgedAt != nil ||
                       storedInvocations.enumerated().allSatisfy({ index, invocation in
                           invocation.attemptID == attempt.id && invocation.modelOrder == index && invocation.call == expectedCalls[index]
                       }) else { throw MiraError(.storage, "The database model call does not match the tool audit.") }
         }
-        for row in try Row.fetchAll(db, sql: "SELECT id, attempt_id, model_order, provider_call_id, tool_name, arguments_json, status, result_json, dispatched_at, completed_at FROM tool_invocations") {
+        for row in try Row.fetchAll(db, sql: "SELECT id, attempt_id, model_order, provider_call_id, tool_name, arguments_json, status, result_json, body_purged_at, dispatched_at, completed_at FROM tool_invocations") {
                 let invocation = try toolInvocation(row)
                 let storedAttemptID = try uuid(row["attempt_id"] as String)
                 let status = row["status"] as String
@@ -1094,13 +1329,23 @@ private extension SQLiteMiraStore {
                     (status == "denied" || status == "timedOut" || status == "failed" || status == "outputLimit")
                 guard invocation.attemptID == storedAttemptID, validDispatchState else { throw MiraError(.storage, "The database tool call association is invalid.") }
         }
+        try validateMemoryContents(in: db)
         // Ensure the structural constraints that are not represented by a
         // Codable payload also hold for hand-edited files.
         guard try Int.fetchOne(db, sql: "SELECT 1 FROM execution_steps WHERE sequence < 0 OR state NOT IN ('running','waitingForTool','completed','failed','interrupted') LIMIT 1") == nil,
               try Int.fetchOne(db, sql: "SELECT 1 FROM execution_steps WHERE sequence = 0 LIMIT 1") == nil,
               try Int.fetchOne(db, sql: "SELECT 1 FROM execution_steps WHERE (state IN ('running','waitingForTool') AND completed_at IS NOT NULL) OR (state IN ('completed','failed','interrupted') AND completed_at IS NULL) LIMIT 1") == nil,
-              try Int.fetchOne(db, sql: "SELECT 1 FROM model_attempts WHERE request_json IS NULL OR step_index < 0 OR attempt_index <= 0 LIMIT 1") == nil,
-              try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations WHERE provider_call_id = '' OR tool_name = '' OR model_order < 0 LIMIT 1") == nil else {
+              try Int.fetchOne(db, sql: "SELECT 1 FROM execution_steps WHERE body_purged_at IS NOT NULL AND (output_json IS NOT NULL OR error_json IS NOT NULL) LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM model_attempts WHERE (request_json IS NULL AND body_purged_at IS NULL) OR (body_purged_at IS NOT NULL AND (request_json IS NOT NULL OR output_json IS NOT NULL OR error_json IS NOT NULL)) OR step_index < 0 OR attempt_index <= 0 LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM model_attempts ma JOIN executions e ON e.id = ma.execution_id WHERE (e.body_purged_at IS NOT NULL AND ma.body_purged_at IS NULL) OR (ma.body_purged_at IS NOT NULL AND e.body_purged_at IS NULL) LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations ti JOIN executions e ON e.id = ti.execution_id LEFT JOIN model_attempts ma ON ma.id = ti.attempt_id WHERE (e.body_purged_at IS NOT NULL AND ti.body_purged_at IS NULL) OR (ma.body_purged_at IS NOT NULL AND ti.body_purged_at IS NULL) OR (ti.body_purged_at IS NOT NULL AND (ti.arguments_json IS NOT NULL OR ti.result_json IS NOT NULL)) LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM execution_steps s JOIN executions e ON e.id = s.execution_id WHERE e.body_purged_at IS NOT NULL AND s.body_purged_at IS NULL LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM messages m JOIN executions e ON e.id = m.execution_id WHERE e.body_purged_at IS NOT NULL AND m.role = 'assistant' AND (m.body_purged_at IS NULL OR m.text != '') LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM assistant_drafts d JOIN executions e ON e.id = d.execution_id WHERE e.body_purged_at IS NOT NULL AND (d.body_purged_at IS NULL OR d.text != '') LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations WHERE provider_call_id = '' OR tool_name = '' OR model_order < 0 LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM messages WHERE body_purged_at IS NOT NULL AND text != '' LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM assistant_drafts WHERE body_purged_at IS NOT NULL AND text != '' LIMIT 1") == nil,
+              try Int.fetchOne(db, sql: "SELECT 1 FROM executions WHERE body_purged_at IS NOT NULL AND error_json IS NOT NULL LIMIT 1") == nil else {
             throw MiraError(.storage, "The database audit contents are invalid.")
         }
     }

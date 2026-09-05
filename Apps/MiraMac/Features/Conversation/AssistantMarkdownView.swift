@@ -10,6 +10,9 @@ struct TranscriptItem: Identifiable {
     let text: String
     let status: MessageStatus?
     let isStreaming: Bool
+    var message: Message? = nil
+    var bodyPurgedAt: Date? = nil
+    var executionID: ExecutionID? = nil
 }
 
 struct MessageRow: View {

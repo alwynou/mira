@@ -11,6 +11,7 @@ final class AppContainer {
     let directory: URL
     let isDemo: Bool
     let credentials = KeychainCredentials()
+    let memoryApprovals = MemoryApprovalCoordinator()
     private let provider: any ModelProviderPort
     private let credentialCleanup: CredentialCleanup
     var maintenanceMessage: String?
@@ -48,7 +49,8 @@ final class AppContainer {
         }
         do {
             let store = try SQLiteMiraStore(directory: directory)
-            application = try MiraApplication(store: store, provider: provider)
+            let memoryTools = MemoryTools.readOnly(store: store) + [MemoryRememberTool(store: store, approvals: memoryApprovals)]
+            application = try MiraApplication(store: store, provider: provider, tools: ToolRegistry(memoryTools), memoryApprovals: memoryApprovals)
             startupError = nil
             if !isDemo {
                 do { maintenanceMessage = try credentialCleanup.reconcile(retaining: store.modelConfiguration().connections, credentials: credentials) }

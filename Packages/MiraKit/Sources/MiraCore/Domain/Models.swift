@@ -55,9 +55,11 @@ public struct Message: Identifiable, Codable, Sendable, Equatable {
     public var status: MessageStatus
     public var text: String
     public var createdAt: Date
-    public init(id: MessageID, conversationID: ConversationID, executionID: ExecutionID?, sequence: Int, role: MessageRole, status: MessageStatus, text: String, createdAt: Date) {
+    public var bodyPurgedAt: Date?
+    public init(id: MessageID, conversationID: ConversationID, executionID: ExecutionID?, sequence: Int, role: MessageRole, status: MessageStatus, text: String, createdAt: Date, bodyPurgedAt: Date? = nil) {
         self.id = id; self.conversationID = conversationID; self.executionID = executionID
         self.sequence = sequence; self.role = role; self.status = status; self.text = text; self.createdAt = createdAt
+        self.bodyPurgedAt = bodyPurgedAt
     }
 }
 
@@ -83,10 +85,12 @@ public struct Execution: Identifiable, Codable, Sendable, Equatable {
     public var error: MiraError?
     public var createdAt: Date
     public var updatedAt: Date
-    public init(id: ExecutionID, conversationID: ConversationID, triggerMessageID: MessageID, retryOfExecutionID: ExecutionID? = nil, status: ExecutionStatus = .queued, route: ResolvedModelRouteSnapshot, usage: TokenUsage = .init(), error: MiraError? = nil, createdAt: Date, updatedAt: Date) {
+    public var bodyPurgedAt: Date?
+    public init(id: ExecutionID, conversationID: ConversationID, triggerMessageID: MessageID, retryOfExecutionID: ExecutionID? = nil, status: ExecutionStatus = .queued, route: ResolvedModelRouteSnapshot, usage: TokenUsage = .init(), error: MiraError? = nil, createdAt: Date, updatedAt: Date, bodyPurgedAt: Date? = nil) {
         self.id = id; self.conversationID = conversationID; self.triggerMessageID = triggerMessageID
         self.retryOfExecutionID = retryOfExecutionID; self.status = status; self.route = route
         self.usage = usage; self.error = error; self.createdAt = createdAt; self.updatedAt = updatedAt
+        self.bodyPurgedAt = bodyPurgedAt
     }
 }
 public struct Draft: Codable, Sendable, Equatable {

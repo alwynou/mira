@@ -6,6 +6,8 @@
 
 定义记忆提取、来源、抑制、演化、工作记忆及资料版本与解析；用户可见行为在产品规范中定义。
 
+The current manual increment contract is detailed in [Memory implementation](MEMORY_IMPLEMENTATION.md); this document remains the broader domain contract.
+
 返回 [ARCHITECTURE.md](../ARCHITECTURE.md) · 版本范围：[MVP](../MVP.md)
 
 ---

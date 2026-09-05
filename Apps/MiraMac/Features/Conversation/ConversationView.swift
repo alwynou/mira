@@ -9,6 +9,7 @@ struct ConversationRoot: View {
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
+    @State private var showsMemories = false
     let isDemo: Bool
 
     init(application: MiraApplication, isDemo: Bool) {
@@ -21,6 +22,16 @@ struct ConversationRoot: View {
             sidebar
                 .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 320)
         } detail: {
+            if showsMemories {
+                MemoryRootView(application: model.application, workspaceID: model.selectedWorkspaceID, workspaces: model.workspaces) { id in
+                    showsMemories = false
+                    if let conversation = model.conversations.first(where: { $0.id == id }) {
+                        model.selectedWorkspaceID = conversation.workspaceID
+                        model.showArchived = conversation.isArchived
+                    }
+                    Task { await model.selectConversation(id) }
+                }.navigationTitle(L10n.string("Memories", locale: locale))
+            } else {
             ConversationDetail(model: model, isDemo: isDemo)
                 .navigationTitle(displayedConversationTitle)
                 .toolbar {
@@ -34,9 +45,17 @@ struct ConversationRoot: View {
                     }
                 }
                 .inspector(isPresented: $showsInspector) { ExecutionInspector(model: model).environment(\.locale, locale).inspectorColumnWidth(min: 280, ideal: 340, max: 480) }
+            }
         }
         .frame(minWidth: 850, minHeight: 580)
         .task { await model.observe() }
+        .task { await model.observeMemoryApprovals() }
+        .safeAreaInset(edge: .bottom) {
+            if let request = model.memoryApprovals.first {
+                MemoryToolApprovalView(request: request, application: model.application, workspaces: model.workspaces)
+                    .environment(\.locale, locale)
+            }
+        }
         .sheet(isPresented: $showsWorkspaceSheet) { WorkspaceEditor(application: model.application, workspace: editingWorkspace).environment(\.locale, locale) }
         .alert("Operation incomplete", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK", role: .cancel) { model.error = nil }
@@ -59,6 +78,14 @@ struct ConversationRoot: View {
                 Spacer()
             }.padding(20)
             List {
+                Section {
+                    Button { showsMemories = true } label: {
+                        Label("Memories", systemImage: "brain")
+                            .foregroundStyle(showsMemories ? Color.accentColor : Color.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                    }.buttonStyle(.plain)
+                }
                 Section("Workspace") {
                     Button {
                         model.selectedWorkspaceID = nil; Task { await model.selectConversation(nil) }
@@ -83,7 +110,7 @@ struct ConversationRoot: View {
                 }
                 Section {
                     ForEach(model.filteredConversations) { conversation in
-                        Button { Task { await model.selectConversation(conversation.id) } } label: {
+                        Button { showsMemories = false; Task { await model.selectConversation(conversation.id) } } label: {
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "bubble.left").foregroundStyle(.secondary)
                                 VStack(alignment: .leading, spacing: 4) {
@@ -122,6 +149,7 @@ private struct ConversationDetail: View {
     let isDemo: Bool
     @Environment(\.locale) private var locale
     @FocusState private var composerFocused: Bool
+    @State private var rememberedMessage: Message?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -140,6 +168,12 @@ private struct ConversationDetail: View {
             } else { composer }
         }
         .background(Color(nsColor: .textBackgroundColor))
+        .sheet(item: $rememberedMessage) { message in
+            MemoryEditorView(application: model.application, workspaces: model.workspaces,
+                             initialScope: model.currentConversation?.workspaceID.map(MemoryScope.workspace) ?? .global,
+                             sourceMessage: message, onSaved: { await model.reload() })
+                .environment(\.locale, locale)
+        }
         .environment(\.openURL, OpenURLAction { url in
             guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return .discarded }
             NSWorkspace.shared.open(url)
@@ -161,10 +195,26 @@ private struct ConversationDetail: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 28) {
                     ForEach(transcriptItems) { item in
-                        if item.role == .assistant {
-                            AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming)
+                        if item.bodyPurgedAt != nil {
+                            Label("Reply content cleared after forgetting a memory", systemImage: "eye.slash")
+                                .font(.callout).foregroundStyle(.secondary)
+                        } else if item.role == .assistant {
+                            VStack(alignment: .leading, spacing: 10) {
+                                AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming)
+                                if let executionID = item.executionID, let conversationID = model.selectedConversationID {
+                                    MemoryCitationList(references: MemoryCitationReference.references(in: item.text), executionID: executionID,
+                                                       conversationID: conversationID, application: model.application) { sourceID in
+                                        Task { await model.selectConversation(sourceID) }
+                                    }.padding(.leading, 40)
+                                }
+                            }
                         } else {
                             MessageRow(role: item.role, text: item.text, status: item.status)
+                                .contextMenu {
+                                    if let message = item.message, message.role == .user, message.status == .committed {
+                                        Button("Remember this message…", systemImage: "brain") { rememberedMessage = message }
+                                    }
+                                }
                         }
                     }
                     Color.clear.frame(height: 1).id("transcript-end")
@@ -182,7 +232,10 @@ private struct ConversationDetail: View {
                 role: message.role,
                 text: message.text,
                 status: message.status,
-                isStreaming: false
+                isStreaming: false,
+                message: message,
+                bodyPurgedAt: message.bodyPurgedAt,
+                executionID: message.executionID
             )
         }
         if let execution = model.executions.last,
@@ -191,7 +244,8 @@ private struct ConversationDetail: View {
             items.append(.init(
                 id: "execution:\(execution.id.rawValue.uuidString)", role: .assistant, text: draft,
                 status: execution.status.isTerminal ? .interrupted : nil,
-                isStreaming: !execution.status.isTerminal
+                isStreaming: !execution.status.isTerminal,
+                executionID: execution.id
             ))
         }
         return items

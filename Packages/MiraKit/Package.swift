@@ -11,7 +11,7 @@ let package = Package(
     ],
     dependencies: [.package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1")],
     targets: [
-        .target(name: "MiraCore"),
+        .target(name: "MiraCore", resources: [.process("Resources")]),
         .target(name: "MiraData", dependencies: ["MiraCore", .product(name: "GRDB", package: "GRDB.swift")]),
         .target(name: "MiraProviders", dependencies: ["MiraCore"]),
         .testTarget(name: "MiraCoreTests", dependencies: ["MiraCore", "MiraData"]),
