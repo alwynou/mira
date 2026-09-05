@@ -4,7 +4,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持连接设置、Workspace / Inbox、流式对话、取消 / 重试、草稿恢复与基础备份；记忆、文件检索与工具循环尚未实现。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md)。
+> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持连接设置与合成能力探测、Workspace / Inbox、流式 Markdown 对话、取消 / 重试、草稿恢复、逐次请求审计与基础备份。最小工具循环已有实现及合成测试；记忆与文件检索工具将在 M3 / M4 开放。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md)。
 
 ## 构建与运行
 
@@ -14,13 +14,13 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 swift test --package-path Packages/MiraKit
 xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
-  CODE_SIGNING_ALLOWED=NO build
+  -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
 open .build/xcode/Build/Products/Debug/Mira.app
 ```
 
 也可打开 `Mira.xcodeproj`，选择共享 Scheme `Mira` 运行。工程已提交；修改 `project.yml` 或文件组织后，使用 XcodeGen 2.46.0 执行 `xcodegen generate`。
 
-首次启动在设置中添加 OpenAI Chat Completions 兼容连接或 Anthropic Messages 连接，填写 Model ID、API Key、上下文窗口与输出上限。未知窗口可以保存，但发送前须补齐；保存配置不会自动调用模型。API Key 仅保存在本机 Keychain。
+首次启动在设置中添加 OpenAI Chat Completions 兼容连接或 Anthropic Messages 连接，填写 Model ID、API Key、上下文窗口与输出上限。未知窗口可以保存，但发送前须补齐；保存配置不会自动调用模型。API Key 仅保存在本机 Keychain。设置中的能力检测由用户主动触发，只发送固定合成提示，可能产生少量 API 费用。
 
 无密钥演示仅在 Debug 构建中显式启用，使用隔离目录，不发送网络请求：
 
@@ -68,6 +68,8 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 ## 技术基线
 
 `MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例与对话运行时；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。知识逻辑、检索与 Blob 存储按后续里程碑加入。
+
+助手消息使用微软 SwiftStreamingMarkdown v0.7.0 渲染；宿主按对应提交锁定依赖，禁用远程图片与未验证引用。构建时仅对已审阅的固定依赖使用 `-skipMacroValidation`；依赖与许可证见 [第三方说明](docs/engineering/THIRD_PARTY.md)。
 
 Core 定义接口，外层实现适配。UI 不直接访问数据库或调用 Provider，Core 不依赖 Apple UI 或 GRDB 实现。Mira 不建设自有业务后端。
 

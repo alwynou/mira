@@ -116,7 +116,20 @@ public struct MiraError: Error, LocalizedError, Codable, Sendable, Equatable {
 public struct RuntimeEnvironment: Sendable {
     public var now: @Sendable () -> Date
     public var uuid: @Sendable () -> UUID
-    public init(now: @escaping @Sendable () -> Date = { Date() }, uuid: @escaping @Sendable () -> UUID = { UUID() }) {
+    public var clock: any RuntimeClock
+    public init(now: @escaping @Sendable () -> Date = { Date() }, uuid: @escaping @Sendable () -> UUID = { UUID() }, sleep: (@Sendable (Duration) async throws -> Void)? = nil) {
         self.now = now; self.uuid = uuid
+        self.clock = sleep.map { ClosureRuntimeClock(operation: $0) } ?? SystemRuntimeClock()
     }
+}
+
+public protocol RuntimeClock: Sendable {
+    func sleep(for duration: Duration) async throws
+}
+private struct SystemRuntimeClock: RuntimeClock {
+    func sleep(for duration: Duration) async throws { try await Task.sleep(for: duration) }
+}
+private struct ClosureRuntimeClock: RuntimeClock {
+    let operation: @Sendable (Duration) async throws -> Void
+    func sleep(for duration: Duration) async throws { try await operation(duration) }
 }

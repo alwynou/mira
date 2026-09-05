@@ -643,3 +643,7 @@ Compact Replacement 后：
 
 > **参考设计标注｜DeepSeek Harness Compaction**  
 > 借鉴“旧 Surface 被 Checkpoint 遮蔽但原始事件仍保留”、连续旧区间与 Recent Tail，以及同路线时重放原前缀的优化。Mira 将该优化降为条件路径，不强制使用主对话模型，也不把 Provider 缓存命中当作保证。
+
+## 当前请求来源信息
+
+M2 `RequestContextInfo` 随每个 Canonical Request 在本机保存当前用户消息 ID、选入历史的消息 ID、Workspace 修订与路线修订，并说明失败 / 中断回复的省略原因。它是本地审计元数据，Adapter 不把这些元数据字段序列化进 Provider wire body。每 Attempt 独立保存快照。工具 Schema 与完整本回合交换进入预算，超限不截断。

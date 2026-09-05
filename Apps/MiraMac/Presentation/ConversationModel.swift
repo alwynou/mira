@@ -30,6 +30,7 @@ final class ConversationModel {
     var composer = ""
     var error: MiraError?
     var isSending = false
+    var inspectionRevision = 0
     var showArchived = false
     @ObservationIgnored let application: MiraApplication
     @ObservationIgnored private var selectionGeneration = 0
@@ -77,6 +78,7 @@ final class ConversationModel {
         messages = state.messages; executions = state.executions
         drafts = Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.text) })
         pendingSaveIDs = state.pendingSaveIDs
+        inspectionRevision += 1
     }
     func newConversation() async {
         do {

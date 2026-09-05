@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var status = ""
     @State private var diagnostics: StorageDiagnostics?
     @State private var isWorking = false
+    @State private var probeTask: Task<Void, Never>?
 
     var body: some View {
         TabView {
@@ -27,6 +28,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $showEditor) { ProviderEditor(container: container, existing: editing) }
+            .onDisappear { probeTask?.cancel() }
     }
 
     private var providerSettings: some View {
@@ -52,6 +54,9 @@ struct SettingsView: View {
             HStack {
                 Button("添加连接", systemImage: "plus") { editing = nil; showEditor = true }
                 Button("编辑") { editing = routes.first { $0.id == selectedID }; showEditor = true }.disabled(selectedID == nil)
+                Button("检测文本") { runProbe(.text) }.disabled(selectedID == nil || isWorking)
+                Button("检测工具") { runProbe(.tools) }.disabled(selectedID == nil || isWorking)
+                if probeTask != nil { Button("取消检测") { probeTask?.cancel() } }
                 Spacer()
                 Button("移除", role: .destructive) {
                     guard let route = routes.first(where: { $0.id == selectedID }) else { return }
@@ -59,8 +64,31 @@ struct SettingsView: View {
                 }.disabled(selectedID == nil || container.isDemo)
             }
             Text("当前路线用于对话；提取、压缩与 Embedding 用途会随对应里程碑开放。").font(.caption).foregroundStyle(.secondary)
+            Text("检测仅发送固定合成提示，不包含个人历史；所选模型服务可能收取少量 API 费用。").font(.caption).foregroundStyle(.secondary)
+            if let route = routes.first(where: { $0.id == selectedID }), let observation = route.probeObservation {
+                let kindName = observation.type == .text ? "文本" : "工具"
+                Text("最近\(kindName)检测：\(observation.state == .verified ? "通过" : "失败") · \(observation.checkedAt, format: .dateTime)")
+                    .font(.caption).foregroundStyle(observation.state == .verified ? .green : .orange)
+                if let error = observation.error { Text(error.message).font(.caption).foregroundStyle(.secondary) }
+            }
             if !status.isEmpty { Text(status).font(.callout).foregroundStyle(.secondary) }
         }.padding(.top, 16)
+    }
+    private func runProbe(_ kind: CapabilityProbeKind) {
+        guard let route = routes.first(where: { $0.id == selectedID }) else { return }
+        isWorking = true
+        status = "正在检测（只发送固定合成内容，不包含历史对话）…"
+        probeTask = Task {
+            let observation = await container.probe(route, kind: kind)
+            defer { isWorking = false; probeTask = nil }
+            guard !Task.isCancelled else { status = "检测已取消，能力状态未改变。"; return }
+            guard observation.state != .unknown else {
+                status = observation.error?.message ?? "能力检测失败。"
+                return
+            }
+            do { try await container.saveProbe(observation, for: route); status = observation.state == .verified ? "检测成功，已保存能力状态。" : (observation.error?.message ?? "能力检测失败，已记录状态。") }
+            catch { status = MiraError.safe(error).message }
+        }
     }
 
     private var dataSettings: some View {
@@ -179,12 +207,22 @@ private struct ProviderEditor: View {
             let windowText = contextWindow.trimmingCharacters(in: .whitespacesAndNewlines)
             guard let output = Int(maxOutputTokens), output > 0,
                   windowText.isEmpty || (Int(windowText).map { $0 > output && $0 <= 10_000_000 } ?? false) else { throw MiraError(.configuration, "请输入有效的 Token 数；最大输出须小于上下文窗口。") }
-            let route = ModelRoute(id: existing?.id ?? .init(), revision: (existing?.revision ?? 0) + 1,
+            var route = ModelRoute(id: existing?.id ?? .init(), revision: (existing?.revision ?? 0) + 1,
                                    name: name.trimmingCharacters(in: .whitespacesAndNewlines), providerKind: kind,
                                    baseURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines), modelID: modelID.trimmingCharacters(in: .whitespacesAndNewlines),
                                    credentialReference: existing?.credentialReference ?? UUID().uuidString,
                                    credentialVersion: existing?.credentialVersion ?? 1, contextWindow: Int(windowText), maxOutputTokens: output,
                                    textCapability: confirmsText ? .declared : .unknown, allowsLoopbackHTTP: allowsHTTP, requestsUsage: requestsUsage)
+            if let existing, existing.providerKind == route.providerKind, existing.baseURL == route.baseURL,
+               existing.modelID == route.modelID, existing.contextWindow == route.contextWindow,
+               existing.maxOutputTokens == route.maxOutputTokens, existing.allowsLoopbackHTTP == route.allowsLoopbackHTTP,
+               existing.requestsUsage == route.requestsUsage, apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                route.toolCapability = existing.toolCapability
+                // Changing an explicit declaration invalidates an observation only for that dimension.
+                if confirmsText == (existing.textCapability == .verified || existing.textCapability == .declared) {
+                    route.textCapability = existing.textCapability; route.probeObservation = existing.probeObservation
+                }
+            }
             _ = try route.validatedEndpoint()
             try await container.saveRoute(route, previous: existing, secret: apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
             apiKey = ""; dismiss()

@@ -16,6 +16,9 @@ settings:
 packages:
   MiraKit:
     path: Packages/MiraKit
+  SwiftStreamingMarkdown:
+    url: https://github.com/microsoft/SwiftStreamingMarkdown.git
+    revision: 5f7c04e0558df6146f90d482edb62cb456986bda
 targets:
   Mira:
     type: application
@@ -47,6 +50,8 @@ targets:
         product: MiraData
       - package: MiraKit
         product: MiraProviders
+      - package: SwiftStreamingMarkdown
+        product: SwiftStreamingMarkdown
 schemes:
   Mira:
     build:

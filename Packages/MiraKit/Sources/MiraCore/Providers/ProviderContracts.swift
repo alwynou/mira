@@ -18,12 +18,18 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
     public var textCapability: CapabilityState
     public var allowsLoopbackHTTP: Bool
     public var requestsUsage: Bool
+    /// Nil in legacy configurations; tools are exposed only after explicit declaration or a successful probe.
+    public var toolCapability: CapabilityState?
+    /// Last explicit capability probe result; absent in legacy configurations.
+    public var probeObservation: ProbeObservation?
     public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true) {
         self.id = id; self.revision = revision; self.name = name; self.providerKind = providerKind
         self.baseURL = baseURL; self.modelID = modelID; self.credentialReference = credentialReference
         self.credentialVersion = credentialVersion; self.contextWindow = contextWindow
         self.maxOutputTokens = maxOutputTokens; self.textCapability = textCapability
         self.allowsLoopbackHTTP = allowsLoopbackHTTP; self.requestsUsage = requestsUsage
+        self.toolCapability = nil
+        self.probeObservation = nil
     }
 
     public func validatedEndpoint() throws -> URL {
@@ -56,22 +62,34 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
     }
 }
 
+public enum CanonicalRole: String, Codable, Sendable { case user, assistant, tool }
 public struct CanonicalMessage: Codable, Sendable, Equatable {
-    public var role: MessageRole
+    public var role: CanonicalRole
     public var text: String
-    public init(role: MessageRole, text: String) { self.role = role; self.text = text }
+    public var toolCalls: [CanonicalToolCall]?
+    public var toolCallID: String?
+    public init(role: CanonicalRole, text: String, toolCalls: [CanonicalToolCall]? = nil, toolCallID: String? = nil) {
+        self.role = role; self.text = text; self.toolCalls = toolCalls; self.toolCallID = toolCallID
+    }
 }
 public struct CanonicalModelRequest: Codable, Sendable, Equatable {
     public var executionID: ExecutionID
     public var system: String
     public var messages: [CanonicalMessage]
-    public init(executionID: ExecutionID, system: String, messages: [CanonicalMessage]) {
+    public var requestID: UUID?
+    public var tools: [ToolDefinition]?
+    public var contextInfo: RequestContextInfo?
+    public var dispatchID: UUID { requestID ?? executionID.rawValue }
+    public init(executionID: ExecutionID, system: String, messages: [CanonicalMessage], requestID: UUID? = nil, tools: [ToolDefinition]? = nil) {
         self.executionID = executionID; self.system = system; self.messages = messages
+        self.requestID = requestID; self.tools = tools
     }
 }
-public enum StreamFinishReason: String, Sendable { case stop, outputLimit }
+public enum StreamFinishReason: String, Codable, Sendable { case stop, outputLimit, toolCalls }
 public enum CanonicalStreamEvent: Sendable, Equatable {
     case textDelta(String)
+    /// One ordered, completely assembled batch. Never execute partial JSON from a stream.
+    case toolCalls([CanonicalToolCall])
     case usage(TokenUsage)
     case finished(StreamFinishReason)
 }

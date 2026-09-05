@@ -25,6 +25,17 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ModelRoute, at: Date) throws -> Execution { try base.retry(executionID: executionID, newExecutionID: newExecutionID, route: route, at: at) }
     func prepare(executionID: ExecutionID, request: CanonicalModelRequest, at: Date) throws { try base.prepare(executionID: executionID, request: request, at: at) }
     func request(for id: ExecutionID) throws -> CanonicalModelRequest? { try base.request(for: id) }
+    func prepareAttempt(_ attempt: ModelAttempt) throws { try base.prepareAttempt(attempt) }
+    func attempts(for id: ExecutionID) throws -> [ModelAttempt] { try base.attempts(for: id) }
+    func finishAttempt(_ id: UUID, output: ModelOutput?, invocations: [ToolInvocation], usage: TokenUsage, error: MiraError?, at: Date) throws {
+        try base.finishAttempt(id, output: output, invocations: invocations, usage: usage, error: error, at: at)
+    }
+    func toolInvocations(for id: ExecutionID) throws -> [ToolInvocation] { try base.toolInvocations(for: id) }
+    func markToolDispatched(_ id: UUID, at: Date) throws { try base.markToolDispatched(id, at: at) }
+    @discardableResult
+    func finishToolInvocation(_ id: UUID, result: ToolResult, at: Date) throws -> Bool {
+        try base.finishToolInvocation(id, result: result, at: at)
+    }
     func checkpoint(executionID: ExecutionID, text: String, at: Date) throws { try base.checkpoint(executionID: executionID, text: text, at: at) }
     func finish(executionID: ExecutionID, status: ExecutionStatus, text: String, usage: TokenUsage, error: MiraError?, assistantMessageID: MessageID, at: Date) throws -> Bool {
         if lock.withLock({ failFinalization }) { throw MiraError(.storage, "Synthetic finalization failure") }

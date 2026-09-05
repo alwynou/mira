@@ -30,6 +30,15 @@ public protocol MiraStore: Sendable {
     /// Atomically stores the exact canonical request and transitions queued -> waitingForModel.
     func prepare(executionID: ExecutionID, request: CanonicalModelRequest, at: Date) throws
     func request(for executionID: ExecutionID) throws -> CanonicalModelRequest?
+    /// Persists Step + Attempt + exact request before any network dispatch. Legacy request(for:) returns the latest request.
+    func prepareAttempt(_ attempt: ModelAttempt) throws
+    func attempts(for executionID: ExecutionID) throws -> [ModelAttempt]
+    /// Atomically records model output and its ordered proposals. A completed call cannot be rewritten.
+    func finishAttempt(_ id: UUID, output: ModelOutput?, invocations: [ToolInvocation], usage: TokenUsage, error: MiraError?, at: Date) throws
+    func toolInvocations(for executionID: ExecutionID) throws -> [ToolInvocation]
+    func markToolDispatched(_ id: UUID, at: Date) throws
+    /// CAS: exactly one terminal result, including calls which were never dispatched.
+    @discardableResult func finishToolInvocation(_ id: UUID, result: ToolResult, at: Date) throws -> Bool
     func checkpoint(executionID: ExecutionID, text: String, at: Date) throws
     /// CAS terminal transition. Returns false for an already-terminal execution. Inserts at most one assistant message; clears its draft.
     @discardableResult

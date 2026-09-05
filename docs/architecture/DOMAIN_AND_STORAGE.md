@@ -347,3 +347,11 @@ fts_*, vector_metadata（未来）
 
 > **参考设计标注｜SQLite / GRDB**  
 > 采用 SQLite 作为应用文件格式、事务与 WAL；采用 GRDB 管理 Swift 数据访问、迁移与观察。规范数据和可重建索引分开，大型文件不塞入数据库正文列。
+
+## 当前 v2 迁移
+
+`m0_core` 保持已发布 SQL 不变；新增 `m2_execution_audit` 创建 execution_steps、model_attempts、tool_invocations。Step 序号从 1 开始，Attempt 请求身份与执行 / Step 外键一致，工具调用按模型顺序且原 Provider ID 唯一。ModelOutput 与整批提案原子提交；每个 ToolResult 通过 CAS 只终止一次。未知、拒绝、参数错误等可以在未 dispatch 时终止，不能伪造已成功执行。
+
+恢复将遗留 Attempt 和工具终止；未调度调用标为 cancelledBeforeDispatch，已调度而结果未知的调用标为 interrupted。不会自动重新发送模型请求或工具写入。
+
+备份恢复支持 v1 / v2。先复制到私有 staging，再按对应版本的精确 Schema、约束、迁移清单和 typed rows 验证；v1 仅在 staging 中迁移到 v2，成功后安装到未使用目录。v2 额外检查 ModelOutput 与每个工具提案的 ID、顺序、名称及参数一致。原备份不打开写连接，源 sidecar 不参与不可靠的主文件拼接；规范导出仍使用 SQLite Backup API。

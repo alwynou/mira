@@ -543,3 +543,219 @@ func boundedCanonicalStream() async throws {
     // of silently dropping an unbounded number of events.
     #expect(received < 256)
 }
+
+private func toolDefinition(_ name: String = "memory.search") -> ToolDefinition {
+    ToolDefinition(name: name, description: "Search local memories", inputSchema: .object([
+        "type": .string("object"),
+        "properties": .object(["query": .object(["type": .string("string")])]),
+        "required": .array([.string("query")])
+    ]))
+}
+
+private func toolRoute(_ kind: ProviderKind = .openAICompatible) -> ModelRoute {
+    var result = route(kind)
+    result.toolCapability = .verified
+    return result
+}
+
+private func toolRequest(requestID: UUID = UUID()) -> CanonicalModelRequest {
+    CanonicalModelRequest(
+        executionID: ExecutionID(),
+        system: "Use tools when needed.",
+        messages: [
+            CanonicalMessage(role: .user, text: "Search my memories"),
+            CanonicalMessage(role: .assistant, text: "", toolCalls: [CanonicalToolCall(id: "call-1", name: "memory.search", arguments: #"{"query":"swift"}"#)]),
+            CanonicalMessage(role: .tool, text: "A Swift memory", toolCallID: "call-1")
+        ],
+        requestID: requestID,
+        tools: [toolDefinition()]
+    )
+}
+
+@Test("Tool definitions and history use exact OpenAI and Anthropic wire shapes")
+func toolRequestShapes() async throws {
+    let openAIResponse = Data(sse([("", #"{"choices":[{"delta":{},"finish_reason":"stop"}]}"#), ("", "[DONE]")]))
+    let openAITransport = FixtureTransport(events: openAIEvents([openAIResponse]))
+    for try await _ in HTTPModelProvider(credentials: FixtureCredentials(), transport: openAITransport).stream(request: toolRequest(), route: toolRoute()) {}
+    let openAIBody = try #require(openAITransport.requests.first?.httpBody)
+    let openAIObject = try #require(JSONSerialization.jsonObject(with: openAIBody) as? [String: Any])
+    let openAITools = try #require(openAIObject["tools"] as? [[String: Any]])
+    let openAIFunction = try #require(openAITools.first?["function"] as? [String: Any])
+    #expect(openAIFunction["name"] as? String == "memory_search")
+    let openAIMessages = try #require(openAIObject["messages"] as? [[String: Any]])
+    #expect(openAIMessages[2]["role"] as? String == "assistant")
+    #expect((openAIMessages[2]["tool_calls"] as? [[String: Any]])?.first?["id"] as? String == "call-1")
+    #expect(openAIMessages[3]["role"] as? String == "tool")
+    #expect(openAIMessages[3]["tool_call_id"] as? String == "call-1")
+
+    let anthropicResponse = Data(sse([
+        ("message_start", #"{"type":"message_start","message":{"usage":{}}}"#),
+        ("content_block_start", #"{"type":"content_block_start","index":0,"content_block":{"type":"text"}}"#),
+        ("content_block_stop", #"{"type":"content_block_stop","index":0}"#),
+        ("message_delta", #"{"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#),
+        ("message_stop", #"{"type":"message_stop"}"#)
+    ]))
+    let anthropicTransport = FixtureTransport(events: anthropicEvents([anthropicResponse]))
+    for try await _ in HTTPModelProvider(credentials: FixtureCredentials(), transport: anthropicTransport).stream(request: toolRequest(), route: toolRoute(.anthropic)) {}
+    let anthropicBody = try #require(anthropicTransport.requests.first?.httpBody)
+    let anthropicObject = try #require(JSONSerialization.jsonObject(with: anthropicBody) as? [String: Any])
+    let anthropicTools = try #require(anthropicObject["tools"] as? [[String: Any]])
+    #expect(anthropicTools.first?["name"] as? String == "memory_search")
+    #expect(anthropicTools.first?["input_schema"] is [String: Any])
+    let anthropicMessages = try #require(anthropicObject["messages"] as? [[String: Any]])
+    #expect(anthropicMessages.count == 3)
+    #expect(anthropicMessages[1]["role"] as? String == "assistant")
+    let assistantBlocks = try #require(anthropicMessages[1]["content"] as? [[String: Any]])
+    #expect(assistantBlocks.first?["type"] as? String == "tool_use")
+    #expect(assistantBlocks.first?["name"] as? String == "memory_search")
+    #expect(anthropicMessages[2]["role"] as? String == "user")
+    let resultBlocks = try #require(anthropicMessages[2]["content"] as? [[String: Any]])
+    #expect(resultBlocks.first?["type"] as? String == "tool_result")
+    #expect(resultBlocks.first?["tool_use_id"] as? String == "call-1")
+}
+
+@Test("OpenAI interleaved tool arguments are emitted once in model order")
+func openAIInterleavedToolCalls() async throws {
+    let bytes = sse([
+        ("", #"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"a","type":"function","function":{"name":"memory.search","arguments":"{\"q\":"}}]},"finish_reason":null}]}"#),
+        ("", #"{"choices":[{"delta":{"tool_calls":[{"index":1,"id":"b","type":"function","function":{"name":"memory.search","arguments":"{\"q\":"}}]},"finish_reason":null}]}"#),
+        ("", #"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"one\"}"}},{"index":1,"function":{"arguments":"\"two\"}"}}]},"finish_reason":null}]}"#),
+        ("", #"{"choices":[{"delta":{},"finish_reason":"tool_calls"}]}"#),
+        ("", "[DONE]")
+    ])
+    let transport = FixtureTransport(events: openAIEvents(split(bytes, sizes: [1, 3, 2, 7])))
+    var events: [CanonicalStreamEvent] = []
+    for try await event in HTTPModelProvider(credentials: FixtureCredentials(), transport: transport).stream(request: toolRequest(), route: toolRoute()) { events.append(event) }
+    #expect(events == [
+        .toolCalls([
+            CanonicalToolCall(id: "a", name: "memory.search", arguments: #"{"q":"one"}"#),
+            CanonicalToolCall(id: "b", name: "memory.search", arguments: #"{"q":"two"}"#)
+        ]),
+        .finished(.toolCalls)
+    ])
+}
+
+@Test("Anthropic input_json_delta is assembled and mapped back to the internal tool name")
+func anthropicToolCallStream() async throws {
+    let frames = [
+        ("message_start", #"{"type":"message_start","message":{"usage":{}}}"#),
+        ("content_block_start", #"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu-1","name":"memory_search","input":{}}}"#),
+        ("content_block_delta", #"{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"query\":"}}"#),
+        ("content_block_delta", #"{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\"swift\"}"}}"#),
+        ("content_block_stop", #"{"type":"content_block_stop","index":0}"#),
+        ("message_delta", #"{"type":"message_delta","delta":{"stop_reason":"tool_use"}}"#),
+        ("message_stop", #"{"type":"message_stop"}"#)
+    ]
+    let transport = FixtureTransport(events: anthropicEvents(split(sse(frames), sizes: [1, 2, 5, 8])))
+    var events: [CanonicalStreamEvent] = []
+    for try await event in HTTPModelProvider(credentials: FixtureCredentials(), transport: transport).stream(request: toolRequest(requestID: UUID()), route: toolRoute(.anthropic)) { events.append(event) }
+    #expect(events == [
+        .usage(TokenUsage(inputTokens: nil, outputTokens: nil)),
+        .toolCalls([CanonicalToolCall(id: "toolu-1", name: "memory.search", arguments: #"{"query":"swift"}"#)]),
+        .finished(.toolCalls)
+    ])
+}
+
+@Test("Duplicate tool IDs and incomplete tool stops are rejected without tool events")
+func invalidToolCallBoundaries() async throws {
+    let duplicate = sse([
+        ("", #"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"same","type":"function","function":{"name":"memory.search","arguments":"{}"}},{"index":1,"id":"same","type":"function","function":{"name":"memory.search","arguments":"{}"}}]},"finish_reason":"tool_calls"}]}"#),
+        ("", "[DONE]")
+    ])
+    do {
+        for try await _ in HTTPModelProvider(credentials: FixtureCredentials(), transport: FixtureTransport(events: openAIEvents([Data(duplicate)]))).stream(request: toolRequest(), route: toolRoute()) {}
+        Issue.record("expected duplicate tool ID failure")
+    } catch let error as MiraError { #expect(error.code == .malformedStream) }
+
+    let limited = sse([
+        ("", #"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"a","type":"function","function":{"name":"memory.search","arguments":"{\"q\":"}}]},"finish_reason":"length"}]}"#),
+        ("", "[DONE]")
+    ])
+    var events: [CanonicalStreamEvent] = []
+    for try await event in HTTPModelProvider(credentials: FixtureCredentials(), transport: FixtureTransport(events: openAIEvents([Data(limited)]))).stream(request: toolRequest(), route: toolRoute()) { events.append(event) }
+    #expect(events.last == .finished(.outputLimit))
+    #expect(!events.contains { if case .toolCalls = $0 { true } else { false } })
+}
+
+@Test("Cancellation uses request dispatch IDs when attempts share an execution")
+func cancellationUsesDispatchIdentity() async throws {
+    let transport = MultiControlledTransport()
+    let provider = HTTPModelProvider(credentials: FixtureCredentials(), transport: transport)
+    let sharedExecution = ExecutionID()
+    let firstRequest = CanonicalModelRequest(executionID: sharedExecution, system: "", messages: [], requestID: UUID())
+    let secondRequest = CanonicalModelRequest(executionID: sharedExecution, system: "", messages: [], requestID: UUID())
+    let firstID = firstRequest.dispatchID.uuidString
+    let secondID = secondRequest.dispatchID.uuidString
+    let first = Task { for try await _ in provider.stream(request: firstRequest, route: route()) {} }
+    let second = Task { for try await _ in provider.stream(request: secondRequest, route: route()) {} }
+    for _ in 0..<100 where transport.readyCount < 2 { try? await Task.sleep(nanoseconds: 1_000_000) }
+    first.cancel()
+    _ = await first.result
+    for _ in 0..<100 where !transport.cancelledIDs.contains(firstID) { try? await Task.sleep(nanoseconds: 1_000_000) }
+    #expect(transport.cancelledIDs.contains(firstID))
+    #expect(!transport.cancelledIDs.contains(secondID))
+    second.cancel()
+    _ = await second.result
+}
+
+@Test("Tool argument syntax and size limits are checked before emitting a runnable batch")
+func toolArgumentLimitsBeforeEmission() async throws {
+    for scenario in 0..<3 {
+        let arguments = scenario == 0 ? "{" : (scenario == 1 ? String(repeating: "x", count: 65_537) : "{}")
+        let count = scenario == 2 ? 33 : 1
+        let calls: [[String: Any]] = (0..<count).map { ["index": $0, "id": "id-\($0)", "type": "function", "function": ["name": "memory_search", "arguments": arguments]] }
+        let object: [String: Any] = ["choices": [["delta": ["tool_calls": calls], "finish_reason": "tool_calls"]]]
+        let frame = String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+        let transport = FixtureTransport(events: openAIEvents([Data(sse([("", frame), ("", "[DONE]")]))]))
+        var emitted = false
+        do {
+            for try await event in HTTPModelProvider(credentials: FixtureCredentials(), transport: transport).stream(request: toolRequest(), route: toolRoute()) {
+                if case .toolCalls = event { emitted = true }
+            }
+            Issue.record("Expected bounded malformed tool proposal")
+        } catch let error as MiraError { #expect(error.code == .malformedStream) }
+        #expect(!emitted)
+    }
+}
+
+@Test("Anthropic accepts an empty input object without deltas and rejects content after stop reason")
+func anthropicEmptyToolInputAndStopOrdering() async throws {
+    let prefix = [
+        ("message_start", #"{"message":{}}"#),
+        ("content_block_start", #"{"index":0,"content_block":{"type":"tool_use","id":"empty-1","name":"unknown_tool","input":{}}}"#),
+        ("content_block_stop", #"{"index":0}"#),
+        ("message_delta", #"{"delta":{"stop_reason":"tool_use"}}"#)
+    ]
+    let good = FixtureTransport(events: anthropicEvents([Data(sse(prefix + [("message_stop", #"{}"#)]))]))
+    var events: [CanonicalStreamEvent] = []
+    for try await event in HTTPModelProvider(credentials: FixtureCredentials(), transport: good).stream(request: toolRequest(), route: toolRoute(.anthropic)) { events.append(event) }
+    #expect(events == [.toolCalls([.init(id: "empty-1", name: "unknown_tool", arguments: "{}")]), .finished(.toolCalls)])
+    let bad = FixtureTransport(events: anthropicEvents([Data(sse(prefix + [
+        ("content_block_start", #"{"index":1,"content_block":{"type":"text","text":"late"}}"#),
+        ("content_block_stop", #"{"index":1}"#), ("message_stop", "{}")
+    ]))]))
+    do {
+        for try await _ in HTTPModelProvider(credentials: FixtureCredentials(), transport: bad).stream(request: toolRequest(), route: toolRoute(.anthropic)) { }
+        Issue.record("Expected rejection of content after a stop reason")
+    } catch let error as MiraError { #expect(error.code == .malformedStream) }
+}
+
+@Test("Orphaned and incomplete tool histories are rejected before transport")
+func malformedToolHistoryNeverDispatches() async throws {
+    let scenarios: [[CanonicalMessage]] = [
+        [.init(role: .tool, text: "orphan", toolCallID: "unknown")],
+        [.init(role: .assistant, text: "", toolCalls: [.init(id: "id", name: "memory.search", arguments: "{}")])],
+        [.init(role: .assistant, text: "", toolCalls: [.init(id: "id", name: "memory.search", arguments: "{}")]), .init(role: .user, text: "missing result")]
+    ]
+    for kind in [ProviderKind.openAICompatible, .anthropic] {
+        for messages in scenarios {
+            let transport = FixtureTransport(events: [])
+            var malformed = toolRequest(); malformed.messages = messages
+            do {
+                for try await _ in HTTPModelProvider(credentials: FixtureCredentials(), transport: transport).stream(request: malformed, route: toolRoute(kind)) { }
+                Issue.record("Expected rejection before dispatch")
+            } catch let error as MiraError { #expect(error.code == .malformedStream) }
+            #expect(transport.requests.isEmpty)
+        }
+    }
+}

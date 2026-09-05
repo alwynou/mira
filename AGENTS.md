@@ -19,7 +19,7 @@
 ## Verification
 
 - Package: `swift test --package-path Packages/MiraKit`.
-- App: `xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode CODE_SIGNING_ALLOWED=NO build`.
+- App: `xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO build`. The macro flag is scoped to the pinned renderer dependencies; see `docs/engineering/DEVELOPMENT.md`.
 - Regenerate project after file/target changes: `xcodegen generate`; keep `project.yml` and the generated project consistent.
 - Use isolated temporary databases and synthetic transport fixtures. CI must not require credentials or call paid model endpoints.
 - Verify failure boundaries (atomicity, interrupted streams, cancellation, recovery, privacy), not just happy paths. Report exact evidence and remaining gaps; compiling for macOS 15 is not a macOS 15 runtime test.

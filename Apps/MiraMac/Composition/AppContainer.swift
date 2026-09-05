@@ -11,6 +11,7 @@ final class AppContainer {
     let directory: URL
     let isDemo: Bool
     let credentials = KeychainCredentials()
+    private let provider: any ModelProviderPort
     private let credentialCleanup: CredentialCleanup
     var maintenanceMessage: String?
     private var didSeedDemo = false
@@ -36,19 +37,17 @@ final class AppContainer {
             directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Mira", isDirectory: true)
         }
         credentialCleanup = CredentialCleanup(directory: directory)
+        #if DEBUG
+        provider = isDemo ? DemoProvider() : HTTPModelProvider(credentials: credentials)
+        #else
+        provider = HTTPModelProvider(credentials: credentials)
+        #endif
         if let argumentError {
             application = nil; startupError = argumentError
             return
         }
         do {
             let store = try SQLiteMiraStore(directory: directory)
-            let provider: any ModelProviderPort
-            #if DEBUG
-            if isDemo { provider = DemoProvider() }
-            else { provider = HTTPModelProvider(credentials: credentials) }
-            #else
-            provider = HTTPModelProvider(credentials: credentials)
-            #endif
             application = try MiraApplication(store: store, provider: provider)
             startupError = nil
             if !isDemo {
@@ -58,6 +57,27 @@ final class AppContainer {
         } catch {
             application = nil; startupError = MiraError.safe(error)
         }
+    }
+
+    func probe(_ route: ModelRoute, kind: CapabilityProbeKind) async -> ProbeObservation {
+        await ProviderCapabilityProbe(provider: provider).run(route: route, kind: kind)
+    }
+
+    func saveProbe(_ observation: ProbeObservation, for route: ModelRoute) async throws {
+        try Task.checkCancellation()
+        guard observation.state == .verified || observation.state == .failed else { return }
+        guard let application else { return }
+        let current = try await application.library(includeArchived: true).routes.first { $0.id == route.id }
+        guard let current, current == route else {
+            throw MiraError(.conflict, "连接配置已变化，检测结果未覆盖新的编辑内容。")
+        }
+        var updated = current
+        if observation.type == .text { updated.textCapability = observation.state }
+        else { updated.toolCapability = observation.state }
+        updated.probeObservation = observation
+        updated.revision += 1
+        try Task.checkCancellation()
+        try await application.saveRoute(updated, expectedRevision: current.revision)
     }
 
     func seedDemo() async throws {
@@ -114,7 +134,35 @@ private struct DemoProvider: ModelProviderPort {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let answer = "你好，我是 Mira。\n\n这是一段仅在本机生成的演示回复，用来检查流式显示、停止生成与重启恢复。\n\n你刚才发送了：\n\(request.messages.last?.text ?? "")\n\n连接自己的模型后，就可以开始真实对话。记忆、资料检索与工具执行将在后续里程碑加入。"
+                    let answer = """
+                    # Mira 本机演示
+
+                    你好，我是 Mira。这段回复由本机生成，用来检查流式 Markdown、停止生成与重启恢复。
+
+                    你刚才发送了：
+
+                    > \(request.messages.last?.text ?? "")
+
+                    ## 支持的内容
+
+                    - 标题、列表与引用
+                    - **强调**、`行内代码` 与表格
+                    - 仅允许点击 `http(s)` 链接
+
+                    ```swift
+                    let message = "你好，Mira！"
+                    print(message)
+                    ```
+
+                    | 能力 | 状态 |
+                    | --- | --- |
+                    | 本机流式输出 | 可用 |
+                    | 网络请求 | 未启用 |
+
+                    [了解 Swift](https://www.swift.org)
+
+                    连接自己的模型后，就可以开始真实对话。记忆、资料检索与工具执行将在后续里程碑加入。
+                    """
                     for character in answer {
                         try await Task.sleep(for: .milliseconds(18))
                         continuation.yield(.textDelta(String(character)))

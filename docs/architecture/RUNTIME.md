@@ -690,3 +690,16 @@ UI 不直接展示厂商原始错误栈；Inspector 可以显示已脱敏技术�
 工具 Preview、搜索数量和来源读取上限由各 Tool Schema 进一步限定；不能只限制工具次数而允许一次读入无限内容。达到限额终止为明确错误，保留已提交内容；无进展检测结合重复调用参数与结果 Hash，不把合法重复读取一律当作循环。
 
 Mira Runtime 负责全局并发，ProviderScheduler 可以按连接限速进一步降低并发。等待用户的确认绑定目标版本与执行身份；应用重启后不自动批准旧确认。
+
+## 8. 当前 M2 实现契约
+
+- Host 注入不可变 `ToolRegistry`，定义按工具 ID 排序。生产注册表目前为空；测试专用工具通过构造参数注入，不自动进入真实对话。默认写入工具拒绝授权。
+- `CanonicalStreamEvent.toolCalls` 只携带完整的一批调用，且与 `finished(toolCalls)` 配对。Adapter 在原始 JSON 语法损坏时终止流；参数 Schema 不符合、未知工具、权限拒绝等由运行时保存结构化 ToolResult。
+- 工具输入采用受限 JSON Schema 子集（object / string / number / integer / boolean / 有界 array），不支持的 Schema 在注册时失败。对象必须禁止额外字段。参数最多 64 KiB，单个工具结果默认 32 KiB、最多 64 KiB。
+- 相邻 parallelSafe 调用最多 4 个并发；exclusive / ordered 在前批全部完成后单独执行。真实完成顺序不改变写回模型的 modelOrder。授权与执行均须协作取消；工具写入 Use Case 还需在自身提交事务中重新核对目标版本并按 invocation ID 去重。
+- 一个 Execution 代表一个 Turn。每次网络调用具有独立 Step / Attempt / dispatch ID，请求、输出与全部工具提案 / 回执先落盘，后续请求再使用完整交换。当前不自动重试网络请求；显式失败回合重试创建新 Execution。
+- 除表中 Step / Tool / 时间限额外，当前每 Turn 累计预留输出最多 32,768 Token；未知 Usage 保持未知，不用实际返回量代替发送前预留。连续三批工具名称、规范化参数与结果完全相同会停止为无进展错误。
+- 输入预算使用 UTF-8 与协议开销的保守估算。新请求无法容纳完整工具交换时，在 dispatch 前失败。当前仅活跃回合保留工具协议，下一用户回合只读取已提交普通消息。
+- 聚合 Execution 状态目前沿用 queued / waitingForModel 与终态；工具的排队、执行、拒绝状态由审计记录展示。Context 构建失败记录在 Execution；独立的构建失败 Step、自动 Attempt 重试、人工确认 UI 和更完整 ModelOutput Typed Parts 后续逐项补齐，未注册依赖这些能力的生产工具。
+
+本节是当前实现与前文完整设计的对应，不代替 [实际验收记录](../engineering/IMPLEMENTATION_STATUS.md)。

@@ -209,3 +209,11 @@ SSE Parser 按字节增量解码 UTF-8，支持跨网络块拆分、多行 data�
 
 > **参考设计标注｜DeepSeek Harness LLM Layer**  
 > 借鉴 Provider-neutral Message / Stream Contract 与 Adapter 负责 Wire Protocol 的边界。Mira 不要求采用其包结构，也不允许 Adapter 隐藏 Retry。
+
+## 2. 当前能力探测与工具编码
+
+设置只在用户主动点击后发起合成探测。文本探测要求非空文本、stop 与完整流终止；工具探测要求单个 `probe.echo` 调用和固定参数对象，接受 Provider 生成的非空调用 ID 与等价 JSON 排版，不运行工具副作用。成功与失败只改变被测能力；取消不改能力。结果回写核对冻结配置与修订，配置变更后旧结果不得覆盖。真实模型 / 窗口、用量、计费和其他能力不从一次探测推断。
+
+内部工具名如 `memory.search` 编码为兼容的 wire 名 `memory_search`，在注册时拒绝映射冲突。OpenAI 使用 function tools / tool_calls / tool messages；Anthropic 使用 tool_use 与连续同批 tool_result blocks。完整调用参数经过 JSON 对象语法验证才交给 Runtime；Runtime 再进行 Schema 与权限检查。
+
+取消标识使用每 Attempt 的 `request.dispatchID`，同一 Execution 中不同网络请求互不影响。Capability 缺失时不携带工具；Adapter 也在读取凭据前检查工具历史配对与能力。thinking / signed continuation 尚未接入，不伪造不透明续接内容。

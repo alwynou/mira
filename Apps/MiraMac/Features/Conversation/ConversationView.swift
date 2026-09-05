@@ -1,5 +1,7 @@
 import SwiftUI
 import MiraCore
+import SwiftStreamingMarkdown
+import AppKit
 
 struct ConversationRoot: View {
     @State private var model: ConversationModel
@@ -131,6 +133,11 @@ private struct ConversationDetail: View {
             } else { composer }
         }
         .background(Color(nsColor: .textBackgroundColor))
+        .environment(\.openURL, OpenURLAction { url in
+            guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return .discarded }
+            NSWorkspace.shared.open(url)
+            return .handled
+        })
     }
     private var welcome: some View {
         VStack(spacing: 20) {
@@ -146,11 +153,12 @@ private struct ConversationDetail: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 28) {
-                    ForEach(model.messages) { message in
-                        MessageRow(role: message.role, text: message.text, status: message.status).id(message.id)
-                    }
-                    if let execution = model.activeExecution {
-                        MessageRow(role: .assistant, text: model.drafts[execution.id] ?? "", status: nil)
+                    ForEach(transcriptItems) { item in
+                        if item.role == .assistant {
+                            AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming)
+                        } else {
+                            MessageRow(role: item.role, text: item.text, status: item.status)
+                        }
                     }
                     Color.clear.frame(height: 1).id("transcript-end")
                 }.padding(28).frame(maxWidth: 860).frame(maxWidth: .infinity)
@@ -158,6 +166,28 @@ private struct ConversationDetail: View {
             .defaultScrollAnchor(.bottom)
             .onChange(of: model.messages.count) { _, _ in proxy.scrollTo("transcript-end", anchor: .bottom) }
         }
+    }
+
+    private var transcriptItems: [TranscriptItem] {
+        var items = model.messages.map { message in
+            TranscriptItem(
+                id: message.role == .assistant ? (message.executionID.map { "execution:\($0.rawValue.uuidString)" } ?? "message:\(message.id.rawValue.uuidString)") : "message:\(message.id.rawValue.uuidString)",
+                role: message.role,
+                text: message.text,
+                status: message.status,
+                isStreaming: false
+            )
+        }
+        if let execution = model.executions.last,
+           !items.contains(where: { $0.id == "execution:\(execution.id.rawValue.uuidString)" }),
+           let draft = model.drafts[execution.id] {
+            items.append(.init(
+                id: "execution:\(execution.id.rawValue.uuidString)", role: .assistant, text: draft,
+                status: execution.status.isTerminal ? .interrupted : nil,
+                isStreaming: !execution.status.isTerminal
+            ))
+        }
+        return items
     }
     private var composer: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -192,57 +222,5 @@ private struct ConversationDetail: View {
         .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary) }
         .padding(.horizontal, 24).padding(.bottom, 20).padding(.top, 12)
         .frame(maxWidth: 910).frame(maxWidth: .infinity)
-    }
-}
-
-private struct MessageRow: View {
-    let role: MessageRole
-    let text: String
-    let status: MessageStatus?
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: role == .user ? "person.crop.circle" : "sparkle")
-                .font(.title3).foregroundStyle(role == .user ? Color.secondary : Color.accentColor).frame(width: 28)
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(spacing: 8) {
-                    Text(role == .user ? "你" : "Mira").font(.callout.weight(.semibold))
-                    if let status, status != .committed { Text("未完成").font(.caption).foregroundStyle(.orange) }
-                }
-                if text.isEmpty && status == nil { Text("正在思考…").foregroundStyle(.secondary) }
-                else { Text(text).textSelection(.enabled).lineSpacing(5).fixedSize(horizontal: false, vertical: true) }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-        }.accessibilityElement(children: .contain)
-    }
-}
-
-private struct ExecutionInspector: View {
-    @Bindable var model: ConversationModel
-    @State private var requestText = ""
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text("执行详情").font(.headline)
-                if let execution = model.executions.last {
-                    LabeledContent("状态", value: execution.status.displayTitle)
-                    LabeledContent("模型", value: execution.route.modelID)
-                    LabeledContent("输入 Token", value: execution.usage.inputTokens.map(String.init) ?? "服务未提供")
-                    LabeledContent("输出 Token", value: execution.usage.outputTokens.map(String.init) ?? "服务未提供")
-                    Text("费用未估算；以服务商账单为准。").font(.caption).foregroundStyle(.secondary)
-                    Divider()
-                    Text("实际发送内容").font(.subheadline.weight(.semibold))
-                    Text("仅在本机查看；不包含 API Key。").font(.caption).foregroundStyle(.secondary)
-                    Text(requestText.isEmpty ? "尚未发送请求" : requestText).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                }
-            }.padding(20)
-        }
-        .task(id: model.executions.last?.updatedAt) {
-            requestText = ""
-            guard let execution = model.executions.last else { return }
-            do {
-                if let request = try await model.application.request(for: execution.id) {
-                    requestText = "SYSTEM\n\(request.system)\n\n" + request.messages.map { "\($0.role.rawValue.uppercased())\n\($0.text)" }.joined(separator: "\n\n")
-                }
-            } catch { model.error = MiraError.safe(error) }
-        }
     }
 }

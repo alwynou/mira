@@ -130,7 +130,7 @@ Mira/
 swift test --package-path Packages/MiraKit --disable-automatic-resolution
 xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
-  -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build
+  -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
 ```
 
 首次解析可使用 `swift package --package-path Packages/MiraKit resolve`。依赖升级时同时检查两个 `Package.resolved`。工程源配置为根目录 `project.yml`，新增 Host 文件后用 XcodeGen 2.46.0 生成并提交 `.xcodeproj` 与共享 Scheme。Core / Data / Providers 是 Swift Package 的三个库；测试只使用合成数据。
@@ -158,3 +158,11 @@ open .build/xcode/Build/Products/Debug/Mira.app --args \
 ```
 
 打开恢复目录不会自动发送请求或重放执行。凭据不会随备份恢复，已轮换或其他机器上的密钥需要重新配置。此阶段还没有托管资料文件，Blob 一致备份和一键切换资料库属于后续交付。
+
+## 流式 Markdown 依赖
+
+MiraMac 使用微软 SwiftStreamingMarkdown v0.7.0 对应 commit `5f7c04e0558df6146f90d482edb62cb456986bda`。上游该版本含 revision 型依赖，SwiftPM 不接受将它作为普通语义版本依赖解析，因此宿主固定到 release commit 并提交整个锁文件；MiraKit 不引入此 UI 依赖。
+
+库带 Equatable 编译宏。已审阅、锁定的依赖在 CLI / CI 使用 `-skipMacroValidation`；不修改机器全局信任设置。依赖升级必须重新审阅并验证。该选项不会绕过应用签名或公证。详见 [第三方说明](THIRD_PARTY.md)。
+
+独立演示验证标题、中文、列表、代码块、表格、取消与重开。助手采用相同 Markdown renderer 接收每 70 ms 合并的完整快照，结束立即 flush；用户消息保持原文。滚动回收不依赖一次性的 AsyncStream 订阅。
