@@ -1,6 +1,6 @@
 # Automatic memory verification
 
-Date: 2026-09-05. Branch: `dev`. Local deterministic acceptance passed. Exact commit CI is recorded below after dispatch. Native interaction and real-model quality remain separate, deferred gates; this does not mark M3 or the MVP released.
+Date: 2026-09-05; CI confirmed 2026-09-06. Branch: `dev`. Local deterministic acceptance and exact-commit CI passed. Native interaction and real-model quality remain separate, deferred gates; this does not mark M3 or the MVP released.
 
 ## Implemented boundary
 
@@ -24,6 +24,7 @@ Environment: macOS 26.6.2, Apple Silicon, Xcode 26.6, Swift 6.3.3; deployment ta
 | Release app | Build passed; `/private/tmp/mira-extraction-final-release.log` |
 | Localization | 801 bilingual keys; source policy and compiler-extracted Debug coverage passed; all 673 previously committed entries preserved |
 | Source/project consistency | XcodeGen regenerated the project; `git diff --check` passed |
+| Exact-commit CI | Commit `9fa7212b3700d0dc24b8763049941935e6a041d2` passed [CI 33977078523](https://github.com/alwynou/mira/actions/runs/33977078523), including package tests, app/host tests, language policy, and extracted UI coverage |
 
 Fixtures cover opt-in/no-backfill, dedicated routing and permissions, exact source/request ownership, foreground priority, lease/restart recovery, explicit retries, midnight reservation transfer, actual/unknown settlement, malformed output, transaction failure, candidate review and later recall, disable/forget during suspended extraction, fractional timestamp round trips, and independently corrupted backup relationships. The synthetic provider returns source-matching quotes, so late-result rejection is not accidentally explained by a mismatched fixture quote.
 
