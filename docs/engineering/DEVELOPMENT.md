@@ -16,7 +16,7 @@
 | 分发 | 用户直接下载安装，不走 Mac App Store |
 | 首版功能与协议选择 | 以 [MVP](../MVP.md) 的已确认范围为准 |
 | 语言模式 | Swift 6 严格并发检查；跨 Actor 的领域值使用 Sendable |
-| 工具链 | 本机 Xcode 26.6 / Swift 6.3.3；CI 使用 macos-15 / Xcode 16.4；Package tools-version 6.1 |
+| 工具链 | 本机 Xcode 26.6 / Swift 6.3.3；CI 使用 macos-15 / Xcode 26.3；Host 依赖要求 Swift 6.2+，MiraKit Package tools-version 6.1 |
 | 依赖 | GRDB 7.11.1，已提交 Package 与 Xcode 的 Package.resolved；工程生成器 XcodeGen 2.46.0 |
 
 macOS 版本范围和直接分发方式由用户确认；具体工具链与依赖固定是工程默认。本机为 Apple Silicon，只能作为该架构的验证证据；不能据此宣称 Intel 已验证或不再支持。每个发布产物明确列出已测试 CPU 架构和最低系统。
@@ -135,7 +135,7 @@ xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
 
 首次解析可使用 `swift package --package-path Packages/MiraKit resolve`。依赖升级时同时检查两个 `Package.resolved`。工程源配置为根目录 `project.yml`，新增 Host 文件后用 XcodeGen 2.46.0 生成并提交 `.xcodeproj` 与共享 Scheme。Core / Data / Providers 是 Swift Package 的三个库；测试只使用合成数据。
 
-CI 的 `macos-15` 镜像与 Xcode 16.4 路径以 [GitHub 官方镜像清单](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) 为依据。CI 的运行结果与本机结果分别记录，不从配置文件存在推断 CI 已成功。
+CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) 为依据。SwiftStreamingMarkdown v0.7.0 固定依赖 swift-markdown 0.7.3，其 Package 清单要求 Swift 6.2，所以原 Xcode 16.4 不能构建当前 Host。编译器升级不改变 macOS 15 最低部署版本。CI 的运行结果与本机结果分别记录，不从配置文件存在推断 CI 已成功。
 
 ### 资料库与演示
 
