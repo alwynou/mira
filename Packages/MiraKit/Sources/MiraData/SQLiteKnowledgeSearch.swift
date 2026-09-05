@@ -17,15 +17,9 @@ extension SQLiteMiraStore {
             let words = normalized.split(whereSeparator: { $0.isWhitespace }).map(String.init)
             let hasTrigram = try db.tableExists("knowledge_trigrams")
             let indexed = hasTrigram && words.allSatisfy { $0.unicodeScalars.count >= 3 }
-            let expression = words.map { "\"" + $0.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }.joined(separator: " AND ")
-            var sql = "SELECT s.source_json, c.summary_json, c.text, c.normalized_text FROM source_chunks c JOIN knowledge_sources s ON s.id = c.source_id AND s.current_version_id = c.version_id WHERE s.deleted_at IS NULL AND (s.workspace_id IS NULL OR s.workspace_id = ?)"
-            var arguments: StatementArguments = [workspaceID.map(Self.id)]
-            if connectionID != nil { sql += " AND s.allows_remote_use = 1" }
-            if indexed {
-                sql += " AND c.rowid IN (SELECT rowid FROM knowledge_words WHERE knowledge_words MATCH ? UNION SELECT rowid FROM knowledge_trigrams WHERE knowledge_trigrams MATCH ?)"
-                arguments += [expression, expression]
-            }
-            sql += " ORDER BY c.rowid LIMIT 20001"
+            let candidateQuery = Self.knowledgeCandidateQuery(words: words, workspaceID: workspaceID, connectionID: connectionID, indexed: indexed)
+            let sql = candidateQuery.sql
+            let arguments = candidateQuery.arguments
             let deadline = KnowledgeSearchDeadline()
             let pointer = Unmanaged.passUnretained(deadline).toOpaque()
             sqlite3_progress_handler(db.sqliteConnection, 1_000, { context in
@@ -58,6 +52,27 @@ extension SQLiteMiraStore {
             }
             return .init(hits: scored.map(\.1), isTruncated: truncated, scannedCandidates: scanned)
         }}
+    }
+
+    /// Builds the bounded candidate query used by search. Short queries deliberately
+    /// scan chunks in rowid order so the fallback does not materialize a large sort.
+    static func knowledgeCandidateQuery(
+        words: [String],
+        workspaceID: WorkspaceID?,
+        connectionID: ConnectionID?,
+        indexed: Bool
+    ) -> (sql: String, arguments: StatementArguments) {
+        let expression = words.map { "\"" + $0.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }.joined(separator: " AND ")
+        let join = indexed ? "JOIN" : "CROSS JOIN"
+        var sql = "SELECT s.source_json, c.summary_json, c.text, c.normalized_text FROM source_chunks c \(join) knowledge_sources s ON s.id = c.source_id AND s.current_version_id = c.version_id WHERE s.deleted_at IS NULL AND (s.workspace_id IS NULL OR s.workspace_id = ?)"
+        var arguments: StatementArguments = [workspaceID.map(Self.id)]
+        if connectionID != nil { sql += " AND s.allows_remote_use = 1" }
+        if indexed {
+            sql += " AND c.rowid IN (SELECT rowid FROM knowledge_words WHERE knowledge_words MATCH ? UNION SELECT rowid FROM knowledge_trigrams WHERE knowledge_trigrams MATCH ?)"
+            arguments += [expression, expression]
+        }
+        sql += " ORDER BY c.rowid LIMIT 20001"
+        return (sql, arguments)
     }
 
     static func knowledgeSnippet(_ text: String, query: String) -> String {

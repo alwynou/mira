@@ -76,6 +76,38 @@ struct KnowledgeStoreTests {
         }
     }
 
+    @Test func shortChineseFallbackUsesChunkOrderAndCurrentScope() throws {
+        let fixture = try KnowledgeStoreFixture()
+        defer { fixture.cleanup() }
+        let workspaceA = Workspace(id: .init(), name: "A")
+        let workspaceB = Workspace(id: .init(), name: "B")
+        try fixture.store.saveWorkspace(workspaceA, expectedRevision: nil)
+        try fixture.store.saveWorkspace(workspaceB, expectedRevision: nil)
+        let current = try fixture.importText("知识 first current", workspaceID: workspaceA.id) // i18n-fixture: short Chinese query plan regression.
+        _ = try fixture.importText("知识 hidden workspace", workspaceID: workspaceB.id) // i18n-fixture: hidden Chinese source.
+        let replaced = try fixture.importText("知识 previous version") // i18n-fixture: historical Chinese source.
+        _ = try fixture.importText("replacement without the query", updating: replaced.source)
+
+        let query = SQLiteMiraStore.knowledgeCandidateQuery(
+            words: ["知识"], workspaceID: workspaceA.id, connectionID: nil, indexed: false // i18n-fixture: Chinese fallback plan.
+        )
+        let details = try fixture.store.pool.read { db in
+            try Row.fetchAll(db, sql: "EXPLAIN QUERY PLAN \(query.sql)", arguments: query.arguments).map { row in
+                row["detail"] as String
+            }
+        }
+        #expect(details.contains { $0.contains("SCAN c") })
+        #expect(details.allSatisfy { !$0.localizedCaseInsensitiveContains("USE TEMP B-TREE") })
+
+        let result = try fixture.store.searchKnowledge(query: "知识", workspaceID: workspaceA.id, connectionID: nil, limit: 20) // i18n-fixture: two-scalar Chinese fallback.
+        #expect(result.hits.first?.source.id == current.source.id)
+        #expect(result.hits.allSatisfy { $0.source.id != replaced.source.id })
+        let connectionID = ConnectionID()
+        #expect(try fixture.store.searchKnowledge(query: "知识", workspaceID: workspaceA.id, connectionID: connectionID, limit: 20).hits.isEmpty) // i18n-fixture: local-only short-query source.
+        _ = try fixture.store.setSourceRemoteUse(current.source.id, workspaceID: workspaceA.id, allowed: true, expectedRevision: current.source.revision, at: fixture.date)
+        #expect(try fixture.store.searchKnowledge(query: "知识", workspaceID: workspaceA.id, connectionID: connectionID, limit: 20).hits.map(\.source.id) == [current.source.id]) // i18n-fixture: explicitly disclosed short-query source.
+    }
+
     @Test func importFaultsLeaveExistingCanonicalVersionsIntact() throws {
         let control = KnowledgeFaultControl()
         let fixture = try KnowledgeStoreFixture(faults: control)

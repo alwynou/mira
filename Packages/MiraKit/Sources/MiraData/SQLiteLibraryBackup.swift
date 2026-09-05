@@ -75,7 +75,7 @@ extension SQLiteMiraStore {
                 try Self.requireNoSQLiteSidecars(for: databaseStage)
                 try LibraryBackupFaultControl.invoke(.afterDatabaseSnapshot, for: libraryDirectory.standardizedFileURL.path)
                 try Self.setPrivateFile(databaseStage)
-                let databaseData = try Self.readBoundedRegularFile(databaseStage, limit: 512 * 1024 * 1024)
+                let databaseSnapshot = try BackupFileIO.inspect(databaseStage, limit: Self.maximumDatabaseBytes)
                 let sourceBlobs = blobs
                 let references: [BackupBlobReference]
                 references = try Self.readAndValidateDatabase(at: databaseStage, blobs: sourceBlobs)
@@ -97,7 +97,7 @@ extension SQLiteMiraStore {
                     formatVersion: 1,
                     schemaVersion: Self.currentSchemaVersion,
                     appVersion: "0.1.0",
-                    database: .init(digest: Self.backupDigest(databaseData), byteCount: databaseData.count),
+                    database: .init(digest: databaseSnapshot.digest, byteCount: databaseSnapshot.byteCount),
                     blobs: references.sorted { $0.digest < $1.digest }.map { .init(digest: $0.digest, byteCount: $0.byteCount) }
                 )
                 try Self.writeManifest(manifest, to: stage.appendingPathComponent("manifest.json"))
@@ -113,9 +113,9 @@ extension SQLiteMiraStore {
             try safely {
                 let manifest = try Self.readManifest(from: source)
                 let sourceDatabase = source.appendingPathComponent("Mira.sqlite")
-                let sourceData = try Self.readBoundedRegularFile(sourceDatabase, limit: 512 * 1024 * 1024)
-                guard Self.backupDigest(sourceData) == manifest.database.digest,
-                      sourceData.count == manifest.database.byteCount else {
+                let sourceSnapshot = try BackupFileIO.inspect(sourceDatabase, limit: Self.maximumDatabaseBytes)
+                guard sourceSnapshot.digest == manifest.database.digest,
+                      sourceSnapshot.byteCount == manifest.database.byteCount else {
                     throw MiraError(.storage, "The backup database does not match its manifest.")
                 }
                 let sourceBlobs = try ManagedBlobStore(directory: source)
@@ -132,7 +132,10 @@ extension SQLiteMiraStore {
                 defer { try? FileManager.default.removeItem(at: stage) }
                 try Self.createDirectoryIfNeeded(stage)
                 let stagedDatabase = stage.appendingPathComponent("Mira.sqlite")
-                try sourceData.write(to: stagedDatabase, options: .atomic)
+                let stagedSnapshot = try BackupFileIO.copy(from: sourceDatabase, to: stagedDatabase, limit: Self.maximumDatabaseBytes)
+                guard stagedSnapshot == sourceSnapshot else {
+                    throw MiraError(.storage, "The backup database does not match its manifest.")
+                }
                 try Self.setPrivateFile(stagedDatabase)
                 let stagedBlobs = try ManagedBlobStore(directory: stage)
                 for blob in manifest.blobs {
@@ -158,6 +161,10 @@ extension SQLiteMiraStore {
 }
 
 private extension SQLiteMiraStore {
+    // The reference 50,000-chunk library stores canonical text and FTS projections.
+    // Stream the database so the size ceiling does not become an allocation size.
+    static let maximumDatabaseBytes = 2 * 1024 * 1024 * 1024
+
     static func snapshotDatabase(_ pool: DatabasePool, to destination: URL) throws {
         let database = try DatabaseQueue(path: destination.path)
         try pool.backup(to: database)
@@ -278,13 +285,13 @@ private extension SQLiteMiraStore {
     static func readManifest(from directory: URL) throws -> LibraryBackupManifest {
         try validateBundleFilesystem(directory)
         let manifestURL = directory.appendingPathComponent("manifest.json")
-        let data = try readBoundedRegularFile(manifestURL, limit: 8 * 1024 * 1024)
+        let data = try BackupFileIO.read(manifestURL, limit: 8 * 1024 * 1024)
         let manifest: LibraryBackupManifest
         do { manifest = try JSONDecoder().decode(LibraryBackupManifest.self, from: data) }
         catch { throw MiraError(.storage, "The backup manifest is invalid.") }
         guard manifest.formatVersion == 1, manifest.schemaVersion == currentSchemaVersion,
               manifest.appVersion == "0.1.0", manifest.blobs.count <= 100_000,
-              manifest.database.byteCount >= 0, manifest.database.byteCount <= 512 * 1024 * 1024,
+              manifest.database.byteCount >= 0, manifest.database.byteCount <= Self.maximumDatabaseBytes,
               manifest.database.digest.count == 64 else {
             throw MiraError(.unsupported, "The backup manifest is unsupported.")
         }
@@ -314,63 +321,14 @@ private extension SQLiteMiraStore {
         try validateBundleFilesystem(directory)
         let loaded = try readManifest(from: directory)
         guard loaded == manifest else { throw MiraError(.storage, "The backup manifest changed during creation.") }
-        let data = try readBoundedRegularFile(directory.appendingPathComponent("Mira.sqlite"), limit: 512 * 1024 * 1024)
-        guard backupDigest(data) == manifest.database.digest, data.count == manifest.database.byteCount else {
+        let snapshot = try BackupFileIO.inspect(directory.appendingPathComponent("Mira.sqlite"), limit: Self.maximumDatabaseBytes)
+        guard snapshot.digest == manifest.database.digest, snapshot.byteCount == manifest.database.byteCount else {
             throw MiraError(.storage, "The backup database does not match its manifest.")
         }
         let store = try ManagedBlobStore(directory: directory)
         let actual = try store.digests()
         guard Set(actual) == Set(manifest.blobs.map(\.digest)) else { throw MiraError(.storage, "The backup blob set does not match its manifest.") }
         for blob in manifest.blobs { guard try store.read(blob.digest).count == blob.byteCount else { throw MiraError(.storage, "A managed blob size does not match its manifest.") } }
-    }
-
-    static func readBoundedRegularFile(_ url: URL, limit: Int) throws -> Data {
-        let path = url.standardizedFileURL.path
-        let descriptor = path.withCString { open($0, O_RDONLY | O_NOFOLLOW | O_CLOEXEC) }
-        guard descriptor >= 0 else {
-            throw MiraError(.storage, "The backup file is invalid or too large.")
-        }
-        defer { close(descriptor) }
-        var before = stat()
-        guard fstat(descriptor, &before) == 0,
-              before.st_mode & UInt16(S_IFMT) == UInt16(S_IFREG),
-              before.st_size >= 0, before.st_size <= off_t(limit) else {
-            throw MiraError(.storage, "The backup file is invalid or too large.")
-        }
-        var data = Data()
-        data.reserveCapacity(Int(before.st_size))
-        while data.count < Int(before.st_size) {
-            var buffer = [UInt8](repeating: 0, count: min(64 * 1024, Int(before.st_size) - data.count))
-            let count = buffer.withUnsafeMutableBytes { bytes in
-                read(descriptor, bytes.baseAddress, bytes.count)
-            }
-            if count < 0, errno == EINTR { continue }
-            guard count > 0 else { throw MiraError(.storage, "The backup file could not be read.") }
-            data.append(contentsOf: buffer[0..<count])
-        }
-        var after = stat()
-        var pathAfter = stat()
-        guard fstat(descriptor, &after) == 0,
-              path.withCString({ lstat($0, &pathAfter) }) == 0,
-              after.st_dev == before.st_dev, after.st_ino == before.st_ino,
-              after.st_size == before.st_size,
-              after.st_mtimespec.tv_sec == before.st_mtimespec.tv_sec,
-              after.st_mtimespec.tv_nsec == before.st_mtimespec.tv_nsec,
-              after.st_ctimespec.tv_sec == before.st_ctimespec.tv_sec,
-              after.st_ctimespec.tv_nsec == before.st_ctimespec.tv_nsec,
-              pathAfter.st_dev == before.st_dev, pathAfter.st_ino == before.st_ino,
-              pathAfter.st_size == before.st_size,
-              pathAfter.st_mtimespec.tv_sec == before.st_mtimespec.tv_sec,
-              pathAfter.st_mtimespec.tv_nsec == before.st_mtimespec.tv_nsec,
-              pathAfter.st_ctimespec.tv_sec == before.st_ctimespec.tv_sec,
-              pathAfter.st_ctimespec.tv_nsec == before.st_ctimespec.tv_nsec else {
-            throw MiraError(.storage, "The backup file changed while it was read.")
-        }
-        return data
-    }
-
-    static func backupDigest(_ data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     static func setPrivateFile(_ url: URL) throws {

@@ -2,7 +2,9 @@
 
 日期：2026-09-05。分支：`dev`。本文件记录已经写入代码的增量、验证证据与剩余工作；产品和架构规范仍由各自文档负责。
 
-## 1. 本次交付
+Current acceptance is tracked in the [execution ledger](MVP_EXECUTION.md), [knowledge verification](KNOWLEDGE_VERIFICATION.md), and [M5 verification](M5_VERIFICATION.md). The original M0–M2 snapshot below preserves historical counts and design limits; it is not the current test total.
+
+## 1. 早期工程交付记录（M0–M2）
 
 | 范围 | 实现 |
 |---|---|
@@ -13,7 +15,7 @@
 | M1 异常边界 | UserMessage + queued Execution 原子提交、网络前落盘请求、每 250 ms 或 4 KiB 草稿检查点、唯一终态、保留部分回复、保存失败重试、退出期间禁止新请求 |
 | M1 数据 | SQLite Backup API 导出、原备份只读使用（校验操作在暂存副本）、拒绝错误结构 / 约束、恢复到新目录、未知用量显示“服务未提供” |
 | M2 工具基础 | 不可变注册表、受限 Schema、默认写入拒绝、多步模型调用、完整交换、并行安全 / 独占屏障、拒绝 / 超时 / 取消回执、Step / Attempt 审计 |
-| M2 限额与恢复 | 每回合 20 Step / 32 Tool / 4 并行工具、Token 输出预留与完整上下文预算、活动期限、无进展检测、current v4 schema and audit-preserving backup/restore (early development; no historical format conversion) |
+| M2 限额与恢复 | 每回合 20 Step / 32 Tool / 4 并行工具、Token 输出预留与完整上下文预算、活动期限、无进展检测、historical v4 schema and audit-preserving backup/restore (early development; no historical format conversion) |
 | M1 配置路由 | Normalized provider connections, model descriptors, route presets, purpose bindings, scope precedence, capability validation, and immutable execution snapshots are implemented; endpoint and attended platform acceptance remain pending |
 
 The production registry includes `memory.search`, `memory.get`, `memory.remember`, `knowledge.search`, `source.open`, and `source.readChunk`. Manual memory, exact citations, correction, and cleanup were delivered in the v5 increment; [Memory verification](MEMORY_VERIFICATION.md) preserves its evidence and native limitations. Opt-in automatic extraction, leased jobs, review, usage accounting, suppression, and recovery have deterministic acceptance in the v6 increment; see [Automatic memory verification](AUTOMATIC_MEMORY_VERIFICATION.md). The current v7 increment adds immutable Markdown snapshots, bounded multilingual search, exact source citations, disclosure/deletion, managed-file recovery, and complete backup bundles. [Knowledge verification](KNOWLEDGE_VERIFICATION.md) records combined tests and remaining gates. The table above retains the earlier M0–M2 scope.
@@ -55,6 +57,6 @@ Current language conventions and verification are in [Localization](LOCALIZATION
 
 ## 5. 尚未获得的发布证据
 
-未完成真实 Provider / Keychain 演练、macOS 15 本机 UI、Intel、7 天使用、完整记忆质量评估、Blob 恢复、签名、公证或下载包安装升级测试。CI 在 macOS 15 上执行包测试和应用编译也不等同于这些 UI 与发布验收。当前版本仅作为本机开发增量。M2 尚有独立构建失败 Step、自动 Attempt 重试与人工确认 UI 等完整设计项，当前未注册依赖这些能力的生产工具。
+未完成真实 Provider / Keychain 演练、macOS 15 本机 UI、Intel、7 天使用、完整记忆质量评估、签名、公证或下载包安装升级测试。CI 在 macOS 15 上执行包测试和应用编译也不等同于这些 UI 与发布验收。当前版本仅作为本机开发增量。M2 尚有独立构建失败 Step、自动 Attempt 重试与人工确认 UI 等完整设计项，后续 M3 / M4 已注册的生产工具以各自验收记录为准。
 
 Current routing, host test, and native evidence is recorded in [Routing verification](ROUTING_VERIFICATION.md).

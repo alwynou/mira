@@ -4,7 +4,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持用途级模型配置、Workspace / Inbox、流式 Markdown 对话、取消 / 重试、草稿恢复、请求审计与基础备份。手动记忆、纠正与遗忘、记忆工具、历史引用和默认关闭的自动记忆已有实现及确定性测试；Markdown 资料检索仍在开发。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md) 和 [手动记忆验收记录](docs/engineering/MEMORY_VERIFICATION.md)、[自动记忆验收记录](docs/engineering/AUTOMATIC_MEMORY_VERIFICATION.md)。
+> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索与完整备份已有实现。M5 的规模查询与大资料库恢复已通过本机测试；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md) 和 [M5 验收记录](docs/engineering/M5_VERIFICATION.md)。
 
 ## 构建与运行
 
@@ -19,6 +19,10 @@ open .build/xcode/Build/Products/Debug/Mira.app
 ```
 
 也可打开 `Mira.xcodeproj`，选择共享 Scheme `Mira` 运行。工程已提交；修改 `project.yml` 或文件组织后，使用 XcodeGen 2.46.0 执行 `xcodegen generate`。
+
+## Local development artifact
+
+Build a ZIP from an exact committed revision with [the local packaging procedure](docs/engineering/LOCAL_DELIVERY.md). It includes checksum and resource verification. The artifact is unsigned/ad hoc and intended for local development; public download acceptance remains pending.
 
 ## Automatic memory
 
@@ -87,7 +91,7 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 
 ## 技术基线
 
-`MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例与对话运行时；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。知识逻辑、检索与 Blob 存储按后续里程碑加入。
+`MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例与对话运行时；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。记忆与知识契约由 Core 定义，Data 实现本地检索、托管文件和完整备份。
 
 Assistant messages use Microsoft SwiftStreamingMarkdown v0.7.0 with a small locale adaptation in `Vendor/SwiftStreamingMarkdown`; the upstream commit and changes are documented in its `UPSTREAM.md`. Remote images and unverified citations remain disabled.构建时仅对已审阅的固定依赖使用 `-skipMacroValidation`；依赖与许可证见 [第三方说明](docs/engineering/THIRD_PARTY.md)。
 

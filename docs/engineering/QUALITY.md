@@ -164,7 +164,7 @@ Conversation B 提问
 
 ### 1.10 Persistence Tests
 
-- Migration from every supported schema；
+- Current-schema integrity and typed relationships; unsupported development schemas are rejected intact;
 - 事务故障注入；
 - WAL Crash Recovery；
 - Blob 丢失 / Hash 不匹配；
@@ -292,13 +292,13 @@ Provider 价格目录
 |---|---|---|---|
 | Q01 | 信任与隐私 | 固定攻击 / 越权集全部通过：跨 Scope、neverRemote、来源策略继承、授权撤销、伪造引用、工具权限注入均无越界结果 | M2–M5 |
 | Q02 | Runtime 确定性 | Fake Provider / Tool 的正常、拒绝、失败、取消、超时、重试、工具配对、EOF 和完成竞态全部通过；无重复终态与重复提交 | M1–M2 |
-| Q03 | 数据可靠性 | 每个已发布 Schema 可迁移；提交、Blob 安装、清理、备份 / 恢复故障注入全部通过；恢复后完整性与引用校验通过 | M0–M5 |
+| Q03 | 数据可靠性 | 当前 Schema 完整性、提交、Blob 安装、清理、备份 / 恢复故障注入全部通过；旧开发格式保留并明确拒绝，不做兼容转换；恢复后引用校验通过 | M0–M5 |
 | Q04 | Memory Extraction | 至少 160 条人工标注 Fixture（正 / 负样本各至少 80），每个验证模型运行 3 轮；Active Precision ≥98%，适合捕获的清晰陈述 Recall ≥80% | M3–M5 |
 | Q05 | Memory Retrieval | 至少 80 条查询，Hit@6 ≥90%；Scope 泄漏、已替代 / 已删除普通召回均为 0；所有抑制重跑 Fixture 不复活 | M3–M5 |
 | Q06 | 连续性与引用 | 至少 40 个跨 Conversation 场景，每个验证模型 3 轮；回答正确使用记忆且引用正确的比例 ≥90%；系统将引用解析为真实对象的准确率 100% | M3–M5 |
 | Q07 | 搜索与性能 | 中文短词、混合文本、代码 / 路径、空结果和查询转义 Fixture 全部通过；本地性能符合下表，超限不假称完整结果 | M4–M5 |
 | Q08 | 使用与恢复体验 | 键盘完成核心流程、VoiceOver 可辨状态、取消 / 错误 / Undo / 来源 / 恢复入口可用；至少 7 天真实使用记录无未解决严重缺陷 | M5 |
-| Q09 | 分发 | 每个标为支持的最低系统 / CPU 通过安装与升级；对外版本签名、公证及迁移恢复通过 | M5 对外交付 |
+| Q09 | 分发 | 每个标为支持的最低系统 / CPU 通过安装与升级；对外版本签名、公证及当前格式恢复通过 | M5 对外交付 |
 
 Q04 的敏感自动捕获、Assistant 建议冒充用户决定、Scope 错误、未确认高影响替代，以及 Q06 中无授权副作用是单独的零容忍 Fixture：即使平均指标达标，出现一次也阻止该配置启用相关能力。有限 Fixture 通过不是对所有未来输入的零错误保证。
 
@@ -343,7 +343,7 @@ CI 默认使用合成 Fixture 和 Fake Provider，不依赖开发者密钥，也
 |---|---|
 | 文档结构、引用与规范一致性 | 本轮执行，结果记入评审记录 |
 | 当前系统 sqlite3 CLI 的 trigram 探测 | 已执行，只对本机 CLI 有效；见 [参考资料](../REFERENCES.md) |
-| Swift Package 构建、应用运行和测试 | 未执行；尚无工程代码 |
+| Swift Package 构建、应用运行和测试 | 已有确定性验收；精确增量、提交与 CI 见 [执行记录](MVP_EXECUTION.md)，原生交互按各报告单列 |
 | 最低 macOS / Intel 验证 | 未执行 |
 | 真实 Provider 协议与模型质量 | 未执行；实现时选择模型并配置凭据 |
 | 签名、公证、安装升级与 7 天使用 | 未执行；发布前完成 |

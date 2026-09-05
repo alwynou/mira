@@ -15978,6 +15978,23 @@
           }
         }
       }
+    },
+    "The backup file could not be written.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The backup file could not be written."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法写入备份文件。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
