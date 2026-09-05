@@ -18,7 +18,7 @@
 - 父代理独立执行整个 Swift Package 测试：72 个测试 / 6 个 Suite 全部通过。
 - 本机 Debug / Release 使用锁文件与 `-skipMacroValidation` 构建通过；固定依赖及许可证见 [第三方说明](THIRD_PARTY.md)。
 - 原生 UI 使用 `/private/tmp/mira-markdown-m2-smoke` 的合成资料库：已看到重启后的中文、标题、列表、代码高亮、代码复制按钮与表格；中途取消留下已渲染 Markdown 前缀并显示“未完成”；执行检查器显示 Step / Attempt / 中断原因。没有使用真实凭据或个人资料。
-- 本次 CI 的准确提交与运行结果在推送后补充，先前 M0 / M1 CI 不计入本次证据。
+- GitHub Actions：实现提交 `c30ed87` 加工具链修复提交 `1858489`，在 macos-15 / Xcode 26.3 上完成包测试与应用 Debug 构建，[运行 33959360850](https://github.com/alwynou/mira/actions/runs/33959360850) 全部通过，Job 耗时 3 分 30 秒。先前 M0 / M1 CI 不计入本次证据。
 
 覆盖：完整交换与原始用户输入唯一性、临时观察跨回合隔离、实际完成顺序与模型顺序差异、默认写入拒绝、权限收紧时未调度取消、超时与取消区别、参数与结果上限、完整交换超出窗口不发送、无进展循环停止、当前版本与旧版本恢复、备份源 bytes / sidecar 保护、错误结构安装前拒绝、能力探测取消 / 假阳性 / 终态之后事件。
 
@@ -27,6 +27,8 @@
 子任务使用用户指定的 GPT-5.6 Luna。父代理审阅并修复或要求修复了连续输入的 debounce 导致不刷新、用户与助手重复列表 ID、一次性 AsyncStream 生命周期、工具拒绝不能写回、旧 Step 重试可重复执行、Anthropic 空参数与终止顺序、探测伪阳性和取消状态等问题。
 
 测试中还出现默认异步 sleep 闭包取消时的 `swift_task_dealloc` 崩溃。最小 `RuntimeClockTests` 可复现；改为 `RuntimeClock` 协议与具体系统实现后，最小测试和运行时测试通过。这里记录可复现观察与本项目修复，不推断所有 Swift 版本均受影响。
+
+依赖清单复核发现 swift-markdown 0.7.3 要求 Swift 6.2。首次 Xcode 16.4 CI 已通过包测试，在应用阶段被后续修复提交替代取消；最终 CI 使用同一 macos-15 镜像提供的 Xcode 26.3。应用最低部署版本仍为 macOS 15。
 
 ## 尚未覆盖
 

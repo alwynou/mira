@@ -8,7 +8,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 ## 构建与运行
 
-安装 Xcode 16.4 或更高版本，使用 Swift 6 语言模式，目标 macOS 15+。本机已验证 Xcode 26.6 / Apple Silicon；CI 固定 Xcode 16.4。
+使用 Xcode 26.3 或更高版本（Host 的 Markdown 依赖要求 Swift 6.2+），启用 Swift 6 语言模式，目标 macOS 15+。本机已验证 Xcode 26.6 / Apple Silicon；CI 固定 Xcode 26.3。
 
 ```sh
 swift test --package-path Packages/MiraKit
