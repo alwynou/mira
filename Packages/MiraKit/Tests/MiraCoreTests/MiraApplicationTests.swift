@@ -75,7 +75,7 @@ struct MiraApplicationTests {
         let first = try await app.send(conversationID: conversationID, text: "question one", routeID: fixture.route.id)
         try await eventually { fixture.provider.requestCount == 1 }
         fixture.provider.yield(.textDelta("wrong partial"), for: first)
-        fixture.provider.fail(MiraError(.network, "连接已中断。"), for: first)
+        fixture.provider.fail(MiraError(.network, "Connection was interrupted."), for: first)
         try await eventually { try fixture.store.executions(in: conversationID).last?.status == .interrupted }
         let replacement = try await app.retry(first, routeID: fixture.route.id)
         try await eventually { fixture.provider.requestCount == 2 }

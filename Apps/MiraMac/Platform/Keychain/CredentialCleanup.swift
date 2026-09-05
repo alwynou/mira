@@ -25,21 +25,21 @@ struct CredentialCleanup {
             catch { remaining.append(item) }
         }
         try write(remaining)
-        return remaining.isEmpty ? nil : "连接变更已保存。部分旧 Keychain 凭据暂未清理，已登记重试；可在数据设置中重试清理。"
+        return remaining.isEmpty ? nil : "Connection changes were saved. Some old Keychain credentials could not be removed and were queued for retry. Retry cleanup in Data settings."
     }
 
     private func read() throws -> [Item] {
         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
         do {
             let ledger = try JSONDecoder().decode(Ledger.self, from: Data(contentsOf: url))
-            guard ledger.version == 1 else { throw MiraError(.storage, "凭据清理记录版本不受支持。") }
+            guard ledger.version == 1 else { throw MiraError(.storage, "The credential cleanup ledger version is unsupported.") }
             return ledger.items
-        } catch { throw MiraError(.storage, "无法读取凭据清理记录，连接变更已暂停。") }
+        } catch { throw MiraError(.storage, "Unable to read the credential cleanup ledger. Connection changes are paused.") }
     }
     private func write(_ items: [Item]) throws {
         do {
             try JSONEncoder().encode(Ledger(items: items)).write(to: url, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
-        } catch { throw MiraError(.storage, "无法保存凭据清理记录，请检查资料库目录权限。") }
+        } catch { throw MiraError(.storage, "Unable to save the credential cleanup ledger. Check library directory permissions.") }
     }
 }

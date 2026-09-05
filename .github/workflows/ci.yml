@@ -21,5 +21,9 @@ jobs:
         run: xcodebuild -version && swift --version
       - name: Package tests
         run: swift test --package-path Packages/MiraKit --disable-automatic-resolution
-      - name: macOS app
-        run: xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
+      - name: Language policy
+        run: python3 scripts/check_language_policy.py
+      - name: macOS app and localization tests
+        run: xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO test
+      - name: Extracted UI string coverage
+        run: python3 scripts/check_language_policy.py --extracted-dir .build/xcode/Build/Intermediates.noindex/Mira.build/Debug/Mira.build

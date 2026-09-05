@@ -12,25 +12,25 @@ struct KeychainCredentials: CredentialReader {
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess, let data = result as? Data, let value = String(data: data, encoding: .utf8), !value.isEmpty else {
-            throw MiraError(.credentialMissing, "无法读取 API Key，请在设置中重新保存凭据。")
+            throw MiraError(.credentialMissing, "Unable to read the API key. Save your credentials again in Settings.")
         }
         return value
     }
 
     func save(_ secret: String, reference: String, version: Int) throws {
-        guard !secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.credentialMissing, "请输入 API Key。") }
+        guard !secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.credentialMissing, "Enter an API key.") }
         var attributes = identity(reference, version)
         attributes[kSecValueData as String] = Data(secret.utf8)
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         attributes[kSecAttrSynchronizable as String] = false
         guard SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess else {
-            throw MiraError(.credentialMissing, "Keychain 保存失败，原有凭据未被替换。")
+            throw MiraError(.credentialMissing, "Keychain could not save the key. Existing credentials were not replaced.")
         }
     }
 
     func delete(reference: String, version: Int) throws {
         let status = SecItemDelete(identity(reference, version) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw MiraError(.credentialMissing, "Keychain 暂时无法移除旧凭据。") }
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw MiraError(.credentialMissing, "Keychain could not remove the old credentials.") }
     }
 
     // The untyped dictionary is required by Security.framework, and stays inside this adapter.

@@ -155,9 +155,10 @@ private func anthropicEvents(_ chunks: [Data], status: Int = 200) -> [HTTPTransp
 
 @Test("OpenAI text, usage and terminal are normalized across split UTF8 bytes")
 func openAIHappyPath() async throws {
+    // Keep these Chinese scalars to verify UTF-8 bytes split across network chunks.
     let bytes = sse([
-        ("", #"{"choices":[{"delta":{"content":"你"},"finish_reason":null}]}"#),
-        ("", #"{"choices":[{"delta":{"content":"好"},"finish_reason":null}]}"#),
+        ("", #"{"choices":[{"delta":{"content":"你"},"finish_reason":null}]}"#), // i18n-fixture: Preserve non-ASCII input to verify Unicode behavior.
+        ("", #"{"choices":[{"delta":{"content":"好"},"finish_reason":null}]}"#), // i18n-fixture: Preserve non-ASCII input to verify Unicode behavior.
         ("", #"{"choices":[{"delta":{},"finish_reason":"stop"}]}"#),
         ("", #"{"choices":[],"usage":{"prompt_tokens":3,"completion_tokens":2}}"#),
         ("", "[DONE]")
@@ -166,7 +167,7 @@ func openAIHappyPath() async throws {
     let provider = HTTPModelProvider(credentials: FixtureCredentials(), transport: transport)
     var events: [CanonicalStreamEvent] = []
     for try await event in provider.stream(request: request(), route: route()) { events.append(event) }
-    #expect(events == [.textDelta("你"), .textDelta("好"), .usage(TokenUsage(inputTokens: 3, outputTokens: 2)), .finished(.stop)])
+    #expect(events == [.textDelta("你"), .textDelta("好"), .usage(TokenUsage(inputTokens: 3, outputTokens: 2)), .finished(.stop)]) // i18n-fixture: Preserve non-ASCII input to verify Unicode behavior.
 }
 
 @Test("Anthropic handles multiline data, ping and output limit")

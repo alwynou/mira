@@ -157,16 +157,16 @@ struct ToolRuntimeTests {
         }
     }
 
-    @Test func legacyCapabilityDoesNotExposeToolsAndMalformedPairingNeverExecutes() async throws {
+    @Test func unknownCapabilityDoesNotExposeToolsAndMalformedPairingNeverExecutes() async throws {
         let fixture = try ToolFixture(); defer { fixture.cleanup() }
-        var legacy = fixture.route; legacy.toolCapability = nil; legacy.revision += 1
-        try fixture.store.saveRoute(legacy, expectedRevision: fixture.route.revision)
+        var unverified = fixture.route; unverified.toolCapability = .unknown; unverified.revision += 1
+        try fixture.store.saveRoute(unverified, expectedRevision: fixture.route.revision)
         let recorder = ToolRecorder()
         let tool = FixtureTool(name: "read") { _, _ in await recorder.enter("unsafe"); return "wrong" }
         let provider = ScriptedToolProvider(store: fixture.store, replies: [[.toolCalls([.init(id: "id", name: "read", arguments: "{}")]), .finished(.toolCalls)]])
         let app = try MiraApplication(store: fixture.store, provider: provider, tools: ToolRegistry([tool]))
         let conversation = try await app.createConversation(workspaceID: nil)
-        _ = try await app.send(conversationID: conversation, text: "legacy", routeID: legacy.id)
+        _ = try await app.send(conversationID: conversation, text: "unverified tools", routeID: unverified.id)
         try await toolEventually { try fixture.store.executions(in: conversation).last?.status.isTerminal == true }
         #expect(provider.requests.first?.tools == nil)
         #expect(await recorder.events.isEmpty)

@@ -79,7 +79,7 @@ public protocol ToolPort: Sendable {
 }
 public extension ToolPort {
     func authorize(arguments: JSONValue, context: ToolContext) async throws {
-        guard descriptor.sideEffect == .read else { throw MiraError(.unauthorized, "此写入需要明确授权。") }
+        guard descriptor.sideEffect == .read else { throw MiraError(.unauthorized, "This write requires explicit authorization.") }
     }
 }
 public enum ToolResultStatus: String, Codable, Sendable {

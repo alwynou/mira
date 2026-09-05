@@ -21,12 +21,12 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
             try route.validateForSending()
             endpoint = try route.validatedEndpoint()
             guard route.providerKind == .openAICompatible || route.providerKind == .anthropic else {
-                throw MiraError(.unsupported, "此服务协议暂不支持。")
+                throw MiraError(.unsupported, "This provider protocol is not supported.")
             }
             let hasToolContent = try validateToolHistory(request)
             if request.tools?.isEmpty == false || hasToolContent {
                 guard route.toolCapability == .declared || route.toolCapability == .verified else {
-                    throw MiraError(.unsupported, "此路线尚未声明或验证工具调用能力。")
+                    throw MiraError(.unsupported, "This route has not declared or verified tool-call capability.")
                 }
             }
         } catch {
@@ -42,9 +42,9 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
                     do {
                         secret = try credentials.read(reference: route.credentialReference, version: route.credentialVersion)
                     } catch {
-                        throw MiraError(.credentialMissing, "服务凭据不可用。")
+                        throw MiraError(.credentialMissing, "The provider credential is unavailable.")
                     }
-                    guard !secret.isEmpty else { throw MiraError(.credentialMissing, "服务凭据不可用。") }
+                    guard !secret.isEmpty else { throw MiraError(.credentialMissing, "The provider credential is unavailable.") }
                     let urlRequest = try makeURLRequest(request: request, route: route, endpoint: endpoint, secret: secret)
                     activeRequest = urlRequest
                     try await run(urlRequest: urlRequest, route: route, request: request, continuation: continuation)
@@ -52,7 +52,7 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
                 } catch {
                     if let activeRequest { cancelTransport(for: activeRequest) }
                     if Task.isCancelled || error is CancellationError {
-                        continuation.finish(throwing: MiraError(.cancelled, "已停止生成。"))
+                        continuation.finish(throwing: MiraError(.cancelled, "Generation was stopped."))
                     } else {
                         continuation.finish(throwing: safeProviderError(error))
                     }
@@ -517,26 +517,26 @@ private struct AnthropicStreamState {
 
 private func safeProviderError(_ error: any Error) -> MiraError {
     if let error = error as? MiraError { return error }
-    if error is CancellationError { return MiraError(.cancelled, "已停止生成。") }
+    if error is CancellationError { return MiraError(.cancelled, "Generation was stopped.") }
     if let status = error as? HTTPStatusError {
         switch status.statusCode {
-        case 401, 403: return MiraError(.unauthorized, "服务凭据未被接受。")
-        case 429: return MiraError(.rateLimited, "服务请求过于频繁，请稍后重试。")
-        case 500...599: return MiraError(.network, "服务暂时不可用，请稍后重试。")
-        default: return MiraError(.providerRejected, "服务拒绝了请求。")
+        case 401, 403: return MiraError(.unauthorized, "The provider credential was rejected.")
+        case 429: return MiraError(.rateLimited, "Too many requests; try again later.")
+        case 500...599: return MiraError(.network, "The provider is temporarily unavailable; try again later.")
+        default: return MiraError(.providerRejected, "The provider rejected the request.")
         }
     }
     if let error = error as? ProviderProtocolError {
         switch error {
-        case .unsupportedTools: return MiraError(.unsupported, "此请求包含当前服务不支持的工具内容。")
-        case .provider: return MiraError(.providerRejected, "服务拒绝了请求。")
-        case .prematureEOF: return MiraError(.interrupted, "服务连接在生成完成前中断。")
-        case .malformed: return MiraError(.malformedStream, "服务返回了无法解析的流。")
-        case .resourceLimit: return MiraError(.malformedStream, "服务流超出了大小限制。")
+        case .unsupportedTools: return MiraError(.unsupported, "This request contains tool content unsupported by the provider.")
+        case .provider: return MiraError(.providerRejected, "The provider rejected the request.")
+        case .prematureEOF: return MiraError(.interrupted, "The provider connection ended before generation completed.")
+        case .malformed: return MiraError(.malformedStream, "The provider returned an unparseable stream.")
+        case .resourceLimit: return MiraError(.malformedStream, "The provider stream exceeded its size limit.")
         }
     }
-    if let urlError = error as? URLError, urlError.code == .cancelled { return MiraError(.cancelled, "已停止生成。") }
-    return MiraError(.network, "无法连接到服务，请稍后重试。")
+    if let urlError = error as? URLError, urlError.code == .cancelled { return MiraError(.cancelled, "Generation was stopped.") }
+    return MiraError(.network, "Unable to connect to the provider; try again later.")
 }
 
 private struct HTTPStatusError: Error { let statusCode: Int }

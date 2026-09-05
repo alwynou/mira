@@ -38,7 +38,7 @@ public actor MiraApplication {
     public init(store: any MiraStore, provider: any ModelProviderPort, environment: RuntimeEnvironment = .init(), tools: ToolRegistry = .empty, limits: ExecutionLimits = .init()) throws {
         guard limits.maxSteps > 0, limits.maxSteps <= 20, limits.maxToolCalls > 0, limits.maxToolCalls <= 32,
               limits.maxParallelTools > 0, limits.maxParallelTools <= 4, limits.maxReservedOutputTokens > 0,
-              limits.turnTimeout > .zero else { throw MiraError(.configuration, "执行限额无效。") }
+              limits.turnTimeout > .zero else { throw MiraError(.configuration, "Execution limits are invalid.") }
         self.store = store; self.provider = provider; self.environment = environment; self.tools = tools; self.limits = limits
         try store.recoverInterrupted(at: environment.now())
     }
@@ -74,14 +74,14 @@ public actor MiraApplication {
     @discardableResult
     public func createWorkspace(name: String, background: String, allowsRemoteSend: Bool) throws -> WorkspaceID {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, name.count <= 100, background.utf8.count <= 32_768 else { throw MiraError(.invalidInput, "工作空间名称或背景超出限制。") }
+        guard !name.isEmpty, name.count <= 100, background.utf8.count <= 32_768 else { throw MiraError(.invalidInput, "Workspace name or background exceeds the limit.") }
         let workspace = Workspace(id: .init(environment.uuid()), name: name, background: background, allowsRemoteSend: allowsRemoteSend)
         try store.saveWorkspace(workspace, expectedRevision: nil); emit(.changed)
         return workspace.id
     }
     public func updateWorkspace(_ workspace: Workspace) throws {
         guard !workspace.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              workspace.name.count <= 100, workspace.background.utf8.count <= 32_768 else { throw MiraError(.invalidInput, "工作空间名称或背景超出限制。") }
+              workspace.name.count <= 100, workspace.background.utf8.count <= 32_768 else { throw MiraError(.invalidInput, "Workspace name or background exceeds the limit.") }
         var updated = workspace; updated.revision += 1
         try store.saveWorkspace(updated, expectedRevision: workspace.revision)
         // Tightened sending policy cancels any in-flight request too.
@@ -94,7 +94,7 @@ public actor MiraApplication {
     @discardableResult
     public func createConversation(workspaceID: WorkspaceID?) throws -> ConversationID {
         let now = environment.now(), id = ConversationID(environment.uuid())
-        try store.createConversation(.init(id: id, workspaceID: workspaceID, title: "新对话", createdAt: now, updatedAt: now))
+        try store.createConversation(.init(id: id, workspaceID: workspaceID, title: "", createdAt: now, updatedAt: now))
         emit(.changed); return id
     }
     public func archiveConversation(_ id: ConversationID) throws {
@@ -102,7 +102,7 @@ public actor MiraApplication {
     }
     public func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws {
         _ = try route.validatedEndpoint()
-        guard !route.modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.configuration, "请填写 Model ID。") }
+        guard !route.modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.configuration, "Enter a Model ID.") }
         try store.saveRoute(route, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.id == route.id { tasks[execution.id]?.cancel() }
         emit(.changed)
@@ -118,7 +118,7 @@ public actor MiraApplication {
     @discardableResult
     public func send(conversationID: ConversationID, text input: String, routeID: RouteID) throws -> ExecutionID {
         let input = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !input.isEmpty, input.utf8.count <= 262_144 else { throw MiraError(.invalidInput, "请输入消息（最多 256 KiB）。") }
+        guard !input.isEmpty, input.utf8.count <= 262_144 else { throw MiraError(.invalidInput, "Enter a message (maximum 256 KiB).") }
         try checkAvailability(conversationID)
         let route = try resolveRoute(routeID)
         let execution = try store.enqueue(conversationID: conversationID, text: input, route: route,
@@ -147,7 +147,7 @@ public actor MiraApplication {
         for id in Array(pendingSaves.keys) { try? retryPendingSave(id) }
         if !pendingSaves.isEmpty {
             isShuttingDown = false
-            emit(.failure(.init(.storage, "仍有回复未能保存，已取消退出。请检查磁盘空间，然后重试保存。")))
+            emit(.failure(.init(.storage, "There are still replies that could not be saved, so shutdown was cancelled. Check available disk space, then retry saving.")))
             return false
         }
         return true
@@ -155,14 +155,14 @@ public actor MiraApplication {
 
     private func checkAvailability(_ conversationID: ConversationID) throws {
         try checkLifecycleAndCapacity()
-        guard !active.values.contains(where: { $0.conversationID == conversationID }) else { throw MiraError(.busy, "这个对话正在生成回复。") }
+        guard !active.values.contains(where: { $0.conversationID == conversationID }) else { throw MiraError(.busy, "This conversation is already generating a reply.") }
     }
     private func checkLifecycleAndCapacity() throws {
-        guard !isShuttingDown else { throw MiraError(.busy, "应用正在退出，无法启动新请求。") }
-        guard active.count < 2 else { throw MiraError(.busy, "最多同时处理两段回复，请等待生成或保存完成。") }
+        guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot start a new request.") }
+        guard active.count < 2 else { throw MiraError(.busy, "At most two replies can be processed at once. Wait for generation or saving to finish.") }
     }
     private func resolveRoute(_ id: RouteID) throws -> ModelRoute {
-        guard let route = try store.routes().first(where: { $0.id == id }) else { throw MiraError(.configuration, "请先配置并选择模型服务。") }
+        guard let route = try store.routes().first(where: { $0.id == id }) else { throw MiraError(.configuration, "Configure and select a model route first.") }
         try route.validateForSending(); return route
     }
     private func launch(_ execution: Execution) {
@@ -203,7 +203,7 @@ public actor MiraApplication {
             var finished = false
             for step in 1...limits.maxSteps {
                 try Task.checkCancellation()
-                guard reservedOutput <= limits.maxReservedOutputTokens - execution.route.maxOutputTokens else { throw MiraError(.outputLimit, "本回合已达到模型输出预留预算，请新建对话。") }
+                guard reservedOutput <= limits.maxReservedOutputTokens - execution.route.maxOutputTokens else { throw MiraError(.outputLimit, "Output reservation for this turn reached its limit. Start a new conversation.") }
                 reservedOutput += execution.route.maxOutputTokens
                 let base = try ContextBuilder.build(execution: execution, conversations: store.conversations(includeArchived: true),
                                                     workspaces: store.workspaces(), messages: store.messages(in: execution.conversationID),
@@ -226,15 +226,15 @@ public actor MiraApplication {
                 try store.finishAttempt(attemptID, output: output, invocations: invocations, usage: attemptUsage, error: nil, at: environment.now())
                 try checkpoint(execution.id)
                 emit(.changed)
-                if output.finishReason == .outputLimit { throw MiraError(.outputLimit, "已达到输出上限，可调整模型配置后重试。") }
+                if output.finishReason == .outputLimit { throw MiraError(.outputLimit, "Output limit reached. Adjust the model configuration and retry.") }
                 if output.toolCalls.isEmpty {
-                    guard !output.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.providerRejected, "模型未返回文本，请检查此模型的接口能力后重试。") }
+                    guard !output.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.providerRejected, "The model returned no text. Check this model's interface capabilities and retry.") }
                     finished = true; break
                 }
                 toolCount += output.toolCalls.count
                 guard toolCount <= limits.maxToolCalls else {
-                    for invocation in invocations { try store.finishToolInvocation(invocation.id, result: .init(status: .outputLimit, text: "本回合工具调用数量已达上限，未执行。"), at: environment.now()) }
-                    throw MiraError(.outputLimit, "本回合工具调用数量已达上限。")
+                    for invocation in invocations { try store.finishToolInvocation(invocation.id, result: .init(status: .outputLimit, text: "This turn reached its tool-call limit; the calls were not executed."), at: environment.now()) }
+                    throw MiraError(.outputLimit, "This turn reached its tool-call limit.")
                 }
                 let results = try await runTools(invocations, execution: execution)
                 try Task.checkCancellation()
@@ -248,11 +248,11 @@ public actor MiraApplication {
                 }.joined(separator: "\n---\n")
                 repeatedExchanges = signature == priorExchange ? repeatedExchanges + 1 : 1
                 priorExchange = signature
-                if repeatedExchanges >= 3 { throw MiraError(.outputLimit, "连续三次相同工具调用返回相同结果，已停止无进展循环。") }
+                if repeatedExchanges >= 3 { throw MiraError(.outputLimit, "Three consecutive identical tool calls returned identical results. Stopped the no-progress loop.") }
             }
-            guard finished else { throw MiraError(.outputLimit, "本回合已达到模型决策步骤上限。") }
+            guard finished else { throw MiraError(.outputLimit, "This turn reached the model decision-step limit.") }
         } catch {
-            let safe = expired.contains(execution.id) ? MiraError(.timeout, "本回合已达到活动执行时间上限。") : MiraError.safe(error)
+            let safe = expired.contains(execution.id) ? MiraError(.timeout, "This turn reached the active execution time limit.") : MiraError.safe(error)
             finalError = safe
             finalStatus = safe.code == .cancelled ? .cancelled :
                 (safe.code == .outputLimit || safe.code == .malformedStream || safe.code == .network || safe.code == .timeout || safe.code == .interrupted ? .interrupted : .failed)
@@ -260,7 +260,7 @@ public actor MiraApplication {
         do { try finish(execution, status: finalStatus, error: finalError) }
         catch {
             pendingSaves[execution.id] = .init(status: finalStatus, error: finalError)
-            emit(.failure(.init(.storage, "回复尚未保存，已保留在当前应用中。请检查磁盘空间，然后点击“重试保存”。")))
+            emit(.failure(.init(.storage, "Reply has not been saved and is being kept in the current app. Check available disk space, then click \"Retry Save.\"")))
         }
     }
     private func expireExecution(_ id: ExecutionID) {
@@ -273,12 +273,12 @@ public actor MiraApplication {
         let prefix = text[execution.id] ?? ""
         for try await event in provider.stream(request: request, route: execution.route) {
             try Task.checkCancellation()
-            guard terminal == nil else { throw MiraError(.malformedStream, "服务在结束后仍返回数据。") }
+            guard terminal == nil else { throw MiraError(.malformedStream, "Service returned data after the stream ended.") }
             switch event {
             case .textDelta(let delta):
                 stepText += delta
                 let newText = prefix + (prefix.isEmpty || stepText.isEmpty ? "" : "\n\n") + stepText
-                guard newText.utf8.count <= 2_097_152 else { throw MiraError(.outputLimit, "回复超过本地安全上限。") }
+                guard newText.utf8.count <= 2_097_152 else { throw MiraError(.outputLimit, "Reply exceeded the local safety limit.") }
                 text[execution.id] = newText
                 if newText.utf8.count - (checkpointBytes[execution.id] ?? 0) >= 4096 { try checkpoint(execution.id) }
                 emit(.draft(execution.id, newText))
@@ -287,12 +287,12 @@ public actor MiraApplication {
                 guard !sawCalls, !(request.tools ?? []).isEmpty, !batch.isEmpty, batch.count <= 32,
                       Set(batch.map(\.id)).count == batch.count,
                       batch.allSatisfy({ !$0.id.isEmpty && $0.id.utf8.count <= 256 && !previousIDs.contains($0.id) && !$0.name.isEmpty && $0.name.utf8.count <= 128 && $0.arguments.utf8.count <= 65_536 }) else {
-                    throw MiraError(.malformedStream, "服务返回的工具调用缺失身份、重复或超出限制。")
+                    throw MiraError(.malformedStream, "Service returned tool calls with missing identities, duplicates, or excessive limits.")
                 }
                 sawCalls = true; calls = batch
             case .usage(let next):
                 guard (next.inputTokens ?? 0) >= 0, (next.outputTokens ?? 0) >= 0,
-                      (next.inputTokens ?? 0) <= 100_000_000, (next.outputTokens ?? 0) <= 100_000_000 else { throw MiraError(.malformedStream, "服务返回的用量无效。") }
+                      (next.inputTokens ?? 0) <= 100_000_000, (next.outputTokens ?? 0) <= 100_000_000 else { throw MiraError(.malformedStream, "Service returned invalid usage.") }
                 attemptUsage = next
                 usage[execution.id] = priorSteps == 0 ? next : .init(
                     inputTokens: priorUsage.inputTokens.flatMap { old in next.inputTokens.map { old + $0 } },
@@ -301,8 +301,8 @@ public actor MiraApplication {
             }
         }
         try Task.checkCancellation()
-        guard let terminal else { throw MiraError(.malformedStream, "连接提前结束，回复可能不完整。") }
-        guard (terminal == .toolCalls) == !calls.isEmpty else { throw MiraError(.malformedStream, "工具调用与模型停止原因不匹配。") }
+        guard let terminal else { throw MiraError(.malformedStream, "Connection ended early; the reply may be incomplete.") }
+        guard (terminal == .toolCalls) == !calls.isEmpty else { throw MiraError(.malformedStream, "Tool calls do not match the model's stop reason.") }
         // A missing report in any attempt keeps the aggregate unknown, rather than reusing the last attempt's total.
         usage[execution.id] = priorSteps == 0 ? attemptUsage : .init(
             inputTokens: priorUsage.inputTokens.flatMap { old in attemptUsage.inputTokens.map { old + $0 } },
@@ -312,13 +312,13 @@ public actor MiraApplication {
 
     private func validateDispatch(_ execution: Execution) throws {
         try Task.checkCancellation()
-        guard try resolveRoute(execution.route.id) == execution.route else { throw MiraError(.connectionChanged, "模型配置已改变，请重新发送。") }
+        guard try resolveRoute(execution.route.id) == execution.route else { throw MiraError(.connectionChanged, "Model configuration changed. Send the request again.") }
         guard let conversation = try store.conversations(includeArchived: true).first(where: { $0.id == execution.conversationID }), !conversation.isArchived else {
-            throw MiraError(.notFound, "当前对话已不可用。")
+            throw MiraError(.notFound, "Conversation is no longer available.")
         }
         if let workspaceID = conversation.workspaceID {
             guard let workspace = try store.workspaces().first(where: { $0.id == workspaceID }), workspace.allowsRemoteSend else {
-                throw MiraError(.unauthorized, "此工作空间已禁止发送，执行已停止。")
+                throw MiraError(.unauthorized, "This workspace no longer allows sending; execution stopped.")
             }
         }
     }
@@ -328,7 +328,7 @@ public actor MiraApplication {
         while cursor < invocations.count {
             if Task.isCancelled {
                 for invocation in invocations[cursor...] {
-                    let result = ToolResult(status: .cancelledBeforeDispatch, text: "已停止，工具尚未执行。")
+                    let result = ToolResult(status: .cancelledBeforeDispatch, text: "Stopped; the tool was not executed.")
                     try store.finishToolInvocation(invocation.id, result: result, at: environment.now()); results[invocation.id] = result
                 }
                 break
@@ -350,30 +350,30 @@ public actor MiraApplication {
                     if next < batch.count && !Task.isCancelled { schedule(batch[next]); next += 1 }
                 }
                 for invocation in batch[next...] {
-                    let result = ToolResult(status: .cancelledBeforeDispatch, text: "已停止，工具尚未执行。")
+                    let result = ToolResult(status: .cancelledBeforeDispatch, text: "Stopped; the tool was not executed.")
                     try store.finishToolInvocation(invocation.id, result: result, at: environment.now()); results[invocation.id] = result
                 }
             }
         }
         return try invocations.map {
-            guard let result = results[$0.id] else { throw MiraError(.storage, "工具结果尚未完整保存。") }
+            guard let result = results[$0.id] else { throw MiraError(.storage, "Tool results have not all been saved.") }
             return result
         }
     }
 
     private func performTool(_ invocation: ToolInvocation, execution: Execution) async -> ToolResult {
-        guard !Task.isCancelled else { return .init(status: .cancelledBeforeDispatch, text: "已停止，工具尚未执行。") }
-        guard let tool = tools.tool(named: invocation.call.name) else { return .init(status: .notFound, text: "本次执行未提供此工具。") }
+        guard !Task.isCancelled else { return .init(status: .cancelledBeforeDispatch, text: "Stopped; the tool was not executed.") }
+        guard let tool = tools.tool(named: invocation.call.name) else { return .init(status: .notFound, text: "This execution did not provide that tool.") }
         let arguments: JSONValue
         do { arguments = try ToolSchemaValidator.decode(invocation.call.arguments, schema: tool.descriptor.definition.inputSchema) }
-        catch { return .init(status: .invalidArguments, text: "工具参数不符合声明的结构或大小限制。") }
+        catch { return .init(status: .invalidArguments, text: "Tool arguments do not match the declared structure or size limits.") }
         let context: ToolContext
         do {
             try validateDispatch(execution)
             let conversation = try store.conversations(includeArchived: true).first { $0.id == execution.conversationID }
-            guard let trigger = try store.messages(in: execution.conversationID).first(where: { $0.id == execution.triggerMessageID }) else { throw MiraError(.notFound, "原始用户请求不可用。") }
+            guard let trigger = try store.messages(in: execution.conversationID).first(where: { $0.id == execution.triggerMessageID }) else { throw MiraError(.notFound, "Original user request is unavailable.") }
             context = .init(executionID: execution.id, invocationID: invocation.id, workspaceID: conversation?.workspaceID, userMessageID: execution.triggerMessageID, userText: trigger.text)
-        } catch { return .init(status: Task.isCancelled ? .cancelledBeforeDispatch : .denied, text: "当前权限或连接已改变，工具未执行。") }
+        } catch { return .init(status: Task.isCancelled ? .cancelledBeforeDispatch : .denied, text: "Current authorization or connection changed; the tool was not executed.") }
         let toolClock = environment.clock
         let result = await withTaskGroup(of: ToolResult.self) { group in
             group.addTask {
@@ -384,25 +384,25 @@ public actor MiraApplication {
                     try Task.checkCancellation()
                     let value = try await tool.execute(arguments: arguments, context: context)
                     try Task.checkCancellation()
-                    guard value.utf8.count <= tool.descriptor.maxResultBytes else { return .init(status: .outputLimit, text: "工具结果超出大小限制，未发送正文。") }
+                    guard value.utf8.count <= tool.descriptor.maxResultBytes else { return .init(status: .outputLimit, text: "Tool result exceeded its size limit; content was not sent.") }
                     return .init(status: .succeeded, text: value)
                 } catch {
-                    if error is CancellationError || Task.isCancelled { return .init(status: .cancelled, text: "工具已停止；请查看操作结果。") }
-                    if let error = error as? MiraError, error.code == .unauthorized || error.code == .connectionChanged { return .init(status: .denied, text: "工具权限检查未通过，未授权执行。") }
-                    return .init(status: .failed, text: "工具未能完成，请检查后重试。")
+                    if error is CancellationError || Task.isCancelled { return .init(status: .cancelled, text: "Tool stopped; check the operation result.") }
+                    if let error = error as? MiraError, error.code == .unauthorized || error.code == .connectionChanged { return .init(status: .denied, text: "Tool authorization check failed; execution was not authorized.") }
+                    return .init(status: .failed, text: "Tool could not complete. Check and retry.")
                 }
             }
             group.addTask {
-                do { try await toolClock.sleep(for: tool.descriptor.timeout); try Task.checkCancellation(); return .init(status: .timedOut, text: "工具超过执行时间限制，已请求取消。") }
-                catch { return .init(status: .cancelled, text: "工具已停止。") }
+                do { try await toolClock.sleep(for: tool.descriptor.timeout); try Task.checkCancellation(); return .init(status: .timedOut, text: "Tool exceeded its execution time limit; cancellation was requested.") }
+                catch { return .init(status: .cancelled, text: "Tool stopped.") }
             }
-            let first = await group.next() ?? .init(status: .cancelled, text: "工具已停止。")
+            let first = await group.next() ?? .init(status: .cancelled, text: "Tool stopped.")
             group.cancelAll()
             return first
         }
         if result.status == .cancelled,
            (try? store.toolInvocations(for: execution.id).first(where: { $0.id == invocation.id })?.dispatchedAt) == nil {
-            return .init(status: .cancelledBeforeDispatch, text: "已停止，工具尚未执行。")
+            return .init(status: .cancelledBeforeDispatch, text: "Stopped; the tool was not executed.")
         }
         return result
     }

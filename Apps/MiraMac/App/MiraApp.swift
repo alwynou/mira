@@ -5,6 +5,8 @@ import SwiftUI
 struct MiraApp: App {
     @NSApplicationDelegateAdaptor(MiraAppDelegate.self) private var delegate
     private let container = AppContainer()
+    @AppStorage(AppLanguage.preferenceKey) private var languagePreference = ""
+    private var language: AppLanguage { .resolve(stored: languagePreference) }
 
     var body: some Scene {
         WindowGroup {
@@ -17,14 +19,15 @@ struct MiraApp: App {
                             catch { /* Demo setup failure is surfaced by the settings/library state. */ }
                         }
                 } else {
-                    ContentUnavailableView("无法打开资料库", systemImage: "externaldrive.badge.exclamationmark", description: Text(container.startupError?.message ?? "请检查存储空间与目录权限。"))
+                    ContentUnavailableView("Unable to Open Library", systemImage: "externaldrive.badge.exclamationmark", description: Text(container.startupError.map { L10n.error($0, locale: language.locale) } ?? L10n.string("Check available storage and directory permissions.", locale: language.locale)))
                         .frame(minWidth: 640, minHeight: 420)
                 }
             }
+            .environment(\.locale, language.locale)
         }
         .defaultSize(width: 1100, height: 760)
-        .commands { CommandGroup(replacing: .help) { Link("Mira 项目文档", destination: URL(string: "https://github.com/alwynou/mira/tree/dev/docs")!) } }
-        Settings { SettingsView(container: container) }
+        .commands { CommandGroup(replacing: .help) { Link(L10n.string("Mira Documentation", locale: language.locale), destination: URL(string: "https://github.com/alwynou/mira/tree/dev/docs")!) } }
+        Settings { SettingsView(container: container).environment(\.locale, language.locale) }
     }
 }
 

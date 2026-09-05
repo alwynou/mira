@@ -35,6 +35,8 @@ struct ContextBuilderTests {
         let request = try ContextBuilder.build(execution: current, conversations: [conversation], workspaces: [], messages: messages, executions: [failed, success, current])
         #expect(request.messages.map(\.text) == ["first", "GOOD answer", "current"])
         #expect(request.messages.filter { $0.text == "current" }.count == 1)
+        #expect(request.contextInfo?.omissions == [.init(executionID: failedID, reason: .unsuccessfulReply)])
+        #expect(request.contextInfo?.omissions.first?.id == failedID)
     }
 
     @Test func isolatesWorkspaceAndBlocksOversizedInputBeforeSending() throws {
@@ -49,7 +51,35 @@ struct ContextBuilderTests {
         let request = try ContextBuilder.build(execution: execution, conversations: [conversation], workspaces: [workspace, other], messages: [message], executions: [execution])
         #expect(request.system.contains("ONLY THIS BACKGROUND"))
         #expect(!request.system.contains("MUST NOT LEAK"))
-        message.text = String(repeating: "中", count: 20_000)
+        // Keep a multibyte character here to verify the UTF-8 byte budget, not character count.
+        message.text = String(repeating: "中", count: 20_000) // i18n-fixture: Preserve non-ASCII input to verify Unicode behavior.
         #expect(throws: MiraError.self) { try ContextBuilder.build(execution: execution, conversations: [conversation], workspaces: [workspace], messages: [message], executions: [execution]) }
+    }
+
+    @Test func builtInPromptUsesEnglishLanguagePolicyAndPreservesChineseInput() throws {
+        let now = Date(), workspaceID = WorkspaceID(), conversationID = ConversationID(), messageID = MessageID()
+        let workspace = Workspace(id: workspaceID, name: "Private", background: "ONLY THIS BACKGROUND")
+        let conversation = Conversation(id: conversationID, workspaceID: workspaceID, title: "Fixture", createdAt: now, updatedAt: now)
+        let execution = Execution(id: .init(), conversationID: conversationID, triggerMessageID: messageID, route: route(), createdAt: now, updatedAt: now)
+        let input = "请用中文回答这个问题" // i18n-fixture: Preserve non-ASCII input to verify Unicode behavior.
+        let message = Message(id: messageID, conversationID: conversationID, executionID: execution.id, sequence: 1, role: .user, status: .committed, text: input, createdAt: now)
+        let base = try ContextBuilder.build(execution: execution, conversations: [conversation], workspaces: [workspace], messages: [message], executions: [execution])
+        let tool = ToolDefinition(name: "echo", description: "Echo input", inputSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))
+
+        let request = try ContextBuilder.extending(base, requestID: UUID(), exchanges: [], tools: [tool], route: route())
+
+        #expect(request.system.contains("You are Mira, a careful and concise personal assistant."))
+        #expect(request.system.contains("Follow the user's requested response language; if none is specified, match the language of the user's message."))
+        #expect(request.system.contains("ONLY THIS BACKGROUND"))
+        #expect(request.system.contains("Use only the tools explicitly provided in this request."))
+        #expect(!request.system.contains("Text-only conversation is currently supported."))
+        #expect(request.messages.last?.text == input)
+        #expect(!request.system.contains("请") && !request.system.contains("中文")) // i18n-fixture: Preserve non-ASCII input to verify Unicode behavior.
+
+        var quotedWorkspace = workspace
+        quotedWorkspace.background = base.system
+        let quotedBase = try ContextBuilder.build(execution: execution, conversations: [conversation], workspaces: [quotedWorkspace], messages: [message], executions: [execution])
+        let quotedResult = try ContextBuilder.extending(quotedBase, requestID: UUID(), exchanges: [], tools: [tool], route: route())
+        #expect(quotedResult.system.hasSuffix(base.system))
     }
 }

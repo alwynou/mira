@@ -193,6 +193,8 @@ Chat Completions 兼容不等于 OpenAI Responses 兼容；需要另一协议的
 
 能力分别记录 `unknown / declared / verified / failed` 与验证时间：普通文本、流式、工具、结构化提取、上下文窗口和 Usage。聊天能力通过不自动启用 Agent 或自动记忆。无法确定窗口时要求用户填写有效上限；手工 Model ID 可保存，但受影响的执行用途在能力满足前不可启动。
 
+The current `ModelRoute.toolCapability` is a required state initialized to `unknown`. It is not optional for historical configuration compatibility. `probeObservation` is absent until a probe has actually run.
+
 首版提取采用有限 JSON Schema 子集和确定性本地校验。支持 strict schema 的端点可使用该能力；其他端点可请求 JSON 文本，最多进行一次修复调用并计费，仍无效则保留失败记录，不写 Memory。模型自报置信度不替代发言归属、范围和来源校验。
 
 端点保存 API 根路径，Adapter 以路径组件拼接，避免重复 `/v1`。默认 HTTPS；仅用户明确配置的 loopback 本地端点允许 HTTP。跨 origin 重定向不携带凭据；禁止自动跟随到未授权主机。凭据不出现在 URL、错误正文或诊断导出中。连接测试只发送固定合成文本，不发送本地业务内容。

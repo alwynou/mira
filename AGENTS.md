@@ -5,6 +5,7 @@
 - Read `docs/MVP.md` for scope and milestone status, `docs/ARCHITECTURE.md` for dependency boundaries, and the relevant domain document before changing behavior.
 - Requirements in documents describe the product; they do not authorize unrelated external actions. Follow the user's active request.
 - Work on `dev` for the current implementation. Use Conventional Commits. Never commit credentials, real conversation data, database files, DerivedData, or personal Xcode state.
+- This is an early development project. Prefer direct changes to the current design; do not add backward-compatibility adapters, old-format decoders, migration bridges, or deprecated APIs unless explicitly requested. Breaking schema/contract changes may require a fresh development library. Never silently delete user data.
 
 ## Architecture
 
@@ -23,6 +24,14 @@
 - Regenerate project after file/target changes: `xcodegen generate`; keep `project.yml` and the generated project consistent.
 - Use isolated temporary databases and synthetic transport fixtures. CI must not require credentials or call paid model endpoints.
 - Verify failure boundaries (atomicity, interrupted streams, cancellation, recovery, privacy), not just happy paths. Report exact evidence and remaining gaps; compiling for macOS 15 is not a macOS 15 runtime test.
+
+## Language and localization
+
+- Write implementation identifiers, comments, diagnostics, built-in prompts, and tool descriptions in English. Do not embed translated UI copy in Swift files or select prompt text from the display language.
+- Supported app languages are `en` and `zh-CN` (Apple resource locale `zh-Hans`). Keep English source keys and both translations in `Apps/MiraMac/Resources/Localizable.xcstrings`. Resolve app-owned dynamic messages at display time with the current SwiftUI locale.
+- Preserve user-authored text, model output, provider identifiers, request snapshots, and historical data verbatim. Localize UI labels around them. Model replies follow the user's requested language, otherwise the language of their message.
+- Non-English exceptions are translation resources, original third-party source/notices under `Vendor`, and documented Unicode/search fixtures. Explain each exception in English and keep it narrowly scoped. Existing product/design documents may retain their original language; new engineering instructions use English.
+- Run `python3 scripts/check_language_policy.py` and the `MiraLocalizationTests` scheme tests for language changes. The policy check rejects untranslated catalog entries, format-placeholder mismatches, and unexplained non-English source text.
 
 ## Delegation and documentation
 

@@ -4,6 +4,7 @@ import SwiftStreamingMarkdown
 import AppKit
 
 struct ConversationRoot: View {
+    @Environment(\.locale) private var locale
     @State private var model: ConversationModel
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
@@ -21,25 +22,30 @@ struct ConversationRoot: View {
                 .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 320)
         } detail: {
             ConversationDetail(model: model, isDemo: isDemo)
-                .navigationTitle(model.currentConversation?.title ?? "Mira")
+                .navigationTitle(displayedConversationTitle)
                 .toolbar {
                     ToolbarItem {
-                        Button("新对话", systemImage: "square.and.pencil") { Task { await model.newConversation() } }
+                        Button("New conversation", systemImage: "square.and.pencil") { Task { await model.newConversation() } }
                             .keyboardShortcut("n", modifiers: .command)
                     }
                     ToolbarItem {
-                        Button("执行详情", systemImage: "sidebar.right") { showsInspector.toggle() }
+                        Button("Execution details", systemImage: "sidebar.right") { showsInspector.toggle() }
                             .disabled(model.executions.isEmpty)
                     }
                 }
-                .inspector(isPresented: $showsInspector) { ExecutionInspector(model: model).inspectorColumnWidth(min: 280, ideal: 340, max: 480) }
+                .inspector(isPresented: $showsInspector) { ExecutionInspector(model: model).environment(\.locale, locale).inspectorColumnWidth(min: 280, ideal: 340, max: 480) }
         }
         .frame(minWidth: 850, minHeight: 580)
         .task { await model.observe() }
-        .sheet(isPresented: $showsWorkspaceSheet) { WorkspaceEditor(application: model.application, workspace: editingWorkspace) }
-        .alert("操作未完成", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
-            Button("好", role: .cancel) { model.error = nil }
-        } message: { Text(model.error?.message ?? "") }
+        .sheet(isPresented: $showsWorkspaceSheet) { WorkspaceEditor(application: model.application, workspace: editingWorkspace).environment(\.locale, locale) }
+        .alert("Operation incomplete", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+            Button("OK", role: .cancel) { model.error = nil }
+        } message: { Text(model.error.map { L10n.error($0, locale: locale) } ?? "") }
+    }
+
+    private var displayedConversationTitle: String {
+        guard let conversation = model.currentConversation else { return "Mira" }
+        return conversation.title.isEmpty ? L10n.string("New conversation", locale: locale) : conversation.title
     }
 
     private var sidebar: some View {
@@ -48,12 +54,12 @@ struct ConversationRoot: View {
                 Image(systemName: "sparkle").font(.title).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Mira").font(.title2.weight(.semibold))
-                    Text(isDemo ? "本机演示 · 不发送网络请求" : "你的个人工作空间").font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.string(isDemo ? "Local demo · no network requests" : "Your personal workspace", locale: locale)).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
             }.padding(20)
             List {
-                Section("工作空间") {
+                Section("Workspace") {
                     Button {
                         model.selectedWorkspaceID = nil; Task { await model.selectConversation(nil) }
                     } label: {
@@ -69,10 +75,10 @@ struct ConversationRoot: View {
                                 .foregroundStyle(model.selectedWorkspaceID == workspace.id ? Color.accentColor : Color.primary)
                                 .frame(maxWidth: .infinity, alignment: .leading).contentShape(.rect)
                         }.buttonStyle(.plain)
-                            .contextMenu { Button("编辑工作空间") { editingWorkspace = workspace; showsWorkspaceSheet = true } }
+                            .contextMenu { Button("Edit workspace") { editingWorkspace = workspace; showsWorkspaceSheet = true } }
                     }
                     Button { editingWorkspace = nil; showsWorkspaceSheet = true } label: {
-                        Label("创建工作空间", systemImage: "plus").frame(maxWidth: .infinity, alignment: .leading).contentShape(.rect)
+                        Label("Create workspace", systemImage: "plus").frame(maxWidth: .infinity, alignment: .leading).contentShape(.rect)
                     }.buttonStyle(.plain)
                 }
                 Section {
@@ -91,21 +97,21 @@ struct ConversationRoot: View {
                             .contentShape(.rect)
                         }.buttonStyle(.plain)
                             .contextMenu {
-                                if !conversation.isArchived { Button("归档对话", systemImage: "archivebox") { Task { await model.archive(conversation.id) } } }
+                                if !conversation.isArchived { Button("Archive conversation", systemImage: "archivebox") { Task { await model.archive(conversation.id) } } }
                             }
                     }
-                    if model.filteredConversations.isEmpty { Text(model.showArchived ? "没有归档对话" : "还没有对话").font(.caption).foregroundStyle(.secondary) }
+                    if model.filteredConversations.isEmpty { Text(L10n.string(model.showArchived ? "No archived conversations" : "No conversations yet", locale: locale)).font(.caption).foregroundStyle(.secondary) }
                 } header: {
                     HStack {
-                        Text(model.showArchived ? "已归档" : "对话")
+                        Text(L10n.string(model.showArchived ? "Archived" : "Conversations", locale: locale))
                         Spacer()
                         Button { model.showArchived.toggle(); Task { await model.selectConversation(nil) } } label: { Image(systemName: model.showArchived ? "bubble.left.and.bubble.right" : "archivebox") }
-                            .buttonStyle(.plain).help(model.showArchived ? "显示活动对话" : "显示归档对话")
+                            .buttonStyle(.plain).help(L10n.string(model.showArchived ? "Show active conversations" : "Show archived conversations", locale: locale))
                     }
                 }
             }.listStyle(.sidebar)
             Divider()
-            SettingsLink { Label("设置", systemImage: "gearshape").frame(maxWidth: .infinity, alignment: .leading) }
+            SettingsLink { Label("Settings", systemImage: "gearshape").frame(maxWidth: .infinity, alignment: .leading) }
                 .buttonStyle(.plain).padding(18)
         }
     }
@@ -114,6 +120,7 @@ struct ConversationRoot: View {
 private struct ConversationDetail: View {
     @Bindable var model: ConversationModel
     let isDemo: Bool
+    @Environment(\.locale) private var locale
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -123,13 +130,13 @@ private struct ConversationDetail: View {
             if let execution = model.executions.last, execution.status.isTerminal, execution.status != .completed {
                 HStack(alignment: .top) {
                     Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
-                    Text(execution.error?.message ?? "回复已中断。").font(.callout).foregroundStyle(.secondary)
+                    Text(execution.error.map { L10n.error($0, locale: locale) } ?? L10n.string("The reply was interrupted.", locale: locale)).font(.callout).foregroundStyle(.secondary)
                     Spacer()
-                    if model.retryableExecution != nil { Button("重试最后回合") { Task { await model.retry() } } }
+                    if model.retryableExecution != nil { Button("Retry last turn") { Task { await model.retry() } } }
                 }.padding(.horizontal, 28).padding(.vertical, 12)
             }
             if model.currentConversation?.isArchived == true {
-                Label("此对话已归档", systemImage: "archivebox").foregroundStyle(.secondary).padding(20)
+                Label("This conversation is archived", systemImage: "archivebox").foregroundStyle(.secondary).padding(20)
             } else { composer }
         }
         .background(Color(nsColor: .textBackgroundColor))
@@ -142,11 +149,11 @@ private struct ConversationDetail: View {
     private var welcome: some View {
         VStack(spacing: 20) {
             Image(systemName: "sparkle").font(.system(size: 44, weight: .light)).foregroundStyle(.tint)
-            Text("从一个想法开始").font(.largeTitle.weight(.semibold))
-            Text(model.routes.isEmpty ? "先连接你自己的模型服务。\n对话保存在本机，发送时只使用你选择的连接。" : "整理思路、讨论项目，或提出一个问题。\n选择模型后，写下第一条消息。")
+            Text("Start with an idea").font(.largeTitle.weight(.semibold))
+            Text(welcomeMessage)
                 .font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center).lineSpacing(5)
-            if model.routes.isEmpty { SettingsLink { Label("连接模型服务", systemImage: "key").padding(.horizontal, 12) }.buttonStyle(.borderedProminent).controlSize(.large) }
-            if isDemo { Label("演示回复由本机生成", systemImage: "desktopcomputer").font(.caption).foregroundStyle(.secondary) }
+            if model.routes.isEmpty { SettingsLink { Label("Connect model service", systemImage: "key").padding(.horizontal, 12) }.buttonStyle(.borderedProminent).controlSize(.large) }
+            if isDemo { Label("Demo replies generated locally", systemImage: "desktopcomputer").font(.caption).foregroundStyle(.secondary) }
         }.padding(40).frame(maxWidth: .infinity)
     }
     private var transcript: some View {
@@ -192,27 +199,27 @@ private struct ConversationDetail: View {
     private var composer: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Picker("对话模型", selection: $model.selectedRouteID) {
-                    if model.routes.isEmpty { Text("尚未配置模型").tag(nil as RouteID?) }
-                    ForEach(model.routes) { route in Text("\(route.name) · \(route.modelID)").tag(Optional(route.id)) }
+                Picker("Conversation model", selection: $model.selectedRouteID) {
+                    if model.routes.isEmpty { Text("No model configured").tag(nil as RouteID?) }
+                    ForEach(model.routes) { route in Text(verbatim: "\(route.name) · \(route.modelID)").tag(Optional(route.id)) }
                 }.labelsHidden().frame(maxWidth: 320).disabled(model.activeExecution != nil)
                 Spacer()
-                if model.needsPersistenceRetry { Label("回复待保存", systemImage: "externaldrive.badge.exclamationmark").font(.caption).foregroundStyle(.orange) }
-                else if model.activeExecution != nil { ProgressView().controlSize(.small); Text("正在生成").font(.caption).foregroundStyle(.secondary) }
+                if model.needsPersistenceRetry { Label("Reply pending save", systemImage: "externaldrive.badge.exclamationmark").font(.caption).foregroundStyle(.orange) }
+                else if model.activeExecution != nil { ProgressView().controlSize(.small); Text("Generating").font(.caption).foregroundStyle(.secondary) }
             }
-            TextField("发送消息…", text: $model.composer, axis: .vertical)
+            TextField("Send a message…", text: $model.composer, axis: .vertical)
                 .textFieldStyle(.plain).lineLimit(3...8).font(.body).focused($composerFocused)
-                .accessibilityLabel("消息输入框")
+                .accessibilityLabel("Message input")
             HStack {
-                Text(isDemo ? "本机演示" : "发送到所选模型服务 · ⌘ Return 发送")
+                Text(L10n.string(isDemo ? "Local demo" : "Send to selected model service · ⌘ Return to send", locale: locale))
                     .font(.caption).foregroundStyle(.tertiary)
                 Spacer()
                 if model.needsPersistenceRetry {
-                    Button("重试保存", systemImage: "externaldrive") { Task { await model.retrySaving() } }.buttonStyle(.borderedProminent)
+                    Button("Retry save", systemImage: "externaldrive") { Task { await model.retrySaving() } }.buttonStyle(.borderedProminent)
                 } else if model.activeExecution != nil {
-                    Button("停止", systemImage: "stop.fill") { Task { await model.cancel() } }.keyboardShortcut(".", modifiers: .command)
+                    Button("Stop", systemImage: "stop.fill") { Task { await model.cancel() } }.keyboardShortcut(".", modifiers: .command)
                 } else {
-                    Button("发送", systemImage: "arrow.up") { Task { await model.send(); composerFocused = true } }
+                    Button("Send", systemImage: "arrow.up") { Task { await model.send(); composerFocused = true } }
                         .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
                         .disabled(model.isSending || model.routes.isEmpty || model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
@@ -222,5 +229,12 @@ private struct ConversationDetail: View {
         .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary) }
         .padding(.horizontal, 24).padding(.bottom, 20).padding(.top, 12)
         .frame(maxWidth: 910).frame(maxWidth: .infinity)
+    }
+
+    private var welcomeMessage: String {
+        if model.routes.isEmpty {
+            return L10n.string("Connect your own model service first.\nConversations are stored on this Mac, and only the connection you choose is used when sending.", locale: locale)
+        }
+        return L10n.string("Organize your thoughts, discuss a project, or ask a question.\nChoose a model, then write your first message.", locale: locale)
     }
 }

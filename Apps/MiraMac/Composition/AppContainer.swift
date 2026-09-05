@@ -29,7 +29,7 @@ final class AppContainer {
                 directory = URL(fileURLWithPath: arguments[index + 1], isDirectory: true)
             } else {
                 directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-Invalid-Launch")
-                argumentError = .init(.configuration, "--data-directory 需要绝对路径；未打开默认资料库。")
+                argumentError = .init(.configuration, "--data-directory requires an absolute path. The default library was not opened.")
             }
         } else if isDemo {
             directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-Demo-\(UUID().uuidString)", isDirectory: true)
@@ -69,7 +69,7 @@ final class AppContainer {
         guard let application else { return }
         let current = try await application.library(includeArchived: true).routes.first { $0.id == route.id }
         guard let current, current == route else {
-            throw MiraError(.conflict, "连接配置已变化，检测结果未覆盖新的编辑内容。")
+            throw MiraError(.conflict, "The connection changed. Test results did not overwrite the new configuration.")
         }
         var updated = current
         if observation.type == .text { updated.textCapability = observation.state }
@@ -85,13 +85,13 @@ final class AppContainer {
         didSeedDemo = true
         let library = try await application.library()
         if library.routes.isEmpty {
-            try await application.saveRoute(.init(name: "本机演示", providerKind: .openAICompatible, baseURL: "https://demo.invalid/v1", modelID: "mira-demo", credentialReference: "demo", contextWindow: 32_768), expectedRevision: nil)
+            try await application.saveRoute(.init(name: "Local Demo", providerKind: .openAICompatible, baseURL: "https://demo.invalid/v1", modelID: "mira-demo", credentialReference: "demo", contextWindow: 32_768), expectedRevision: nil)
         }
     }
 
     /// Installs a new immutable credential version first; rolls it back if the DB commit fails.
     func saveRoute(_ route: ModelRoute, previous: ModelRoute?, secret: String) async throws {
-        guard let application else { throw MiraError(.storage, "资料库未打开。") }
+        guard let application else { throw MiraError(.storage, "The library is not open.") }
         var updated = route
         let replacement = !secret.isEmpty
         if replacement {
@@ -101,7 +101,7 @@ final class AppContainer {
             try credentialCleanup.enqueue([updated] + (previous.map { [$0] } ?? []))
             do { try credentials.save(secret, reference: updated.credentialReference, version: updated.credentialVersion) }
             catch { await retryCredentialCleanup(); throw error }
-        } else if previous == nil { throw MiraError(.credentialMissing, "新连接需要 API Key。") }
+        } else if previous == nil { throw MiraError(.credentialMissing, "A new connection requires an API key.") }
         do { try await application.saveRoute(updated, expectedRevision: previous?.revision) }
         catch {
             if replacement { await retryCredentialCleanup() }
@@ -123,7 +123,7 @@ final class AppContainer {
         do {
             let routes = try await application.library().routes
             maintenanceMessage = try credentialCleanup.reconcile(retaining: routes, credentials: credentials)
-        } catch { maintenanceMessage = "连接状态已保留。" + MiraError.safe(error).message }
+        } catch { maintenanceMessage = MiraError.safe(error).message }
     }
 }
 
@@ -135,33 +135,33 @@ private struct DemoProvider: ModelProviderPort {
             let task = Task {
                 do {
                     let answer = """
-                    # Mira 本机演示
+                    # Mira Local Demo
 
-                    你好，我是 Mira。这段回复由本机生成，用来检查流式 Markdown、停止生成与重启恢复。
+                    Hello, I am Mira. This reply is generated locally to verify streaming Markdown, cancellation, and recovery after restarting.
 
-                    你刚才发送了：
+                    You sent:
 
                     > \(request.messages.last?.text ?? "")
 
-                    ## 支持的内容
+                    ## Supported Content
 
-                    - 标题、列表与引用
-                    - **强调**、`行内代码` 与表格
-                    - 仅允许点击 `http(s)` 链接
+                    - Headings, lists, and quotes
+                    - **Emphasis**, `inline code`, and tables
+                    - Clickable `http(s)` links
 
                     ```swift
-                    let message = "你好，Mira！"
+                    let message = "Hello, Mira!"
                     print(message)
                     ```
 
-                    | 能力 | 状态 |
+                    | Capability | Status |
                     | --- | --- |
-                    | 本机流式输出 | 可用 |
-                    | 网络请求 | 未启用 |
+                    | Local streaming | Available |
+                    | Network requests | Disabled |
 
-                    [了解 Swift](https://www.swift.org)
+                    [Learn about Swift](https://www.swift.org)
 
-                    连接自己的模型后，就可以开始真实对话。记忆、资料检索与工具执行将在后续里程碑加入。
+                    Connect your own model to start a real conversation. Memory and source retrieval will follow in later milestones.
                     """
                     for character in answer {
                         try await Task.sleep(for: .milliseconds(18))

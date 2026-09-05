@@ -108,8 +108,8 @@ public struct MiraError: Error, LocalizedError, Codable, Sendable, Equatable {
     public init(_ code: Code, _ message: String) { self.code = code; self.message = message }
     public static func safe(_ error: any Error) -> Self {
         if let error = error as? Self { return error }
-        if error is CancellationError { return .init(.cancelled, "已停止生成。") }
-        return .init(.storage, "操作未完成。请重试；如果问题持续，请备份资料库。")
+        if error is CancellationError { return .init(.cancelled, "Generation was stopped.") }
+        return .init(.storage, "Operation did not complete. Retry; if the problem persists, back up the library.")
     }
 }
 

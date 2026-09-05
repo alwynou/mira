@@ -27,10 +27,8 @@ public protocol MiraStore: Sendable {
     func enqueue(conversationID: ConversationID, text: String, route: ModelRoute, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution
     /// Only retries the latest terminal failed/cancelled/interrupted execution with no later user message. Reuses its trigger.
     func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ModelRoute, at: Date) throws -> Execution
-    /// Atomically stores the exact canonical request and transitions queued -> waitingForModel.
-    func prepare(executionID: ExecutionID, request: CanonicalModelRequest, at: Date) throws
     func request(for executionID: ExecutionID) throws -> CanonicalModelRequest?
-    /// Persists Step + Attempt + exact request before any network dispatch. Legacy request(for:) returns the latest request.
+    /// Persists a step, model attempt, and exact request before network dispatch.
     func prepareAttempt(_ attempt: ModelAttempt) throws
     func attempts(for executionID: ExecutionID) throws -> [ModelAttempt]
     /// Atomically records model output and its ordered proposals. A completed call cannot be rewritten.

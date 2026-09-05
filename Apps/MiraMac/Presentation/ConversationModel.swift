@@ -5,12 +5,12 @@ import MiraCore
 extension ExecutionStatus {
     var displayTitle: String {
         switch self {
-        case .queued: "等待发送"
-        case .waitingForModel: "正在生成"
-        case .completed: "已完成"
-        case .failed: "失败"
-        case .cancelled: "已停止"
-        case .interrupted: "已中断"
+        case .queued: "Queued"
+        case .waitingForModel: "Generating"
+        case .completed: "Completed"
+        case .failed: "Failed"
+        case .cancelled: "Stopped"
+        case .interrupted: "Interrupted"
         }
     }
 }
@@ -87,7 +87,7 @@ final class ConversationModel {
         } catch { self.error = MiraError.safe(error) }
     }
     func send() async {
-        guard !isSending, let routeID = selectedRouteID else { error = MiraError(.configuration, "请先在设置中配置模型服务。"); return }
+        guard !isSending, let routeID = selectedRouteID else { error = MiraError(.configuration, "Configure a model provider in Settings first."); return }
         let input = composer
         let originalSelection = selectedConversationID
         let originalWorkspace = selectedWorkspaceID
@@ -111,7 +111,7 @@ final class ConversationModel {
     func retrySaving() async {
         guard let activeExecution else { return }
         do { try await application.retryPendingSave(activeExecution.id); await reload() }
-        catch { self.error = MiraError(.storage, "回复仍未能保存，请检查磁盘空间和资料库权限。") }
+        catch { self.error = MiraError(.storage, "The reply could not be saved. Check disk space and library permissions.") }
     }
     func retry() async {
         guard let execution = retryableExecution, let routeID = selectedRouteID else { return }

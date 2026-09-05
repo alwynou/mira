@@ -20,6 +20,12 @@ open .build/xcode/Build/Products/Debug/Mira.app
 
 也可打开 `Mira.xcodeproj`，选择共享 Scheme `Mira` 运行。工程已提交；修改 `project.yml` 或文件组织后，使用 XcodeGen 2.46.0 执行 `xcodegen generate`。
 
+## Interface language
+
+Choose **Settings → General → Display Language** to switch between English (`en`) and Simplified Chinese (`zh-CN`). Mira updates its windows immediately and remembers your selection. User content and model response language are independent of this setting. macOS controls system menu and file dialog language.
+
+Implementation code, comments, and built-in prompts use English. Translations live in the string catalog; see [localization conventions](docs/engineering/LOCALIZATION.md). Run `python3 scripts/check_language_policy.py` and the `MiraLocalizationTests` tests when changing UI copy.
+
 首次启动在设置中添加 OpenAI Chat Completions 兼容连接或 Anthropic Messages 连接，填写 Model ID、API Key、上下文窗口与输出上限。未知窗口可以保存，但发送前须补齐；保存配置不会自动调用模型。API Key 仅保存在本机 Keychain。设置中的能力检测由用户主动触发，只发送固定合成提示，可能产生少量 API 费用。
 
 无密钥演示仅在 Debug 构建中显式启用，使用隔离目录，不发送网络请求：
@@ -69,7 +75,7 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 
 `MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例与对话运行时；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。知识逻辑、检索与 Blob 存储按后续里程碑加入。
 
-助手消息使用微软 SwiftStreamingMarkdown v0.7.0 渲染；宿主按对应提交锁定依赖，禁用远程图片与未验证引用。构建时仅对已审阅的固定依赖使用 `-skipMacroValidation`；依赖与许可证见 [第三方说明](docs/engineering/THIRD_PARTY.md)。
+Assistant messages use Microsoft SwiftStreamingMarkdown v0.7.0 with a small locale adaptation in `Vendor/SwiftStreamingMarkdown`; the upstream commit and changes are documented in its `UPSTREAM.md`. Remote images and unverified citations remain disabled.构建时仅对已审阅的固定依赖使用 `-skipMacroValidation`；依赖与许可证见 [第三方说明](docs/engineering/THIRD_PARTY.md)。
 
 Core 定义接口，外层实现适配。UI 不直接访问数据库或调用 Provider，Core 不依赖 Apple UI 或 GRDB 实现。Mira 不建设自有业务后端。
 

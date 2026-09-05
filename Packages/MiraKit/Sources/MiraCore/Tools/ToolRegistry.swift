@@ -15,7 +15,7 @@ public struct ToolRegistry: Sendable {
                   descriptor.timeout > .zero, descriptor.timeout <= .seconds(120),
                   descriptor.maxResultBytes > 0, descriptor.maxResultBytes <= 65_536,
                   descriptor.sideEffect != .write || descriptor.executionMode != .parallelSafe else {
-                throw MiraError(.configuration, "工具注册存在重复名称或无效限额。")
+                throw MiraError(.configuration, "Tool registration contains duplicate names or invalid limits.")
             }
             try ToolSchemaValidator.validateSchema(definition.inputSchema)
             values[definition.name] = tool
@@ -98,8 +98,8 @@ public enum ToolSchemaValidator {
         if case .number(let limit) = fields[min], value < limit { throw invalidArguments }
         if case .number(let limit) = fields[max], value > limit { throw invalidArguments }
     }
-    private static var invalidSchema: MiraError { .init(.configuration, "工具参数 Schema 不受支持或缺少边界。") }
-    private static var invalidArguments: MiraError { .init(.invalidInput, "工具参数不符合声明的结构或大小限制。") }
+    private static var invalidSchema: MiraError { .init(.configuration, "Tool parameter schema is unsupported or missing bounds.") }
+    private static var invalidArguments: MiraError { .init(.invalidInput, "Tool arguments do not match the declared structure or size limits.") }
 }
 
 public struct ExecutionLimits: Sendable {

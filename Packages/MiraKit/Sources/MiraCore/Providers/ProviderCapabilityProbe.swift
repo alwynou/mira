@@ -28,7 +28,7 @@ public struct ProviderCapabilityProbe: Sendable {
         do {
             try Task.checkCancellation()
             guard let window = route.contextWindow, window > 128 else {
-                throw MiraError(.configuration, "请先配置大于 128 Token 的上下文窗口，再检测能力。")
+                throw MiraError(.configuration, "First configure a context window greater than 128 tokens, then run the capability check.")
             }
             var frozen = route
             frozen.maxOutputTokens = min(128, route.maxOutputTokens)
@@ -38,14 +38,14 @@ public struct ProviderCapabilityProbe: Sendable {
             let request = makeRequest(route: frozen, kind: kind)
             let requestSize = try JSONEncoder().encode(request).count
             guard requestSize + frozen.maxOutputTokens + max(512, window / 10) <= window else {
-                throw MiraError(.contextLimit, "配置的模型窗口无法容纳合成检测请求，请确认窗口大小。")
+                throw MiraError(.contextLimit, "Configured model window cannot fit the synthetic probe request. Confirm the window size.")
             }
             let events = try await collect(request: request, route: frozen)
             try Task.checkCancellation()
             try validate(events: events, kind: kind)
             return .init(checkedAt: checkedAt, type: kind, state: .verified)
         } catch is CancellationError {
-            return .init(checkedAt: checkedAt, type: kind, state: .unknown, error: MiraError(.cancelled, "能力检测已取消。"))
+            return .init(checkedAt: checkedAt, type: kind, state: .unknown, error: MiraError(.cancelled, "Capability check was cancelled."))
         } catch {
             let safe = MiraError.safe(error)
             if safe.code == .cancelled { return .init(checkedAt: checkedAt, type: kind, state: .unknown, error: safe) }
@@ -77,46 +77,46 @@ public struct ProviderCapabilityProbe: Sendable {
                 var textBytes = 0
                 for try await event in self.provider.stream(request: request, route: route) {
                     try Task.checkCancellation()
-                    if sawFinished { throw MiraError(.malformedStream, "能力检测结束后仍返回事件。") }
-                    if events.count >= 512 { throw MiraError(.outputLimit, "能力检测事件超出上限。") }
+                    if sawFinished { throw MiraError(.malformedStream, "Capability check returned an event after ending.") }
+                    if events.count >= 512 { throw MiraError(.outputLimit, "Capability check exceeded its event limit.") }
                     if case .textDelta(let value) = event {
                         textBytes += value.utf8.count
-                        guard textBytes <= 16_384 else { throw MiraError(.outputLimit, "能力检测文本超出上限。") }
+                        guard textBytes <= 16_384 else { throw MiraError(.outputLimit, "Capability check text exceeded its limit.") }
                     }
                     if case .toolCalls(let calls) = event {
                         guard calls.count == 1, calls[0].id.utf8.count <= 256, calls[0].arguments.utf8.count <= 1_024 else {
-                            throw MiraError(.malformedStream, "能力检测工具调用超出上限。")
+                            throw MiraError(.malformedStream, "Capability check tool call exceeded its limit.")
                         }
                     }
                     events.append(event)
                     if case .finished = event { sawFinished = true }
                 }
                 try Task.checkCancellation()
-                guard sawFinished else { throw MiraError(.malformedStream, "能力检测响应缺少结束事件。") }
+                guard sawFinished else { throw MiraError(.malformedStream, "Capability check response has no ending event.") }
                 return events
             }
             group.addTask {
                 try await probeClock.sleep(for: probeTimeout)
-                throw MiraError(.timeout, "能力检测超时。")
+                throw MiraError(.timeout, "Capability check timed out.")
             }
-            guard let result = try await group.next() else { throw MiraError(.timeout, "能力检测未返回结果。") }
+            guard let result = try await group.next() else { throw MiraError(.timeout, "Capability check returned no result.") }
             return result
         }
     }
 
     private func validate(events: [CanonicalStreamEvent], kind: CapabilityProbeKind) throws {
-        guard let terminal = events.last, case .finished(let reason) = terminal else { throw MiraError(.malformedStream, "能力检测响应缺少结束事件。") }
+        guard let terminal = events.last, case .finished(let reason) = terminal else { throw MiraError(.malformedStream, "Capability check response has no ending event.") }
         switch kind {
         case .text:
             let text = events.compactMap { if case .textDelta(let value) = $0 { value } else { nil } }.joined()
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, reason == .stop,
-                  !events.contains(where: { if case .toolCalls = $0 { true } else { false } }) else { throw MiraError(.providerRejected, "文本能力检测结果不符合要求。") }
+                  !events.contains(where: { if case .toolCalls = $0 { true } else { false } }) else { throw MiraError(.providerRejected, "Text capability check result does not meet requirements.") }
         case .tools:
             guard reason == .toolCalls,
                   events.count(where: { if case .toolCalls = $0 { true } else { false } }) == 1,
                   let call = events.compactMap({ if case .toolCalls(let calls) = $0 { calls } else { nil } }).first,
                   call.count == 1, !call[0].id.isEmpty, call[0].name == "probe.echo",
-                  (try? JSONDecoder().decode([String: String].self, from: Data(call[0].arguments.utf8))) == ["value": "MIRA_PROBE"] else { throw MiraError(.providerRejected, "工具能力检测未返回指定的 probe.echo 调用。") }
+                  (try? JSONDecoder().decode([String: String].self, from: Data(call[0].arguments.utf8))) == ["value": "MIRA_PROBE"] else { throw MiraError(.providerRejected, "Tool capability check did not return the specified probe.echo call.") }
         }
     }
 }

@@ -4,6 +4,8 @@ import MiraCore
 import MiraProviders
 
 struct SettingsView: View {
+    @Environment(\.locale) private var locale
+    @AppStorage(AppLanguage.preferenceKey) private var languagePreference = ""
     let container: AppContainer
     @State private var routes: [ModelRoute] = []
     @State private var selectedID: RouteID?
@@ -13,12 +15,14 @@ struct SettingsView: View {
     @State private var diagnostics: StorageDiagnostics?
     @State private var isWorking = false
     @State private var probeTask: Task<Void, Never>?
+    @State private var restoredPath: String?
 
     var body: some View {
         TabView {
-            Tab("模型服务", systemImage: "network") { providerSettings }
-            Tab("数据", systemImage: "externaldrive") { dataSettings }
-        }.padding(20).frame(width: 720, height: 560)
+            Tab("General", systemImage: "gearshape") { generalSettings }
+            Tab("Providers", systemImage: "network") { providerSettings }
+            Tab("Data", systemImage: "externaldrive") { dataSettings }
+        }.padding(20).frame(width: 780, height: 650)
             .task {
                 guard let application = container.application else { return }
                 for await _ in await application.events() {
@@ -27,14 +31,32 @@ struct SettingsView: View {
                     catch { status = MiraError.safe(error).message }
                 }
             }
-            .sheet(isPresented: $showEditor) { ProviderEditor(container: container, existing: editing) }
+            .sheet(isPresented: $showEditor) { ProviderEditor(container: container, existing: editing).environment(\.locale, locale) }
             .onDisappear { probeTask?.cancel() }
+    }
+
+    private var generalSettings: some View {
+        Form {
+            Section("Language") {
+                Picker("Display Language", selection: Binding(
+                    get: { AppLanguage.resolve(stored: languagePreference) },
+                    set: { languagePreference = $0.rawValue }
+                )) {
+                    Text("English").tag(AppLanguage.english)
+                    Text("Chinese (Simplified)").tag(AppLanguage.simplifiedChinese)
+                }
+                Text("Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("macOS manages the language of system menus and file dialogs.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }.formStyle(.grouped)
     }
 
     private var providerSettings: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("连接你自己的模型").font(.title2.weight(.semibold))
-            Text("首批支持 OpenAI Chat Completions 兼容接口和 Anthropic Messages。API Key 仅存入本机 Keychain，连接不会自动发送测试请求。")
+            Text("Connect Your Models").font(.title2.weight(.semibold))
+            Text("Supports OpenAI Chat Completions-compatible APIs and Anthropic Messages. API keys stay in this Mac's Keychain. Adding a connection does not send a test request.")
                 .font(.callout).foregroundStyle(.secondary)
             List(selection: $selectedID) {
                 ForEach(routes) { route in
@@ -45,73 +67,79 @@ struct SettingsView: View {
                             Text(route.modelID).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Text(route.contextWindow.map { "窗口 \($0)" } ?? "窗口待配置").font(.caption).foregroundStyle(.secondary)
+                        Group {
+                            if let window = route.contextWindow { Text("Context window: \(window)") }
+                            else { Text("Context window required") }
+                        }.font(.caption).foregroundStyle(.secondary)
                     }.padding(.vertical, 6).tag(route.id)
                 }
             }.overlay {
-                if routes.isEmpty { ContentUnavailableView("尚未连接模型", systemImage: "key", description: Text("添加连接后，在对话中选择它。")) }
+                if routes.isEmpty { ContentUnavailableView("No Model Connected", systemImage: "key", description: Text("Add a connection, then select it in a conversation.")) }
             }
             HStack {
-                Button("添加连接", systemImage: "plus") { editing = nil; showEditor = true }
-                Button("编辑") { editing = routes.first { $0.id == selectedID }; showEditor = true }.disabled(selectedID == nil)
-                Button("检测文本") { runProbe(.text) }.disabled(selectedID == nil || isWorking)
-                Button("检测工具") { runProbe(.tools) }.disabled(selectedID == nil || isWorking)
-                if probeTask != nil { Button("取消检测") { probeTask?.cancel() } }
+                Button("Add Connection", systemImage: "plus") { editing = nil; showEditor = true }
+                Button("Edit") { editing = routes.first { $0.id == selectedID }; showEditor = true }.disabled(selectedID == nil)
+                Button("Test Text") { runProbe(.text) }.disabled(selectedID == nil || isWorking)
+                Button("Test Tools") { runProbe(.tools) }.disabled(selectedID == nil || isWorking)
+                if probeTask != nil { Button("Cancel Test") { probeTask?.cancel() } }
                 Spacer()
-                Button("移除", role: .destructive) {
+                Button("Remove", role: .destructive) {
                     guard let route = routes.first(where: { $0.id == selectedID }) else { return }
                     Task { do { try await container.removeRoute(route); selectedID = nil } catch { status = MiraError.safe(error).message } }
                 }.disabled(selectedID == nil || container.isDemo)
             }
-            Text("当前路线用于对话；提取、压缩与 Embedding 用途会随对应里程碑开放。").font(.caption).foregroundStyle(.secondary)
-            Text("检测仅发送固定合成提示，不包含个人历史；所选模型服务可能收取少量 API 费用。").font(.caption).foregroundStyle(.secondary)
+            Text("This route is used for conversations. Extraction, compaction, and embeddings will be available in later milestones.").font(.caption).foregroundStyle(.secondary)
+            Text("Tests send a fixed synthetic prompt without personal history. Your provider may charge a small API fee.").font(.caption).foregroundStyle(.secondary)
             if let route = routes.first(where: { $0.id == selectedID }), let observation = route.probeObservation {
-                let kindName = observation.type == .text ? "文本" : "工具"
-                Text("最近\(kindName)检测：\(observation.state == .verified ? "通过" : "失败") · \(observation.checkedAt, format: .dateTime)")
-                    .font(.caption).foregroundStyle(observation.state == .verified ? .green : .orange)
-                if let error = observation.error { Text(error.message).font(.caption).foregroundStyle(.secondary) }
+                LabeledContent(LocalizedStringKey(observation.type == .text ? "Latest Text Test" : "Latest Tool Test")) {
+                    Text(LocalizedStringKey(observation.state == .verified ? "Passed" : "Failed"))
+                    Text(observation.checkedAt, format: .dateTime)
+                }.font(.caption).foregroundStyle(observation.state == .verified ? .green : .orange)
+                if let error = observation.error { Text(L10n.error(error, locale: locale)).font(.caption).foregroundStyle(.secondary) }
             }
-            if !status.isEmpty { Text(status).font(.callout).foregroundStyle(.secondary) }
+            if !status.isEmpty { Text(L10n.string(status, locale: locale)).font(.callout).foregroundStyle(.secondary) }
         }.padding(.top, 16)
     }
     private func runProbe(_ kind: CapabilityProbeKind) {
         guard let route = routes.first(where: { $0.id == selectedID }) else { return }
         isWorking = true
-        status = "正在检测（只发送固定合成内容，不包含历史对话）…"
+        status = "Testing with synthetic content only, without conversation history…"
         probeTask = Task {
             let observation = await container.probe(route, kind: kind)
             defer { isWorking = false; probeTask = nil }
-            guard !Task.isCancelled else { status = "检测已取消，能力状态未改变。"; return }
+            guard !Task.isCancelled else { status = "Test cancelled. Capability status was not changed."; return }
             guard observation.state != .unknown else {
-                status = observation.error?.message ?? "能力检测失败。"
+                status = observation.error?.message ?? "Capability test failed."
                 return
             }
-            do { try await container.saveProbe(observation, for: route); status = observation.state == .verified ? "检测成功，已保存能力状态。" : (observation.error?.message ?? "能力检测失败，已记录状态。") }
+            do { try await container.saveProbe(observation, for: route); status = observation.state == .verified ? "Test passed. Capability status saved." : (observation.error?.message ?? "Capability test failed. Status recorded.") }
             catch { status = MiraError.safe(error).message }
         }
     }
 
     private var dataSettings: some View {
         Form {
-            Section("本地资料库") {
-                LabeledContent("目录") { Text(container.directory.path).textSelection(.enabled).lineLimit(3) }
+            Section("Local Library") {
+                LabeledContent("Directory") { Text(container.directory.path).textSelection(.enabled).lineLimit(3) }
                 if let diagnostics {
                     LabeledContent("SQLite", value: diagnostics.sqliteVersion)
-                    LabeledContent("FTS5 / Trigram", value: "\(diagnostics.supportsFTS5 ? "可用" : "不可用") / \(diagnostics.supportsTrigram ? "可用" : "不可用")")
+                    LabeledContent("FTS5") { Text(LocalizedStringKey(diagnostics.supportsFTS5 ? "Available" : "Unavailable")) }
+                    LabeledContent("Trigram") { Text(LocalizedStringKey(diagnostics.supportsTrigram ? "Available" : "Unavailable")) }
                 }
-                Text("此阶段建议使用可丢弃资料。完整记忆、资料文件和长期恢复验收尚在后续里程碑。").font(.caption).foregroundStyle(.secondary)
+                Text("Use disposable data during development. Memory, source files, and long-term recovery will be verified in later milestones.").font(.caption).foregroundStyle(.secondary)
                 if let message = container.maintenanceMessage {
-                    Text(message).font(.callout).foregroundStyle(.orange)
-                    Button("重试凭据清理") { Task { await container.retryCredentialCleanup() } }
+                    Text(L10n.string(message, locale: locale)).font(.callout).foregroundStyle(.orange)
+                    Button("Retry Credential Cleanup") { Task { await container.retryCredentialCleanup() } }
                 }
             }
-            Section("备份与恢复") {
-                Text("备份包含对话、配置和本地请求记录，不含 API Key。请妥善保存备份文件。恢复会创建新的隔离目录，保留当前资料库。")
+            Section("Backup and Restore") {
+                Text("Backups contain conversations, configuration, and local request records, but no API keys. Store backups securely. Restoring creates a separate directory and preserves the current library.")
                 HStack {
-                    Button("导出资料库备份…") { exportBackup() }
-                    Button("恢复到新目录…") { restoreBackup() }
+                    Button("Export Library Backup…") { exportBackup() }
+                    Button("Restore to New Directory…") { restoreBackup() }
                 }.disabled(isWorking)
-                if !status.isEmpty { Text(status).font(.callout).textSelection(.enabled) }
+                if !status.isEmpty { Text(L10n.string(status, locale: locale)).font(.callout).textSelection(.enabled) }
+                if let restoredPath { LabeledContent("Restored Library") { Text(verbatim: restoredPath).textSelection(.enabled) } }
             }
         }.formStyle(.grouped)
     }
@@ -121,16 +149,16 @@ struct SettingsView: View {
         isWorking = true
         Task {
             defer { isWorking = false }
-            do { try await container.application?.exportBackup(to: url); status = "备份已保存。" }
+            do { try await container.application?.exportBackup(to: url); status = "Backup saved." }
             catch { status = MiraError.safe(error).message }
         }
     }
     private func restoreBackup() {
         let sourcePanel = NSOpenPanel(); sourcePanel.canChooseDirectories = false; sourcePanel.allowsMultipleSelection = false
-        sourcePanel.message = "选择 Mira 资料库备份"
+        sourcePanel.message = L10n.string("Choose a Mira library backup", locale: locale)
         guard sourcePanel.runModal() == .OK, let source = sourcePanel.url else { return }
         let folderPanel = NSOpenPanel(); folderPanel.canChooseDirectories = true; folderPanel.canChooseFiles = false
-        folderPanel.canCreateDirectories = true; folderPanel.message = "选择恢复目录的父目录；Mira 会在其中新建独立目录"
+        folderPanel.canCreateDirectories = true; folderPanel.message = L10n.string("Choose a parent directory. Mira will create a separate restored library inside it.", locale: locale)
         guard folderPanel.runModal() == .OK, let parent = folderPanel.url else { return }
         let destination = parent.appendingPathComponent("Mira-Restored-\(UUID().uuidString.prefix(8))", isDirectory: true)
         isWorking = true
@@ -138,7 +166,8 @@ struct SettingsView: View {
             defer { isWorking = false }
             do {
                 try await container.application?.restoreBackup(from: source, to: destination)
-                status = "验证并恢复完成：\(destination.path)。当前资料库保持打开；切换步骤见开发文档。"
+                restoredPath = destination.path
+                status = "Backup verified and restored. The current library is still open. See the development guide to switch libraries."
             } catch { status = MiraError.safe(error).message }
         }
     }
@@ -146,6 +175,7 @@ struct SettingsView: View {
 
 private struct ProviderEditor: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     let container: AppContainer
     let existing: ModelRoute?
     @State private var name = ""
@@ -163,33 +193,33 @@ private struct ProviderEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(existing == nil ? "添加模型连接" : "编辑模型连接").font(.title2.weight(.semibold))
+            Text(LocalizedStringKey(existing == nil ? "Add Model Connection" : "Edit Model Connection")).font(.title2.weight(.semibold))
             Form {
-                TextField("名称", text: $name)
-                Picker("协议", selection: Binding(get: { kind }, set: { newKind in
+                TextField("Name", text: $name)
+                Picker("Protocol", selection: Binding(get: { kind }, set: { newKind in
                     guard kind != newKind else { return }
                     kind = newKind
                     baseURL = newKind == .anthropic ? "https://api.anthropic.com" : "https://api.openai.com/v1"
                 })) {
-                    Text("OpenAI Chat Completions 兼容").tag(ProviderKind.openAICompatible)
+                    Text("OpenAI Chat Completions Compatible").tag(ProviderKind.openAICompatible)
                     Text("Anthropic Messages").tag(ProviderKind.anthropic)
                 }
                 TextField("Base URL", text: $baseURL)
                 TextField("Model ID", text: $modelID)
-                SecureField(existing == nil ? "API Key" : "新 API Key（留空保留）", text: $apiKey)
-                TextField("上下文窗口（Token）", text: $contextWindow)
-                TextField("最大输出（Token）", text: $maxOutputTokens)
-                Toggle("我已确认模型支持流式文本对话", isOn: $confirmsText)
-                if kind == .openAICompatible { Toggle("请求流式 Token 用量（服务需支持 include_usage）", isOn: $requestsUsage) }
-                Toggle("允许明确配置的本机 HTTP 服务", isOn: $allowsHTTP)
+                SecureField(LocalizedStringKey(existing == nil ? "API Key" : "New API Key (leave blank to keep)"), text: $apiKey)
+                TextField("Context Window (tokens)", text: $contextWindow)
+                TextField("Maximum Output (tokens)", text: $maxOutputTokens)
+                Toggle("I confirm this model supports streaming text conversations", isOn: $confirmsText)
+                if kind == .openAICompatible { Toggle("Request streaming token usage (requires include_usage support)", isOn: $requestsUsage) }
+                Toggle("Allow explicitly configured local HTTP services", isOn: $allowsHTTP)
             }
-            Text("Model ID 可手工填写；窗口未知时可以保存连接，发送前必须补齐。此阶段不自动推断工具能力。保存连接不会产生模型费用。")
+            Text("Enter the model ID manually. You can save without a context window, but must provide one before sending. Tool capability is not inferred automatically. Saving a connection does not incur model fees.")
                 .font(.caption).foregroundStyle(.secondary)
-            if let error { Text(error).font(.callout).foregroundStyle(.red) }
+            if let error { Text(L10n.string(error, locale: locale)).font(.callout).foregroundStyle(.red) }
             HStack {
                 Spacer()
-                Button("取消", role: .cancel) { apiKey = ""; dismiss() }.keyboardShortcut(.cancelAction)
-                Button("保存") { Task { await save() } }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(saving || name.isEmpty || modelID.isEmpty || container.isDemo)
+                Button("Cancel", role: .cancel) { apiKey = ""; dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Save") { Task { await save() } }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(saving || name.isEmpty || modelID.isEmpty || container.isDemo)
             }
         }.padding(28).frame(width: 590)
             .onAppear { load() }
@@ -206,7 +236,7 @@ private struct ProviderEditor: View {
         do {
             let windowText = contextWindow.trimmingCharacters(in: .whitespacesAndNewlines)
             guard let output = Int(maxOutputTokens), output > 0,
-                  windowText.isEmpty || (Int(windowText).map { $0 > output && $0 <= 10_000_000 } ?? false) else { throw MiraError(.configuration, "请输入有效的 Token 数；最大输出须小于上下文窗口。") }
+                  windowText.isEmpty || (Int(windowText).map { $0 > output && $0 <= 10_000_000 } ?? false) else { throw MiraError(.configuration, "Enter valid token limits. Maximum output must be smaller than the context window.") }
             var route = ModelRoute(id: existing?.id ?? .init(), revision: (existing?.revision ?? 0) + 1,
                                    name: name.trimmingCharacters(in: .whitespacesAndNewlines), providerKind: kind,
                                    baseURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines), modelID: modelID.trimmingCharacters(in: .whitespacesAndNewlines),

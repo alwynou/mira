@@ -23,7 +23,6 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
         try base.enqueue(conversationID: conversationID, text: text, route: route, executionID: executionID, messageID: messageID, at: at)
     }
     func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ModelRoute, at: Date) throws -> Execution { try base.retry(executionID: executionID, newExecutionID: newExecutionID, route: route, at: at) }
-    func prepare(executionID: ExecutionID, request: CanonicalModelRequest, at: Date) throws { try base.prepare(executionID: executionID, request: request, at: at) }
     func request(for id: ExecutionID) throws -> CanonicalModelRequest? { try base.request(for: id) }
     func prepareAttempt(_ attempt: ModelAttempt) throws { try base.prepareAttempt(attempt) }
     func attempts(for id: ExecutionID) throws -> [ModelAttempt] { try base.attempts(for: id) }

@@ -148,7 +148,7 @@ CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](htt
 
 设置 → 数据 → 导出资料库备份，使用 SQLite Backup API 生成可独立使用的文件，不复制活动 WAL 主文件。导出不覆盖已有文件。
 
-设置 → 数据 → 恢复到新目录，选备份与父目录。恢复器先复制到自己持有的暂存目录，校验版本、结构、索引 / 约束、完整性、外键及领域值，成功后安装新目录。原备份与当前资料库均保留。当前支持 v1 和 v2 的独立资料库备份；v1 校验通过后在暂存副本升级为 v2，再校验并安装。未来 Schema 升级须扩展版本恢复策略。
+设置 → 数据 → 恢复到新目录，选备份与父目录。恢复器先复制到自己持有的暂存目录，校验版本、结构、索引 / 约束、完整性、外键及领域值，成功后安装新目录。原备份与当前资料库均保留。During early development, only the current version 3 schema is supported. Older development libraries/backups are rejected without modifying them; use a fresh development directory. Historical-format compatibility is added only when explicitly requested.
 
 验证恢复后的目录可以先在隔离环境打开：
 
@@ -161,7 +161,7 @@ open .build/xcode/Build/Products/Debug/Mira.app --args \
 
 ## 流式 Markdown 依赖
 
-MiraMac 使用微软 SwiftStreamingMarkdown v0.7.0 对应 commit `5f7c04e0558df6146f90d482edb62cb456986bda`。上游该版本含 revision 型依赖，SwiftPM 不接受将它作为普通语义版本依赖解析，因此宿主固定到 release commit 并提交整个锁文件；MiraKit 不引入此 UI 依赖。
+MiraMac uses the vendored Microsoft SwiftStreamingMarkdown v0.7.0 source from commit `5f7c04e0558df6146f90d482edb62cb456986bda`. The local package carries a minimal locale patch; provenance and changed files are recorded in `Vendor/SwiftStreamingMarkdown/UPSTREAM.md`. Runtime transitive dependencies stay pinned in the Xcode lock file. MiraKit does not import this UI dependency.
 
 库带 Equatable 编译宏。已审阅、锁定的依赖在 CLI / CI 使用 `-skipMacroValidation`；不修改机器全局信任设置。依赖升级必须重新审阅并验证。该选项不会绕过应用签名或公证。详见 [第三方说明](THIRD_PARTY.md)。
 

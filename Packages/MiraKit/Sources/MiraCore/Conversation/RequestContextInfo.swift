@@ -8,11 +8,25 @@ public struct RequestContextInfo: Codable, Sendable, Equatable {
         public var revision: Int?
         public init(kind: String, id: String, revision: Int? = nil) { self.kind = kind; self.id = id; self.revision = revision }
     }
+    public struct Omission: Codable, Sendable, Equatable, Identifiable {
+        public enum Reason: String, Codable, Sendable, Equatable {
+            case unsuccessfulReply
+        }
+
+        public var executionID: ExecutionID
+        public var reason: Reason
+        public var id: ExecutionID { executionID }
+
+        public init(executionID: ExecutionID, reason: Reason) {
+            self.executionID = executionID
+            self.reason = reason
+        }
+    }
     public var references: [Reference]
-    public var omissions: [String]
+    public var omissions: [Omission]
     public var routeRevision: Int
     public var estimatedInputBytes: Int?
-    public init(references: [Reference], omissions: [String], routeRevision: Int) {
+    public init(references: [Reference], omissions: [Omission], routeRevision: Int) {
         self.references = references; self.omissions = omissions; self.routeRevision = routeRevision
     }
 }

@@ -1,5 +1,4 @@
 {
-  "originHash" : "81c06aad205ab7e8a30f98b31dc67c084357f6d5fd0cfccb4aba15e3dbe52b5c",
   "pins" : [
     {
       "identity" : "equatable",
@@ -63,14 +62,6 @@
       }
     },
     {
-      "identity" : "swiftstreamingmarkdown",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/microsoft/SwiftStreamingMarkdown.git",
-      "state" : {
-        "revision" : "5f7c04e0558df6146f90d482edb62cb456986bda"
-      }
-    },
-    {
       "identity" : "swiftui-shimmer",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/markiv/SwiftUI-Shimmer",
@@ -80,5 +71,5 @@
       }
     }
   ],
-  "version" : 3
+  "version" : 2
 }

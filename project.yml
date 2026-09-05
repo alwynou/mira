@@ -1,5 +1,7 @@
 name: Mira
 options:
+  developmentLanguage: en
+  knownRegions: [en, zh-Hans]
   minimumXcodeGenVersion: 2.44.0
   deploymentTarget:
     macOS: "15.0"
@@ -13,12 +15,12 @@ settings:
     CODE_SIGN_STYLE: Automatic
     ENABLE_HARDENED_RUNTIME: YES
     ENABLE_APP_SANDBOX: NO
+    SWIFT_EMIT_LOC_STRINGS: YES
 packages:
   MiraKit:
     path: Packages/MiraKit
   SwiftStreamingMarkdown:
-    url: https://github.com/microsoft/SwiftStreamingMarkdown.git
-    revision: 5f7c04e0558df6146f90d482edb62cb456986bda
+    path: Vendor/SwiftStreamingMarkdown
 targets:
   Mira:
     type: application
@@ -29,6 +31,7 @@ targets:
       path: Apps/MiraMac/App/Info.plist
       properties:
         CFBundleDisplayName: Mira
+        CFBundleDevelopmentRegion: en
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
@@ -52,6 +55,23 @@ targets:
         product: MiraProviders
       - package: SwiftStreamingMarkdown
         product: SwiftStreamingMarkdown
+  MiraLocalizationTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Apps/MiraMac/Localization
+      - Apps/MiraMac/Resources/Localizable.xcstrings
+      - Tests/MiraLocalizationTests
+      - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira.localization-tests
+    dependencies:
+      - package: MiraKit
+        product: MiraCore
+      - package: SwiftStreamingMarkdown
+        product: SwiftStreamingMarkdown
 schemes:
   Mira:
     build:
@@ -59,5 +79,7 @@ schemes:
         Mira: all
     run:
       config: Debug
+    test:
+      targets: [MiraLocalizationTests]
     archive:
       config: Release

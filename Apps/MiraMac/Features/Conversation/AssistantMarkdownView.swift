@@ -23,8 +23,8 @@ struct MessageRow: View {
                 .font(.title3).foregroundStyle(Color.secondary).frame(width: 28)
             VStack(alignment: .leading, spacing: 9) {
                 HStack(spacing: 8) {
-                    Text("你").font(.callout.weight(.semibold))
-                    if let status, status != .committed { Text("未完成").font(.caption).foregroundStyle(.orange) }
+                    Text("You").font(.callout.weight(.semibold))
+                    if let status, status != .committed { Text("Incomplete").font(.caption).foregroundStyle(.orange) }
                 }
                 Text(verbatim: text).textSelection(.enabled).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -54,9 +54,9 @@ struct AssistantMarkdownRow: View {
             VStack(alignment: .leading, spacing: 9) {
                 HStack(spacing: 8) {
                     Text("Mira").font(.callout.weight(.semibold))
-                    if let status, status != .committed { Text("未完成").font(.caption).foregroundStyle(.orange) }
+                    if let status, status != .committed { Text("Incomplete").font(.caption).foregroundStyle(.orange) }
                 }
-                if text.isEmpty { Text("正在思考…").foregroundStyle(.secondary) }
+                if text.isEmpty { Text("Thinking…").foregroundStyle(.secondary) }
                 else {
                     MarkdownView(text: buffer.snapshot, config: markdownConfig)
                         .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)

@@ -18,9 +18,9 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
     public var textCapability: CapabilityState
     public var allowsLoopbackHTTP: Bool
     public var requestsUsage: Bool
-    /// Nil in legacy configurations; tools are exposed only after explicit declaration or a successful probe.
-    public var toolCapability: CapabilityState?
-    /// Last explicit capability probe result; absent in legacy configurations.
+    /// Tools are exposed only after explicit declaration or a successful probe.
+    public var toolCapability: CapabilityState
+    /// Last explicit capability probe result; absent until the first probe.
     public var probeObservation: ProbeObservation?
     public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true) {
         self.id = id; self.revision = revision; self.name = name; self.providerKind = providerKind
@@ -28,7 +28,7 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
         self.credentialVersion = credentialVersion; self.contextWindow = contextWindow
         self.maxOutputTokens = maxOutputTokens; self.textCapability = textCapability
         self.allowsLoopbackHTTP = allowsLoopbackHTTP; self.requestsUsage = requestsUsage
-        self.toolCapability = nil
+        self.toolCapability = .unknown
         self.probeObservation = nil
     }
 
@@ -36,15 +36,15 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
         guard let components = URLComponents(string: baseURL), let host = components.host?.lowercased(),
               !host.isEmpty, components.user == nil, components.password == nil,
               components.query == nil, components.fragment == nil else {
-            throw MiraError(.configuration, "请填写不含凭据、查询参数或片段的服务地址。")
+            throw MiraError(.configuration, "Enter a service URL without credentials, query parameters, or fragments.")
         }
         let loopback = ["localhost", "127.0.0.1", "[::1]", "::1"].contains(host)
         guard components.scheme == "https" || (components.scheme == "http" && loopback && allowsLoopbackHTTP) else {
-            throw MiraError(.configuration, "服务地址需要 HTTPS；本机 HTTP 服务须明确启用。")
+            throw MiraError(.configuration, "Service URL must use HTTPS; explicitly enable HTTP for loopback services.")
         }
-        guard var url = components.url else { throw MiraError(.configuration, "服务地址无效。") }
+        guard var url = components.url else { throw MiraError(.configuration, "Service URL is invalid.") }
         if url.path.hasSuffix("/chat/completions") || url.path.hasSuffix("/messages") {
-            throw MiraError(.configuration, "请填写 Base URL，不要包含 chat/completions 或 messages。")
+            throw MiraError(.configuration, "Enter a base URL without chat/completions or messages.")
         }
         if providerKind == .anthropic && !url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).hasSuffix("v1") {
             url.appendPathComponent("v1")
@@ -55,10 +55,10 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
 
     public func validateForSending() throws {
         _ = try validatedEndpoint()
-        guard !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.configuration, "请填写 Model ID。") }
+        guard !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.configuration, "Enter a Model ID.") }
         guard let window = contextWindow, window > 0, window <= 10_000_000,
-              maxOutputTokens > 0, maxOutputTokens < window else { throw MiraError(.configuration, "请配置有效的上下文窗口与最大输出 Token 数。") }
-        guard textCapability == .declared || textCapability == .verified else { throw MiraError(.configuration, "请确认此模型支持流式文本对话。") }
+              maxOutputTokens > 0, maxOutputTokens < window else { throw MiraError(.configuration, "Configure a valid context window and maximum output token count.") }
+        guard textCapability == .declared || textCapability == .verified else { throw MiraError(.configuration, "Confirm that this model supports streaming text conversations.") }
     }
 }
 

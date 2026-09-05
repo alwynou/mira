@@ -7,34 +7,51 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0F7E1A6BDB1FD55C95D7FF02 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 380EE6141EC3FD69746566C8 /* Localizable.xcstrings */; };
 		1B547271AFD1F2FE409828CD /* ConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB989EFFEC2CDE956AA80EE4 /* ConversationView.swift */; };
 		1C441AC730240E409B811592 /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28A3E756EB962B0188361E5F /* MiraCore */; };
 		28EECC3B307F65286511CD3E /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7414ED665B7697D8DE9FC89A /* ConversationModel.swift */; };
 		428F1D24B591079FFFA63E38 /* ThirdPartyLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = 46B54F5A9D2A1543C991E57D /* ThirdPartyLicenses.txt */; };
 		49F70C245913992C36B10EB2 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF55273DE92E33D4AE636F5 /* AppContainer.swift */; };
+		4B6A5168DDFC7823C27AE225 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */; };
 		54EF56EDC3B68B93059EA3E8 /* MiraProviders in Frameworks */ = {isa = PBXBuildFile; productRef = 5F3D10460B2999C35B0C0D6B /* MiraProviders */; };
 		5A19A06793F386C94A36E10C /* SwiftStreamingMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = FE2AA561104FDAE775D62B36 /* SwiftStreamingMarkdown */; };
 		6DFF932F49A461A438CEDDCE /* AssistantMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3509ADD8C6FBF3620F4D53 /* AssistantMarkdownView.swift */; };
+		7430073A47CCAC2B7E4CF270 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */; };
 		76C211E87B518144DC292694 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */; };
 		77056AB9D11C1CC603EA6EBB /* WorkspaceEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDED64867AEC6D60C7D2415C /* WorkspaceEditor.swift */; };
 		877A78FA00188ECFD8CBFD4F /* MiraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A0B282D1687FAC585A18E1 /* MiraApp.swift */; };
+		91D80151A4F65FF182823B78 /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 307CF7919006DD57B627C184 /* MiraCore */; };
 		95E735EAFEDFB6BBA66FE294 /* ExecutionInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6C0280EF68017B5D62B312 /* ExecutionInspector.swift */; };
+		A7025808A771F4BA782FFCFF /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
+		ABE3AA0996E45F5EB7150F73 /* SwiftStreamingMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = 213891DC92B5EA1A42EADDAE /* SwiftStreamingMarkdown */; };
+		AE06ACDE5B02C2B35AD31923 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
 		B38C6089D06D325082314E26 /* MiraData in Frameworks */ = {isa = PBXBuildFile; productRef = EEB28E75FC8A07BD9B1491B3 /* MiraData */; };
 		BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
+		D46D97F6FB280D87AD7DBDE7 /* RendererLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */; };
+		D6D0F173F9BAC0371D067EB9 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */; };
 		DABB39FF64C311B5242A3912 /* CredentialCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33B878F8A325859FD21031 /* CredentialCleanup.swift */; };
+		E8A9BB49BF83A8FB2B18870F /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 380EE6141EC3FD69746566C8 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
 		2824EFB7442C6F4AF52C6FBE /* Mira.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mira.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		30A0B282D1687FAC585A18E1 /* MiraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraApp.swift; sourceTree = "<group>"; };
+		380EE6141EC3FD69746566C8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RendererLocalizationTests.swift; sourceTree = "<group>"; };
 		3AF55273DE92E33D4AE636F5 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		46B54F5A9D2A1543C991E57D /* ThirdPartyLicenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyLicenses.txt; sourceTree = "<group>"; };
 		4B33B878F8A325859FD21031 /* CredentialCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialCleanup.swift; sourceTree = "<group>"; };
+		4B5440A255E4D10B7D41D151 /* SwiftStreamingMarkdown */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftStreamingMarkdown; path = Vendor/SwiftStreamingMarkdown; sourceTree = SOURCE_ROOT; };
+		6CF930788F8A3480525C1F98 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		6F6C0280EF68017B5D62B312 /* ExecutionInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecutionInspector.swift; sourceTree = "<group>"; };
 		6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentials.swift; sourceTree = "<group>"; };
 		7414ED665B7697D8DE9FC89A /* ConversationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationModel.swift; sourceTree = "<group>"; };
+		793A2349A400DC28BE575C69 /* MiraLocalizationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiraLocalizationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		85EA3748455364D356BD274D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		CDED64867AEC6D60C7D2415C /* WorkspaceEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceEditor.swift; sourceTree = "<group>"; };
 		E80A2536843B79B7161B2B7E /* MiraKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MiraKit; path = Packages/MiraKit; sourceTree = SOURCE_ROOT; };
 		EB989EFFEC2CDE956AA80EE4 /* ConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationView.swift; sourceTree = "<group>"; };
@@ -50,6 +67,15 @@
 				B38C6089D06D325082314E26 /* MiraData in Frameworks */,
 				54EF56EDC3B68B93059EA3E8 /* MiraProviders in Frameworks */,
 				5A19A06793F386C94A36E10C /* SwiftStreamingMarkdown in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7E578CFB9D2CAAB0B29F01BE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				91D80151A4F65FF182823B78 /* MiraCore in Frameworks */,
+				ABE3AA0996E45F5EB7150F73 /* SwiftStreamingMarkdown in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,6 +100,14 @@
 			path = Keychain;
 			sourceTree = "<group>";
 		};
+		308F99C3BDCE132DCC37FFD8 /* SwiftStreamingMarkdown */ = {
+			isa = PBXGroup;
+			children = (
+				6F273E45A057733B8DD50FA0 /* Tests */,
+			);
+			path = SwiftStreamingMarkdown;
+			sourceTree = "<group>";
+		};
 		5497436E381E7DCB70B9E69F /* Platform */ = {
 			isa = PBXGroup;
 			children = (
@@ -90,6 +124,15 @@
 			path = Presentation;
 			sourceTree = "<group>";
 		};
+		6230C913AFF464F0EBF0D085 /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */,
+				6CF930788F8A3480525C1F98 /* L10n.swift */,
+			);
+			path = Localization;
+			sourceTree = "<group>";
+		};
 		68CD944E08ECF99BC3CC5C63 /* Composition */ = {
 			isa = PBXGroup;
 			children = (
@@ -102,8 +145,17 @@
 			isa = PBXGroup;
 			children = (
 				2824EFB7442C6F4AF52C6FBE /* Mira.app */,
+				793A2349A400DC28BE575C69 /* MiraLocalizationTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		6F273E45A057733B8DD50FA0 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				B28B59114DE5FF70AC79870D /* SwiftStreamingMarkdownLocaleTests */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		75ACDFF7FBA3AC3E1ECCDF3C /* Conversation */ = {
@@ -126,6 +178,22 @@
 			path = Features;
 			sourceTree = "<group>";
 		};
+		7A321D4BB978EAF134EF78A6 /* MiraLocalizationTests */ = {
+			isa = PBXGroup;
+			children = (
+				20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */,
+			);
+			path = MiraLocalizationTests;
+			sourceTree = "<group>";
+		};
+		90EEE2F533C0413599C68CD6 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				7A321D4BB978EAF134EF78A6 /* MiraLocalizationTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
 		9408A86C4F850B8EC16B66DC /* Settings */ = {
 			isa = PBXGroup;
 			children = (
@@ -139,6 +207,8 @@
 			children = (
 				C6537118ED7F0A67B1D5C6AD /* Apps */,
 				A05FECB38D4FE2B6CC88C82C /* Packages */,
+				90EEE2F533C0413599C68CD6 /* Tests */,
+				EB30568481685A174D613C27 /* Vendor */,
 				6BAEE14F16EA8C85A415D967 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -147,8 +217,17 @@
 			isa = PBXGroup;
 			children = (
 				E80A2536843B79B7161B2B7E /* MiraKit */,
+				4B5440A255E4D10B7D41D151 /* SwiftStreamingMarkdown */,
 			);
 			path = Packages;
+			sourceTree = "<group>";
+		};
+		B28B59114DE5FF70AC79870D /* SwiftStreamingMarkdownLocaleTests */ = {
+			isa = PBXGroup;
+			children = (
+				3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */,
+			);
+			path = SwiftStreamingMarkdownLocaleTests;
 			sourceTree = "<group>";
 		};
 		C6537118ED7F0A67B1D5C6AD /* Apps */ = {
@@ -165,6 +244,7 @@
 				259A9CA272B796EA6402D15E /* App */,
 				68CD944E08ECF99BC3CC5C63 /* Composition */,
 				797641AD51D9229879567BBD /* Features */,
+				6230C913AFF464F0EBF0D085 /* Localization */,
 				5497436E381E7DCB70B9E69F /* Platform */,
 				55B8FDFC54C421B37A503CBC /* Presentation */,
 				E8B026806F9DCB3832255C13 /* Resources */,
@@ -183,14 +263,44 @@
 		E8B026806F9DCB3832255C13 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				380EE6141EC3FD69746566C8 /* Localizable.xcstrings */,
 				46B54F5A9D2A1543C991E57D /* ThirdPartyLicenses.txt */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		EB30568481685A174D613C27 /* Vendor */ = {
+			isa = PBXGroup;
+			children = (
+				308F99C3BDCE132DCC37FFD8 /* SwiftStreamingMarkdown */,
+			);
+			path = Vendor;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2DAD0C1FDD6057924A97D9CF /* MiraLocalizationTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DFBFAAC71D4EA01654CDFB39 /* Build configuration list for PBXNativeTarget "MiraLocalizationTests" */;
+			buildPhases = (
+				A19CA68836DB235BDA6E82C6 /* Sources */,
+				536B51721B55FA7272A98EB4 /* Resources */,
+				7E578CFB9D2CAAB0B29F01BE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MiraLocalizationTests;
+			packageProductDependencies = (
+				307CF7919006DD57B627C184 /* MiraCore */,
+				213891DC92B5EA1A42EADDAE /* SwiftStreamingMarkdown */,
+			);
+			productName = MiraLocalizationTests;
+			productReference = 793A2349A400DC28BE575C69 /* MiraLocalizationTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		FCE4BAB270C9879CEFDFA543 /* Mira */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 71645AA03320AAE7C1C513F1 /* Build configuration list for PBXNativeTarget "Mira" */;
@@ -223,6 +333,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					2DAD0C1FDD6057924A97D9CF = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
 					FCE4BAB270C9879CEFDFA543 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
@@ -235,12 +349,13 @@
 			knownRegions = (
 				Base,
 				en,
+				"zh-Hans",
 			);
 			mainGroup = 9F12A7678DA6DB07C4E15942;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3E62497B67BB6DBF9EAEB996 /* XCRemoteSwiftPackageReference "SwiftStreamingMarkdown" */,
 				3254A4E8215ABE50B8CDA036 /* XCLocalSwiftPackageReference "Packages/MiraKit" */,
+				1EEBC06CC3165AA5D61299A7 /* XCLocalSwiftPackageReference "Vendor/SwiftStreamingMarkdown" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6BAEE14F16EA8C85A415D967 /* Products */;
@@ -248,15 +363,25 @@
 			projectRoot = "";
 			targets = (
 				FCE4BAB270C9879CEFDFA543 /* Mira */,
+				2DAD0C1FDD6057924A97D9CF /* MiraLocalizationTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		536B51721B55FA7272A98EB4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0F7E1A6BDB1FD55C95D7FF02 /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B19DAB7420EB69D1E22FD93F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E8A9BB49BF83A8FB2B18870F /* Localizable.xcstrings in Resources */,
 				428F1D24B591079FFFA63E38 /* ThirdPartyLicenses.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -269,21 +394,50 @@
 			buildActionMask = 2147483647;
 			files = (
 				49F70C245913992C36B10EB2 /* AppContainer.swift in Sources */,
+				4B6A5168DDFC7823C27AE225 /* AppLanguage.swift in Sources */,
 				6DFF932F49A461A438CEDDCE /* AssistantMarkdownView.swift in Sources */,
 				28EECC3B307F65286511CD3E /* ConversationModel.swift in Sources */,
 				1B547271AFD1F2FE409828CD /* ConversationView.swift in Sources */,
 				DABB39FF64C311B5242A3912 /* CredentialCleanup.swift in Sources */,
 				95E735EAFEDFB6BBA66FE294 /* ExecutionInspector.swift in Sources */,
 				BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */,
+				A7025808A771F4BA782FFCFF /* L10n.swift in Sources */,
 				877A78FA00188ECFD8CBFD4F /* MiraApp.swift in Sources */,
 				76C211E87B518144DC292694 /* SettingsView.swift in Sources */,
 				77056AB9D11C1CC603EA6EBB /* WorkspaceEditor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A19CA68836DB235BDA6E82C6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7430073A47CCAC2B7E4CF270 /* AppLanguage.swift in Sources */,
+				AE06ACDE5B02C2B35AD31923 /* L10n.swift in Sources */,
+				D6D0F173F9BAC0371D067EB9 /* LocalizationTests.swift in Sources */,
+				D46D97F6FB280D87AD7DBDE7 /* RendererLocalizationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		1B3E9B39A2BB4C1E4C9E1B76 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.alwynou.mira.localization-tests";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
 		208296D53EFA86929FAF13EC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -339,6 +493,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
@@ -380,6 +535,22 @@
 				SDKROOT = macosx;
 			};
 			name = Release;
+		};
+		869EE3315414A018CCFD9A3D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.alwynou.mira.localization-tests";
+				SDKROOT = macosx;
+			};
+			name = Debug;
 		};
 		DF9A5E3F041B6FF1857B57CD /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -443,6 +614,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
@@ -470,28 +642,38 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		DFBFAAC71D4EA01654CDFB39 /* Build configuration list for PBXNativeTarget "MiraLocalizationTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				869EE3315414A018CCFD9A3D /* Debug */,
+				1B3E9B39A2BB4C1E4C9E1B76 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		1EEBC06CC3165AA5D61299A7 /* XCLocalSwiftPackageReference "Vendor/SwiftStreamingMarkdown" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/SwiftStreamingMarkdown;
+		};
 		3254A4E8215ABE50B8CDA036 /* XCLocalSwiftPackageReference "Packages/MiraKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/MiraKit;
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		3E62497B67BB6DBF9EAEB996 /* XCRemoteSwiftPackageReference "SwiftStreamingMarkdown" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/microsoft/SwiftStreamingMarkdown.git";
-			requirement = {
-				kind = revision;
-				revision = 5f7c04e0558df6146f90d482edb62cb456986bda;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
+		213891DC92B5EA1A42EADDAE /* SwiftStreamingMarkdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftStreamingMarkdown;
+		};
 		28A3E756EB962B0188361E5F /* MiraCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MiraCore;
+		};
+		307CF7919006DD57B627C184 /* MiraCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MiraCore;
 		};
@@ -505,7 +687,6 @@
 		};
 		FE2AA561104FDAE775D62B36 /* SwiftStreamingMarkdown */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3E62497B67BB6DBF9EAEB996 /* XCRemoteSwiftPackageReference "SwiftStreamingMarkdown" */;
 			productName = SwiftStreamingMarkdown;
 		};
 /* End XCSwiftPackageProductDependency section */
