@@ -1,6 +1,6 @@
 # English source and bilingual UI verification
 
-Date: 2026-09-05. Branch: `dev`.
+Date: 2026-09-05. Branch: `dev`. Implementation commit: [`7c5d5f0`](https://github.com/alwynou/mira/commit/7c5d5f07b3a4716520741531abe9625f30b97f22).
 
 ## Delivered behavior
 
@@ -22,7 +22,7 @@ Local environment: macOS 26.6.2, Apple Silicon, Xcode 26.6, Swift 6.3.3. Deploym
 | Release app | `xcodebuild ... -scheme Mira -configuration Release ... build` passed |
 | Language policy and compiler-extracted UI coverage | 326 complete bilingual keys passed |
 | Git whitespace check | `git diff --check` passed |
-| GitHub Actions | Pending verification of the implementation commit |
+| GitHub Actions | Implementation commit `7c5d5f0` passed on `macos-15`, Xcode 26.3 / Swift 6.2.4, in 3m49s: [run 33962349790](https://github.com/alwynou/mira/actions/runs/33962349790). All 75 package tests, 5 host XCTest tests, 3 renderer tests, and both language checks passed. |
 
 Regression coverage includes locale selection and fallback, preference persistence, explicit locale lookup independent of process language, formatted arguments, both compiled resource bundles, renderer copy/list/table/menu labels, original user text preservation, prompt identity and reply-language instructions, typed omissions, direct empty-title storage, first-message title selection, and rejection of unsupported libraries/backups without deleting their contents. Existing request, stream, audit, cancellation, backup-integrity, and tool-boundary tests remain in the package suite.
 
