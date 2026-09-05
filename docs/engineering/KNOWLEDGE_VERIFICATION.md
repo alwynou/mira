@@ -25,7 +25,9 @@ Environment: macOS 26.6.2, Apple Silicon, Xcode 26.6, Swift 6.3.3; deployment ta
 | Localization | 962 bilingual strings; source policy and compiler-extracted Debug UI coverage passed; all 801 original entries preserved without semantic changes |
 | Source/project consistency | XcodeGen regenerated the project; `git diff --check` passed |
 
-A concurrent icon asset appeared in the shared workspace during local app builds. The MVP commit stages its own project references; repository-only acceptance is established by exact-commit CI.
+Commit `4864711bc92cad56bec4c2fde1d091510885aa02` initially failed CI because a backup fixture used a machine-specific path and a lock test depended on a two-second scheduling window. The correction uses the system temporary directory, fixed fixture time, and nested independent lock descriptors. All 249 package tests passed again locally (`/private/tmp/mira-m4-portable-tests.log`). Commit `aad66ce5ed64ae3e7b01bde89dcfc731f2e594bc` passed [CI 33981574785](https://github.com/alwynou/mira/actions/runs/33981574785), including package, host, and extracted-language checks.
+
+Concurrent icon/design work remains separate in the shared workspace. Exact-commit CI and the isolated git-archive Release build establish repository-only acceptance.
 
 New focused coverage includes 8 parser tests, 5 tool tests, 5 application integration tests, 7 source store/search tests, 16 managed-file tests, and 7 backup tests. Existing backup corruption fixtures now mutate the bundle's database and reseal its test manifest, so typed/schema rejection remains independently exercised instead of being hidden by a checksum mismatch.
 
