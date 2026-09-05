@@ -4,7 +4,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索与完整备份已有实现。M5 的规模查询与大资料库恢复已通过本机测试；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md) 和 [M5 验收记录](docs/engineering/M5_VERIFICATION.md)。
+> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索与完整备份已有实现。M5 的规模查询、大资料库恢复与本机开发包验证已通过；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md) 和 [M5 验收记录](docs/engineering/M5_VERIFICATION.md)。
 
 ## 构建与运行
 

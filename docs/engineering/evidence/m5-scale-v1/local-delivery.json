@@ -1,0 +1,227 @@
+{
+  "revision": "5ee47a78c53f2c225309c8e8b3b104cc80fb048f",
+  "artifact": {
+    "byteCount": 11409888,
+    "file": "Mira-0.1.0-5ee47a78c53f-unsigned.zip",
+    "sha256": "5975e114ba5aba5ef2f093df4afacdb4439751d0e80d837b66ab4ff5f7047a6a"
+  },
+  "bundleSHA256": "85482f10700e728956c997ae1ba6dcd6b46dc3bf457d90cb271bc7d62ef9bec1",
+  "app": {
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "build": "1",
+    "minimumOS": "15.0",
+    "resources": {
+      "english": true,
+      "simplifiedChinese": true,
+      "thirdPartyLicenses": true
+    },
+    "version": "0.1.0"
+  },
+  "signing": {
+    "classification": "adhoc",
+    "developerID": false,
+    "notarized": false
+  },
+  "toolchain": {
+    "cpu": "Apple M1 Pro",
+    "developerDir": "",
+    "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "macOS": "26.6.2",
+    "machine": "arm64",
+    "memoryBytes": "17179869184",
+    "python": "3.14.7",
+    "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+    "xcodeSelect": "/Applications/Xcode.app/Contents/Developer",
+    "xcodebuild": "Xcode 26.6\nBuild version 17F113"
+  },
+  "packagingChecks": {
+    "architecture": true,
+    "exactRevisionArchive": true,
+    "licenseResource": true,
+    "localizationResources": true,
+    "minimumOS": true,
+    "noProviderLaunch": true,
+    "releaseBuild": true,
+    "runtimeUI": "not_run_by_this_helper",
+    "unsignedOrAdHoc": true,
+    "zipExtractionParity": true
+  },
+  "processChecks": {
+    "zipSHA256": true,
+    "extractedBundleParity": true,
+    "freshInstall": true,
+    "sameLibraryReopen": true,
+    "separateLibraryIsolation": true,
+    "sameRevisionBundleReplacement": true,
+    "uninstallPreservesLibraryFileBytes": true,
+    "zeroConfiguredProviderConnections": true
+  },
+  "processObservations": [
+    {
+      "library": "library-a",
+      "schema": 7,
+      "connectionCount": 0,
+      "workspaceCount": 0,
+      "workspaces": [],
+      "integrityCheck": "ok",
+      "foreignKeyCheck": "ok",
+      "stage": "fresh-install",
+      "processAlive": true
+    },
+    {
+      "library": "library-a",
+      "schema": 7,
+      "connectionCount": 0,
+      "workspaceCount": 1,
+      "workspaces": [
+        [
+          "00000000-0000-0000-0000-000000000005",
+          "Synthetic delivery marker",
+          0
+        ]
+      ],
+      "integrityCheck": "ok",
+      "foreignKeyCheck": "ok",
+      "stage": "same-library-reopen",
+      "processAlive": true
+    },
+    {
+      "library": "library-b",
+      "schema": 7,
+      "connectionCount": 0,
+      "workspaceCount": 0,
+      "workspaces": [],
+      "integrityCheck": "ok",
+      "foreignKeyCheck": "ok",
+      "stage": "second-library-isolation",
+      "processAlive": true
+    },
+    {
+      "library": "library-a",
+      "schema": 7,
+      "connectionCount": 0,
+      "workspaceCount": 1,
+      "workspaces": [
+        [
+          "00000000-0000-0000-0000-000000000005",
+          "Synthetic delivery marker",
+          0
+        ]
+      ],
+      "integrityCheck": "ok",
+      "foreignKeyCheck": "ok",
+      "stage": "bundle-replacement-same-revision",
+      "processAlive": true
+    }
+  ],
+  "limitations": [
+    "No native UI or graceful UI shutdown assertion.",
+    "Bundle replacement uses the same revision; it is not an old-schema migration test.",
+    "No real provider or credential was configured. Keychain lifecycle is not established.",
+    "No macOS 15 or Intel runtime acceptance, Developer ID signing, notarization, or Gatekeeper download acceptance."
+  ],
+  "provenanceChecks": {
+    "measuredSourceHashesMatchRevision": 42,
+    "isolatedXcodeGenProjectMatchesCommittedProject": true
+  },
+  "localEvidence": {
+    "directory": ".build/local-delivery-5ee47a7",
+    "buildLog": ".build/local-delivery-5ee47a7/xcodebuild.log",
+    "packagingManifest": ".build/local-delivery-5ee47a7/manifest.json",
+    "smokeReport": ".build/local-delivery-5ee47a7/smoke-report.json"
+  },
+  "ci": {
+    "conclusion": "success",
+    "headSha": "5ee47a78c53f2c225309c8e8b3b104cc80fb048f",
+    "jobs": [
+      {
+        "completedAt": "2026-09-05T18:37:41Z",
+        "conclusion": "success",
+        "databaseId": 101355395284,
+        "name": "macos",
+        "startedAt": "2026-09-05T18:34:31Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-09-05T18:34:32Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-09-05T18:34:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:34:34Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-09-05T18:34:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:34:38Z",
+            "conclusion": "success",
+            "name": "Toolchain",
+            "number": 3,
+            "startedAt": "2026-09-05T18:34:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:35:41Z",
+            "conclusion": "success",
+            "name": "Package tests",
+            "number": 4,
+            "startedAt": "2026-09-05T18:34:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:35:42Z",
+            "conclusion": "success",
+            "name": "Language policy",
+            "number": 5,
+            "startedAt": "2026-09-05T18:35:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:37:38Z",
+            "conclusion": "success",
+            "name": "macOS app and localization tests",
+            "number": 6,
+            "startedAt": "2026-09-05T18:35:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:37:38Z",
+            "conclusion": "success",
+            "name": "Extracted UI string coverage",
+            "number": 7,
+            "startedAt": "2026-09-05T18:37:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:37:39Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 14,
+            "startedAt": "2026-09-05T18:37:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-05T18:37:39Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-09-05T18:37:39Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/alwynou/mira/actions/runs/33984485447/job/101355395284"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/alwynou/mira/actions/runs/33984485447"
+  }
+}
