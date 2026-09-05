@@ -200,8 +200,9 @@ private struct ConversationDetail: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Picker("Conversation model", selection: $model.selectedRouteID) {
-                    if model.routes.isEmpty { Text("No model configured").tag(nil as RouteID?) }
-                    ForEach(model.routes) { route in Text(verbatim: "\(route.name) · \(route.modelID)").tag(Optional(route.id)) }
+                    Text("Use purpose route").tag(nil as RouteID?)
+                    if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) { Text("Unavailable route").tag(Optional(selected)) }
+                    ForEach(model.routes) { route in Text(verbatim: route.name).tag(Optional(route.id)) }
                 }.labelsHidden().frame(maxWidth: 320).disabled(model.activeExecution != nil)
                 Spacer()
                 if model.needsPersistenceRetry { Label("Reply pending save", systemImage: "externaldrive.badge.exclamationmark").font(.caption).foregroundStyle(.orange) }

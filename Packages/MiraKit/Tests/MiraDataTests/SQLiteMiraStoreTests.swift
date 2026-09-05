@@ -25,7 +25,7 @@ struct SQLiteMiraStoreTests {
         let store = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: .init(), workspaceID: nil, title: "", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
-        let route = fixtureRoute()
+        let route = try installFixtureConfiguration(in: store)
         let first = try store.enqueue(conversationID: conversation.id, text: "New Conversation", route: route, executionID: .init(), messageID: .init(), at: .now)
         _ = try store.finish(executionID: first.id, status: .completed, text: "first reply", usage: .init(), error: nil, assistantMessageID: .init(), at: .now)
         let second = try store.enqueue(conversationID: conversation.id, text: "second message", route: route, executionID: .init(), messageID: .init(), at: .now)
@@ -40,7 +40,7 @@ struct SQLiteMiraStoreTests {
         do { _ = try SQLiteMiraStore(directory: directory) }
         let path = directory.appendingPathComponent("Mira.sqlite")
         let database = try DatabaseQueue(path: path.path)
-        try database.write { db in try db.execute(sql: "PRAGMA user_version = 2") }
+        try database.write { db in try db.execute(sql: "PRAGMA user_version = 3") }
         let before = try Data(contentsOf: path)
 
         #expect(throws: MiraError.self) { _ = try SQLiteMiraStore(directory: directory) }
@@ -66,13 +66,158 @@ struct SQLiteMiraStoreTests {
         #expect(preserved.2 == 0)
     }
 
+    @Test func modelConfigurationCRUDAndBindingCASRoundTrips() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let snapshot = try installFixtureConfiguration(in: store)
+
+        var binding = RouteBinding(scope: .global, purpose: .conversation, routeID: snapshot.id)
+        try store.saveRouteBinding(binding, expectedRevision: nil)
+        let saved = try store.modelConfiguration()
+        #expect(saved.connections.count == 1)
+        #expect(saved.models.count == 1)
+        #expect(saved.routes.count == 1)
+        #expect(saved.bindings == [binding])
+        #expect(try saved.resolve(purpose: .conversation).id == snapshot.id)
+
+        binding.revision = 2
+        try store.saveRouteBinding(binding, expectedRevision: 1)
+        #expect(throws: MiraError.self) { try store.saveRouteBinding(binding, expectedRevision: 1) }
+        var staleBinding = binding
+        staleBinding.revision = 1
+        #expect(throws: MiraError.self) { try store.removeRouteBinding(staleBinding) }
+        try store.removeRouteBinding(binding)
+        var route = saved.routes[0]
+        route.revision = 2
+        route.maxOutputTokens = 512
+        try store.saveRoute(route, expectedRevision: 1)
+        #expect(throws: MiraError.self) { try store.saveRoute(route, expectedRevision: 1) }
+    }
+
+    @Test func deletingConnectionCascadesConfigurationButPreservesExecutionSnapshotAndPolicy() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let snapshot = try installFixtureConfiguration(in: store)
+        let workspace = Workspace(id: .init(), name: "Restricted", allowedConnectionIDs: [snapshot.connectionID])
+        try store.saveWorkspace(workspace, expectedRevision: nil)
+        let conversation = Conversation(id: .init(), workspaceID: workspace.id, title: "History", createdAt: .now, updatedAt: .now)
+        try store.createConversation(conversation)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "preserve", route: snapshot, executionID: .init(), messageID: .init(), at: .now)
+
+        try store.removeConnection(snapshot.connectionID)
+
+        let configuration = try store.modelConfiguration()
+        #expect(configuration.connections.isEmpty)
+        #expect(configuration.models.isEmpty)
+        #expect(configuration.routes.isEmpty)
+        #expect(configuration.bindings.isEmpty)
+        #expect(try store.execution(execution.id)?.route == snapshot)
+        #expect(try store.workspaces().first?.allowedConnectionIDs == [])
+    }
+
+    @Test func staleModelConnectionRevisionCannotBeSavedAfterConnectionChange() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        _ = try installFixtureConfiguration(in: store)
+        let configuration = try store.modelConfiguration()
+        var connection = configuration.connections[0]
+        connection.revision = 2
+        try store.saveConnection(connection, expectedRevision: 1)
+        var staleModel = configuration.models[0]
+        staleModel.revision = 2
+        #expect(throws: MiraError.self) { try store.saveModel(staleModel, expectedRevision: 1) }
+    }
+
+    @Test func routeBindingRequiresExistingScopeAndUsesStableScopePurposeID() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let snapshot = try installFixtureConfiguration(in: store)
+        #expect(throws: MiraError.self) {
+            try store.saveRouteBinding(RouteBinding(scope: .workspace(.init()), purpose: .conversation, routeID: snapshot.id), expectedRevision: nil)
+        }
+        #expect(throws: MiraError.self) {
+            try store.saveRouteBinding(RouteBinding(scope: .global, purpose: .conversation, routeID: snapshot.id, revision: 1), expectedRevision: nil)
+            try store.saveRouteBinding(RouteBinding(scope: .global, purpose: .conversation, routeID: snapshot.id), expectedRevision: nil)
+        }
+    }
+
+    @Test func malformedConfigurationAndBindingJSONAreRejectedBeforeBackupInstall() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let snapshot = try installFixtureConfiguration(in: store)
+        try store.saveRouteBinding(.init(scope: .global, purpose: .conversation, routeID: snapshot.id), expectedRevision: nil)
+        let backup = directory.appendingPathComponent("config-corrupt.sqlite")
+        let restored = directory.appendingPathComponent("config-corrupt-restored")
+        defer { try? FileManager.default.removeItem(at: backup); try? FileManager.default.removeItem(at: restored) }
+        try store.exportBackup(to: backup)
+        let database = try DatabaseQueue(path: backup.path)
+        try database.write { db in try db.execute(sql: "UPDATE provider_connections SET connection_json = '{}' WHERE id = ?", arguments: [snapshot.connectionID.rawValue.uuidString.lowercased()]) }
+        #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
+        try FileManager.default.removeItem(at: backup)
+        try store.exportBackup(to: backup)
+        let secondDatabase = try DatabaseQueue(path: backup.path)
+        try secondDatabase.write { db in try db.execute(sql: "UPDATE route_bindings SET binding_json = '{}' WHERE id = ?", arguments: ["global:conversation"]) }
+        #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
+        #expect(!FileManager.default.fileExists(atPath: restored.path))
+    }
+
+    @Test func malformedHistoricalRouteSnapshotIsRejectedBeforeBackupInstall() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let snapshot = try installFixtureConfiguration(in: store)
+        let conversation = Conversation(id: .init(), workspaceID: nil, title: "History", createdAt: .now, updatedAt: .now)
+        try store.createConversation(conversation)
+        _ = try store.enqueue(conversationID: conversation.id, text: "snapshot", route: snapshot, executionID: .init(), messageID: .init(), at: .now)
+        let backup = directory.appendingPathComponent("route-snapshot-corrupt.sqlite")
+        let restored = directory.appendingPathComponent("route-snapshot-corrupt-restored")
+        defer { try? FileManager.default.removeItem(at: backup); try? FileManager.default.removeItem(at: restored) }
+        try store.exportBackup(to: backup)
+        let database = try DatabaseQueue(path: backup.path)
+        let originalRouteJSON = try database.read { db in try String.fetchOne(db, sql: "SELECT route_json FROM executions")! }
+        var routeObject = try JSONSerialization.jsonObject(with: Data(originalRouteJSON.utf8)) as! [String: Any]
+        routeObject["adapterVersion"] = "unknown-adapter/1"
+        let malformedRouteJSON = String(decoding: try JSONSerialization.data(withJSONObject: routeObject), as: UTF8.self)
+        let changedRows = try database.write { db -> Int in
+            try db.execute(sql: "UPDATE executions SET route_json = ?", arguments: [malformedRouteJSON])
+            return db.changesCount
+        }
+        let routeJSON = try database.read { db in try String.fetchOne(db, sql: "SELECT route_json FROM executions") }
+        #expect(changedRows == 1)
+        #expect(routeJSON?.contains("unknown-adapter\\/1") == true)
+        #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
+        #expect(!FileManager.default.fileExists(atPath: restored.path))
+    }
+
+    @Test func malformedWorkspaceConnectionAllowlistIsRejectedFromBackup() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let snapshot = try installFixtureConfiguration(in: store)
+        let workspace = Workspace(id: .init(), name: "Restricted", allowedConnectionIDs: [snapshot.connectionID])
+        try store.saveWorkspace(workspace, expectedRevision: nil)
+        let backup = directory.appendingPathComponent("allowlist-corrupt.sqlite")
+        let restored = directory.appendingPathComponent("allowlist-corrupt-restored")
+        defer { try? FileManager.default.removeItem(at: backup); try? FileManager.default.removeItem(at: restored) }
+        try store.exportBackup(to: backup)
+        let database = try DatabaseQueue(path: backup.path)
+        try database.write { db in try db.execute(sql: "UPDATE workspaces SET allowed_connection_ids_json = '[\"malformed\"]' WHERE id = ?", arguments: [workspace.id.rawValue.uuidString.lowercased()]) }
+        #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restored) }
+        #expect(!FileManager.default.fileExists(atPath: restored.path))
+    }
+
     @Test func independentConnectionsRaceWithoutCreatingTwoActiveExecutions() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let first = try SQLiteMiraStore(directory: directory), second = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: .init(), workspaceID: nil, title: "Race", createdAt: .now, updatedAt: .now)
         try first.createConversation(conversation)
-        let route = fixtureRoute()
+        let route = try installFixtureConfiguration(in: first)
         let successes = await withTaskGroup(of: Bool.self) { group in
             for store in [first, second] {
                 group.addTask {
@@ -113,7 +258,7 @@ struct SQLiteMiraStoreTests {
         try store.saveWorkspace(workspace, expectedRevision: nil)
         let conversation = Conversation(id: ConversationID(), workspaceID: workspace.id, title: "Test", createdAt: Date(timeIntervalSince1970: 10), updatedAt: Date(timeIntervalSince1970: 10))
         try store.createConversation(conversation)
-        let route = ModelRoute(name: "Fixture route", providerKind: .openAICompatible, baseURL: "https://example.invalid", modelID: "fixture", credentialReference: "keychain.fixture", contextWindow: 4096)
+        let route = try installFixtureConfiguration(in: store, name: "Fixture route")
         let execution = try store.enqueue(conversationID: conversation.id, text: "hello", route: route, executionID: ExecutionID(), messageID: MessageID(), at: Date(timeIntervalSince1970: 11))
         let requestID = UUID()
         let request = CanonicalModelRequest(executionID: execution.id, system: "s", messages: [.init(role: .user, text: "hello")], requestID: requestID)
@@ -136,7 +281,8 @@ struct SQLiteMiraStoreTests {
         let store = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: ConversationID(), workspaceID: nil, title: "Recovery", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
-        let execution = try store.enqueue(conversationID: conversation.id, text: "go", route: fixtureRoute(), executionID: ExecutionID(), messageID: MessageID(), at: .now)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "go", route: route, executionID: ExecutionID(), messageID: MessageID(), at: .now)
         try store.checkpoint(executionID: execution.id, text: "durable", at: .now)
         try store.recoverInterrupted(at: .now)
         try store.recoverInterrupted(at: .now)
@@ -168,11 +314,12 @@ struct SQLiteMiraStoreTests {
         let conversation = Conversation(id: ConversationID(), workspaceID: nil, title: "Atomic", createdAt: .now, updatedAt: .now)
         try first.createConversation(conversation)
         let messageID = MessageID()
-        let execution = try first.enqueue(conversationID: conversation.id, text: "one", route: fixtureRoute(), executionID: ExecutionID(), messageID: messageID, at: .now)
+        let route = try installFixtureConfiguration(in: first)
+        let execution = try first.enqueue(conversationID: conversation.id, text: "one", route: route, executionID: ExecutionID(), messageID: messageID, at: .now)
         _ = try first.finish(executionID: execution.id, status: .completed, text: "ok", usage: .init(), error: nil, assistantMessageID: MessageID(), at: .now)
         let countBefore = try second.executions(in: conversation.id).count
         #expect(throws: MiraError.self) {
-            _ = try second.enqueue(conversationID: conversation.id, text: "duplicate", route: fixtureRoute(), executionID: ExecutionID(), messageID: messageID, at: .now)
+            _ = try second.enqueue(conversationID: conversation.id, text: "duplicate", route: route, executionID: ExecutionID(), messageID: messageID, at: .now)
         }
         #expect(try second.executions(in: conversation.id).count == countBefore)
         let workspace = Workspace(id: WorkspaceID(), name: "Revision")
@@ -186,10 +333,11 @@ struct SQLiteMiraStoreTests {
         let store = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: ConversationID(), workspaceID: nil, title: "Retry", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
-        let original = try store.enqueue(conversationID: conversation.id, text: "retry", route: fixtureRoute(), executionID: ExecutionID(), messageID: MessageID(), at: Date(timeIntervalSince1970: 1))
+        let route = try installFixtureConfiguration(in: store)
+        let original = try store.enqueue(conversationID: conversation.id, text: "retry", route: route, executionID: ExecutionID(), messageID: MessageID(), at: Date(timeIntervalSince1970: 1))
         _ = try store.finish(executionID: original.id, status: .failed, text: "partial", usage: .init(), error: MiraError(.network, "network"), assistantMessageID: MessageID(), at: Date(timeIntervalSince1970: 2))
-        let replacement = try store.retry(executionID: original.id, newExecutionID: ExecutionID(), route: fixtureRoute(), at: Date(timeIntervalSince1970: 3))
-        #expect(throws: MiraError.self) { _ = try store.retry(executionID: original.id, newExecutionID: ExecutionID(), route: fixtureRoute(), at: .now) }
+        let replacement = try store.retry(executionID: original.id, newExecutionID: ExecutionID(), route: route, at: Date(timeIntervalSince1970: 3))
+        #expect(throws: MiraError.self) { _ = try store.retry(executionID: original.id, newExecutionID: ExecutionID(), route: route, at: .now) }
         _ = try store.finish(executionID: replacement.id, status: .completed, text: "success", usage: .init(), error: nil, assistantMessageID: MessageID(), at: .now)
     }
 
@@ -268,7 +416,8 @@ struct SQLiteMiraStoreTests {
         let store = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: .init(), workspaceID: nil, title: "Audit", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
-        let execution = try store.enqueue(conversationID: conversation.id, text: "tools", route: fixtureRoute(), executionID: .init(), messageID: .init(), at: .now)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "tools", route: route, executionID: .init(), messageID: .init(), at: .now)
         let attemptID = UUID(), stepID = UUID()
         let request = CanonicalModelRequest(executionID: execution.id, system: "s", messages: [.init(role: .user, text: "tools")], requestID: attemptID)
         try store.prepareAttempt(.init(id: attemptID, executionID: execution.id, stepID: stepID, stepIndex: 1, request: request, createdAt: .now))
@@ -322,7 +471,8 @@ struct SQLiteMiraStoreTests {
         let store = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: .init(), workspaceID: nil, title: "Recover audit", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
-        let execution = try store.enqueue(conversationID: conversation.id, text: "recover", route: fixtureRoute(), executionID: .init(), messageID: .init(), at: .now)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "recover", route: route, executionID: .init(), messageID: .init(), at: .now)
         let attemptID = UUID()
         let request = CanonicalModelRequest(executionID: execution.id, system: "", messages: [], requestID: attemptID)
         try store.prepareAttempt(.init(id: attemptID, executionID: execution.id, stepID: UUID(), stepIndex: 1, request: request, createdAt: .now))
@@ -344,7 +494,8 @@ struct SQLiteMiraStoreTests {
         let store = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: .init(), workspaceID: nil, title: "Constraints", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
-        let execution = try store.enqueue(conversationID: conversation.id, text: "x", route: fixtureRoute(), executionID: .init(), messageID: .init(), at: .now)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "x", route: route, executionID: .init(), messageID: .init(), at: .now)
         let attemptID = UUID()
         let request = CanonicalModelRequest(executionID: execution.id, system: "", messages: [], requestID: attemptID)
         let stepID = UUID()
@@ -375,7 +526,8 @@ struct SQLiteMiraStoreTests {
         let store = try SQLiteMiraStore(directory: directory)
         let conversation = Conversation(id: .init(), workspaceID: nil, title: "Order", createdAt: .now, updatedAt: .now)
         try store.createConversation(conversation)
-        let execution = try store.enqueue(conversationID: conversation.id, text: "x", route: fixtureRoute(), executionID: .init(), messageID: .init(), at: .now)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "x", route: route, executionID: .init(), messageID: .init(), at: .now)
         let attemptID = UUID()
         let request = CanonicalModelRequest(executionID: execution.id, system: "", messages: [], requestID: attemptID)
         try store.prepareAttempt(.init(id: attemptID, executionID: execution.id, stepID: UUID(), stepIndex: 1, request: request, createdAt: .now))
@@ -390,8 +542,15 @@ struct SQLiteMiraStoreTests {
         }
     }
 
-    private func fixtureRoute() -> ModelRoute {
-        ModelRoute(name: "Fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid", modelID: "fixture", credentialReference: "keychain.fixture", contextWindow: 4096)
+    private func installFixtureConfiguration(in store: SQLiteMiraStore, name: String = "Fixture") throws -> ResolvedModelRouteSnapshot {
+        let snapshot = ResolvedModelRouteSnapshot(name: name, providerKind: .openAICompatible, baseURL: "https://example.invalid", modelID: "fixture", credentialReference: "keychain.fixture", contextWindow: 4096)
+        let connection = ProviderConnection(id: snapshot.connectionID, revision: snapshot.connectionRevision, name: "Fixture connection", providerKind: snapshot.providerKind, baseURL: snapshot.baseURL, credentialReference: snapshot.credentialReference, credentialVersion: snapshot.credentialVersion, allowsLoopbackHTTP: snapshot.allowsLoopbackHTTP)
+        let model = ModelDescriptor(id: snapshot.modelDescriptorID, revision: snapshot.modelRevision, connectionID: snapshot.connectionID, connectionRevision: snapshot.connectionRevision, modelID: snapshot.modelID, contextWindow: snapshot.contextWindow, textCapability: snapshot.textCapability, toolCapability: snapshot.toolCapability, probeObservation: snapshot.probeObservation)
+        let route = ModelRoute(id: snapshot.id, revision: snapshot.revision, name: snapshot.name, modelDescriptorID: snapshot.modelDescriptorID, maxOutputTokens: snapshot.maxOutputTokens, requestsUsage: snapshot.requestsUsage)
+        try store.saveConnection(connection, expectedRevision: nil)
+        try store.saveModel(model, expectedRevision: nil)
+        try store.saveRoute(route, expectedRevision: nil)
+        return snapshot
     }
 
     private func temporaryDirectory() throws -> URL {

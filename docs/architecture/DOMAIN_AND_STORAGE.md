@@ -250,7 +250,7 @@ Content
 blob, artifact, attachment_reference
 
 Configuration
-provider_connection, model_route, workspace_policy, file_access_grant, app_setting
+provider_connections, model_descriptors, model_routes, route_bindings, workspace_policy, file_access_grant, app_setting
 
 Jobs
 local_job, job_attempt
@@ -258,6 +258,17 @@ local_job, job_attempt
 Index
 fts_*, vector_metadata（未来）
 ```
+
+### 3.3.1 Current provider configuration
+
+The current v4 implementation stores provider configuration in normalized tables:
+
+- `provider_connections`: endpoint, provider kind, credential reference/version, loopback policy, and connection revision.
+- `model_descriptors`: connection identity/revision, model ID, optional context window, independently tracked text/tool capabilities, and probe observation.
+- `model_routes`: reusable named presets that select a model descriptor, output limit, and usage reporting behavior.
+- `route_bindings`: purpose and scope (`global`, `workspace`, or `conversation`) mapped to a route ID, with optimistic revision checks.
+
+Before enqueue, resolution selects the first matching binding in explicit, conversation, workspace, and global order and assembles an immutable `ResolvedModelRouteSnapshot`. The snapshot is stored with each model attempt and carries the connection, model, and preset revisions, purpose, selection source, endpoint/model values, and capabilities. A selected but dangling binding is an error and does not fall back. Workspace remote-send policy and the connection allowlist are checked before enqueue and again before dispatch; a `nil` allowlist permits all configured connections, while an empty set permits none.
 
 <a id="s24-04"></a>
 
@@ -348,10 +359,10 @@ fts_*, vector_metadata（未来）
 > **参考设计标注｜SQLite / GRDB**  
 > 采用 SQLite 作为应用文件格式、事务与 WAL；采用 GRDB 管理 Swift 数据访问、迁移与观察。规范数据和可重建索引分开，大型文件不塞入数据库正文列。
 
-## Current development schema (v3)
+## Current development schema (v4)
 
-The current bootstrap uses `m0_core` and `m2_execution_audit` to create the library and execution audit tables. Empty conversation titles are stored directly as untitled; the first user message assigns the preview title. Step sequences begin at 1, Attempt identities match their execution and Step, and tool proposals preserve provider IDs and model order. Requests are stored only in `model_attempts`; preparing an Attempt is the single path that persists a request before network dispatch. ModelOutput and its proposal batch commit atomically; each ToolResult has one CAS-protected terminal receipt.
+The current bootstrap uses `m0_core` and `m2_execution_audit` to create the library and execution audit tables. Fresh v4 libraries also contain normalized provider configuration tables and immutable route snapshots on execution attempts. Empty conversation titles are stored directly as untitled; the first user message assigns the preview title. Step sequences begin at 1, Attempt identities match their execution and Step, and tool proposals preserve provider IDs and model order. Requests are stored only in `model_attempts`; preparing an Attempt is the single path that persists a request before network dispatch. ModelOutput and its proposal batch commit atomically; each ToolResult has one CAS-protected terminal receipt.
 
 Interrupted execution recovery closes prepared Attempts and tools without replaying requests or writes. Unscheduled tools become cancelledBeforeDispatch; dispatched tools with unknown results become interrupted.
 
-This is early development: only fresh libraries and the current v3 schema are accepted. Historical v1/v2 conversion is intentionally removed. Current backups are copied into owned staging, checked against the exact schema, constraints, migration list, integrity, foreign keys, typed rows, and ModelOutput/tool pairing, then installed in a new directory. The source backup is not changed. SQLite Backup API remains the supported export path.
+This is early development: only fresh libraries and the current v4 schema are accepted. Historical v1/v2 conversion is intentionally removed. Current backups are copied into owned staging, checked against the exact schema, constraints, migration list, integrity, foreign keys, typed rows, and ModelOutput/tool pairing, then installed in a new directory. The source backup is not changed. SQLite Backup API remains the supported export path.

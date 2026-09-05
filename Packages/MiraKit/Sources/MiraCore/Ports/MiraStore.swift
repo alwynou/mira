@@ -18,15 +18,22 @@ public protocol MiraStore: Sendable {
     func archiveConversation(_ id: ConversationID, at: Date) throws
     func messages(in conversationID: ConversationID) throws -> [Message]
     func executions(in conversationID: ConversationID) throws -> [Execution]
+    func execution(_ id: ExecutionID) throws -> Execution?
     func draft(for executionID: ExecutionID) throws -> Draft?
-    func routes() throws -> [ModelRoute]
+    func modelConfiguration() throws -> ModelConfiguration
+    func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) throws
+    func removeConnection(_ id: ConnectionID) throws
+    func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) throws
+    func removeModel(_ id: ModelDescriptorID) throws
     func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws
     func removeRoute(_ id: RouteID) throws
+    func saveRouteBinding(_ binding: RouteBinding, expectedRevision: Int?) throws
+    func removeRouteBinding(_ binding: RouteBinding) throws
 
     /// Atomically inserts the user message, advances sequence, and queues the execution.
-    func enqueue(conversationID: ConversationID, text: String, route: ModelRoute, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution
+    func enqueue(conversationID: ConversationID, text: String, route: ResolvedModelRouteSnapshot, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution
     /// Only retries the latest terminal failed/cancelled/interrupted execution with no later user message. Reuses its trigger.
-    func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ModelRoute, at: Date) throws -> Execution
+    func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ResolvedModelRouteSnapshot, at: Date) throws -> Execution
     func request(for executionID: ExecutionID) throws -> CanonicalModelRequest?
     /// Persists a step, model attempt, and exact request before network dispatch.
     func prepareAttempt(_ attempt: ModelAttempt) throws

@@ -4,8 +4,15 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable { case openAIC
 public enum CapabilityState: String, Codable, Sendable { case unknown, declared, verified, failed }
 
 /// Non-secret configuration. A copy is frozen in each execution before context construction.
-public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
+public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equatable {
     public var id: RouteID
+    public var connectionID: ConnectionID
+    public var connectionRevision: Int
+    public var modelDescriptorID: ModelDescriptorID
+    public var modelRevision: Int
+    public var purpose: ModelPurpose
+    public var selectionSource: RouteSelectionSource
+    public var adapterVersion: String
     public var revision: Int
     public var name: String
     public var providerKind: ProviderKind
@@ -22,7 +29,11 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
     public var toolCapability: CapabilityState
     /// Last explicit capability probe result; absent until the first probe.
     public var probeObservation: ProbeObservation?
-    public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true) {
+    public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true, connectionID: ConnectionID = .init(), connectionRevision: Int = 1, modelDescriptorID: ModelDescriptorID = .init(), modelRevision: Int = 1, purpose: ModelPurpose = .conversation, selectionSource: RouteSelectionSource = .explicit) {
+        self.connectionID = connectionID; self.connectionRevision = connectionRevision
+        self.modelDescriptorID = modelDescriptorID; self.modelRevision = modelRevision
+        self.purpose = purpose; self.selectionSource = selectionSource
+        self.adapterVersion = providerKind == .anthropic ? "anthropic-messages/1" : "openai-chat-completions/1"
         self.id = id; self.revision = revision; self.name = name; self.providerKind = providerKind
         self.baseURL = baseURL; self.modelID = modelID; self.credentialReference = credentialReference
         self.credentialVersion = credentialVersion; self.contextWindow = contextWindow
@@ -32,29 +43,34 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
         self.probeObservation = nil
     }
 
+    public init(route: ModelRoute, model: ModelDescriptor, connection: ProviderConnection, purpose: ModelPurpose, selection: RouteSelectionSource) {
+        self.init(id: route.id, revision: route.revision, name: route.name, providerKind: connection.providerKind,
+                  baseURL: connection.baseURL, modelID: model.modelID, credentialReference: connection.credentialReference,
+                  credentialVersion: connection.credentialVersion, contextWindow: model.contextWindow,
+                  maxOutputTokens: route.maxOutputTokens, textCapability: model.connectionRevision == connection.revision ? model.textCapability : .unknown,
+                  allowsLoopbackHTTP: connection.allowsLoopbackHTTP, requestsUsage: route.requestsUsage,
+                  connectionID: connection.id, connectionRevision: connection.revision,
+                  modelDescriptorID: model.id, modelRevision: model.revision, purpose: purpose, selectionSource: selection)
+        self.toolCapability = model.connectionRevision == connection.revision ? model.toolCapability : .unknown
+        self.probeObservation = model.connectionRevision == connection.revision ? model.probeObservation : nil
+    }
+
     public func validatedEndpoint() throws -> URL {
-        guard let components = URLComponents(string: baseURL), let host = components.host?.lowercased(),
-              !host.isEmpty, components.user == nil, components.password == nil,
-              components.query == nil, components.fragment == nil else {
-            throw MiraError(.configuration, "Enter a service URL without credentials, query parameters, or fragments.")
-        }
-        let loopback = ["localhost", "127.0.0.1", "[::1]", "::1"].contains(host)
-        guard components.scheme == "https" || (components.scheme == "http" && loopback && allowsLoopbackHTTP) else {
-            throw MiraError(.configuration, "Service URL must use HTTPS; explicitly enable HTTP for loopback services.")
-        }
-        guard var url = components.url else { throw MiraError(.configuration, "Service URL is invalid.") }
-        if url.path.hasSuffix("/chat/completions") || url.path.hasSuffix("/messages") {
-            throw MiraError(.configuration, "Enter a base URL without chat/completions or messages.")
-        }
-        if providerKind == .anthropic && !url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).hasSuffix("v1") {
-            url.appendPathComponent("v1")
-        }
-        url.appendPathComponent(providerKind == .anthropic ? "messages" : "chat/completions")
-        return url
+        try ProviderEndpoint.resolve(kind: providerKind, baseURL: baseURL, allowsLoopbackHTTP: allowsLoopbackHTTP)
+    }
+
+    public var origin: String {
+        guard let endpoint = URLComponents(string: baseURL) else { return "" }
+        var origin = URLComponents()
+        origin.scheme = endpoint.scheme; origin.host = endpoint.host; origin.port = endpoint.port
+        return origin.url?.absoluteString ?? ""
     }
 
     public func validateForSending() throws {
         _ = try validatedEndpoint()
+        guard !credentialReference.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, credentialVersion > 0 else {
+            throw MiraError(.configuration, "The provider credential reference is invalid.")
+        }
         guard !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.configuration, "Enter a Model ID.") }
         guard let window = contextWindow, window > 0, window <= 10_000_000,
               maxOutputTokens > 0, maxOutputTokens < window else { throw MiraError(.configuration, "Configure a valid context window and maximum output token count.") }
@@ -100,5 +116,5 @@ public protocol CredentialReader: Sendable {
 }
 public protocol ModelProviderPort: Sendable {
     /// The consumer task cancellation must cancel its URLSession task. EOF without a protocol terminal event is an error.
-    func stream(request: CanonicalModelRequest, route: ModelRoute) -> AsyncThrowingStream<CanonicalStreamEvent, any Error>
+    func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error>
 }

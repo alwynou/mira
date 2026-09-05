@@ -21,10 +21,12 @@ public struct Workspace: Identifiable, Codable, Sendable, Equatable {
     public var name: String
     public var background: String
     public var allowsRemoteSend: Bool
+    /// Nil permits any configured connection; an empty set permits none.
+    public var allowedConnectionIDs: Set<ConnectionID>?
     public var revision: Int
-    public init(id: WorkspaceID, name: String, background: String = "", allowsRemoteSend: Bool = true, revision: Int = 1) {
+    public init(id: WorkspaceID, name: String, background: String = "", allowsRemoteSend: Bool = true, revision: Int = 1, allowedConnectionIDs: Set<ConnectionID>? = nil) {
         self.id = id; self.name = name; self.background = background
-        self.allowsRemoteSend = allowsRemoteSend; self.revision = revision
+        self.allowsRemoteSend = allowsRemoteSend; self.revision = revision; self.allowedConnectionIDs = allowedConnectionIDs
     }
 }
 
@@ -76,12 +78,12 @@ public struct Execution: Identifiable, Codable, Sendable, Equatable {
     public var triggerMessageID: MessageID
     public var retryOfExecutionID: ExecutionID?
     public var status: ExecutionStatus
-    public var route: ModelRoute
+    public var route: ResolvedModelRouteSnapshot
     public var usage: TokenUsage
     public var error: MiraError?
     public var createdAt: Date
     public var updatedAt: Date
-    public init(id: ExecutionID, conversationID: ConversationID, triggerMessageID: MessageID, retryOfExecutionID: ExecutionID? = nil, status: ExecutionStatus = .queued, route: ModelRoute, usage: TokenUsage = .init(), error: MiraError? = nil, createdAt: Date, updatedAt: Date) {
+    public init(id: ExecutionID, conversationID: ConversationID, triggerMessageID: MessageID, retryOfExecutionID: ExecutionID? = nil, status: ExecutionStatus = .queued, route: ResolvedModelRouteSnapshot, usage: TokenUsage = .init(), error: MiraError? = nil, createdAt: Date, updatedAt: Date) {
         self.id = id; self.conversationID = conversationID; self.triggerMessageID = triggerMessageID
         self.retryOfExecutionID = retryOfExecutionID; self.status = status; self.route = route
         self.usage = usage; self.error = error; self.createdAt = createdAt; self.updatedAt = updatedAt

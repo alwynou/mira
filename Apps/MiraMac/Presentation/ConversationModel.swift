@@ -20,6 +20,7 @@ final class ConversationModel {
     var workspaces: [Workspace] = []
     var conversations: [Conversation] = []
     var routes: [ModelRoute] = []
+    var configuration = ModelConfiguration(connections: [], models: [], routes: [], bindings: [])
     var messages: [Message] = []
     var executions: [Execution] = []
     var drafts: [ExecutionID: String] = [:]
@@ -60,14 +61,13 @@ final class ConversationModel {
     func reload() async {
         do {
             let library = try await application.library(includeArchived: true)
-            workspaces = library.workspaces; conversations = library.conversations; routes = library.routes
-            if !routes.contains(where: { $0.id == selectedRouteID }) { selectedRouteID = routes.first?.id }
+            workspaces = library.workspaces; conversations = library.conversations; routes = library.routes; configuration = library.configuration
             if let id = selectedConversationID { try await loadConversation(id) }
         } catch { self.error = MiraError.safe(error) }
     }
     func selectConversation(_ id: ConversationID?) async {
         selectionGeneration += 1; selectedConversationID = id
-        messages = []; executions = []; drafts = [:]; pendingSaveIDs = []; composer = ""
+        messages = []; executions = []; drafts = [:]; pendingSaveIDs = []; composer = ""; selectedRouteID = nil
         guard let id else { return }
         do { try await loadConversation(id) } catch { self.error = MiraError.safe(error) }
     }
@@ -87,7 +87,8 @@ final class ConversationModel {
         } catch { self.error = MiraError.safe(error) }
     }
     func send() async {
-        guard !isSending, let routeID = selectedRouteID else { error = MiraError(.configuration, "Configure a model provider in Settings first."); return }
+        guard !isSending else { return }
+        let routeID = selectedRouteID
         let input = composer
         let originalSelection = selectedConversationID
         let originalWorkspace = selectedWorkspaceID
@@ -114,7 +115,8 @@ final class ConversationModel {
         catch { self.error = MiraError(.storage, "The reply could not be saved. Check disk space and library permissions.") }
     }
     func retry() async {
-        guard let execution = retryableExecution, let routeID = selectedRouteID else { return }
+        guard let execution = retryableExecution else { return }
+        let routeID = selectedRouteID
         do { _ = try await application.retry(execution.id, routeID: routeID); await reload() }
         catch { self.error = MiraError.safe(error) }
     }

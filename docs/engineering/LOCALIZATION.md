@@ -15,6 +15,8 @@ The app injects the selected locale into each scene without recreating conversat
 
 Use whole messages with localized interpolation or typed format placeholders. Never concatenate translated sentence fragments. Preserve placeholders in translations. Keep dates and numbers locale-aware; protocol IDs and raw JSON remain verbatim.
 
+The static case-label coverage scan can identify symbol or protocol identifiers as display copy. For such case-returned identifiers, add an inline `// i18n-verbatim:` explanation; this exempts only that line from case-label catalog coverage, not the English source policy or explicit localization lookups.
+
 ## Content boundaries
 
 User messages, model replies, workspace names/backgrounds, conversation titles derived from user input, tool observations, and request snapshots are content, not localization keys. Changing display language must not translate or rewrite them. An empty conversation title represents an untitled conversation; the UI supplies its localized placeholder. Empty titles are stored directly. The first user message supplies the title; subsequent messages do not rename it. No historical title adapter is maintained.
@@ -27,7 +29,7 @@ The vendored SwiftStreamingMarkdown source retains its upstream identity and lic
 
 ## Verification
 
-Run `python3 scripts/check_language_policy.py`, the MiraKit package suite, and `xcodebuild ... -scheme Mira test` for the hostless `MiraLocalizationTests` target. Tests use isolated preferences and bundled localization resources. Manually verify switching in Settings, a conversation with user-authored content and an unsent draft, an editor sheet, an error, and after relaunch. Do not use real credentials or paid endpoints for localization checks.
+Run `python3 scripts/check_language_policy.py`, the MiraKit package suite, and `xcodebuild ... -scheme Mira test` for the hostless `MiraHostTests` target. Tests use isolated preferences and bundled localization resources. Manually verify switching in Settings, a conversation with user-authored content and an unsent draft, an editor sheet, an error, and after relaunch. Do not use real credentials or paid endpoints for localization checks.
 
 ## Early development policy
 

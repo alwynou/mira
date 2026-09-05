@@ -7,37 +7,43 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0F7E1A6BDB1FD55C95D7FF02 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 380EE6141EC3FD69746566C8 /* Localizable.xcstrings */; };
+		097EBE7FE4859C6A04093FD1 /* ProviderConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3720ABBF862F199F70DC7FB3 /* ProviderConfigurationView.swift */; };
+		183AEEB1883EE1B4B3C71D0D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
 		1B547271AFD1F2FE409828CD /* ConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB989EFFEC2CDE956AA80EE4 /* ConversationView.swift */; };
 		1C441AC730240E409B811592 /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28A3E756EB962B0188361E5F /* MiraCore */; };
+		1D36C6B028A05C1FC1A93603 /* RendererLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */; };
 		28EECC3B307F65286511CD3E /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7414ED665B7697D8DE9FC89A /* ConversationModel.swift */; };
 		428F1D24B591079FFFA63E38 /* ThirdPartyLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = 46B54F5A9D2A1543C991E57D /* ThirdPartyLicenses.txt */; };
+		46B8C3FF5956D7C40A0721F2 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
 		49F70C245913992C36B10EB2 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF55273DE92E33D4AE636F5 /* AppContainer.swift */; };
 		4B6A5168DDFC7823C27AE225 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */; };
 		54EF56EDC3B68B93059EA3E8 /* MiraProviders in Frameworks */ = {isa = PBXBuildFile; productRef = 5F3D10460B2999C35B0C0D6B /* MiraProviders */; };
 		5A19A06793F386C94A36E10C /* SwiftStreamingMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = FE2AA561104FDAE775D62B36 /* SwiftStreamingMarkdown */; };
+		6AFA95AB244E4407486ECE4E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 380EE6141EC3FD69746566C8 /* Localizable.xcstrings */; };
 		6DFF932F49A461A438CEDDCE /* AssistantMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3509ADD8C6FBF3620F4D53 /* AssistantMarkdownView.swift */; };
-		7430073A47CCAC2B7E4CF270 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */; };
+		7115754E493BEBE18D9281FE /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */; };
 		76C211E87B518144DC292694 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */; };
 		77056AB9D11C1CC603EA6EBB /* WorkspaceEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDED64867AEC6D60C7D2415C /* WorkspaceEditor.swift */; };
+		85EF30561973EC65CEE71927 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */; };
 		877A78FA00188ECFD8CBFD4F /* MiraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A0B282D1687FAC585A18E1 /* MiraApp.swift */; };
-		91D80151A4F65FF182823B78 /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 307CF7919006DD57B627C184 /* MiraCore */; };
 		95E735EAFEDFB6BBA66FE294 /* ExecutionInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6C0280EF68017B5D62B312 /* ExecutionInspector.swift */; };
+		9FE81D95B7B72B1598BDCBA5 /* CredentialCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33B878F8A325859FD21031 /* CredentialCleanup.swift */; };
 		A7025808A771F4BA782FFCFF /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
-		ABE3AA0996E45F5EB7150F73 /* SwiftStreamingMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = 213891DC92B5EA1A42EADDAE /* SwiftStreamingMarkdown */; };
-		AE06ACDE5B02C2B35AD31923 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
 		B38C6089D06D325082314E26 /* MiraData in Frameworks */ = {isa = PBXBuildFile; productRef = EEB28E75FC8A07BD9B1491B3 /* MiraData */; };
 		BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
-		D46D97F6FB280D87AD7DBDE7 /* RendererLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */; };
-		D6D0F173F9BAC0371D067EB9 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */; };
+		D050E36FA0D51F69F501CB77 /* KeychainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */; };
 		DABB39FF64C311B5242A3912 /* CredentialCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33B878F8A325859FD21031 /* CredentialCleanup.swift */; };
+		DCFF6AB047F4D8A36BB8805C /* SwiftStreamingMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = 9BC42259BE40D8426A1F88D9 /* SwiftStreamingMarkdown */; };
+		E14D768023A15566226B25CD /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 322193D77468D523E2E7F6F3 /* MiraCore */; };
 		E8A9BB49BF83A8FB2B18870F /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 380EE6141EC3FD69746566C8 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
 		2824EFB7442C6F4AF52C6FBE /* Mira.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mira.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		28C354CD341C70BA8EAE5D58 /* MiraHostTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiraHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		30A0B282D1687FAC585A18E1 /* MiraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraApp.swift; sourceTree = "<group>"; };
+		3720ABBF862F199F70DC7FB3 /* ProviderConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderConfigurationView.swift; sourceTree = "<group>"; };
 		380EE6141EC3FD69746566C8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RendererLocalizationTests.swift; sourceTree = "<group>"; };
 		3AF55273DE92E33D4AE636F5 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
@@ -48,11 +54,11 @@
 		6F6C0280EF68017B5D62B312 /* ExecutionInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecutionInspector.swift; sourceTree = "<group>"; };
 		6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentials.swift; sourceTree = "<group>"; };
 		7414ED665B7697D8DE9FC89A /* ConversationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationModel.swift; sourceTree = "<group>"; };
-		793A2349A400DC28BE575C69 /* MiraLocalizationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiraLocalizationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		85EA3748455364D356BD274D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		CDED64867AEC6D60C7D2415C /* WorkspaceEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceEditor.swift; sourceTree = "<group>"; };
+		D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTests.swift; sourceTree = "<group>"; };
 		E80A2536843B79B7161B2B7E /* MiraKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MiraKit; path = Packages/MiraKit; sourceTree = SOURCE_ROOT; };
 		EB989EFFEC2CDE956AA80EE4 /* ConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationView.swift; sourceTree = "<group>"; };
 		FD3509ADD8C6FBF3620F4D53 /* AssistantMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantMarkdownView.swift; sourceTree = "<group>"; };
@@ -70,18 +76,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		7E578CFB9D2CAAB0B29F01BE /* Frameworks */ = {
+		93F89DB36C7B7B3C9B3A1E76 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				91D80151A4F65FF182823B78 /* MiraCore in Frameworks */,
-				ABE3AA0996E45F5EB7150F73 /* SwiftStreamingMarkdown in Frameworks */,
+				E14D768023A15566226B25CD /* MiraCore in Frameworks */,
+				DCFF6AB047F4D8A36BB8805C /* SwiftStreamingMarkdown in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2246B41BAB4CA40B04087E11 /* MiraPlatformTests */ = {
+			isa = PBXGroup;
+			children = (
+				D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */,
+			);
+			path = MiraPlatformTests;
+			sourceTree = "<group>";
+		};
 		259A9CA272B796EA6402D15E /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -124,6 +138,21 @@
 			path = Presentation;
 			sourceTree = "<group>";
 		};
+		56185B2EBA6E158A4601D778 /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				3720ABBF862F199F70DC7FB3 /* ProviderConfigurationView.swift */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
+		5F5F41A9D2FB7C42C959C5FC /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
 		6230C913AFF464F0EBF0D085 /* Localization */ = {
 			isa = PBXGroup;
 			children = (
@@ -145,7 +174,7 @@
 			isa = PBXGroup;
 			children = (
 				2824EFB7442C6F4AF52C6FBE /* Mira.app */,
-				793A2349A400DC28BE575C69 /* MiraLocalizationTests.xctest */,
+				28C354CD341C70BA8EAE5D58 /* MiraHostTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -190,6 +219,7 @@
 			isa = PBXGroup;
 			children = (
 				7A321D4BB978EAF134EF78A6 /* MiraLocalizationTests */,
+				2246B41BAB4CA40B04087E11 /* MiraPlatformTests */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -198,6 +228,7 @@
 			isa = PBXGroup;
 			children = (
 				9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */,
+				56185B2EBA6E158A4601D778 /* Configuration */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -248,6 +279,7 @@
 				5497436E381E7DCB70B9E69F /* Platform */,
 				55B8FDFC54C421B37A503CBC /* Presentation */,
 				E8B026806F9DCB3832255C13 /* Resources */,
+				5F5F41A9D2FB7C42C959C5FC /* Tests */,
 			);
 			path = MiraMac;
 			sourceTree = "<group>";
@@ -280,25 +312,25 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		2DAD0C1FDD6057924A97D9CF /* MiraLocalizationTests */ = {
+		82C9BFF84013E1350EEF6625 /* MiraHostTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DFBFAAC71D4EA01654CDFB39 /* Build configuration list for PBXNativeTarget "MiraLocalizationTests" */;
+			buildConfigurationList = FA65331C4A6A463FBD151AFD /* Build configuration list for PBXNativeTarget "MiraHostTests" */;
 			buildPhases = (
-				A19CA68836DB235BDA6E82C6 /* Sources */,
-				536B51721B55FA7272A98EB4 /* Resources */,
-				7E578CFB9D2CAAB0B29F01BE /* Frameworks */,
+				9049E6BD628493DE9DA07659 /* Sources */,
+				9A4803489CBEC1717E1339EF /* Resources */,
+				93F89DB36C7B7B3C9B3A1E76 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = MiraLocalizationTests;
+			name = MiraHostTests;
 			packageProductDependencies = (
-				307CF7919006DD57B627C184 /* MiraCore */,
-				213891DC92B5EA1A42EADDAE /* SwiftStreamingMarkdown */,
+				322193D77468D523E2E7F6F3 /* MiraCore */,
+				9BC42259BE40D8426A1F88D9 /* SwiftStreamingMarkdown */,
 			);
-			productName = MiraLocalizationTests;
-			productReference = 793A2349A400DC28BE575C69 /* MiraLocalizationTests.xctest */;
+			productName = MiraHostTests;
+			productReference = 28C354CD341C70BA8EAE5D58 /* MiraHostTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		FCE4BAB270C9879CEFDFA543 /* Mira */ = {
@@ -333,7 +365,7 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
-					2DAD0C1FDD6057924A97D9CF = {
+					82C9BFF84013E1350EEF6625 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
@@ -363,17 +395,17 @@
 			projectRoot = "";
 			targets = (
 				FCE4BAB270C9879CEFDFA543 /* Mira */,
-				2DAD0C1FDD6057924A97D9CF /* MiraLocalizationTests */,
+				82C9BFF84013E1350EEF6625 /* MiraHostTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		536B51721B55FA7272A98EB4 /* Resources */ = {
+		9A4803489CBEC1717E1339EF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0F7E1A6BDB1FD55C95D7FF02 /* Localizable.xcstrings in Resources */,
+				6AFA95AB244E4407486ECE4E /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -403,41 +435,29 @@
 				BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */,
 				A7025808A771F4BA782FFCFF /* L10n.swift in Sources */,
 				877A78FA00188ECFD8CBFD4F /* MiraApp.swift in Sources */,
+				097EBE7FE4859C6A04093FD1 /* ProviderConfigurationView.swift in Sources */,
 				76C211E87B518144DC292694 /* SettingsView.swift in Sources */,
 				77056AB9D11C1CC603EA6EBB /* WorkspaceEditor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A19CA68836DB235BDA6E82C6 /* Sources */ = {
+		9049E6BD628493DE9DA07659 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7430073A47CCAC2B7E4CF270 /* AppLanguage.swift in Sources */,
-				AE06ACDE5B02C2B35AD31923 /* L10n.swift in Sources */,
-				D6D0F173F9BAC0371D067EB9 /* LocalizationTests.swift in Sources */,
-				D46D97F6FB280D87AD7DBDE7 /* RendererLocalizationTests.swift in Sources */,
+				7115754E493BEBE18D9281FE /* AppLanguage.swift in Sources */,
+				9FE81D95B7B72B1598BDCBA5 /* CredentialCleanup.swift in Sources */,
+				183AEEB1883EE1B4B3C71D0D /* KeychainCredentials.swift in Sources */,
+				D050E36FA0D51F69F501CB77 /* KeychainTests.swift in Sources */,
+				46B8C3FF5956D7C40A0721F2 /* L10n.swift in Sources */,
+				85EF30561973EC65CEE71927 /* LocalizationTests.swift in Sources */,
+				1D36C6B028A05C1FC1A93603 /* RendererLocalizationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		1B3E9B39A2BB4C1E4C9E1B76 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				COMBINE_HIDPI_IMAGES = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.alwynou.mira.localization-tests";
-				SDKROOT = macosx;
-			};
-			name = Release;
-		};
 		208296D53EFA86929FAF13EC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -500,6 +520,22 @@
 			};
 			name = Release;
 		};
+		2ECEB85C3D49E202DEDD6179 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.alwynou.mira.host-tests";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
 		40B1443C261072C4A005B21A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -536,7 +572,7 @@
 			};
 			name = Release;
 		};
-		869EE3315414A018CCFD9A3D /* Debug */ = {
+		7833C3C0BA173F8FF4F80FC3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -547,7 +583,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.alwynou.mira.localization-tests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.alwynou.mira.host-tests";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -642,11 +678,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		DFBFAAC71D4EA01654CDFB39 /* Build configuration list for PBXNativeTarget "MiraLocalizationTests" */ = {
+		FA65331C4A6A463FBD151AFD /* Build configuration list for PBXNativeTarget "MiraHostTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				869EE3315414A018CCFD9A3D /* Debug */,
-				1B3E9B39A2BB4C1E4C9E1B76 /* Release */,
+				7833C3C0BA173F8FF4F80FC3 /* Debug */,
+				2ECEB85C3D49E202DEDD6179 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -665,21 +701,21 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		213891DC92B5EA1A42EADDAE /* SwiftStreamingMarkdown */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = SwiftStreamingMarkdown;
-		};
 		28A3E756EB962B0188361E5F /* MiraCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MiraCore;
 		};
-		307CF7919006DD57B627C184 /* MiraCore */ = {
+		322193D77468D523E2E7F6F3 /* MiraCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MiraCore;
 		};
 		5F3D10460B2999C35B0C0D6B /* MiraProviders */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MiraProviders;
+		};
+		9BC42259BE40D8426A1F88D9 /* SwiftStreamingMarkdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftStreamingMarkdown;
 		};
 		EEB28E75FC8A07BD9B1491B3 /* MiraData */ = {
 			isa = XCSwiftPackageProductDependency;

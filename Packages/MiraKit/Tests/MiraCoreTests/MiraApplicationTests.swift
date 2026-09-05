@@ -94,17 +94,25 @@ struct MiraApplicationTests {
         let fixture = try RuntimeFixture()
         defer { fixture.cleanup() }
         let app = try MiraApplication(store: fixture.store, provider: fixture.provider)
-        var unknown = fixture.route; unknown.id = .init(); unknown.contextWindow = nil
+        var unknownModel = fixture.configuration.model
+        unknownModel.id = .init()
+        unknownModel.contextWindow = nil
+        unknownModel.revision = 1
+        try fixture.store.saveModel(unknownModel, expectedRevision: nil)
+        var unknown = fixture.configuration.route
+        unknown.id = .init()
+        unknown.modelDescriptorID = unknownModel.id
+        unknown.revision = 1
         try await app.saveRoute(unknown, expectedRevision: nil)
         let inbox = try await app.createConversation(workspaceID: nil)
         await #expect(throws: MiraError.self) { try await app.send(conversationID: inbox, text: "secret", routeID: unknown.id) }
         #expect(try fixture.store.messages(in: inbox).isEmpty)
         let workspace = try await app.createWorkspace(name: "Private", background: "private background", allowsRemoteSend: false)
         let conversationID = try await app.createConversation(workspaceID: workspace)
-        _ = try await app.send(conversationID: conversationID, text: "private message", routeID: fixture.route.id)
-        try await eventually { try fixture.store.executions(in: conversationID).last?.status == .failed }
+        await #expect(throws: MiraError.self) { try await app.send(conversationID: conversationID, text: "private message", routeID: fixture.route.id) }
         #expect(fixture.provider.requestCount == 0)
-        #expect(try fixture.store.executions(in: conversationID).last?.error?.code == .unauthorized)
+        #expect(try fixture.store.messages(in: conversationID).isEmpty)
+        #expect(try fixture.store.executions(in: conversationID).isEmpty)
         await app.shutdown()
     }
 
@@ -121,11 +129,45 @@ struct MiraApplicationTests {
         await #expect(throws: MiraError.self) { try await app.send(conversationID: thirdConversation, text: "three", routeID: fixture.route.id) }
         #expect(try fixture.store.messages(in: firstConversation).count == 1)
         #expect(try fixture.store.messages(in: thirdConversation).isEmpty)
-        var changed = fixture.route; changed.revision += 1; changed.modelID = "new-model"
-        try await app.saveRoute(changed, expectedRevision: fixture.route.revision)
+        var changed = fixture.configuration.model
+        changed.revision += 1
+        changed.modelID = "new-model"
+        try await app.saveModel(changed, expectedRevision: fixture.configuration.model.revision)
         await app.shutdown()
         #expect(try fixture.store.executions(in: firstConversation).allSatisfy { $0.status == .cancelled })
         #expect(try fixture.store.executions(in: secondConversation).allSatisfy { $0.status == .cancelled })
+    }
+
+    @Test func staleProbeResultsCannotOverwriteChangedModelOrRouteConfiguration() async throws {
+        let fixture = try RuntimeFixture()
+        defer { fixture.cleanup() }
+        let app = try MiraApplication(store: fixture.store, provider: fixture.provider)
+        let observation = ProbeObservation(type: .text, state: .verified)
+
+        var changedModel = fixture.configuration.model
+        changedModel.revision += 1
+        changedModel.modelID = "changed-before-probe"
+        try await app.saveModel(changedModel, expectedRevision: fixture.configuration.model.revision)
+        await #expect(throws: MiraError.self) { try await app.saveProbe(observation, for: fixture.route) }
+        #expect(try fixture.store.modelConfiguration().models.first?.probeObservation == nil)
+
+        let current = try fixture.store.modelConfiguration()
+        let currentSnapshot = try current.snapshot(routeID: fixture.route.id)
+        var changedRoute = try #require(current.routes.first)
+        changedRoute.revision += 1
+        changedRoute.maxOutputTokens += 1
+        try await app.saveRoute(changedRoute, expectedRevision: current.routes.first?.revision)
+        await #expect(throws: MiraError.self) { try await app.saveProbe(observation, for: currentSnapshot) }
+        #expect(try fixture.store.modelConfiguration().models.first?.probeObservation == nil)
+
+        let latest = try fixture.store.modelConfiguration()
+        let latestSnapshot = try latest.snapshot(routeID: fixture.route.id)
+        var changedConnection = try #require(latest.connections.first)
+        changedConnection.revision += 1
+        try await app.saveConnection(changedConnection, expectedRevision: latest.connections.first?.revision)
+        await #expect(throws: MiraError.self) { try await app.saveProbe(observation, for: latestSnapshot) }
+        #expect(try fixture.store.modelConfiguration().models.first?.probeObservation == nil)
+        await app.shutdown()
     }
 
     @Test func prematureEOFAndOutputLimitDoNotBecomeSuccessfulHistory() async throws {
@@ -150,13 +192,16 @@ private struct RuntimeFixture {
     let directory: URL
     let store: SQLiteMiraStore
     let provider: ControlledProvider
-    let route: ModelRoute
+    let route: ResolvedModelRouteSnapshot
+    let configuration: StoredRouteFixture
     init() throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("MiraRuntimeTests-\(UUID().uuidString)")
         store = try SQLiteMiraStore(directory: directory)
         provider = ControlledProvider(store: store)
-        route = ModelRoute(name: "Synthetic", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "fixture", credentialReference: "reference-only", contextWindow: 32_768)
-        try store.saveRoute(route, expectedRevision: nil)
+        let snapshot = ResolvedModelRouteSnapshot(name: "Synthetic", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "fixture", credentialReference: "reference-only", contextWindow: 32_768)
+        route = snapshot
+        configuration = StoredRouteFixture(snapshot)
+        try configuration.install(in: store)
     }
     func cleanup() { try? FileManager.default.removeItem(at: directory) }
 }
@@ -171,7 +216,7 @@ private final class ControlledProvider: ModelProviderPort, @unchecked Sendable {
     init(store: SQLiteMiraStore) { self.store = store }
     var requestCount: Int { lock.withLock { requests.count } }
     var snapshotWasDurableAtDispatch: Bool { lock.withLock { !snapshotChecks.isEmpty && snapshotChecks.allSatisfy { $0 } } }
-    func stream(request: CanonicalModelRequest, route: ModelRoute) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
+    func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
         let pair = AsyncThrowingStream<CanonicalStreamEvent, any Error>.makeStream()
         lock.withLock {
             continuations[request.executionID] = pair.continuation

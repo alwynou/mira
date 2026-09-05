@@ -159,14 +159,16 @@ struct ToolRuntimeTests {
 
     @Test func unknownCapabilityDoesNotExposeToolsAndMalformedPairingNeverExecutes() async throws {
         let fixture = try ToolFixture(); defer { fixture.cleanup() }
-        var unverified = fixture.route; unverified.toolCapability = .unknown; unverified.revision += 1
-        try fixture.store.saveRoute(unverified, expectedRevision: fixture.route.revision)
+        var unverified = fixture.configuration.model
+        unverified.toolCapability = .unknown
+        unverified.revision += 1
+        try fixture.store.saveModel(unverified, expectedRevision: fixture.configuration.model.revision)
         let recorder = ToolRecorder()
         let tool = FixtureTool(name: "read") { _, _ in await recorder.enter("unsafe"); return "wrong" }
         let provider = ScriptedToolProvider(store: fixture.store, replies: [[.toolCalls([.init(id: "id", name: "read", arguments: "{}")]), .finished(.toolCalls)]])
         let app = try MiraApplication(store: fixture.store, provider: provider, tools: ToolRegistry([tool]))
         let conversation = try await app.createConversation(workspaceID: nil)
-        _ = try await app.send(conversationID: conversation, text: "unverified tools", routeID: unverified.id)
+        _ = try await app.send(conversationID: conversation, text: "unverified tools", routeID: fixture.route.id)
         try await toolEventually { try fixture.store.executions(in: conversation).last?.status.isTerminal == true }
         #expect(provider.requests.first?.tools == nil)
         #expect(await recorder.events.isEmpty)
@@ -220,13 +222,15 @@ struct ToolRuntimeTests {
 
     @Test func completeExchangeOverContextBudgetNeverDispatchesAnOrphanedRequest() async throws {
         let fixture = try ToolFixture(); defer { fixture.cleanup() }
-        var small = fixture.route; small.contextWindow = 8_192; small.revision += 1
-        try fixture.store.saveRoute(small, expectedRevision: fixture.route.revision)
+        var small = fixture.configuration.model
+        small.contextWindow = 8_192
+        small.revision += 1
+        try fixture.store.saveModel(small, expectedRevision: fixture.configuration.model.revision)
         let tool = FixtureTool(name: "read") { _, _ in String(repeating: "x", count: 9_000) }
         let provider = ScriptedToolProvider(store: fixture.store, replies: [[.toolCalls([.init(id: "read-1", name: "read", arguments: "{\"query\":\"q\"}")]), .finished(.toolCalls)]])
         let app = try MiraApplication(store: fixture.store, provider: provider, tools: ToolRegistry([tool]))
         let conversation = try await app.createConversation(workspaceID: nil)
-        let id = try await app.send(conversationID: conversation, text: "budget", routeID: small.id)
+        let id = try await app.send(conversationID: conversation, text: "budget", routeID: fixture.route.id)
         try await toolEventually { try fixture.store.executions(in: conversation).last?.status.isTerminal == true }
         #expect(try fixture.store.executions(in: conversation).last?.error?.code == .contextLimit)
         #expect(provider.requests.count == 1)
@@ -264,13 +268,16 @@ struct ToolRuntimeTests {
 private struct ToolFixture {
     let directory: URL
     let store: SQLiteMiraStore
-    let route: ModelRoute
+    let route: ResolvedModelRouteSnapshot
+    let configuration: StoredRouteFixture
     init() throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("MiraToolRuntime-\(UUID())")
         store = try SQLiteMiraStore(directory: directory)
-        var route = ModelRoute(name: "Tools fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "fixture", credentialReference: "no-key", contextWindow: 262_144)
-        route.toolCapability = .declared; self.route = route
-        try store.saveRoute(route, expectedRevision: nil)
+        var snapshot = ResolvedModelRouteSnapshot(name: "Tools fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "fixture", credentialReference: "no-key", contextWindow: 262_144)
+        snapshot.toolCapability = .declared
+        route = snapshot
+        configuration = StoredRouteFixture(snapshot)
+        try configuration.install(in: store)
     }
     func cleanup() { try? FileManager.default.removeItem(at: directory) }
 }
@@ -300,7 +307,7 @@ private final class ScriptedToolProvider: ModelProviderPort, @unchecked Sendable
     init(store: SQLiteMiraStore, replies: [[CanonicalStreamEvent]]) { self.store = store; self.replies = replies }
     var requests: [CanonicalModelRequest] { lock.withLock { captured } }
     var snapshotsWereDurable: Bool { lock.withLock { !checks.isEmpty && checks.allSatisfy { $0 } } }
-    func stream(request: CanonicalModelRequest, route: ModelRoute) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
+    func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
         let response: [CanonicalStreamEvent] = lock.withLock {
             let index = captured.count; captured.append(request)
             checks.append((try? store.attempts(for: request.executionID).last?.request) == request)

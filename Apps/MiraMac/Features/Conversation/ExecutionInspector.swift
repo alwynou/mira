@@ -10,6 +10,15 @@ struct ExecutionInspector: View {
     private var execution: Execution? { model.executions.first { $0.id == selectedID } ?? model.executions.last }
     private var refreshID: String { "\(execution?.id.rawValue.uuidString ?? "none")-\(model.inspectionRevision)" }
 
+    private func selectionTitle(_ source: RouteSelectionSource) -> String {
+        switch source {
+        case .explicit: "Explicit selection"
+        case .conversation: "Conversation override"
+        case .workspace: "Workspace default"
+        case .global: "Global default"
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -25,6 +34,10 @@ struct ExecutionInspector: View {
                 if let execution {
                     LabeledContent("Status", value: L10n.string(execution.status.displayTitle, locale: locale))
                     LabeledContent("Model", value: execution.route.modelID)
+                    LabeledContent("Route preset", value: execution.route.name)
+                    LabeledContent("Route selection", value: L10n.string(selectionTitle(execution.route.selectionSource), locale: locale))
+                    LabeledContent("Provider origin", value: execution.route.origin)
+                    LabeledContent("Connection revision") { Text(execution.route.connectionRevision, format: .number) }
                     LabeledContent("Input tokens", value: execution.usage.inputTokens.map(String.init) ?? L10n.string("Service did not provide this", locale: locale))
                     LabeledContent("Output tokens", value: execution.usage.outputTokens.map(String.init) ?? L10n.string("Service did not provide this", locale: locale))
                     Text("Costs are not estimated; refer to the provider's bill.").font(.caption).foregroundStyle(.secondary)

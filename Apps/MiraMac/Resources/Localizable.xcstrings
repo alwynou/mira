@@ -86,6 +86,22 @@
         }
       }
     },
+    "A model descriptor selects a connection and records declared or probed capabilities.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A model descriptor selects a connection and records declared or probed capabilities."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型描述选择连接，并记录已声明或已探测的能力。"
+          }
+        }
+      }
+    },
     "A new connection requires an API key.": {
       "extractionState": "manual",
       "localizations": {
@@ -120,8 +136,39 @@
         }
       }
     },
+    "A route is a reusable preset. Assign it to a purpose and scope explicitly in Purpose Routing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A route is a reusable preset. Assign it to a purpose and scope explicitly in Purpose Routing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由是可复用的预设。请在“用途路由”中明确分配用途和范围。"
+          }
+        }
+      }
+    },
+    "A route is never created automatically. Removing a local binding lets resolution continue to the workspace or global binding when one exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A route is never created automatically. Removing a local binding lets resolution continue to the workspace or global binding when one exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统不会自动创建路由。移除本地绑定后，如果工作区或全局绑定存在，解析会继续使用它。"
+          }
+        }
+      }
+    },
     "API Key": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -132,13 +179,12 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "API Key"
+            "value": "API 密钥"
           }
         }
       }
     },
     "Add Connection": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -150,6 +196,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "添加连接"
+          }
+        }
+      }
+    },
+    "Add Model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加模型"
           }
         }
       }
@@ -171,6 +233,22 @@
         }
       }
     },
+    "Add Route": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Route"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加路由"
+          }
+        }
+      }
+    },
     "Add a connection, then select it in a conversation.": {
       "extractionState": "manual",
       "localizations": {
@@ -188,8 +266,39 @@
         }
       }
     },
+    "Add a model descriptor after creating a connection.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a model descriptor after creating a connection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建连接后添加模型描述。"
+          }
+        }
+      }
+    },
+    "Add a provider connection to describe a model.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a provider connection to describe a model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加提供商连接以描述模型。"
+          }
+        }
+      }
+    },
     "Allow explicitly configured local HTTP services": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -200,7 +309,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "允许明确配置的本机 HTTP 服务"
+            "value": "允许明确配置的本地 HTTP 服务"
           }
         }
       }
@@ -257,7 +366,6 @@
       }
     },
     "Anthropic Messages": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -444,7 +552,6 @@
       }
     },
     "Base URL": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -455,7 +562,39 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Base URL"
+            "value": "基础 URL"
+          }
+        }
+      }
+    },
+    "Binding removed; using inherited routing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Binding removed; using inherited routing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绑定已移除；将使用继承的路由。"
+          }
+        }
+      }
+    },
+    "Binding saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Binding saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绑定已保存。"
           }
         }
       }
@@ -478,7 +617,6 @@
       }
     },
     "Cancel": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -495,7 +633,6 @@
       }
     },
     "Cancel Test": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -506,7 +643,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "取消检测"
+            "value": "取消测试"
           }
         }
       }
@@ -665,7 +802,6 @@
       }
     },
     "Capability test failed.": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -676,7 +812,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "能力检测失败。"
+            "value": "能力测试失败。"
           }
         }
       }
@@ -694,6 +830,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "能力检测失败，已记录状态。"
+          }
+        }
+      }
+    },
+    "Capability test failed; status was recorded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capability test failed; status was recorded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "能力测试失败；状态已记录。"
+          }
+        }
+      }
+    },
+    "Capability test passed and was saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capability test passed and was saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "能力测试通过，结果已保存。"
+          }
+        }
+      }
+    },
+    "Capability tests send a fixed synthetic prompt without conversation history. Your provider may charge a small API fee.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capability tests send a fixed synthetic prompt without conversation history. Your provider may charge a small API fee."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "能力测试会发送固定的合成提示词，不包含对话历史。服务商可能会收取少量 API 费用。"
           }
         }
       }
@@ -783,6 +967,22 @@
         }
       }
     },
+    "Choose a route for each purpose and scope. Leaving a scope unbound inherits from its parent resolution or reports that no route is configured.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a route for each purpose and scope. Leaving a scope unbound inherits from its parent resolution or reports that no route is configured."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为每种用途和范围选择路由。不绑定范围时，会从父级解析继承；如果未配置路由，系统会报告未配置。"
+          }
+        }
+      }
+    },
     "Complete tool exchange exceeds the conservative context budget. Start a new conversation or adjust the model window; a request with missing tool pairs will not be sent.": {
       "extractionState": "manual",
       "localizations": {
@@ -817,6 +1017,22 @@
         }
       }
     },
+    "Configuration section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration section"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置类别"
+          }
+        }
+      }
+    },
     "Configure a model provider in Settings first.": {
       "extractionState": "manual",
       "localizations": {
@@ -830,6 +1046,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "请先在设置中配置模型服务。"
+          }
+        }
+      }
+    },
+    "Configure a model route for this purpose in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure a model route for this purpose in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在设置中为此用途配置模型路由。"
           }
         }
       }
@@ -953,6 +1185,22 @@
         }
       }
     },
+    "Connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接"
+          }
+        }
+      }
+    },
     "Connection changes were saved. Some old Keychain credentials could not be removed and were queued for retry. Retry cleanup in Data settings.": {
       "extractionState": "manual",
       "localizations": {
@@ -987,6 +1235,70 @@
         }
       }
     },
+    "Connection name and credential reference are required.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection name and credential reference are required."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接名称和凭据引用不能为空。"
+          }
+        }
+      }
+    },
+    "Connection removed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection removed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接已移除。"
+          }
+        }
+      }
+    },
+    "Connection revision": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection revision"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接版本"
+          }
+        }
+      }
+    },
+    "Connections": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connections"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接"
+          }
+        }
+      }
+    },
     "Context Window (tokens)": {
       "extractionState": "manual",
       "localizations": {
@@ -1000,6 +1312,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "上下文窗口（Token）"
+          }
+        }
+      }
+    },
+    "Context Window (tokens, optional)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context Window (tokens, optional)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文窗口（令牌，可选）"
           }
         }
       }
@@ -1021,6 +1349,38 @@
         }
       }
     },
+    "Context window unknown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context window unknown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文窗口未知"
+          }
+        }
+      }
+    },
+    "Context window: %@ tokens": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context window: %@ tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文窗口：%@ Token"
+          }
+        }
+      }
+    },
     "Context window: %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -1034,6 +1394,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "上下文窗口：%lld"
+          }
+        }
+      }
+    },
+    "Conversation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话"
           }
         }
       }
@@ -1106,8 +1482,23 @@
         }
       }
     },
+    "Conversation override": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversation override"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话覆盖"
+          }
+        }
+      }
+    },
     "Conversations": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1136,6 +1527,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "费用未估算；以服务商账单为准。"
+          }
+        }
+      }
+    },
+    "Create a named route preset to use a model.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a named route preset to use a model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建命名路由预设以使用模型。"
           }
         }
       }
@@ -1187,6 +1594,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "数据"
+          }
+        }
+      }
+    },
+    "Declare capabilities only when you have verified them. Capability observations reset when the connection, model ID, or context window changes. Unknown text capability can still be tested from Routes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Declare capabilities only when you have verified them. Capability observations reset when the connection, model ID, or context window changes. Unknown text capability can still be tested from Routes."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅在确认能力后声明。连接、模型 ID 或上下文窗口更改时，能力观测结果会重置。文本能力未知时仍可从“路由”中进行测试。"
+          }
+        }
+      }
+    },
+    "Demo mode: configuration changes and capability tests are disabled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo mode: configuration changes and capability tests are disabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "演示模式：配置更改和能力测试已禁用。"
+          }
+        }
+      }
+    },
+    "Demo mode: configuration changes are disabled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo mode: configuration changes are disabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "演示模式：配置更改已禁用。"
           }
         }
       }
@@ -1243,7 +1698,6 @@
       }
     },
     "Edit": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1255,6 +1709,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "编辑"
+          }
+        }
+      }
+    },
+    "Edit Connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Connection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑连接"
+          }
+        }
+      }
+    },
+    "Edit Model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑模型"
           }
         }
       }
@@ -1272,6 +1758,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "编辑模型连接"
+          }
+        }
+      }
+    },
+    "Edit Route": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Route"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑路由"
           }
         }
       }
@@ -1361,6 +1863,38 @@
         }
       }
     },
+    "Enter a model ID and a valid context window, or leave the window unknown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a model ID and a valid context window, or leave the window unknown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入模型 ID 和有效的上下文窗口，或将窗口留空。"
+          }
+        }
+      }
+    },
+    "Enter a route name and a valid maximum output token count.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a route name and a valid maximum output token count."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入路线名称和有效的最大输出 Token 数。"
+          }
+        }
+      }
+    },
     "Enter a service URL without credentials, query parameters, or fragments.": {
       "extractionState": "manual",
       "localizations": {
@@ -1374,6 +1908,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "请填写不含凭据、查询参数或片段的服务地址。"
+          }
+        }
+      }
+    },
+    "Enter a valid context window, or leave it unknown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid context window, or leave it unknown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的上下文窗口，或将其留空表示未知。"
+          }
+        }
+      }
+    },
+    "Enter a valid maximum output token count and select a model.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid maximum output token count and select a model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的最大输出令牌数并选择模型。"
           }
         }
       }
@@ -1531,6 +2097,22 @@
         }
       }
     },
+    "Explicit selection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explicit selection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显式选择"
+          }
+        }
+      }
+    },
     "Export Library Backup…": {
       "extractionState": "manual",
       "localizations": {
@@ -1566,7 +2148,6 @@
       }
     },
     "Failed": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1650,6 +2231,38 @@
         }
       }
     },
+    "Global": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全局"
+          }
+        }
+      }
+    },
+    "Global default": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global default"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全局默认值"
+          }
+        }
+      }
+    },
     "I confirm this model supports streaming text conversations": {
       "extractionState": "manual",
       "localizations": {
@@ -1714,6 +2327,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "未完成"
+          }
+        }
+      }
+    },
+    "Inherit / no binding": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inherit / no binding"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继承 / 不绑定"
           }
         }
       }
@@ -1820,6 +2449,22 @@
         }
       }
     },
+    "Keychain credential": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keychain credential"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "钥匙串凭据"
+          }
+        }
+      }
+    },
     "Language": {
       "extractionState": "manual",
       "localizations": {
@@ -1838,7 +2483,6 @@
       }
     },
     "Latest Text Test": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1849,13 +2493,12 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "最近文本检测"
+            "value": "最近的文本测试"
           }
         }
       }
     },
     "Latest Tool Test": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1866,7 +2509,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "最近工具检测"
+            "value": "最近的工具测试"
           }
         }
       }
@@ -2007,6 +2650,70 @@
         }
       }
     },
+    "Maximum Output Tokens": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum Output Tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大输出令牌数"
+          }
+        }
+      }
+    },
+    "Maximum output tokens must be smaller than the model context window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum output tokens must be smaller than the model context window."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大输出令牌数必须小于模型上下文窗口。"
+          }
+        }
+      }
+    },
+    "Maximum output: %@ tokens": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum output: %@ tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大输出：%@ Token"
+          }
+        }
+      }
+    },
+    "Memory Extraction": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory Extraction"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提取"
+          }
+        }
+      }
+    },
     "Message input": {
       "extractionState": "manual",
       "localizations": {
@@ -2075,8 +2782,39 @@
         }
       }
     },
+    "Missing connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing connection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少连接"
+          }
+        }
+      }
+    },
+    "Missing model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少模型"
+          }
+        }
+      }
+    },
     "Model": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2093,7 +2831,6 @@
       }
     },
     "Model ID": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2104,7 +2841,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Model ID"
+            "value": "模型 ID"
           }
         }
       }
@@ -2211,8 +2948,39 @@
         }
       }
     },
+    "Model removed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model removed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型已移除。"
+          }
+        }
+      }
+    },
+    "Models": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型"
+          }
+        }
+      }
+    },
     "Name": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2228,8 +2996,39 @@
         }
       }
     },
+    "Named presets hold output limits and usage reporting. Assign them to purposes in Purpose Routing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Named presets hold output limits and usage reporting. Assign them to purposes in Purpose Routing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命名预设包含输出限制和用量报告设置。请在“用途路由”中将它们分配给用途。"
+          }
+        }
+      }
+    },
+    "Needs reconfirmation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs reconfirmation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要重新确认"
+          }
+        }
+      }
+    },
     "New API Key (leave blank to keep)": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2240,7 +3039,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "新 API Key（留空保留）"
+            "value": "新的 API 密钥（留空以保留现有密钥）"
           }
         }
       }
@@ -2262,6 +3061,38 @@
         }
       }
     },
+    "No API key": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No API key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有 API 密钥"
+          }
+        }
+      }
+    },
+    "No Connections": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Connections"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有连接"
+          }
+        }
+      }
+    },
     "No Model Connected": {
       "extractionState": "manual",
       "localizations": {
@@ -2275,6 +3106,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "尚未连接模型"
+          }
+        }
+      }
+    },
+    "No Models": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有模型"
+          }
+        }
+      }
+    },
+    "No Routes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Routes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有路由"
           }
         }
       }
@@ -2326,6 +3189,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "尚未配置模型"
+          }
+        }
+      }
+    },
+    "No provider connections configured.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No provider connections configured."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未配置提供商连接。"
           }
         }
       }
@@ -2398,6 +3277,22 @@
         }
       }
     },
+    "Only selected connections may receive this workspace's content. Selecting none blocks all connections.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only selected connections may receive this workspace's content. Selecting none blocks all connections."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只有选中的连接可以接收此工作空间的内容。不勾选任何连接将禁止所有连接。"
+          }
+        }
+      }
+    },
     "Only tool-call output can continue to the next step.": {
       "extractionState": "manual",
       "localizations": {
@@ -2416,7 +3311,6 @@
       }
     },
     "OpenAI Chat Completions Compatible": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2427,7 +3321,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenAI Chat Completions 兼容"
+            "value": "兼容 OpenAI Chat Completions"
           }
         }
       }
@@ -2552,7 +3446,6 @@
       }
     },
     "Passed": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2586,7 +3479,6 @@
       }
     },
     "Protocol": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2598,6 +3490,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "协议"
+          }
+        }
+      }
+    },
+    "Provider endpoints and Keychain credential references are shared by model descriptors.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider endpoints and Keychain credential references are shared by model descriptors."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型描述共享提供商端点和钥匙串凭据引用。"
+          }
+        }
+      }
+    },
+    "Provider origin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider origin"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商来源"
           }
         }
       }
@@ -2615,6 +3539,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "模型服务"
+          }
+        }
+      }
+    },
+    "Purpose": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purpose"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用途"
+          }
+        }
+      }
+    },
+    "Purpose Routing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purpose Routing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用途路由"
           }
         }
       }
@@ -2637,7 +3593,6 @@
       }
     },
     "Remove": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2649,6 +3604,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "移除"
+          }
+        }
+      }
+    },
+    "Remove Binding / Inherit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Binding / Inherit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除绑定 / 继承"
+          }
+        }
+      }
+    },
+    "Removing a connection also removes its model descriptors, routes, and purpose bindings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removing a connection also removes its model descriptors, routes, and purpose bindings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除连接也会移除其模型描述、路由和用途绑定。"
           }
         }
       }
@@ -2755,6 +3742,22 @@
         }
       }
     },
+    "Request streaming token usage when supported": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request streaming token usage when supported"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持时请求流式用量"
+          }
+        }
+      }
+    },
     "Request unavailable": {
       "extractionState": "manual",
       "localizations": {
@@ -2802,6 +3805,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "已恢复的资料库"
+          }
+        }
+      }
+    },
+    "Restrict provider connections": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restrict provider connections"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "限制提供商连接"
           }
         }
       }
@@ -2857,6 +3876,54 @@
         }
       }
     },
+    "Route": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由"
+          }
+        }
+      }
+    },
+    "Route preset": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route preset"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由预设"
+          }
+        }
+      }
+    },
+    "Route removed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route removed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由已移除。"
+          }
+        }
+      }
+    },
     "Route revision %lld · Conservative input estimate %@": {
       "extractionState": "manual",
       "localizations": {
@@ -2870,6 +3937,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "路线版本 %lld · 输入保守估算 %@"
+          }
+        }
+      }
+    },
+    "Route selection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route selection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由选择"
+          }
+        }
+      }
+    },
+    "Routes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由"
           }
         }
       }
@@ -2909,7 +4008,6 @@
       }
     },
     "Save": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2921,6 +4019,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "保存"
+          }
+        }
+      }
+    },
+    "Save Binding": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Binding"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存绑定"
+          }
+        }
+      }
+    },
+    "Scope": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scope"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "范围"
+          }
+        }
+      }
+    },
+    "Select a connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a connection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择连接"
+          }
+        }
+      }
+    },
+    "Select a model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择模型"
+          }
+        }
+      }
+    },
+    "Select a provider connection first.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a provider connection first."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先选择提供商连接。"
           }
         }
       }
@@ -3249,7 +4427,6 @@
       }
     },
     "Test Text": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3260,13 +4437,12 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "检测文本"
+            "value": "测试文本"
           }
         }
       }
     },
     "Test Tools": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3277,13 +4453,12 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "检测工具"
+            "value": "测试工具"
           }
         }
       }
     },
     "Test cancelled. Capability status was not changed.": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3294,7 +4469,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "检测已取消，能力状态未改变。"
+            "value": "测试已取消。能力状态未更改。"
           }
         }
       }
@@ -3317,7 +4492,6 @@
       }
     },
     "Testing with synthetic content only, without conversation history…": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3328,7 +4502,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在检测（只发送固定合成内容，不包含历史对话）…"
+            "value": "仅使用合成内容测试，不包含对话历史……"
           }
         }
       }
@@ -3351,7 +4525,6 @@
       }
     },
     "Text": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3380,6 +4553,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "文本能力检测结果不符合要求。"
+          }
+        }
+      }
+    },
+    "Text capability declared": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text capability declared"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已声明文本能力"
           }
         }
       }
@@ -3567,6 +4756,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "对话不存在。"
+          }
+        }
+      }
+    },
+    "The conversation does not match the routing workspace.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The conversation does not match the routing workspace."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话与路由工作空间不匹配。"
           }
         }
       }
@@ -3877,6 +5082,22 @@
         }
       }
     },
+    "The execution route snapshot is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The execution route snapshot is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行路由快照无效。"
+          }
+        }
+      }
+    },
     "The execution step index is invalid.": {
       "extractionState": "manual",
       "localizations": {
@@ -3963,7 +5184,6 @@
       }
     },
     "The library is not open.": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3974,7 +5194,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "资料库未打开。"
+            "value": "库尚未打开。"
           }
         }
       }
@@ -4047,6 +5267,102 @@
         }
       }
     },
+    "The model configuration relationships are invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model configuration relationships are invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型配置关系无效。"
+          }
+        }
+      }
+    },
+    "The model descriptor contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model descriptor contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型描述内容不一致。"
+          }
+        }
+      }
+    },
+    "The model descriptor does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model descriptor does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型描述不存在。"
+          }
+        }
+      }
+    },
+    "The model descriptor is based on an outdated provider connection.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model descriptor is based on an outdated provider connection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型描述基于过期的提供商连接。"
+          }
+        }
+      }
+    },
+    "The model descriptor no longer exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model descriptor no longer exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型描述已不存在。"
+          }
+        }
+      }
+    },
+    "The model descriptor revision is out of date.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model descriptor revision is out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型描述版本已过期。"
+          }
+        }
+      }
+    },
     "The model returned no text. Check this model's interface capabilities and retry.": {
       "extractionState": "manual",
       "localizations": {
@@ -4060,6 +5376,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "模型未返回文本，请检查此模型的接口能力后重试。"
+          }
+        }
+      }
+    },
+    "The model route contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model route contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型路由内容不一致。"
+          }
+        }
+      }
+    },
+    "The model route does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model route does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型路由不存在。"
           }
         }
       }
@@ -4149,6 +5497,38 @@
         }
       }
     },
+    "The provider connection contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider connection contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商连接内容不一致。"
+          }
+        }
+      }
+    },
+    "The provider connection does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider connection does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商连接不存在。"
+          }
+        }
+      }
+    },
     "The provider connection ended before generation completed.": {
       "extractionState": "manual",
       "localizations": {
@@ -4166,6 +5546,38 @@
         }
       }
     },
+    "The provider connection no longer exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider connection no longer exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商连接已不存在。"
+          }
+        }
+      }
+    },
+    "The provider connection revision is out of date.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider connection revision is out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商连接版本已过期。"
+          }
+        }
+      }
+    },
     "The provider credential is unavailable.": {
       "extractionState": "manual",
       "localizations": {
@@ -4179,6 +5591,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "服务凭据不可用。"
+          }
+        }
+      }
+    },
+    "The provider credential reference is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider credential reference is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型服务的凭据引用无效。"
           }
         }
       }
@@ -4370,6 +5798,118 @@
         }
       }
     },
+    "The route binding contents are inconsistent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route binding contents are inconsistent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由绑定内容不一致。"
+          }
+        }
+      }
+    },
+    "The route binding contents are invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route binding contents are invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由绑定内容无效。"
+          }
+        }
+      }
+    },
+    "The route binding does not exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route binding does not exist."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由绑定不存在。"
+          }
+        }
+      }
+    },
+    "The route binding information is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route binding information is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由绑定信息无效。"
+          }
+        }
+      }
+    },
+    "The route binding no longer exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route binding no longer exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由绑定已不存在。"
+          }
+        }
+      }
+    },
+    "The route binding revision is out of date.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route binding revision is out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由绑定版本已过期。"
+          }
+        }
+      }
+    },
+    "The route, model, or provider connection no longer exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route, model, or provider connection no longer exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由、模型或提供商连接已不存在。"
+          }
+        }
+      }
+    },
     "The schema after backup migration is invalid.": {
       "extractionState": "manual",
       "localizations": {
@@ -4383,6 +5923,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "备份迁移后的结构无效。"
+          }
+        }
+      }
+    },
+    "The selected provider connection no longer exists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected provider connection no longer exists."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选提供商连接已不存在。"
           }
         }
       }
@@ -4502,6 +6058,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "工具未调度，执行已结束。"
+          }
+        }
+      }
+    },
+    "The workspace connection allowlist is invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The workspace connection allowlist is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作空间连接允许列表无效。"
           }
         }
       }
@@ -4897,6 +6469,22 @@
         }
       }
     },
+    "This workspace does not allow the selected provider connection.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This workspace does not allow the selected provider connection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此工作空间不允许使用所选的提供商连接。"
+          }
+        }
+      }
+    },
     "This workspace no longer allows sending; execution stopped.": {
       "extractionState": "manual",
       "localizations": {
@@ -5046,6 +6634,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "工具能力检测未返回指定的 probe.echo 调用。"
+          }
+        }
+      }
+    },
+    "Tool capability declared": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tool capability declared"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已声明工具能力"
           }
         }
       }
@@ -5204,7 +6808,6 @@
       }
     },
     "Tools": {
-      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5356,6 +6959,22 @@
         }
       }
     },
+    "Unavailable route": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable route"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路由不可用"
+          }
+        }
+      }
+    },
     "Unknown": {
       "extractionState": "manual",
       "localizations": {
@@ -5373,6 +6992,70 @@
         }
       }
     },
+    "Untitled conversation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untitled conversation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未命名对话"
+          }
+        }
+      }
+    },
+    "Usage reporting off": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage reporting off"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量报告已关闭"
+          }
+        }
+      }
+    },
+    "Usage reporting on": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage reporting on"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量报告已开启"
+          }
+        }
+      }
+    },
+    "Use a base service URL without credentials, query parameters, fragments, or a provider route suffix. API keys are stored in this Mac’s Keychain.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a base service URL without credentials, query parameters, fragments, or a provider route suffix. API keys are stored in this Mac’s Keychain."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用不含凭据、查询参数、片段或提供商路由后缀的基础服务 URL。API 密钥存储在此 Mac 的钥匙串中。"
+          }
+        }
+      }
+    },
     "Use disposable data during development. Memory, source files, and long-term recovery will be verified in later milestones.": {
       "extractionState": "manual",
       "localizations": {
@@ -5386,6 +7069,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "此阶段建议使用可丢弃资料。完整记忆、资料文件和长期恢复验收尚在后续里程碑。"
+          }
+        }
+      }
+    },
+    "Use purpose route": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use purpose route"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用用途路由"
           }
         }
       }
@@ -5458,6 +7157,22 @@
         }
       }
     },
+    "Workspace default": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace default"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作空间默认值"
+          }
+        }
+      }
+    },
     "Workspace is unavailable.": {
       "extractionState": "manual",
       "localizations": {
@@ -5488,6 +7203,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "工作空间名称或背景超出限制。"
+          }
+        }
+      }
+    },
+    "Workspaces": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspaces"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作区"
           }
         }
       }

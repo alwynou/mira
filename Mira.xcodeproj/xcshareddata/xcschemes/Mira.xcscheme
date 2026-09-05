@@ -44,9 +44,9 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "2DAD0C1FDD6057924A97D9CF"
-               BuildableName = "MiraLocalizationTests.xctest"
-               BlueprintName = "MiraLocalizationTests"
+               BlueprintIdentifier = "82C9BFF84013E1350EEF6625"
+               BuildableName = "MiraHostTests.xctest"
+               BlueprintName = "MiraHostTests"
                ReferencedContainer = "container:Mira.xcodeproj">
             </BuildableReference>
          </TestableReference>

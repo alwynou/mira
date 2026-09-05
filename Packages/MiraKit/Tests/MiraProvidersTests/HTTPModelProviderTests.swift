@@ -120,8 +120,8 @@ private final class MultiControlledTransport: HTTPStreamingTransportCancellation
     }
 }
 
-private func route(_ kind: ProviderKind = .openAICompatible, baseURL: String = "https://example.test") -> ModelRoute {
-    ModelRoute(name: "Fixture", providerKind: kind, baseURL: baseURL, modelID: "fixture-model", credentialReference: "fixture", contextWindow: 4096, maxOutputTokens: 128, requestsUsage: true)
+private func route(_ kind: ProviderKind = .openAICompatible, baseURL: String = "https://example.test") -> ResolvedModelRouteSnapshot {
+    ResolvedModelRouteSnapshot(name: "Fixture", providerKind: kind, baseURL: baseURL, modelID: "fixture-model", credentialReference: "fixture", contextWindow: 4096, maxOutputTokens: 128, requestsUsage: true)
 }
 
 private func request() -> CanonicalModelRequest {
@@ -553,7 +553,7 @@ private func toolDefinition(_ name: String = "memory.search") -> ToolDefinition 
     ]))
 }
 
-private func toolRoute(_ kind: ProviderKind = .openAICompatible) -> ModelRoute {
+private func toolRoute(_ kind: ProviderKind = .openAICompatible) -> ResolvedModelRouteSnapshot {
     var result = route(kind)
     result.toolCapability = .verified
     return result

@@ -13,7 +13,7 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
         self.transport = transport
     }
 
-    public func stream(request: CanonicalModelRequest, route: ModelRoute) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
+    public func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
         // Validate before constructing a request or reading Keychain. This is
         // also a defense against callers accidentally using an incomplete route.
         let endpoint: URL
@@ -62,7 +62,7 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
         }
     }
 
-    private func makeURLRequest(request: CanonicalModelRequest, route: ModelRoute, endpoint: URL, secret: String) throws -> URLRequest {
+    private func makeURLRequest(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot, endpoint: URL, secret: String) throws -> URLRequest {
         var result = URLRequest(url: endpoint)
         result.httpMethod = "POST"
         result.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -82,7 +82,7 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
 
     private func run(
         urlRequest: URLRequest,
-        route: ModelRoute,
+        route: ResolvedModelRouteSnapshot,
         request: CanonicalModelRequest,
         continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation
     ) async throws {

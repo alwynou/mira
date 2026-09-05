@@ -7,7 +7,7 @@ import MiraCore
 /// The store deliberately exposes synchronous operations.  Its owning application
 /// actor is responsible for keeping these bounded operations off view tasks.
 public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
-    private static let currentSchemaVersion = 3
+    private static let currentSchemaVersion = 4
     private static let baseMigrationName = "m0_core"
     private static let auditMigrationName = "m2_execution_audit"
     private let pool: DatabasePool
@@ -42,7 +42,7 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
 
     public func workspaces() throws -> [Workspace] {
         try safely { try pool.read { db in
-            try Row.fetchAll(db, sql: "SELECT id, name, background, allows_remote_send, revision FROM workspaces ORDER BY name COLLATE NOCASE, id")
+            try Row.fetchAll(db, sql: "SELECT id, name, background, allows_remote_send, allowed_connection_ids_json, revision FROM workspaces ORDER BY name COLLATE NOCASE, id")
                 .map { try Self.workspace($0) }
         }}
     }
@@ -59,12 +59,12 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                     }
                     guard expectedRevision == current, workspace.revision == current + 1 else { throw MiraError(.conflict, "The workspace revision is out of date.") }
                     let next = current + 1
-                    try db.execute(sql: "UPDATE workspaces SET name = ?, background = ?, allows_remote_send = ?, revision = ? WHERE id = ?", arguments: [workspace.name, workspace.background, workspace.allowsRemoteSend ? 1 : 0, next, id(workspace.id)])
+                    try db.execute(sql: "UPDATE workspaces SET name = ?, background = ?, allows_remote_send = ?, allowed_connection_ids_json = ?, revision = ? WHERE id = ?", arguments: [workspace.name, workspace.background, workspace.allowsRemoteSend ? 1 : 0, try encodeConnectionAllowlist(workspace.allowedConnectionIDs), next, id(workspace.id)])
                 } else {
                     if expectedRevision != nil || workspace.revision != 1 {
                         throw MiraError(.conflict, "The workspace no longer exists.")
                     }
-                    try db.execute(sql: "INSERT INTO workspaces (id, name, background, allows_remote_send, revision) VALUES (?, ?, ?, ?, ?)", arguments: [id(workspace.id), workspace.name, workspace.background, workspace.allowsRemoteSend ? 1 : 0, workspace.revision])
+                    try db.execute(sql: "INSERT INTO workspaces (id, name, background, allows_remote_send, allowed_connection_ids_json, revision) VALUES (?, ?, ?, ?, ?, ?)", arguments: [id(workspace.id), workspace.name, workspace.background, workspace.allowsRemoteSend ? 1 : 0, try encodeConnectionAllowlist(workspace.allowedConnectionIDs), workspace.revision])
                 }
             }
         }
@@ -123,6 +123,13 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
         }}
     }
 
+    public func execution(_ executionID: ExecutionID) throws -> Execution? {
+        try safely { try pool.read { db in
+            guard let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at FROM executions WHERE id = ?", arguments: [id(executionID)]) else { return nil }
+            return try Self.execution(row)
+        }}
+    }
+
     public func draft(for executionID: ExecutionID) throws -> Draft? {
         try safely { try pool.read { db in
             guard let row = try Row.fetchOne(db, sql: "SELECT execution_id, text, updated_at FROM assistant_drafts WHERE execution_id = ?", arguments: [id(executionID)]) else { return nil }
@@ -130,29 +137,95 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
         }}
     }
 
-    // MARK: - Routes
+    // MARK: - Model configuration
 
-    public func routes() throws -> [ModelRoute] {
+    public func modelConfiguration() throws -> ModelConfiguration {
         try safely { try pool.read { db in
-            try Row.fetchAll(db, sql: "SELECT route_json FROM routes ORDER BY name COLLATE NOCASE, id").map { try Self.decodeRoute($0["route_json"] as String) }
+            let connections = try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, connection_json FROM provider_connections ORDER BY name COLLATE NOCASE, id").map { try Self.providerConnection($0) }
+            let models = try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, model_json FROM model_descriptors ORDER BY model_id COLLATE NOCASE, id").map { try Self.modelDescriptor($0) }
+            let routes = try Row.fetchAll(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes ORDER BY name COLLATE NOCASE, id").map { try Self.modelRoute($0) }
+            let bindings = try Row.fetchAll(db, sql: "SELECT id, scope_key, purpose, route_id, revision, binding_json FROM route_bindings ORDER BY scope_key, purpose, id").map { try Self.routeBinding($0) }
+            let connectionIDs = Set(connections.map(\.id))
+            let modelIDs = Set(models.map(\.id))
+            let routeIDs = Set(routes.map(\.id))
+            guard models.allSatisfy({ connectionIDs.contains($0.connectionID) }),
+                  routes.allSatisfy({ modelIDs.contains($0.modelDescriptorID) }),
+                  bindings.allSatisfy({ routeIDs.contains($0.routeID) }) else {
+                throw MiraError(.storage, "The model configuration relationships are invalid.")
+            }
+            for binding in bindings { try Self.validateRouteScope(binding.scope, in: db) }
+            return ModelConfiguration(connections: connections, models: models, routes: routes, bindings: bindings)
+        }}
+    }
+
+    public func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) throws {
+        try safely {
+            try connection.validate()
+            let encoded = try encode(connection)
+            try pool.write { db in
+                if let current = try Int.fetchOne(db, sql: "SELECT revision FROM provider_connections WHERE id = ?", arguments: [id(connection.id)]) {
+                    guard expectedRevision == current, connection.revision == current + 1 else { throw MiraError(.conflict, "The provider connection revision is out of date.") }
+                    try db.execute(sql: "UPDATE provider_connections SET revision = ?, name = ?, provider_kind = ?, base_url = ?, credential_reference = ?, credential_version = ?, allows_loopback_http = ?, connection_json = ? WHERE id = ?", arguments: [connection.revision, connection.name, connection.providerKind.rawValue, connection.baseURL, connection.credentialReference, connection.credentialVersion, connection.allowsLoopbackHTTP ? 1 : 0, encoded, id(connection.id)])
+                } else {
+                    guard expectedRevision == nil, connection.revision == 1 else { throw MiraError(.conflict, "The provider connection no longer exists.") }
+                    try db.execute(sql: "INSERT INTO provider_connections (id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, connection_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", arguments: [id(connection.id), connection.revision, connection.name, connection.providerKind.rawValue, connection.baseURL, connection.credentialReference, connection.credentialVersion, connection.allowsLoopbackHTTP ? 1 : 0, encoded])
+                }
+            }
+        }
+    }
+
+    public func removeConnection(_ connectionID: ConnectionID) throws {
+        try safely { try pool.write { db in
+            guard try Int.fetchOne(db, sql: "SELECT 1 FROM provider_connections WHERE id = ?", arguments: [id(connectionID)]) != nil else { return }
+            for row in try Row.fetchAll(db, sql: "SELECT id, allowed_connection_ids_json FROM workspaces WHERE allowed_connection_ids_json IS NOT NULL") {
+                let allowed = try Self.decodeConnectionAllowlist(row["allowed_connection_ids_json"] as String?)
+                guard let allowed else { continue }
+                var updated = allowed
+                updated.remove(connectionID)
+                if updated != allowed {
+                    try db.execute(sql: "UPDATE workspaces SET allowed_connection_ids_json = ? WHERE id = ?", arguments: [try Self.encodeConnectionAllowlist(updated), row["id"] as String])
+                }
+            }
+            try db.execute(sql: "DELETE FROM provider_connections WHERE id = ?", arguments: [id(connectionID)])
+        }}
+    }
+
+    public func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) throws {
+        try safely {
+            try model.validate()
+            let encoded = try encode(model)
+            try pool.write { db in
+                guard let connectionRevision = try Int.fetchOne(db, sql: "SELECT revision FROM provider_connections WHERE id = ?", arguments: [id(model.connectionID)]) else { throw MiraError(.notFound, "The provider connection does not exist.") }
+                guard model.connectionRevision == connectionRevision else { throw MiraError(.conflict, "The model descriptor is based on an outdated provider connection.") }
+                if let current = try Int.fetchOne(db, sql: "SELECT revision FROM model_descriptors WHERE id = ?", arguments: [id(model.id)]) {
+                    guard expectedRevision == current, model.revision == current + 1 else { throw MiraError(.conflict, "The model descriptor revision is out of date.") }
+                    try db.execute(sql: "UPDATE model_descriptors SET revision = ?, connection_id = ?, connection_revision = ?, model_id = ?, context_window = ?, text_capability = ?, tool_capability = ?, probe_observation_json = ?, model_json = ? WHERE id = ?", arguments: [model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), encoded, id(model.id)])
+                } else {
+                    guard expectedRevision == nil, model.revision == 1 else { throw MiraError(.conflict, "The model descriptor no longer exists.") }
+                    try db.execute(sql: "INSERT INTO model_descriptors (id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, model_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", arguments: [id(model.id), model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), encoded])
+                }
+            }
+        }
+    }
+
+    public func removeModel(_ modelID: ModelDescriptorID) throws {
+        try safely { try pool.write { db in
+            try db.execute(sql: "DELETE FROM model_descriptors WHERE id = ?", arguments: [id(modelID)])
         }}
     }
 
     public func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws {
         try safely {
-            guard route.revision > 0, !route.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  !route.credentialReference.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw MiraError(.invalidInput, "The model route information is invalid.")
-            }
+            try route.validate()
             let encoded = try encode(route)
             try pool.write { db in
-                if let current = try Int.fetchOne(db, sql: "SELECT revision FROM routes WHERE id = ?", arguments: [id(route.id)]) {
+                guard try Int.fetchOne(db, sql: "SELECT 1 FROM model_descriptors WHERE id = ?", arguments: [id(route.modelDescriptorID)]) != nil else { throw MiraError(.notFound, "The model descriptor does not exist.") }
+                if let current = try Int.fetchOne(db, sql: "SELECT revision FROM model_routes WHERE id = ?", arguments: [id(route.id)]) {
                     guard expectedRevision == current, route.revision == current + 1 else { throw MiraError(.conflict, "The model route revision is out of date.") }
-                    let next = current + 1
-                    try db.execute(sql: "UPDATE routes SET revision = ?, name = ?, route_json = ? WHERE id = ?", arguments: [next, route.name, encoded, id(route.id)])
+                    try db.execute(sql: "UPDATE model_routes SET revision = ?, name = ?, model_descriptor_id = ?, max_output_tokens = ?, requests_usage = ?, route_json = ? WHERE id = ?", arguments: [route.revision, route.name, id(route.modelDescriptorID), route.maxOutputTokens, route.requestsUsage ? 1 : 0, encoded, id(route.id)])
                 } else {
-                    if expectedRevision != nil || route.revision != 1 { throw MiraError(.conflict, "The model route no longer exists.") }
-                    try db.execute(sql: "INSERT INTO routes (id, revision, name, route_json) VALUES (?, ?, ?, ?)", arguments: [id(route.id), route.revision, route.name, encoded])
+                    guard expectedRevision == nil, route.revision == 1 else { throw MiraError(.conflict, "The model route no longer exists.") }
+                    try db.execute(sql: "INSERT INTO model_routes (id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json) VALUES (?, ?, ?, ?, ?, ?, ?)", arguments: [id(route.id), route.revision, route.name, id(route.modelDescriptorID), route.maxOutputTokens, route.requestsUsage ? 1 : 0, encoded])
                 }
             }
         }
@@ -160,13 +233,42 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
 
     public func removeRoute(_ routeID: RouteID) throws {
         try safely { try pool.write { db in
-            try db.execute(sql: "DELETE FROM routes WHERE id = ?", arguments: [id(routeID)])
+            try db.execute(sql: "DELETE FROM model_routes WHERE id = ?", arguments: [id(routeID)])
+        }}
+    }
+
+    public func saveRouteBinding(_ binding: RouteBinding, expectedRevision: Int?) throws {
+        try safely {
+            try validateRouteBinding(binding)
+            let encoded = try encodeRouteBinding(binding)
+            try pool.write { db in
+                guard try Int.fetchOne(db, sql: "SELECT 1 FROM model_routes WHERE id = ?", arguments: [id(binding.routeID)]) != nil else { throw MiraError(.notFound, "The model route does not exist.") }
+                try validateRouteScope(binding.scope, in: db)
+                if let current = try Int.fetchOne(db, sql: "SELECT revision FROM route_bindings WHERE id = ?", arguments: [binding.id]) {
+                    guard expectedRevision == current, binding.revision == current + 1 else { throw MiraError(.conflict, "The route binding revision is out of date.") }
+                    try db.execute(sql: "UPDATE route_bindings SET scope_key = ?, purpose = ?, route_id = ?, revision = ?, binding_json = ? WHERE id = ?", arguments: [binding.scope.key, binding.purpose.rawValue, id(binding.routeID), binding.revision, encoded, binding.id])
+                } else {
+                    guard expectedRevision == nil, binding.revision == 1 else { throw MiraError(.conflict, "The route binding no longer exists.") }
+                    try db.execute(sql: "INSERT INTO route_bindings (id, scope_key, purpose, route_id, revision, binding_json) VALUES (?, ?, ?, ?, ?, ?)", arguments: [binding.id, binding.scope.key, binding.purpose.rawValue, id(binding.routeID), binding.revision, encoded])
+                }
+            }
+        }
+    }
+
+    public func removeRouteBinding(_ binding: RouteBinding) throws {
+        try safely { try pool.write { db in
+            guard let current = try Int.fetchOne(db, sql: "SELECT revision FROM route_bindings WHERE id = ?", arguments: [binding.id]) else {
+                throw MiraError(.notFound, "The route binding does not exist.")
+            }
+            guard current == binding.revision else { throw MiraError(.conflict, "The route binding revision is out of date.") }
+            try db.execute(sql: "DELETE FROM route_bindings WHERE id = ? AND revision = ?", arguments: [binding.id, binding.revision])
+            guard db.changesCount == 1 else { throw MiraError(.conflict, "The route binding revision is out of date.") }
         }}
     }
 
     // MARK: - Runtime persistence
 
-    public func enqueue(conversationID: ConversationID, text: String, route: ModelRoute, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution {
+    public func enqueue(conversationID: ConversationID, text: String, route: ResolvedModelRouteSnapshot, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution {
         try safely {
             guard !text.isEmpty else { throw MiraError(.invalidInput, "The message cannot be empty.") }
             return try pool.write { db in
@@ -190,7 +292,7 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
         }
     }
 
-    public func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ModelRoute, at: Date) throws -> Execution {
+    public func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ResolvedModelRouteSnapshot, at: Date) throws -> Execution {
         try safely {
             return try pool.write { db in
                 guard let row = try Row.fetchOne(db, sql: "SELECT rowid, id, conversation_id, trigger_message_id, status, route_json FROM executions WHERE id = ?", arguments: [id(executionID)]) else { throw MiraError(.notFound, "The execution does not exist.") }
@@ -535,7 +637,7 @@ private extension SQLiteMiraStore {
         var migrator = makeBaseMigrator()
         migrator.registerMigration(auditMigrationName) { db in
             try createAuditSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 3")
+            try db.execute(sql: "PRAGMA user_version = 4")
         }
         return migrator
     }
@@ -544,7 +646,7 @@ private extension SQLiteMiraStore {
         var migrator = DatabaseMigrator()
         migrator.registerMigration(baseMigrationName) { db in
             try createSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 3")
+            try db.execute(sql: "PRAGMA user_version = 4")
         }
         return migrator
     }
@@ -564,6 +666,7 @@ private extension SQLiteMiraStore {
           name TEXT NOT NULL CHECK(length(trim(name)) > 0),
           background TEXT NOT NULL,
           allows_remote_send INTEGER NOT NULL CHECK(allows_remote_send IN (0, 1)),
+          allowed_connection_ids_json TEXT,
           revision INTEGER NOT NULL CHECK(revision > 0)
         );
         CREATE TABLE conversations (
@@ -575,11 +678,46 @@ private extension SQLiteMiraStore {
           updated_at REAL NOT NULL,
           revision INTEGER NOT NULL CHECK(revision > 0)
         );
-        CREATE TABLE routes (
+        CREATE TABLE provider_connections (
           id TEXT PRIMARY KEY NOT NULL,
           revision INTEGER NOT NULL CHECK(revision > 0),
           name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+          provider_kind TEXT NOT NULL CHECK(provider_kind IN ('openAICompatible', 'anthropic')),
+          base_url TEXT NOT NULL,
+          credential_reference TEXT NOT NULL CHECK(length(trim(credential_reference)) > 0),
+          credential_version INTEGER NOT NULL CHECK(credential_version > 0),
+          allows_loopback_http INTEGER NOT NULL CHECK(allows_loopback_http IN (0, 1)),
+          connection_json TEXT NOT NULL
+        );
+        CREATE TABLE model_descriptors (
+          id TEXT PRIMARY KEY NOT NULL,
+          revision INTEGER NOT NULL CHECK(revision > 0),
+          connection_id TEXT NOT NULL REFERENCES provider_connections(id) ON DELETE CASCADE,
+          connection_revision INTEGER NOT NULL CHECK(connection_revision > 0),
+          model_id TEXT NOT NULL CHECK(length(trim(model_id)) > 0),
+          context_window INTEGER,
+          text_capability TEXT NOT NULL CHECK(text_capability IN ('unknown', 'declared', 'verified', 'failed')),
+          tool_capability TEXT NOT NULL CHECK(tool_capability IN ('unknown', 'declared', 'verified', 'failed')),
+          probe_observation_json TEXT,
+          model_json TEXT NOT NULL
+        );
+        CREATE TABLE model_routes (
+          id TEXT PRIMARY KEY NOT NULL,
+          revision INTEGER NOT NULL CHECK(revision > 0),
+          name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+          model_descriptor_id TEXT NOT NULL REFERENCES model_descriptors(id) ON DELETE CASCADE,
+          max_output_tokens INTEGER NOT NULL CHECK(max_output_tokens > 0),
+          requests_usage INTEGER NOT NULL CHECK(requests_usage IN (0, 1)),
           route_json TEXT NOT NULL
+        );
+        CREATE TABLE route_bindings (
+          id TEXT PRIMARY KEY NOT NULL,
+          scope_key TEXT NOT NULL,
+          purpose TEXT NOT NULL CHECK(purpose IN ('conversation', 'memoryExtraction')),
+          route_id TEXT NOT NULL REFERENCES model_routes(id) ON DELETE CASCADE,
+          revision INTEGER NOT NULL CHECK(revision > 0),
+          binding_json TEXT NOT NULL,
+          UNIQUE(scope_key, purpose)
         );
         CREATE TABLE executions (
           id TEXT PRIMARY KEY NOT NULL,
@@ -619,6 +757,9 @@ private extension SQLiteMiraStore {
         CREATE INDEX conversations_workspace_updated ON conversations(workspace_id, updated_at, id);
         CREATE INDEX messages_conversation_sequence ON messages(conversation_id, sequence);
         CREATE INDEX executions_conversation_created ON executions(conversation_id, created_at, id);
+        CREATE INDEX model_descriptors_connection ON model_descriptors(connection_id, model_id, id);
+        CREATE INDEX model_routes_descriptor ON model_routes(model_descriptor_id, name, id);
+        CREATE INDEX route_bindings_scope_purpose ON route_bindings(scope_key, purpose, id);
         """)
     }
 
@@ -708,8 +849,32 @@ private extension SQLiteMiraStore {
         return String(decoding: try encoder.encode(value), as: UTF8.self)
     }
 
-    static func decodeRoute(_ value: String) throws -> ModelRoute {
-        try decode(value)
+    static func decodeRoute(_ value: String) throws -> ResolvedModelRouteSnapshot {
+        let route: ResolvedModelRouteSnapshot = try decode(value)
+        try validateHistoricalRoute(route)
+        return route
+    }
+
+    /// Execution routes are immutable snapshots. Validate their self-contained
+    /// transport contract without consulting the current configuration tables.
+    static func validateHistoricalRoute(_ route: ResolvedModelRouteSnapshot) throws {
+        let expectedAdapter = route.providerKind == .anthropic ? "anthropic-messages/1" : "openai-chat-completions/1"
+        guard route.revision > 0, route.connectionRevision > 0, route.modelRevision > 0,
+              !route.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              route.name.count <= 100,
+              !route.modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              route.modelID.count <= 300,
+              !route.credentialReference.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              route.credentialVersion > 0, route.adapterVersion == expectedAdapter,
+              let contextWindow = route.contextWindow, contextWindow > 0, contextWindow <= 10_000_000,
+              route.maxOutputTokens > 0, route.maxOutputTokens < contextWindow else {
+            throw MiraError(.storage, "The execution route snapshot is invalid.")
+        }
+        do {
+            _ = try route.validatedEndpoint()
+        } catch {
+            throw MiraError(.storage, "The execution route snapshot is invalid.")
+        }
     }
 
     static func decodeRequest(_ value: String) throws -> CanonicalModelRequest {
@@ -730,16 +895,19 @@ private extension SQLiteMiraStore {
 
     func id<Tag>(_ value: EntityID<Tag>) -> String { Self.id(value) }
     func encode<T: Encodable>(_ value: T) throws -> String { try Self.encode(value) }
-    func decodeRoute(_ value: String) throws -> ModelRoute { try Self.decodeRoute(value) }
+    func decodeRoute(_ value: String) throws -> ResolvedModelRouteSnapshot { try Self.decodeRoute(value) }
     func decodeRequest(_ value: String) throws -> CanonicalModelRequest { try Self.decodeRequest(value) }
     func executionIDValue(_ value: String) throws -> ExecutionID { try Self.executionIDValue(value) }
     func conversationIDValue(_ value: String) throws -> ConversationID { try Self.conversationIDValue(value) }
     func messageIDValue(_ value: String) throws -> MessageID { try Self.messageIDValue(value) }
+    func encodeConnectionAllowlist(_ value: Set<ConnectionID>?) throws -> String? { try Self.encodeConnectionAllowlist(value) }
+    func encodeRouteBinding(_ binding: RouteBinding) throws -> String { try Self.encodeRouteBinding(binding) }
 
     static func id<Tag>(_ value: EntityID<Tag>) -> String { value.rawValue.uuidString.lowercased() }
     static func workspace(_ row: Row) throws -> Workspace {
         guard let uuid = UUID(uuidString: row["id"] as String) else { throw MiraError(.storage, "The database contents are invalid.") }
-        return Workspace(id: WorkspaceID(uuid), name: row["name"] as String, background: row["background"] as String, allowsRemoteSend: (row["allows_remote_send"] as Int) != 0, revision: row["revision"] as Int)
+        let allowlist = try decodeConnectionAllowlist(row["allowed_connection_ids_json"] as String?)
+        return Workspace(id: WorkspaceID(uuid), name: row["name"] as String, background: row["background"] as String, allowsRemoteSend: (row["allows_remote_send"] as Int) != 0, revision: row["revision"] as Int, allowedConnectionIDs: allowlist)
     }
     static func conversation(_ row: Row) throws -> Conversation {
         guard let uuid = UUID(uuidString: row["id"] as String) else { throw MiraError(.storage, "The database contents are invalid.") }
@@ -760,6 +928,93 @@ private extension SQLiteMiraStore {
     static func executionIDValue(_ value: String) throws -> ExecutionID { ExecutionID(try uuid(value)) }
     static func conversationIDValue(_ value: String) throws -> ConversationID { ConversationID(try uuid(value)) }
     static func messageIDValue(_ value: String) throws -> MessageID { MessageID(try uuid(value)) }
+
+    static func encodeConnectionAllowlist(_ value: Set<ConnectionID>?) throws -> String? {
+        guard let value else { return nil }
+        return try encode(value.map { id($0) }.sorted())
+    }
+
+    static func decodeConnectionAllowlist(_ value: String?) throws -> Set<ConnectionID>? {
+        guard let value else { return nil }
+        let ids: [String] = try decode(value)
+        var result = Set<ConnectionID>()
+        for raw in ids {
+            guard let uuid = UUID(uuidString: raw), result.insert(ConnectionID(uuid)).inserted else { throw MiraError(.storage, "The workspace connection allowlist is invalid.") }
+        }
+        return result
+    }
+
+    static func providerConnection(_ row: Row) throws -> ProviderConnection {
+        let connection: ProviderConnection = try decode(row["connection_json"] as String)
+        guard id(connection.id) == (row["id"] as String), connection.revision == row["revision"] as Int,
+              connection.name == (row["name"] as String), connection.providerKind.rawValue == (row["provider_kind"] as String),
+              connection.baseURL == (row["base_url"] as String), connection.credentialReference == (row["credential_reference"] as String),
+              connection.credentialVersion == row["credential_version"] as Int, connection.allowsLoopbackHTTP == ((row["allows_loopback_http"] as Int) != 0) else {
+            throw MiraError(.storage, "The provider connection contents are inconsistent.")
+        }
+        try connection.validate()
+        return connection
+    }
+
+    static func modelDescriptor(_ row: Row) throws -> ModelDescriptor {
+        let model: ModelDescriptor = try decode(row["model_json"] as String)
+        let observation: ProbeObservation? = try (row["probe_observation_json"] as String?).map { try decode($0) }
+        guard id(model.id) == (row["id"] as String), model.revision == row["revision"] as Int,
+              id(model.connectionID) == (row["connection_id"] as String), model.connectionRevision == row["connection_revision"] as Int,
+              model.modelID == (row["model_id"] as String), model.contextWindow == (row["context_window"] as Int?),
+              model.textCapability.rawValue == (row["text_capability"] as String), model.toolCapability.rawValue == (row["tool_capability"] as String),
+              model.probeObservation == observation else {
+            throw MiraError(.storage, "The model descriptor contents are inconsistent.")
+        }
+        try model.validate()
+        return model
+    }
+
+    static func modelRoute(_ row: Row) throws -> ModelRoute {
+        let route: ModelRoute = try decode(row["route_json"] as String)
+        guard id(route.id) == (row["id"] as String), route.revision == row["revision"] as Int,
+              route.name == (row["name"] as String), id(route.modelDescriptorID) == (row["model_descriptor_id"] as String),
+              route.maxOutputTokens == row["max_output_tokens"] as Int, route.requestsUsage == ((row["requests_usage"] as Int) != 0) else {
+            throw MiraError(.storage, "The model route contents are inconsistent.")
+        }
+        try route.validate()
+        return route
+    }
+
+    static func encodeRouteBinding(_ binding: RouteBinding) throws -> String {
+        guard var object = try JSONSerialization.jsonObject(with: Data(encode(binding).utf8)) as? [String: Any] else { throw MiraError(.storage, "The route binding contents are invalid.") }
+        object["id"] = binding.id
+        return String(decoding: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]), as: UTF8.self)
+    }
+
+    static func routeBinding(_ row: Row) throws -> RouteBinding {
+        let raw = row["binding_json"] as String
+        guard let object = try JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any], object["id"] as? String == (row["id"] as String) else { throw MiraError(.storage, "The route binding contents are inconsistent.") }
+        let binding: RouteBinding = try decode(raw)
+        guard binding.id == (row["id"] as String), binding.scope.key == (row["scope_key"] as String), binding.purpose.rawValue == (row["purpose"] as String),
+              id(binding.routeID) == (row["route_id"] as String), binding.revision == row["revision"] as Int else {
+            throw MiraError(.storage, "The route binding contents are inconsistent.")
+        }
+        return binding
+    }
+
+    static func validateRouteBinding(_ binding: RouteBinding) throws {
+        guard binding.revision > 0, binding.id == "\(binding.scope.key):\(binding.purpose.rawValue)" else { throw MiraError(.invalidInput, "The route binding information is invalid.") }
+    }
+
+    func validateRouteBinding(_ binding: RouteBinding) throws { try Self.validateRouteBinding(binding) }
+
+    static func validateRouteScope(_ scope: RouteScope, in db: Database) throws {
+        switch scope {
+        case .global: return
+        case .workspace(let workspaceID):
+            guard try Int.fetchOne(db, sql: "SELECT 1 FROM workspaces WHERE id = ?", arguments: [id(workspaceID)]) != nil else { throw MiraError(.notFound, "The workspace does not exist.") }
+        case .conversation(let conversationID):
+            guard try Int.fetchOne(db, sql: "SELECT 1 FROM conversations WHERE id = ?", arguments: [id(conversationID)]) != nil else { throw MiraError(.notFound, "The conversation does not exist.") }
+        }
+    }
+
+    func validateRouteScope(_ scope: RouteScope, in db: Database) throws { try Self.validateRouteScope(scope, in: db) }
 
     static func modelAttempt(_ row: Row) throws -> ModelAttempt {
         let attemptID = try uuid(row["id"] as String)
@@ -795,16 +1050,23 @@ private extension SQLiteMiraStore {
         let expectedMigrations = [baseMigrationName, auditMigrationName]
         guard migrations == expectedMigrations else { throw MiraError(.unsupported, "The backup contains unknown database migrations.") }
         let tables = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
-        let expectedTables: Set<String> = ["grdb_migrations", "workspaces", "conversations", "routes", "executions", "messages", "assistant_drafts", "execution_steps", "model_attempts", "tool_invocations"]
+        let expectedTables: Set<String> = ["grdb_migrations", "workspaces", "conversations", "provider_connections", "model_descriptors", "model_routes", "route_bindings", "executions", "messages", "assistant_drafts", "execution_steps", "model_attempts", "tool_invocations"]
         guard Set(tables) == expectedTables else { throw MiraError(.unsupported, "The backup contains an unknown database schema.") }
         let unexpectedProgrammableObjects = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type IN ('trigger', 'view')")
         guard unexpectedProgrammableObjects.isEmpty else { throw MiraError(.unsupported, "The backup contains unknown database objects.") }
     }
 
     static func validateContents(in db: Database) throws {
-        for row in try Row.fetchAll(db, sql: "SELECT id, name, background, allows_remote_send, revision FROM workspaces") { _ = try workspace(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, name, background, allows_remote_send, allowed_connection_ids_json, revision FROM workspaces") { _ = try workspace(row) }
         for row in try Row.fetchAll(db, sql: "SELECT id, workspace_id, title, is_archived, created_at, updated_at, revision FROM conversations") { _ = try conversation(row) }
-        for row in try Row.fetchAll(db, sql: "SELECT route_json FROM routes") { _ = try decodeRoute(row["route_json"] as String) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, connection_json FROM provider_connections") { _ = try providerConnection(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, model_json FROM model_descriptors") { _ = try modelDescriptor(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes") { _ = try modelRoute(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, scope_key, purpose, route_id, revision, binding_json FROM route_bindings") {
+            let binding = try routeBinding(row)
+            try validateRouteBinding(binding)
+            try validateRouteScope(binding.scope, in: db)
+        }
         for row in try Row.fetchAll(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at FROM executions") { _ = try execution(row) }
         for row in try Row.fetchAll(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, created_at FROM messages") { _ = try message(row) }
         for row in try Row.fetchAll(db, sql: "SELECT execution_id, text, updated_at FROM assistant_drafts") { _ = try executionIDValue(row["execution_id"] as String) }

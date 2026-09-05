@@ -91,7 +91,7 @@ struct ProviderCapabilityProbeTests {
         #expect(provider.terminated)
     }
 
-    private func route(window: Int? = 8_192) -> ModelRoute {
+    private func route(window: Int? = 8_192) -> ResolvedModelRouteSnapshot {
         .init(name: "fixture", providerKind: .openAICompatible, baseURL: "https://example.com/v1", modelID: "fixture", credentialReference: "fixture", contextWindow: window)
     }
 }
@@ -100,12 +100,12 @@ private final class ProbeFixtureProvider: ModelProviderPort, @unchecked Sendable
     let events: [CanonicalStreamEvent]
     private let lock = NSLock()
     private var capturedRequests: [CanonicalModelRequest] = []
-    private var capturedRoutes: [ModelRoute] = []
+    private var capturedRoutes: [ResolvedModelRouteSnapshot] = []
     var requests: [CanonicalModelRequest] { lock.withLock { capturedRequests } }
-    var routes: [ModelRoute] { lock.withLock { capturedRoutes } }
+    var routes: [ResolvedModelRouteSnapshot] { lock.withLock { capturedRoutes } }
     var requestCount: Int { lock.withLock { capturedRequests.count } }
     init(events: [CanonicalStreamEvent]) { self.events = events }
-    func stream(request: CanonicalModelRequest, route: ModelRoute) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
+    func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
         lock.withLock { capturedRequests.append(request); capturedRoutes.append(route) }
         return AsyncThrowingStream { continuation in
             for event in events { continuation.yield(event) }
@@ -119,7 +119,7 @@ private final class HangingProbeProvider: ModelProviderPort, @unchecked Sendable
     private var didTerminate = false
     var started: Bool { lock.withLock { didStart } }
     var terminated: Bool { lock.withLock { didTerminate } }
-    func stream(request: CanonicalModelRequest, route: ModelRoute) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
+    func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
         let pair = AsyncThrowingStream<CanonicalStreamEvent, any Error>.makeStream()
         pair.continuation.onTermination = { [weak self] _ in self?.markTerminated() }
         lock.withLock { didStart = true }

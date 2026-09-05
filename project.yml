@@ -55,18 +55,20 @@ targets:
         product: MiraProviders
       - package: SwiftStreamingMarkdown
         product: SwiftStreamingMarkdown
-  MiraLocalizationTests:
+  MiraHostTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - Apps/MiraMac/Localization
       - Apps/MiraMac/Resources/Localizable.xcstrings
       - Tests/MiraLocalizationTests
+      - Tests/MiraPlatformTests
+      - Apps/MiraMac/Platform/Keychain
       - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira.localization-tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira.host-tests
     dependencies:
       - package: MiraKit
         product: MiraCore
@@ -80,6 +82,6 @@ schemes:
     run:
       config: Debug
     test:
-      targets: [MiraLocalizationTests]
+      targets: [MiraHostTests]
     archive:
       config: Release

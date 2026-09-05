@@ -131,7 +131,12 @@ swift test --package-path Packages/MiraKit --disable-automatic-resolution
 xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
   -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Mira.xcodeproj -scheme Mira \
+  -destination 'platform=macOS' -derivedDataPath .build/xcode \
+  -onlyTesting:MiraHostTests test
 ```
+
+The package command exercises MiraKit. The host command runs the renamed `MiraHostTests` target, which contains localization and isolated Keychain fixtures. Native macOS UI and CI execution are separate evidence and must be recorded independently.
 
 首次解析可使用 `swift package --package-path Packages/MiraKit resolve`。依赖升级时同时检查两个 `Package.resolved`。工程源配置为根目录 `project.yml`，新增 Host 文件后用 XcodeGen 2.46.0 生成并提交 `.xcodeproj` 与共享 Scheme。Core / Data / Providers 是 Swift Package 的三个库；测试只使用合成数据。
 
@@ -148,7 +153,7 @@ CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](htt
 
 设置 → 数据 → 导出资料库备份，使用 SQLite Backup API 生成可独立使用的文件，不复制活动 WAL 主文件。导出不覆盖已有文件。
 
-设置 → 数据 → 恢复到新目录，选备份与父目录。恢复器先复制到自己持有的暂存目录，校验版本、结构、索引 / 约束、完整性、外键及领域值，成功后安装新目录。原备份与当前资料库均保留。During early development, only the current version 3 schema is supported. Older development libraries/backups are rejected without modifying them; use a fresh development directory. Historical-format compatibility is added only when explicitly requested.
+设置 → 数据 → 恢复到新目录，选备份与父目录。恢复器先复制到自己持有的暂存目录，校验版本、结构、索引 / 约束、完整性、外键及领域值，成功后安装新目录。原备份与当前资料库均保留。During early development, only the current version 4 schema is supported. Older development libraries/backups are rejected without modifying them; use a fresh development directory. Historical-format compatibility is added only when explicitly requested.
 
 验证恢复后的目录可以先在隔离环境打开：
 

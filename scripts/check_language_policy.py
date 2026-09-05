@@ -59,6 +59,12 @@ for path in (ROOT / 'Apps/MiraMac').rglob('*.swift'):
     patterns = [r'L10n\.(?:string|format)\(\s*' + quoted, r'case\s+[^:\n]+:\s*' + quoted]
     for pattern in patterns:
         for match in re.finditer(pattern, source):
+            # Case-returned protocol/symbol IDs are content, not display copy.
+            # A nearby inline explanation keeps this exception narrow and reviewable.
+            line_start = source.rfind('\n', 0, match.start()) + 1
+            line_end = source.find('\n', match.end())
+            line = source[line_start:line_end if line_end >= 0 else len(source)]
+            if pattern == patterns[1] and '// i18n-verbatim:' in line: continue
             raw = match.group(1)
             if '\\(' in raw: continue
             try: key = json.loads('"' + raw + '"')

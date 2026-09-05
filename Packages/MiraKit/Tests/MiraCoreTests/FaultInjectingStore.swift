@@ -16,13 +16,20 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     func messages(in id: ConversationID) throws -> [Message] { try base.messages(in: id) }
     func executions(in id: ConversationID) throws -> [Execution] { try base.executions(in: id) }
     func draft(for id: ExecutionID) throws -> Draft? { try base.draft(for: id) }
-    func routes() throws -> [ModelRoute] { try base.routes() }
+    func execution(_ id: ExecutionID) throws -> Execution? { try base.execution(id) }
+    func modelConfiguration() throws -> ModelConfiguration { try base.modelConfiguration() }
+    func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) throws { try base.saveConnection(connection, expectedRevision: expectedRevision) }
+    func removeConnection(_ id: ConnectionID) throws { try base.removeConnection(id) }
+    func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) throws { try base.saveModel(model, expectedRevision: expectedRevision) }
+    func removeModel(_ id: ModelDescriptorID) throws { try base.removeModel(id) }
     func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws { try base.saveRoute(route, expectedRevision: expectedRevision) }
     func removeRoute(_ id: RouteID) throws { try base.removeRoute(id) }
-    func enqueue(conversationID: ConversationID, text: String, route: ModelRoute, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution {
+    func saveRouteBinding(_ binding: RouteBinding, expectedRevision: Int?) throws { try base.saveRouteBinding(binding, expectedRevision: expectedRevision) }
+    func removeRouteBinding(_ binding: RouteBinding) throws { try base.removeRouteBinding(binding) }
+    func enqueue(conversationID: ConversationID, text: String, route: ResolvedModelRouteSnapshot, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution {
         try base.enqueue(conversationID: conversationID, text: text, route: route, executionID: executionID, messageID: messageID, at: at)
     }
-    func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ModelRoute, at: Date) throws -> Execution { try base.retry(executionID: executionID, newExecutionID: newExecutionID, route: route, at: at) }
+    func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ResolvedModelRouteSnapshot, at: Date) throws -> Execution { try base.retry(executionID: executionID, newExecutionID: newExecutionID, route: route, at: at) }
     func request(for id: ExecutionID) throws -> CanonicalModelRequest? { try base.request(for: id) }
     func prepareAttempt(_ attempt: ModelAttempt) throws { try base.prepareAttempt(attempt) }
     func attempts(for id: ExecutionID) throws -> [ModelAttempt] { try base.attempts(for: id) }

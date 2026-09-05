@@ -3,7 +3,7 @@ import Testing
 @testable import MiraCore
 
 struct ContextBuilderTests {
-    private func route(window: Int? = 32_768) -> ModelRoute {
+    private func route(window: Int? = 32_768) -> ResolvedModelRouteSnapshot {
         .init(name: "Fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "synthetic", credentialReference: "test-reference", contextWindow: window)
     }
 

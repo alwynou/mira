@@ -193,7 +193,7 @@ Chat Completions 兼容不等于 OpenAI Responses 兼容；需要另一协议的
 
 能力分别记录 `unknown / declared / verified / failed` 与验证时间：普通文本、流式、工具、结构化提取、上下文窗口和 Usage。聊天能力通过不自动启用 Agent 或自动记忆。无法确定窗口时要求用户填写有效上限；手工 Model ID 可保存，但受影响的执行用途在能力满足前不可启动。
 
-The current `ModelRoute.toolCapability` is a required state initialized to `unknown`. It is not optional for historical configuration compatibility. `probeObservation` is absent until a probe has actually run.
+The current `ModelDescriptor.toolCapability` is a required state initialized to `unknown`. Capability declarations and probe observations are tagged with the connection revision. Editing that connection makes prior capabilities unknown for sending until reconfirmed or probed again; cancelled or stale probes do not overwrite current configuration.
 
 首版提取采用有限 JSON Schema 子集和确定性本地校验。支持 strict schema 的端点可使用该能力；其他端点可请求 JSON 文本，最多进行一次修复调用并计费，仍无效则保留失败记录，不写 Memory。模型自报置信度不替代发言归属、范围和来源校验。
 
@@ -219,3 +219,14 @@ SSE Parser 按字节增量解码 UTF-8，支持跨网络块拆分、多行 data�
 内部工具名如 `memory.search` 编码为兼容的 wire 名 `memory_search`，在注册时拒绝映射冲突。OpenAI 使用 function tools / tool_calls / tool messages；Anthropic 使用 tool_use 与连续同批 tool_result blocks。完整调用参数经过 JSON 对象语法验证才交给 Runtime；Runtime 再进行 Schema 与权限检查。
 
 取消标识使用每 Attempt 的 `request.dispatchID`，同一 Execution 中不同网络请求互不影响。Capability 缺失时不携带工具；Adapter 也在读取凭据前检查工具历史配对与能力。thinking / signed continuation 尚未接入，不伪造不透明续接内容。
+
+
+## Current configuration implementation
+
+`ProviderConnection` owns a shared protocol, endpoint, and immutable Keychain reference/version. `ModelDescriptor` owns the model ID, window, capabilities, and the connection revision those observations describe. `ModelRoute` is a named preset selecting a descriptor plus output and usage parameters. `RouteBinding` selects a preset for a purpose at Global, Workspace, or Conversation scope.
+
+The current purposes are conversation and memory extraction. Other purposes are introduced only with their features. Resolution is explicit selection, Conversation override, Workspace default, then Global default. A missing or forbidden selected route fails; resolution does not silently select a lower-priority route. Workspace sending policy and optional connection allowlist apply to every candidate, including explicit selections.
+
+The execution stores a self-contained `ResolvedModelRouteSnapshot`, including connection/model/route revisions, credential reference/version, capability snapshot, protocol adapter version, and selection source. Later edits never rewrite historical snapshots. Configuration edits or revocation stop affected live executions; each dispatch also revalidates the frozen configuration and current workspace policy. Binding edits affect subsequent executions, not a running turn.
+
+Connection deletion removes its live models, presets, and bindings. Execution snapshots remain readable. Credential cleanup retains references from live connections, so a shared connection is not removed merely because one route preset is deleted. Probe results commit through the application actor and compare frozen revisions before writing.

@@ -6,18 +6,18 @@ struct CredentialCleanup {
     struct Item: Codable, Hashable {
         var reference: String
         var version: Int
-        init(_ route: ModelRoute) { reference = route.credentialReference; version = route.credentialVersion }
+        init(_ route: ProviderConnection) { reference = route.credentialReference; version = route.credentialVersion }
     }
     private struct Ledger: Codable { var version = 1; var items: [Item] }
     let directory: URL
     private var url: URL { directory.appendingPathComponent("credential-cleanup.json") }
 
-    func enqueue(_ routes: [ModelRoute]) throws {
+    func enqueue(_ routes: [ProviderConnection]) throws {
         let items = Array(Set(try read() + routes.map(Item.init)))
         try write(items)
     }
 
-    func reconcile(retaining routes: [ModelRoute], credentials: KeychainCredentials) throws -> String? {
+    func reconcile(retaining routes: [ProviderConnection], credentials: KeychainCredentials) throws -> String? {
         let retained = Set(routes.map(Item.init))
         var remaining: [Item] = []
         for item in try read() where !retained.contains(item) {

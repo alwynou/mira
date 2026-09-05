@@ -31,7 +31,7 @@
 - Supported app languages are `en` and `zh-CN` (Apple resource locale `zh-Hans`). Keep English source keys and both translations in `Apps/MiraMac/Resources/Localizable.xcstrings`. Resolve app-owned dynamic messages at display time with the current SwiftUI locale.
 - Preserve user-authored text, model output, provider identifiers, request snapshots, and historical data verbatim. Localize UI labels around them. Model replies follow the user's requested language, otherwise the language of their message.
 - Non-English exceptions are translation resources, original third-party source/notices under `Vendor`, and documented Unicode/search fixtures. Explain each exception in English and keep it narrowly scoped. Existing product/design documents may retain their original language; new engineering instructions use English.
-- Run `python3 scripts/check_language_policy.py` and the `MiraLocalizationTests` scheme tests for language changes. The policy check rejects untranslated catalog entries, format-placeholder mismatches, and unexplained non-English source text.
+- Run `python3 scripts/check_language_policy.py` and the `MiraHostTests` hostless target tests for language changes. The policy check rejects untranslated catalog entries, format-placeholder mismatches, and unexplained non-English source text.
 
 ## Delegation and documentation
 

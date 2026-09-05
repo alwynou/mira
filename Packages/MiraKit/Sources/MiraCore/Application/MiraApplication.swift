@@ -8,7 +8,8 @@ public enum ApplicationEvent: Sendable {
 public struct LibrarySnapshot: Sendable {
     public var workspaces: [Workspace]
     public var conversations: [Conversation]
-    public var routes: [ModelRoute]
+    public var configuration: ModelConfiguration
+    public var routes: [ModelRoute] { configuration.routes }
 }
 public struct ConversationSnapshot: Sendable {
     public var messages: [Message]
@@ -55,7 +56,7 @@ public actor MiraApplication {
     private func emit(_ event: ApplicationEvent) { for observer in observers.values { observer.yield(event) } }
 
     public func library(includeArchived: Bool = false) throws -> LibrarySnapshot {
-        .init(workspaces: try store.workspaces(), conversations: try store.conversations(includeArchived: includeArchived), routes: try store.routes())
+        .init(workspaces: try store.workspaces(), conversations: try store.conversations(includeArchived: includeArchived), configuration: try store.modelConfiguration())
     }
     public func conversation(_ id: ConversationID) throws -> ConversationSnapshot {
         let executions = try store.executions(in: id)
@@ -72,10 +73,10 @@ public actor MiraApplication {
     }
 
     @discardableResult
-    public func createWorkspace(name: String, background: String, allowsRemoteSend: Bool) throws -> WorkspaceID {
+    public func createWorkspace(name: String, background: String, allowsRemoteSend: Bool, allowedConnectionIDs: Set<ConnectionID>? = nil) throws -> WorkspaceID {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= 100, background.utf8.count <= 32_768 else { throw MiraError(.invalidInput, "Workspace name or background exceeds the limit.") }
-        let workspace = Workspace(id: .init(environment.uuid()), name: name, background: background, allowsRemoteSend: allowsRemoteSend)
+        let workspace = Workspace(id: .init(environment.uuid()), name: name, background: background, allowsRemoteSend: allowsRemoteSend, allowedConnectionIDs: allowedConnectionIDs)
         try store.saveWorkspace(workspace, expectedRevision: nil); emit(.changed)
         return workspace.id
     }
@@ -85,7 +86,7 @@ public actor MiraApplication {
         var updated = workspace; updated.revision += 1
         try store.saveWorkspace(updated, expectedRevision: workspace.revision)
         // Tightened sending policy cancels any in-flight request too.
-        if !updated.allowsRemoteSend {
+        if !updated.allowsRemoteSend || updated.allowedConnectionIDs != workspace.allowedConnectionIDs {
             let ids = Set(try store.conversations(includeArchived: true).filter { $0.workspaceID == updated.id }.map(\.id))
             for execution in active.values where ids.contains(execution.conversationID) { tasks[execution.id]?.cancel() }
         }
@@ -100,9 +101,46 @@ public actor MiraApplication {
     public func archiveConversation(_ id: ConversationID) throws {
         try store.archiveConversation(id, at: environment.now()); emit(.changed)
     }
+    public func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) throws {
+        try connection.validate()
+        try store.saveConnection(connection, expectedRevision: expectedRevision)
+        for execution in active.values where execution.route.connectionID == connection.id { tasks[execution.id]?.cancel() }
+        emit(.changed)
+    }
+    public func removeConnection(_ id: ConnectionID) throws {
+        try store.removeConnection(id)
+        for execution in active.values where execution.route.connectionID == id { tasks[execution.id]?.cancel() }
+        emit(.changed)
+    }
+    public func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) throws {
+        try model.validate()
+        try store.saveModel(model, expectedRevision: expectedRevision)
+        for execution in active.values where execution.route.modelDescriptorID == model.id { tasks[execution.id]?.cancel() }
+        emit(.changed)
+    }
+    public func removeModel(_ id: ModelDescriptorID) throws {
+        try store.removeModel(id)
+        for execution in active.values where execution.route.modelDescriptorID == id { tasks[execution.id]?.cancel() }
+        emit(.changed)
+    }
+    public func saveProbe(_ observation: ProbeObservation, for snapshot: ResolvedModelRouteSnapshot) throws {
+        try Task.checkCancellation()
+        guard observation.state == .verified || observation.state == .failed else { return }
+        let configuration = try store.modelConfiguration()
+        guard let current = try? configuration.snapshot(routeID: snapshot.id, purpose: snapshot.purpose, selection: snapshot.selectionSource), current == snapshot,
+              var model = configuration.models.first(where: { $0.id == snapshot.modelDescriptorID }) else {
+            throw MiraError(.conflict, "The connection changed. Test results did not overwrite the new configuration.")
+        }
+        let previousRevision = model.revision
+        model.textCapability = snapshot.textCapability; model.toolCapability = snapshot.toolCapability
+        if observation.type == .text { model.textCapability = observation.state }
+        else { model.toolCapability = observation.state }
+        model.connectionRevision = snapshot.connectionRevision
+        model.probeObservation = observation; model.revision += 1
+        try saveModel(model, expectedRevision: previousRevision)
+    }
     public func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws {
-        _ = try route.validatedEndpoint()
-        guard !route.modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.configuration, "Enter a Model ID.") }
+        try route.validate()
         try store.saveRoute(route, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.id == route.id { tasks[execution.id]?.cancel() }
         emit(.changed)
@@ -112,23 +150,30 @@ public actor MiraApplication {
         for execution in active.values where execution.route.id == id { tasks[execution.id]?.cancel() }
         emit(.changed)
     }
+    public func saveRouteBinding(_ binding: RouteBinding, expectedRevision: Int?) throws {
+        try store.saveRouteBinding(binding, expectedRevision: expectedRevision); emit(.changed)
+    }
+    public func removeRouteBinding(_ binding: RouteBinding) throws {
+        try store.removeRouteBinding(binding); emit(.changed)
+    }
     public func exportBackup(to destination: URL) throws { try store.exportBackup(to: destination) }
     public func restoreBackup(from source: URL, to directory: URL) throws { try store.restoreBackup(from: source, to: directory) }
 
     @discardableResult
-    public func send(conversationID: ConversationID, text input: String, routeID: RouteID) throws -> ExecutionID {
+    public func send(conversationID: ConversationID, text input: String, routeID: RouteID? = nil) throws -> ExecutionID {
         let input = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty, input.utf8.count <= 262_144 else { throw MiraError(.invalidInput, "Enter a message (maximum 256 KiB).") }
         try checkAvailability(conversationID)
-        let route = try resolveRoute(routeID)
+        let route = try resolveRoute(routeID, conversationID: conversationID)
         let execution = try store.enqueue(conversationID: conversationID, text: input, route: route,
                                           executionID: .init(environment.uuid()), messageID: .init(environment.uuid()), at: environment.now())
         launch(execution); return execution.id
     }
     @discardableResult
-    public func retry(_ executionID: ExecutionID, routeID: RouteID) throws -> ExecutionID {
+    public func retry(_ executionID: ExecutionID, routeID: RouteID? = nil) throws -> ExecutionID {
         try checkLifecycleAndCapacity()
-        let route = try resolveRoute(routeID)
+        guard let previous = try store.execution(executionID) else { throw MiraError(.notFound, "The execution does not exist.") }
+        let route = try resolveRoute(routeID, conversationID: previous.conversationID)
         let execution = try store.retry(executionID: executionID, newExecutionID: .init(environment.uuid()), route: route, at: environment.now())
         launch(execution); return execution.id
     }
@@ -161,9 +206,12 @@ public actor MiraApplication {
         guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot start a new request.") }
         guard active.count < 2 else { throw MiraError(.busy, "At most two replies can be processed at once. Wait for generation or saving to finish.") }
     }
-    private func resolveRoute(_ id: RouteID) throws -> ModelRoute {
-        guard let route = try store.routes().first(where: { $0.id == id }) else { throw MiraError(.configuration, "Configure and select a model route first.") }
-        try route.validateForSending(); return route
+    private func resolveRoute(_ id: RouteID?, conversationID: ConversationID) throws -> ResolvedModelRouteSnapshot {
+        guard let conversation = try store.conversations(includeArchived: true).first(where: { $0.id == conversationID }), !conversation.isArchived else {
+            throw MiraError(.notFound, "Conversation is no longer available.")
+        }
+        let workspace = try conversation.workspaceID.flatMap { workspaceID in try store.workspaces().first { $0.id == workspaceID } }
+        return try store.modelConfiguration().resolve(purpose: .conversation, explicitRouteID: id, conversation: conversation, workspace: workspace)
     }
     private func launch(_ execution: Execution) {
         active[execution.id] = execution; text[execution.id] = ""; usage[execution.id] = .init(); checkpointBytes[execution.id] = 0
@@ -312,12 +360,14 @@ public actor MiraApplication {
 
     private func validateDispatch(_ execution: Execution) throws {
         try Task.checkCancellation()
-        guard try resolveRoute(execution.route.id) == execution.route else { throw MiraError(.connectionChanged, "Model configuration changed. Send the request again.") }
+        let configuration = try store.modelConfiguration()
+        guard let current = try? configuration.snapshot(routeID: execution.route.id, purpose: execution.route.purpose, selection: execution.route.selectionSource), current == execution.route else { throw MiraError(.connectionChanged, "Model configuration changed. Send the request again.") }
         guard let conversation = try store.conversations(includeArchived: true).first(where: { $0.id == execution.conversationID }), !conversation.isArchived else {
             throw MiraError(.notFound, "Conversation is no longer available.")
         }
         if let workspaceID = conversation.workspaceID {
-            guard let workspace = try store.workspaces().first(where: { $0.id == workspaceID }), workspace.allowsRemoteSend else {
+            guard let workspace = try store.workspaces().first(where: { $0.id == workspaceID }), workspace.allowsRemoteSend,
+                  workspace.allowedConnectionIDs.map({ $0.contains(execution.route.connectionID) }) ?? true else {
                 throw MiraError(.unauthorized, "This workspace no longer allows sending; execution stopped.")
             }
         }

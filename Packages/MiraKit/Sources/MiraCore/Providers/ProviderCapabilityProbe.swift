@@ -23,7 +23,7 @@ public struct ProviderCapabilityProbe: Sendable {
         self.provider = provider; self.timeout = timeout; self.environment = environment
     }
 
-    public func run(route: ModelRoute, kind: CapabilityProbeKind) async -> ProbeObservation {
+    public func run(route: ResolvedModelRouteSnapshot, kind: CapabilityProbeKind) async -> ProbeObservation {
         let checkedAt = environment.now()
         do {
             try Task.checkCancellation()
@@ -53,7 +53,7 @@ public struct ProviderCapabilityProbe: Sendable {
         }
     }
 
-    private func makeRequest(route: ModelRoute, kind: CapabilityProbeKind) -> CanonicalModelRequest {
+    private func makeRequest(route: ResolvedModelRouteSnapshot, kind: CapabilityProbeKind) -> CanonicalModelRequest {
         let tool: ToolDefinition? = kind == .tools ? .init(
             name: "probe.echo", description: "Synthetic capability probe. Do not execute.",
             inputSchema: .object(["type": .string("object"), "properties": .object(["value": .object(["type": .string("string"), "enum": .array([.string("MIRA_PROBE")]), "maxLength": .number(10)])]), "required": .array([.string("value")]), "additionalProperties": .bool(false)])
@@ -66,7 +66,7 @@ public struct ProviderCapabilityProbe: Sendable {
         )
     }
 
-    private func collect(request: CanonicalModelRequest, route: ModelRoute) async throws -> [CanonicalStreamEvent] {
+    private func collect(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) async throws -> [CanonicalStreamEvent] {
         let probeClock = environment.clock
         let probeTimeout = timeout
         return try await withThrowingTaskGroup(of: [CanonicalStreamEvent].self) { group in

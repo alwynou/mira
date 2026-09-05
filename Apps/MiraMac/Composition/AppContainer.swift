@@ -51,7 +51,7 @@ final class AppContainer {
             application = try MiraApplication(store: store, provider: provider)
             startupError = nil
             if !isDemo {
-                do { maintenanceMessage = try credentialCleanup.reconcile(retaining: store.routes(), credentials: credentials) }
+                do { maintenanceMessage = try credentialCleanup.reconcile(retaining: store.modelConfiguration().connections, credentials: credentials) }
                 catch { maintenanceMessage = MiraError.safe(error).message }
             }
         } catch {
@@ -59,38 +59,32 @@ final class AppContainer {
         }
     }
 
-    func probe(_ route: ModelRoute, kind: CapabilityProbeKind) async -> ProbeObservation {
+    func probe(_ route: ResolvedModelRouteSnapshot, kind: CapabilityProbeKind) async -> ProbeObservation {
         await ProviderCapabilityProbe(provider: provider).run(route: route, kind: kind)
     }
 
-    func saveProbe(_ observation: ProbeObservation, for route: ModelRoute) async throws {
-        try Task.checkCancellation()
-        guard observation.state == .verified || observation.state == .failed else { return }
-        guard let application else { return }
-        let current = try await application.library(includeArchived: true).routes.first { $0.id == route.id }
-        guard let current, current == route else {
-            throw MiraError(.conflict, "The connection changed. Test results did not overwrite the new configuration.")
-        }
-        var updated = current
-        if observation.type == .text { updated.textCapability = observation.state }
-        else { updated.toolCapability = observation.state }
-        updated.probeObservation = observation
-        updated.revision += 1
-        try Task.checkCancellation()
-        try await application.saveRoute(updated, expectedRevision: current.revision)
+    func saveProbe(_ observation: ProbeObservation, for route: ResolvedModelRouteSnapshot) async throws {
+        guard let application else { throw MiraError(.storage, "The library is not open.") }
+        try await application.saveProbe(observation, for: route)
     }
 
     func seedDemo() async throws {
         guard isDemo, !didSeedDemo, let application else { return }
         didSeedDemo = true
         let library = try await application.library()
-        if library.routes.isEmpty {
-            try await application.saveRoute(.init(name: "Local Demo", providerKind: .openAICompatible, baseURL: "https://demo.invalid/v1", modelID: "mira-demo", credentialReference: "demo", contextWindow: 32_768), expectedRevision: nil)
+        if library.configuration.connections.isEmpty {
+            let connection = ProviderConnection(name: "Local Demo", providerKind: .openAICompatible, baseURL: "https://demo.invalid/v1", credentialReference: "demo")
+            let model = ModelDescriptor(connectionID: connection.id, modelID: "mira-demo", contextWindow: 32_768, textCapability: .declared)
+            let route = ModelRoute(name: "Local Demo", modelDescriptorID: model.id)
+            try await application.saveConnection(connection, expectedRevision: nil)
+            try await application.saveModel(model, expectedRevision: nil)
+            try await application.saveRoute(route, expectedRevision: nil)
+            try await application.saveRouteBinding(.init(scope: .global, purpose: .conversation, routeID: route.id), expectedRevision: nil)
         }
     }
 
     /// Installs a new immutable credential version first; rolls it back if the DB commit fails.
-    func saveRoute(_ route: ModelRoute, previous: ModelRoute?, secret: String) async throws {
+    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String) async throws {
         guard let application else { throw MiraError(.storage, "The library is not open.") }
         var updated = route
         let replacement = !secret.isEmpty
@@ -102,7 +96,7 @@ final class AppContainer {
             do { try credentials.save(secret, reference: updated.credentialReference, version: updated.credentialVersion) }
             catch { await retryCredentialCleanup(); throw error }
         } else if previous == nil { throw MiraError(.credentialMissing, "A new connection requires an API key.") }
-        do { try await application.saveRoute(updated, expectedRevision: previous?.revision) }
+        do { try await application.saveConnection(updated, expectedRevision: previous?.revision) }
         catch {
             if replacement { await retryCredentialCleanup() }
             throw error
@@ -110,10 +104,10 @@ final class AppContainer {
         if replacement { await retryCredentialCleanup() }
     }
 
-    func removeRoute(_ route: ModelRoute) async throws {
-        guard let application else { return }
+    func removeConnection(_ route: ProviderConnection) async throws {
+        guard let application else { throw MiraError(.storage, "The library is not open.") }
         try credentialCleanup.enqueue([route])
-        do { try await application.removeRoute(route.id) }
+        do { try await application.removeConnection(route.id) }
         catch { await retryCredentialCleanup(); throw error }
         await retryCredentialCleanup()
     }
@@ -121,7 +115,7 @@ final class AppContainer {
     func retryCredentialCleanup() async {
         guard let application, !isDemo else { return }
         do {
-            let routes = try await application.library().routes
+            let routes = try await application.library().configuration.connections
             maintenanceMessage = try credentialCleanup.reconcile(retaining: routes, credentials: credentials)
         } catch { maintenanceMessage = MiraError.safe(error).message }
     }
@@ -130,7 +124,7 @@ final class AppContainer {
 #if DEBUG
 /// Explicit --demo only, with a separate temporary library. Never a network failure fallback.
 private struct DemoProvider: ModelProviderPort {
-    func stream(request: CanonicalModelRequest, route: ModelRoute) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
+    func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
