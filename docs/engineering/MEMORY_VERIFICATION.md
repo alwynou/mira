@@ -24,7 +24,7 @@ Parent independently ran 142 package tests across 18 suites successfully (`mira-
 
 The earlier failed runs exposed real issues in memory hash updates, duplicated replacement payloads, Date serialization comparisons, and transitive cleanup. Those failures were fixed and the complete package suite was rerun. Parent review also added source workspace policy inheritance, exact citation provenance, and separate corruption cases for each audit child. Parsing alone was not treated as verification of delegated work.
 
-The final implementation commit and its CI run are recorded after pushing `dev`.
+Implementation commit `673e5458c3edf2ee53b463e7547461ec8a974cfc` passed [GitHub Actions 33970160801](https://github.com/alwynou/mira/actions/runs/33970160801) on macos-15 / Xcode 26.3. The exact run completed successfully, including package tests, app/host tests, language policy, and compiler-extracted UI coverage.
 
 ## Native interaction evidence
 
