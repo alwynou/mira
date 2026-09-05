@@ -22,10 +22,10 @@
 | 检查 | 结果 / 证据 |
 |---|---|
 | Swift Package 全套测试 | 父代理独立执行，39 个测试 / 3 个 Suite 全部通过；包含参数化 HTTP 状态场景 |
-| macOS Debug 构建 | `xcodebuild ... -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build` 通过 |
+| macOS Debug / Release 构建 | 两个配置均通过 `xcodebuild ... -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build`；版本 0.1.0，最低系统 15.0 |
 | 实际 App 链接的 SQLite | 设置 → 数据显示 SQLite 3.51.0，FTS5 与 Trigram 均可用 |
 | 本机 UI 演示 | 隔离目录运行；已验证真实增量显示、停止 / 部分回复、重试入口、退出重开后的列表、工作空间创建与发送阻断、请求详情、设置与诊断；未调用付费接口 |
-| GitHub Actions | 已配置 macos-15 / Xcode 16.4；运行结果在推送后核对 |
+| GitHub Actions | 实现提交 `60ed016` 在 macos-15 / Xcode 16.4 上测试与应用构建均通过：[运行 33955793659](https://github.com/alwynou/mira/actions/runs/33955793659)，耗时 1 分 34 秒 |
 
 测试重点包括：拆分 UTF-8 / SSE、半途断流、终止标记与 EOF 区别、输出上限、累计 / 缺失用量、安全错误、重定向拒绝、单个请求取消不影响相同输入的另一个请求、队列溢出明确失败；原子回滚、两连接竞争、最后失败回合重试、唯一终态、恢复幂等、迁移失败保护、备份结构和原文件保护；当前输入只出现一次、仅成功替代回复进入历史、Workspace 内容隔离、保存失败保留内存结果并可重试。
 
