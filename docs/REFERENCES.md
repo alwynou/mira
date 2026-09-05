@@ -45,4 +45,10 @@
 
 2026-09-05 读取到：macOS 26.6.2、arm64、Xcode 26.6、Swift 6.3.3。系统 sqlite3 CLI 报告 SQLite 3.51.0；内存 FTS5 trigram 表中，“长期记”匹配合成文本，“记忆”不匹配。
 
-这些结果只证明当前机器和 CLI 的行为。尚未创建 Mira 工程，不能证明未来 App 链接的 SQLite、macOS 15、Intel 或任何真实 Provider 的行为。对应检查已列入 MVP / 质量门槛。
+随后在本机创建并运行 Mira，应用“设置 → 数据”的独立内存探测同样报告 SQLite 3.51.0，FTS5 与 Trigram 均可用。这证明当前 App 在这台机器上的链接行为；不能据此宣称 macOS 15 UI、Intel 或真实 Provider 已验证。证据和后续范围见 [实施记录](engineering/IMPLEMENTATION_STATUS.md)。
+
+## 5. 接口实现依据
+
+- [OpenAI Chat Completions API](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)：文本流、finish_reason、可选 include_usage 与末尾用量事件；当前兼容 Adapter 保留未提供用量的未知状态。
+- [Anthropic Streaming Messages](https://platform.claude.com/docs/en/build-with-claude/streaming)：message / content block 事件、累计用量与 message_stop；当前 Adapter 将不完整流与正常结束区别处理。
+- [GitHub macOS 15 镜像](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md)：CI 固定 Xcode 16.4 路径；运行证据单独记录。

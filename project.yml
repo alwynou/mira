@@ -1,0 +1,58 @@
+name: Mira
+options:
+  minimumXcodeGenVersion: 2.44.0
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_APP_SANDBOX: NO
+packages:
+  MiraKit:
+    path: Packages/MiraKit
+targets:
+  Mira:
+    type: application
+    platform: macOS
+    sources:
+      - Apps/MiraMac
+    info:
+      path: Apps/MiraMac/App/Info.plist
+      properties:
+        CFBundleDisplayName: Mira
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        LSMultipleInstancesProhibited: true
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: "Copyright © 2026 Mira contributors"
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira
+        PRODUCT_NAME: Mira
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+    dependencies:
+      - package: MiraKit
+        product: MiraCore
+      - package: MiraKit
+        product: MiraData
+      - package: MiraKit
+        product: MiraProviders
+schemes:
+  Mira:
+    build:
+      targets:
+        Mira: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -2,7 +2,7 @@
 
 **文档版本：** v1.2  
 **更新日期：** 2026-09-05  
-**状态：** 开发前规范基线；实现与验收尚未执行。
+**状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
 
 定义 Memory、Project Context、Working Memory、Knowledge 与 Artifact 的用户语义、反馈和纠正体验；技术模型由对应 architecture 文档负责。
 

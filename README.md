@@ -4,7 +4,32 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 当前处于开发前文档阶段，工作分支为 `dev`。产品与架构基线已修订，MVP 已拆分；尚未创建应用工程或实现功能。
+> 工作分支为 `dev`。工程基础与首批可恢复文本对话已实现，完整 v0.1 MVP 仍在开发。当前支持连接设置、Workspace / Inbox、流式对话、取消 / 重试、草稿恢复与基础备份；记忆、文件检索与工具循环尚未实现。实际验证范围见 [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md)。
+
+## 构建与运行
+
+安装 Xcode 16.4 或更高版本，使用 Swift 6 语言模式，目标 macOS 15+。本机已验证 Xcode 26.6 / Apple Silicon；CI 固定 Xcode 16.4。
+
+```sh
+swift test --package-path Packages/MiraKit
+xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
+  -destination 'platform=macOS' -derivedDataPath .build/xcode \
+  CODE_SIGNING_ALLOWED=NO build
+open .build/xcode/Build/Products/Debug/Mira.app
+```
+
+也可打开 `Mira.xcodeproj`，选择共享 Scheme `Mira` 运行。工程已提交；修改 `project.yml` 或文件组织后，使用 XcodeGen 2.46.0 执行 `xcodegen generate`。
+
+首次启动在设置中添加 OpenAI Chat Completions 兼容连接或 Anthropic Messages 连接，填写 Model ID、API Key、上下文窗口与输出上限。未知窗口可以保存，但发送前须补齐；保存配置不会自动调用模型。API Key 仅保存在本机 Keychain。
+
+无密钥演示仅在 Debug 构建中显式启用，使用隔离目录，不发送网络请求：
+
+```sh
+open .build/xcode/Build/Products/Debug/Mira.app --args \
+  --demo --data-directory /tmp/mira-demo
+```
+
+切换运行模式或资料库前先退出当前 Mira。快捷键：`⌘ N` 新对话、`⌘ Return` 发送、`⌘ .` 停止、`⌘ ,` 设置。数据路径、恢复步骤和已知限制见 [开发约定](docs/engineering/DEVELOPMENT.md)。
 
 ## 核心方向
 
@@ -24,6 +49,7 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 | [开发约定](docs/engineering/DEVELOPMENT.md) | 平台、工具链、工程结构、直接分发与协作方式 |
 | [质量标准](docs/engineering/QUALITY.md) | Fixture、记忆评估、性能与发布门槛 |
 | [开发前评审](docs/reviews/2026-09-05-DOCUMENT_REVIEW.md) | 发现的问题、修正位置、已确认决策与待验证证据 |
+| [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md) | 已实现的增量、实际检查、剩余验收项 |
 | [参考资料](docs/REFERENCES.md) | 外部借鉴边界与官方依据 |
 
 详细规则按职责维护，同一状态机、字段表或验收阈值只在一个文件中完整定义。
@@ -41,7 +67,7 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 
 ## 技术基线
 
-规划中的 `MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例、Runtime、Context 和知识逻辑；`MiraData` 实现 GRDB / SQLite、FTS5 与 Blob 存储；`MiraProviders` 适配模型协议。
+`MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例与对话运行时；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。知识逻辑、检索与 Blob 存储按后续里程碑加入。
 
 Core 定义接口，外层实现适配。UI 不直接访问数据库或调用 Provider，Core 不依赖 Apple UI 或 GRDB 实现。Mira 不建设自有业务后端。
 
@@ -49,7 +75,17 @@ Core 定义接口，外层实现适配。UI 不直接访问数据库或调用 Pr
 
 ```text
 mira/
+├── AGENTS.md
 ├── README.md
+├── project.yml
+├── Mira.xcodeproj/
+├── Apps/MiraMac/
+├── Packages/MiraKit/
+│   ├── Package.swift
+│   ├── Package.resolved
+│   ├── Sources/{MiraCore,MiraData,MiraProviders}/
+│   └── Tests/
+├── .github/workflows/ci.yml
 └── docs/
     ├── PRD.md
     ├── ARCHITECTURE.md
@@ -61,4 +97,4 @@ mira/
     └── reviews/
 ```
 
-应用工程、准确的构建 / 测试命令和执行证据在 M0 开始后补充。当前文档中的设计目标与质量门槛不代表已经实现或验证。
+架构文档包含后续目标，具体完成情况以实施记录为准。当前构建用于本机开发验证，尚未制作签名、公证的下载发行包。

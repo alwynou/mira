@@ -1,0 +1,44 @@
+import Foundation
+
+public struct StorageDiagnostics: Sendable, Equatable {
+    public var sqliteVersion: String
+    public var supportsFTS5: Bool
+    public var supportsTrigram: Bool
+    public init(sqliteVersion: String, supportsFTS5: Bool, supportsTrigram: Bool) {
+        self.sqliteVersion = sqliteVersion; self.supportsFTS5 = supportsFTS5; self.supportsTrigram = supportsTrigram
+    }
+}
+
+/// Synchronous bounded transactions, called from the application actor, never directly from views.
+public protocol MiraStore: Sendable {
+    func workspaces() throws -> [Workspace]
+    func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws
+    func conversations(includeArchived: Bool) throws -> [Conversation]
+    func createConversation(_ conversation: Conversation) throws
+    func archiveConversation(_ id: ConversationID, at: Date) throws
+    func messages(in conversationID: ConversationID) throws -> [Message]
+    func executions(in conversationID: ConversationID) throws -> [Execution]
+    func draft(for executionID: ExecutionID) throws -> Draft?
+    func routes() throws -> [ModelRoute]
+    func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws
+    func removeRoute(_ id: RouteID) throws
+
+    /// Atomically inserts the user message, advances sequence, and queues the execution.
+    func enqueue(conversationID: ConversationID, text: String, route: ModelRoute, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution
+    /// Only retries the latest terminal failed/cancelled/interrupted execution with no later user message. Reuses its trigger.
+    func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ModelRoute, at: Date) throws -> Execution
+    /// Atomically stores the exact canonical request and transitions queued -> waitingForModel.
+    func prepare(executionID: ExecutionID, request: CanonicalModelRequest, at: Date) throws
+    func request(for executionID: ExecutionID) throws -> CanonicalModelRequest?
+    func checkpoint(executionID: ExecutionID, text: String, at: Date) throws
+    /// CAS terminal transition. Returns false for an already-terminal execution. Inserts at most one assistant message; clears its draft.
+    @discardableResult
+    func finish(executionID: ExecutionID, status: ExecutionStatus, text: String, usage: TokenUsage, error: MiraError?, assistantMessageID: MessageID, at: Date) throws -> Bool
+    /// Marks unfinished executions interrupted and materializes their last durable draft. Never sends requests.
+    func recoverInterrupted(at: Date) throws
+    func diagnostics() throws -> StorageDiagnostics
+    /// SQLite backup API, destination must not exist. Credentials are outside this store.
+    func exportBackup(to destination: URL) throws
+    /// Validate and restore into an unused directory; never replace the live database.
+    func restoreBackup(from source: URL, to directory: URL) throws
+}
