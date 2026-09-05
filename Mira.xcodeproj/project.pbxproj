@@ -174,13 +174,6 @@
 			path = Configuration;
 			sourceTree = "<group>";
 		};
-		5F5F41A9D2FB7C42C959C5FC /* Tests */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Tests;
-			sourceTree = "<group>";
-		};
 		6230C913AFF464F0EBF0D085 /* Localization */ = {
 			isa = PBXGroup;
 			children = (
@@ -324,7 +317,6 @@
 				5497436E381E7DCB70B9E69F /* Platform */,
 				55B8FDFC54C421B37A503CBC /* Presentation */,
 				E8B026806F9DCB3832255C13 /* Resources */,
-				5F5F41A9D2FB7C42C959C5FC /* Tests */,
 			);
 			path = MiraMac;
 			sourceTree = "<group>";
