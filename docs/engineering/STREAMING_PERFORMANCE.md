@@ -16,6 +16,7 @@ Follow intent is separate from geometry: user scrolling or a source jump pauses 
 
 - `swift test --package-path Packages/MiraKit --disable-automatic-resolution`: 306 tests in 34 suites passed (the existing opt-in scale gate remains skipped).
 - Debug app build and `MiraHostTests`: passed, including 5 XCTest localization cases and 26 Swift Testing cases. New cases cover cumulative Unicode/empty snapshots, timer invalidation after authoritative clears, thinking-only output, execution isolation, scroll intent, repeated paragraph proposals, width/content changes, and empty/Unicode layout.
+- GitHub CI passed on implementation commit `16eb28fb742581832cd166fc6e3d61d233bc9835`: [Swift checks run](https://github.com/alwynou/mira/actions/runs/34019446699), including package tests, catalog generator tests, app/host tests, and extracted UI coverage on the macOS 15 runner with Xcode 26.3.
 - Language policy and compiler-extracted string checks: 1,130 bilingual catalog entries passed.
 - Native local provider fixture: 19,866-byte response with 24 sections, code blocks, tables, nested lists, quotes, and a separate visible thinking trace. Verified growing output at the bottom, typing into the composer during generation, explicit jump to latest, repeated rapid up/down scrolling, thinking expansion, reopening saved replies, cancellation, and retry. The cancelled reply was marked incomplete, its partial text remained visible, and the unsent composer draft was retained.
 - The fixture also reached the existing explicit context-budget error after repeated large replies; it did not call a network provider or silently compact history.
@@ -24,6 +25,6 @@ Follow intent is separate from geometry: user scrolling or a source jump pauses 
 
 ## Limits
 
-Native verification used macOS 26.6.2, not a macOS 15 runtime. Paid model endpoints were not exercised. Automated timing/frame-hitch budgets, hundreds of retained messages, and multi-megabyte Markdown still need separate scale profiling. The stable eager transcript trades lazy row eviction for retained views; do not claim unbounded history performance. The exact reported interaction should also be checked with the user's normal trackpad usage.
+Interactive native verification used macOS 26.6.2. macOS 15 coverage is CI hostless testing, not a manual scrolling session. Paid model endpoints were not exercised. Automated timing/frame-hitch budgets, hundreds of retained messages, and multi-megabyte Markdown still need separate scale profiling. The stable eager transcript trades lazy row eviction for retained views; do not claim unbounded history performance. The exact reported interaction should also be checked with the user's normal trackpad usage.
 
 Reproduction and launch flags are in [Development](DEVELOPMENT.md). User-visible behavior belongs to [Workspace and conversation](../product/WORKSPACE_AND_CONVERSATION.md).
