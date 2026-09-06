@@ -6,13 +6,14 @@ struct MemoryCitationList: View {
     let executionID: ExecutionID
     let conversationID: ConversationID
     let application: MiraApplication
+    var memoryNotices: [MemoryContextNotice] = []
     let onOpenConversation: (ConversationID) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(references) { reference in
                 MemoryCitationButton(reference: reference, executionID: executionID, conversationID: conversationID,
-                                     application: application, onOpenConversation: onOpenConversation)
+                                     application: application, memoryNotices: memoryNotices, onOpenConversation: onOpenConversation)
             }
         }
     }
@@ -24,12 +25,13 @@ struct MemoryCitationButton: View {
     let executionID: ExecutionID
     let conversationID: ConversationID
     let application: MiraApplication
+    var memoryNotices: [MemoryContextNotice] = []
     let onOpenConversation: (ConversationID) -> Void
     @State private var available = false
     @State private var isLoading = true
     @State private var showingDetail = false
 
-    private var identity: String { "\(conversationID.rawValue):\(executionID.rawValue):\(reference.id)" }
+    private var identity: String { "\(conversationID.rawValue):\(executionID.rawValue):\(reference.id):\(memoryNotices.map(\.id).joined(separator: ","))" }
 
     var body: some View {
         Button {

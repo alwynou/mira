@@ -19144,6 +19144,295 @@
           }
         }
       }
+    },
+    "Execution %@: related memory changed or is unavailable; the historical reply is excluded from model context.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Execution %@: related memory changed or is unavailable; the historical reply is excluded from model context."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行 %@：关联记忆已变更或不可用；历史回复已从模型上下文中排除。"
+          }
+        }
+      }
+    },
+    "Expired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已过期"
+          }
+        }
+      }
+    },
+    "Historical reply retained. The related memory has changed or is unavailable, so this reply is excluded from future model context.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Historical reply retained. The related memory has changed or is unavailable, so this reply is excluded from future model context."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史回复已保留。关联记忆已变更或不可用，因此该回复不再用于后续模型上下文。"
+          }
+        }
+      }
+    },
+    "Not yet valid": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not yet valid"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未生效"
+          }
+        }
+      }
+    },
+    "Related memory archived": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory archived"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆已归档"
+          }
+        }
+      }
+    },
+    "Related memory expired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory expired"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆已过期"
+          }
+        }
+      }
+    },
+    "Related memory forgotten": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory forgotten"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆已遗忘"
+          }
+        }
+      }
+    },
+    "Related memory not yet valid": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory not yet valid"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆尚未生效"
+          }
+        }
+      }
+    },
+    "Related memory pending review": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory pending review"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆待审核"
+          }
+        }
+      }
+    },
+    "Related memory rejected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory rejected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆已拒绝"
+          }
+        }
+      }
+    },
+    "Related memory removed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory removed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆已移除"
+          }
+        }
+      }
+    },
+    "Related memory superseded": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory superseded"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆已被替代"
+          }
+        }
+      }
+    },
+    "Related memory unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆不可用"
+          }
+        }
+      }
+    },
+    "Related memory updated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related memory updated"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆已更新"
+          }
+        }
+      }
+    },
+    "Superseded": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Superseded"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已被替代"
+          }
+        }
+      }
+    },
+    "The memory content and revisions will be cleared, and Mira will stop recalling it. Historical messages and replies remain visible in conversation history with a forgotten-memory status tag.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory content and revisions will be cleared, and Mira will stop recalling it. Historical messages and replies remain visible in conversation history with a forgotten-memory status tag."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆内容及其修订版本将被清除，Mira 将停止召回该记忆。历史消息和回复仍会在对话历史中显示，并带有“关联记忆已遗忘”状态标签。"
+          }
+        }
+      }
+    },
+    "The memory history execution is unavailable.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The memory history execution is unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关联记忆的历史执行不可用。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

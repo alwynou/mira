@@ -109,14 +109,18 @@ private struct MemoryListRow: View {
     let memory: Memory
     let workspaces: [Workspace]
 
+    private var lifecycleStatus: MemoryLifecycleStatus {
+        memory.lifecycleStatus(at: .now)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 memoryContentView(memory).font(.headline).lineLimit(3)
                 Spacer(minLength: 8)
-                Text(L10n.string(memoryStateKey(memory.state), locale: locale))
+                Text(L10n.string(memoryLifecycleStatusKey(lifecycleStatus), locale: locale))
                     .font(.caption)
-                    .foregroundStyle(memory.state == .active ? .green : .secondary)
+                    .foregroundStyle(lifecycleStatus == .active ? .green : .secondary)
             }
             HStack(spacing: 8) {
                 Text(L10n.string(memoryKindKey(memory.draft?.kind ?? .context), locale: locale))
@@ -133,7 +137,7 @@ private struct MemoryListRow: View {
     }
 
     private var accessibilitySummary: String {
-        [memory.draft?.content ?? L10n.string("Memory body unavailable", locale: locale), L10n.string(memoryStateKey(memory.state), locale: locale), L10n.string(memoryKindKey(memory.draft?.kind ?? .context), locale: locale)].joined(separator: ", ")
+        [memory.draft?.content ?? L10n.string("Memory body unavailable", locale: locale), L10n.string(memoryLifecycleStatusKey(lifecycleStatus), locale: locale), L10n.string(memoryKindKey(memory.draft?.kind ?? .context), locale: locale)].joined(separator: ", ")
     }
     @ViewBuilder private func memoryContentView(_ memory: Memory) -> some View {
         if let content = memory.draft?.content { Text(verbatim: content) }
@@ -149,8 +153,18 @@ private struct MemoryListRow: View {
     }
 }
 
-private func memoryStateKey(_ state: MemoryState) -> String {
-    switch state { case .active: "Active"; case .candidate: "Needs review"; case .archived: "Archived"; case .rejected: "Rejected"; case .removed: "Removed" }
+private func memoryLifecycleStatusKey(_ status: MemoryLifecycleStatus) -> String {
+    switch status {
+    case .active: "Active"
+    case .candidate: "Needs review"
+    case .archived: "Archived"
+    case .rejected: "Rejected"
+    case .removed: "Removed"
+    case .forgotten: "Forgotten"
+    case .superseded: "Superseded"
+    case .expired: "Expired"
+    case .notYetValid: "Not yet valid"
+    }
 }
 private func memoryKindKey(_ kind: MemoryKind) -> String {
     switch kind { case .fact: "Fact"; case .preference: "Preference"; case .decision: "Decision"; case .goal: "Goal"; case .constraint: "Constraint"; case .procedure: "Procedure"; case .learning: "Learning"; case .context: "Context" }

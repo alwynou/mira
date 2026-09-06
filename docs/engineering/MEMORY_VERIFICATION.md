@@ -1,5 +1,7 @@
 # Manual memory verification
 
+Historical evidence: the memory-forgetting behavior described below is superseded by [natural memory and retained-history verification](NATURAL_MEMORY_VERIFICATION.md). Current memory forgetting preserves committed visible replies with status tags and excludes them from future model context; source deletion remains a separate contract.
+
 Date: 2026-09-05. Branch: `dev`. Status: deterministic package and build checks passed; remaining native checks are deferred after an automation service failure. This is not a full M3 or release acceptance.
 
 ## Implemented boundary

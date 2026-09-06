@@ -11,6 +11,7 @@ public struct RequestContextInfo: Codable, Sendable, Equatable {
     public struct Omission: Codable, Sendable, Equatable, Identifiable {
         public enum Reason: String, Codable, Sendable, Equatable {
             case unsuccessfulReply
+            case memoryContextInvalidated
         }
 
         public var executionID: ExecutionID

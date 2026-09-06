@@ -398,7 +398,7 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                 guard let status = ExecutionStatus(rawValue: execution["status"] as String), !status.isTerminal, (execution["body_purged_at"] as Double?) == nil else {
                     throw MiraError(.conflict, "The execution body has been purged or the execution has already finished.")
                 }
-                let memoryContext = try prepareMemoryContext(request, executionID: attempt.executionID, in: db)
+                let memoryContext = try prepareMemoryContext(request, executionID: attempt.executionID, at: attempt.createdAt, in: db)
                 try validateExecutionMemoryContext(attempt.executionID, usages: memoryContext.usages, usageKinds: memoryContext.kinds, at: attempt.createdAt, in: db)
                 for kind in [MemoryUsageKind.recall, .capture] {
                     try persistMemoryUsages(memoryContext.usages.filter { memoryContext.kinds[$0.memoryID] == kind }, executionID: attempt.executionID, at: attempt.createdAt, kind: kind, in: db)
@@ -1299,7 +1299,7 @@ extension SQLiteMiraStore {
         return result
     }
 
-    fileprivate func prepareMemoryContext(_ request: CanonicalModelRequest, executionID: ExecutionID, in db: Database) throws -> PreparedMemoryContext {
+    fileprivate func prepareMemoryContext(_ request: CanonicalModelRequest, executionID: ExecutionID, at: Date, in db: Database) throws -> PreparedMemoryContext {
         var kinds: [MemoryID: MemoryUsageKind] = [:]
         var usages: [MemoryUsage] = []
         for usage in try Self.memoryUsages(in: request) {
@@ -1313,21 +1313,27 @@ extension SQLiteMiraStore {
         var sourceExecutions: Set<ExecutionID> = []
         for reference in historyReferences {
             guard let messageUUID = UUID(uuidString: reference.id),
-                  let message = try Row.fetchOne(db, sql: "SELECT conversation_id, execution_id, sequence, body_purged_at FROM messages WHERE id = ?", arguments: [reference.id.lowercased()]),
+                  let message = try Row.fetchOne(db, sql: "SELECT conversation_id, execution_id, role, sequence, body_purged_at FROM messages WHERE id = ?", arguments: [reference.id.lowercased()]),
                   (message["conversation_id"] as String) == id(conversationID),
                   (message["sequence"] as Int) < triggerSequence,
                   (message["body_purged_at"] as Double?) == nil else { throw MiraError(.storage, "The history message reference is invalid.") }
             _ = messageUUID
-            if let sourceExecutionValue = message["execution_id"] as String? {
+            if (message["role"] as String) == "assistant", let sourceExecutionValue = message["execution_id"] as String? {
                 guard let sourceID = try? executionIDValue(sourceExecutionValue) else { throw MiraError(.storage, "The history message execution reference is invalid.") }
                 sourceExecutions.insert(sourceID)
             }
-            let triggered = try String.fetchAll(db, sql: "SELECT id FROM executions WHERE trigger_message_id = ?", arguments: [reference.id.lowercased()]).map { try executionIDValue($0) }
+            // A retry shares its user message with failed attempts. Only the
+            // successful reply contributes history; unrelated failed attempts
+            // must not import their invalidated memory into that dependency.
+            let triggered = try String.fetchAll(db, sql: "SELECT id FROM executions WHERE trigger_message_id = ? AND status = 'completed'", arguments: [reference.id.lowercased()]).map { try executionIDValue($0) }
             sourceExecutions.formUnion(triggered)
         }
+        let invalidated = sourceExecutions.isEmpty ? [:] : try memoryContextNotices(in: conversationID, at: at, db: db)
         for sourceExecutionID in sourceExecutions {
             guard sourceExecutionID != executionID,
-                  let source = try Row.fetchOne(db, sql: "SELECT conversation_id, trigger_message_id FROM executions WHERE id = ?", arguments: [id(sourceExecutionID)]),
+                  invalidated[sourceExecutionID] == nil,
+                  let source = try Row.fetchOne(db, sql: "SELECT conversation_id, trigger_message_id, body_purged_at FROM executions WHERE id = ?", arguments: [id(sourceExecutionID)]),
+                  (source["body_purged_at"] as Double?) == nil,
                   (source["conversation_id"] as String) == id(conversationID),
                   let sourceSequence = try Int.fetchOne(db, sql: "SELECT sequence FROM messages WHERE id = ? AND conversation_id = ?", arguments: [source["trigger_message_id"] as String, id(conversationID)]),
                   sourceSequence < triggerSequence else { throw MiraError(.storage, "The history execution dependency is invalid.") }
@@ -1439,7 +1445,6 @@ extension SQLiteMiraStore {
               try Int.fetchOne(db, sql: "SELECT 1 FROM model_attempts ma JOIN executions e ON e.id = ma.execution_id WHERE (e.body_purged_at IS NOT NULL AND ma.body_purged_at IS NULL) OR (ma.body_purged_at IS NOT NULL AND e.body_purged_at IS NULL) LIMIT 1") == nil,
               try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations ti JOIN executions e ON e.id = ti.execution_id LEFT JOIN model_attempts ma ON ma.id = ti.attempt_id WHERE (e.body_purged_at IS NOT NULL AND ti.body_purged_at IS NULL) OR (ma.body_purged_at IS NOT NULL AND ti.body_purged_at IS NULL) OR (ti.body_purged_at IS NOT NULL AND (ti.arguments_json IS NOT NULL OR ti.result_json IS NOT NULL)) LIMIT 1") == nil,
               try Int.fetchOne(db, sql: "SELECT 1 FROM execution_steps s JOIN executions e ON e.id = s.execution_id WHERE e.body_purged_at IS NOT NULL AND s.body_purged_at IS NULL LIMIT 1") == nil,
-              try Int.fetchOne(db, sql: "SELECT 1 FROM messages m JOIN executions e ON e.id = m.execution_id WHERE e.body_purged_at IS NOT NULL AND m.role = 'assistant' AND (m.body_purged_at IS NULL OR m.text != '' OR m.trace_json != '[]') LIMIT 1") == nil,
               try Int.fetchOne(db, sql: "SELECT 1 FROM assistant_drafts d JOIN executions e ON e.id = d.execution_id WHERE e.body_purged_at IS NOT NULL AND (d.body_purged_at IS NULL OR d.text != '' OR d.trace_json != '[]') LIMIT 1") == nil,
               try Int.fetchOne(db, sql: "SELECT 1 FROM tool_invocations WHERE provider_call_id = '' OR tool_name = '' OR model_order < 0 LIMIT 1") == nil,
               try Int.fetchOne(db, sql: "SELECT 1 FROM messages WHERE body_purged_at IS NOT NULL AND (text != '' OR trace_json != '[]') LIMIT 1") == nil,

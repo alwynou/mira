@@ -13,7 +13,7 @@ public struct MemoryRememberTool: ToolPort {
         .init(
             definition: .init(
                 name: "memory.remember",
-                description: "Save an explicitly authorized user memory. Provide the exact quoted text from the current user message; content is untrusted until the user approves it. Tool-created memories are local-only by default.",
+                description: "Save an explicitly authorized user memory. Provide the exact quoted text from the current user message; content is untrusted until the user approves it. Tool-created memories are local-only by default. After success, acknowledge the receipt's committed allows_remote_use policy exactly: for local-only memories, say they are saved locally and never promise that future model requests will recall or use them; for remote-allowed memories, say remote use is allowed. A reused memory keeps its existing committed policy.",
                 inputSchema: .object([
                     "type": .string("object"),
                     "properties": .object([
@@ -72,12 +72,19 @@ public struct MemoryRememberTool: ToolPort {
         try Task.checkCancellation()
         let receipt = try store.rememberMemory(draft: parsed.draft, quote: parsed.quote, invocationID: context.invocationID, at: Date())
         try Task.checkCancellation()
+        let allowsRemoteUse = receipt.memory.draft?.allowsRemoteUse ?? false
+        let policy = allowsRemoteUse ? "remote_allowed" : "local_only"
+        let acknowledgment = allowsRemoteUse
+            ? "Acknowledge that this committed memory is allowed for future model requests."
+            : "Acknowledge that this committed memory is saved locally only. Do not promise that future model requests will recall or use it; remote use requires a separate user choice."
         return try JSONValue.object([
             "memory_id": .string(receipt.memory.id.rawValue.uuidString.lowercased()),
             "revision": .number(Double(receipt.memory.revision)),
             "reference": .string(receipt.memory.citation),
             "state": .string(receipt.memory.state.rawValue),
-            "allows_remote_use": .bool(receipt.memory.draft?.allowsRemoteUse ?? false)
+            "allows_remote_use": .bool(allowsRemoteUse),
+            "policy": .string(policy),
+            "acknowledgment": .string(acknowledgment)
         ]).jsonString()
     }
 

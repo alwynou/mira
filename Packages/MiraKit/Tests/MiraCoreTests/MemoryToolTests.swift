@@ -38,6 +38,8 @@ struct MemoryToolTests {
 
         #expect(receipt["memory_id"]?.stringValue == existing.id.rawValue.uuidString.lowercased())
         #expect(receipt["allows_remote_use"]?.boolValue == true)
+        #expect(receipt["policy"]?.stringValue == "remote_allowed")
+        #expect(receipt["acknowledgment"]?.stringValue?.contains("allowed for future model requests") == true)
         let committed = try #require(try fixture.store.memoryDetail(existing.id, workspaceID: nil).memory.draft)
         #expect(committed.allowsRemoteUse)
         #expect(try fixture.store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 20).memories.count == 1)
@@ -67,6 +69,8 @@ struct MemoryToolTests {
         let invocation = try #require(try await app.audit(for: executionID).invocations.first)
         #expect(invocation.result?.status == .succeeded)
         #expect(invocation.result?.text.contains(memories[0].id.rawValue.uuidString.lowercased()) == true)
+        #expect(invocation.result?.text.contains("saved locally only") == true)
+        #expect(invocation.result?.text.contains("Do not promise") == true)
         #expect(provider.requests.last?.messages.last?.text.contains("memory_id") == true)
         #expect(provider.snapshotsWereDurable)
         #expect(await approvals.pending().isEmpty)

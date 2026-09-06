@@ -14,6 +14,7 @@ struct TranscriptItem: Identifiable, Equatable {
     var bodyPurgedAt: Date? = nil
     var executionID: ExecutionID? = nil
     var trace: [CanonicalMessage] = []
+    var memoryNotices: [MemoryContextNotice] = []
 }
 
 struct MessageRow: View {

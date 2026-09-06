@@ -13,6 +13,8 @@ M1 streaming layout, auto-follow, and bounded appended-text fades have passed lo
 
 Further streaming-performance work is paused at the user's request. The [core workflow follow-up](engineering/CORE_WORKFLOW_VERIFICATION.md) fixes memory navigation/receipt and knowledge source-presentation defects, with synthetic application-reopen and backup continuity checks. These checks improve v0.1 readiness without closing the remaining real-model, native interaction, or delivery gates.
 
+A user-authorized [live DeepSeek memory walkthrough](engineering/CORE_WORKFLOW_VERIFICATION.md#authorized-native-memory-follow-up) passed save, explicit remote-use review, new-conversation recall, semantic replacement, historical citations, and forgetting without reviving the old preference. The subsequent [natural association and retained-history fix](engineering/NATURAL_MEMORY_VERIFICATION.md) corrects lifecycle labels and local-only acknowledgments, verifies an ordinary template request, and preserves forgotten-memory replies with tags while excluding them from future model context. This single-model smoke test does not close automatic-memory quality, other-provider, restart, or platform acceptance.
+
 The [usage and cost increment](engineering/USAGE_COST_VERIFICATION.md) adds provider cache/thinking counters and frozen per-call estimates, with separate foreground/background presentation. Unsupported or incomplete billing dimensions remain explicitly unknown. This does not close attended acceptance or introduce a monetary hard limit.
 
 

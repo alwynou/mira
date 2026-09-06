@@ -14,11 +14,11 @@ The application runtime owns the stream. Views receive snapshots and show a coll
 
 The current assistant/tool turn uses a frozen base request and fixed tool definitions. Authorization, route identity, memory and source policies are still checked before every dispatch. A policy failure stops execution; it does not silently rewrite a signed prefix.
 
-For DeepSeek, Kimi and OpenRouter, successful same-model/same-connection/same-endpoint history containing thinking replays the complete ordered assistant/tool transcript, including intermediate decisions. Context budgets include reasoning and replay data. Incomplete and unsuccessful turns are excluded from future successful history, as before. Switching models or connections retains ordinary answer text without transferring provider continuation material.
+For DeepSeek, Kimi and OpenRouter, successful same-model/same-connection/same-endpoint history containing thinking replays the complete ordered assistant/tool transcript, including intermediate decisions, only when that history remains eligible under current memory and source policy. Context budgets include reasoning and replay data. Incomplete and unsuccessful turns are excluded from future successful history, as before. Switching models or connections retains ordinary answer text without transferring provider continuation material. A forgotten or otherwise invalidated memory excludes its affected history and transitive descendants from replay.
 
 Anthropic tool continuation echoes the complete current assistant content array in its original order, including thinking, redacted thinking, signatures, text and tool-use blocks. At a new user turn Mira rebuilds its retrieved context; it therefore omits **all** completed prior-turn Anthropic thinking blocks. Anthropic permits that boundary. Mixing old signed thinking with an edited system/tools/message prefix is not supported. The current tool loop is never stripped or reconstructed from visible thinking alone.
 
-Non-thinking tool observations keep their existing turn-scoped behavior. Thinking history is retained only where needed for supported continuation; it inherits the originating execution's memory/source dependencies and sending policy.
+Non-thinking tool observations keep their existing turn-scoped behavior. Thinking history is retained only where needed for supported continuation; it inherits the originating execution's memory/source dependencies and sending policy. After memory forgetting or lifecycle invalidation, committed historical replies and their displayable reasoning remain locally visible with body-free invalidation tags, and the affected turn and its descendants are unavailable for future provider replay. Forget removes hidden tool messages, arguments, results, and tool-call identifiers; other lifecycle invalidations retain their original audit and trace data for historical inspection.
 
 ## Persistence and privacy
 
@@ -26,7 +26,7 @@ Schema v10 adds ordered `trace_json` to assistant drafts and messages and a `thi
 
 Thinking is model output, never user evidence for memory extraction. Extraction validates only the final answer JSON and accounts for the whole request's usage. Synthetic capability checks retain the selected thinking controls and output reservation; they cannot disable thinking just to pass a short probe.
 
-Memory forgetting and source deletion clear derived thinking alongside answer text, request/output snapshots and tool observations. Normal logs and errors contain no thinking or opaque replay data. Old development schemas are rejected intact; there is no migration bridge or automatic deletion.
+Memory forgetting purges derived thinking from request/output snapshots, tool observations, audit caches, active drafts, and hidden tool portions of retained traces. Committed historical messages, replies, and displayable reasoning remain locally visible with body-free invalidation tags. Other lifecycle invalidations retain their original audit and trace data with tags. In both cases, affected history is omitted from rebuilt provider context, including transitive descendants; no model replay is attempted. Knowledge source deletion/revocation retains its separate generated-body purge contract. Normal logs and errors contain no thinking or opaque replay data. Old development schemas are rejected intact; there is no migration bridge or automatic deletion.
 
 ## Design references and extension boundary
 

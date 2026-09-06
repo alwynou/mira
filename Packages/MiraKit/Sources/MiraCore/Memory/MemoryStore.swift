@@ -6,6 +6,9 @@ public protocol MemoryStore: Sendable {
     func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) throws -> MemoryDetail
     /// Resolves a locally viewed citation against actual persisted usage, scope, and the exact historical revision.
     func memoryCitation(_ reference: MemoryCitationReference, executionID: ExecutionID, conversationID: ConversationID) throws -> MemoryCitationDetail
+    /// Current invalidation notices for direct and inherited memory dependencies.
+    /// Historical reply bodies remain local; affected turns must not be replayed.
+    func memoryContextNotices(in conversationID: ConversationID, at: Date) throws -> [ExecutionID: [MemoryContextNotice]]
     /// Explicit, reviewed user save. The operation ID is durable and reusing it with a different payload fails.
     func createMemory(draft: MemoryDraft, source: MemorySourceInput, operationID: UUID, replacing: MemoryID?, expectedRevision: Int?, at: Date) throws -> MemoryWriteReceipt
     /// A tool commit derives its source from the persisted invocation and rechecks live dispatch authorization atomically.
@@ -15,7 +18,7 @@ public protocol MemoryStore: Sendable {
     func changeMemoryState(_ id: MemoryID, workspaceID: WorkspaceID?, state: MemoryState, expectedRevision: Int, at: Date) throws -> Memory
     /// Confirms the exact candidate and current successor snapshots that the user reviewed.
     func confirmMemoryReplacement(_ candidateID: MemoryID, workspaceID: WorkspaceID?, replacingCurrent currentID: MemoryID, expectedCandidateRevision: Int, expectedCurrentRevision: Int, at: Date) throws -> Memory
-    /// Redacts bodies, retains suppression and replacement facts, and blocks late derived writes in the same transaction.
+    /// Clears memory/cache bodies and blocks late writes, while retaining historical messages and suppression metadata.
     func forgetMemory(_ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int, at: Date) throws -> MemoryForgetReceipt
     /// Deterministic relevance order with a stable ID tie-break; the context builder preserves this ranking.
     func recallMemories(query: String, workspaceID: WorkspaceID?, connectionID: ConnectionID, limit: Int, at: Date) throws -> MemorySearchResult

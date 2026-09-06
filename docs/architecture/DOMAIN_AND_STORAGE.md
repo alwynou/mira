@@ -259,6 +259,8 @@ Index
 fts_*, vector_metadata（未来）
 ```
 
+已提交的 User / Assistant Message 与 Runtime Trace 是可见的历史表面。Forget 或 Memory 失效不会删除这些已提交历史；Assistant 正文和可显示思考保留供本地查看，并带有不含正文的状态标签。Superseded、Updated、Expired、Archived 等一般生命周期失效保留原始 Audit / Trace 供历史检查，但这些历史不会在未来 Provider Context 中重建或重放，依赖链上的传递后代也一并排除。Forget 还会清理 Memory 正文、Memory Revision、Evidence 正文、Trace 中隐藏的工具消息 / 参数 / 结果 / Tool Call 标识，以及 Tool / Request / Audit 缓存和活跃 Draft；原始来源消息可以保留，但没有模型重放资格。
+
 ### 3.3.1 Current provider configuration
 
 Provider configuration is stored in normalized tables:
@@ -365,7 +367,7 @@ The current bootstrap uses `m0_core` and `m2_execution_audit` to create the libr
 
 Interrupted execution recovery closes prepared Attempts and tools without replaying requests or writes. Unscheduled tools become cancelledBeforeDispatch; dispatched tools with unknown results become interrupted.
 
-The v5 manual-memory increment added Memory, Evidence, revisions, replacements, source suppression, recall/capture usage, local search, and execution history dependencies. The current schema also stores capture policy, extraction jobs with immutable authorization, leased attempts with independent routes and budgets, and extraction decisions. Body purge markers cover the audit objects affected by forgetting. [Automatic memory implementation](AUTOMATIC_MEMORY_IMPLEMENTATION.md) owns the background processing and recovery contract. [Memory implementation](MEMORY_IMPLEMENTATION.md) owns those contracts and historical citation rules.
+The v5 manual-memory increment added Memory, Evidence, revisions, replacements, source suppression, recall/capture usage, local search, and execution history dependencies. The current schema also stores capture policy, extraction jobs with immutable authorization, leased attempts with independent routes and budgets, and extraction decisions. Body purge markers cover the cache, draft, and audit objects affected by forgetting; committed messages, replies, and displayable assistant text / reasoning remain visible with body-free lifecycle tags. General lifecycle invalidation retains its original audit and trace data, while Forget removes hidden tool portions and excludes the retained history from future replay, including transitively dependent history. [Automatic memory implementation](AUTOMATIC_MEMORY_IMPLEMENTATION.md) owns the background processing and recovery contract. [Memory implementation](MEMORY_IMPLEMENTATION.md) owns those contracts and historical citation rules.
 
 Provider and model activation flags have required typed mirrors. Model IDs are unique within each provider connection. Canonical model-pool presets and descriptors are saved atomically with independent revision checks; [Provider contracts](PROVIDERS.md#3-provider-activation-and-the-model-pool) owns the activation and discovery behavior.
 

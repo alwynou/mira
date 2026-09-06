@@ -44,6 +44,7 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     func recordMemoryUsage(_ usages: [MemoryUsage], executionID: ExecutionID, at: Date) throws { try base.recordMemoryUsage(usages, executionID: executionID, at: at) }
     func validateMemoryUsage(executionID: ExecutionID, at: Date) throws { try base.validateMemoryUsage(executionID: executionID, at: at) }
     func suppressedMemorySourceMessageIDs() throws -> Set<MessageID> { try base.suppressedMemorySourceMessageIDs() }
+    func memoryContextNotices(in conversationID: ConversationID, at: Date) throws -> [ExecutionID: [MemoryContextNotice]] { try base.memoryContextNotices(in: conversationID, at: at) }
     func workspaces() throws -> [Workspace] { try base.workspaces() }
     func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws { try base.saveWorkspace(workspace, expectedRevision: expectedRevision) }
     func conversations(includeArchived: Bool) throws -> [Conversation] { try base.conversations(includeArchived: includeArchived) }

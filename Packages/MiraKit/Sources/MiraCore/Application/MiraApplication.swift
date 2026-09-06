@@ -17,6 +17,7 @@ public struct ConversationSnapshot: Sendable {
     public var executions: [Execution]
     public var drafts: [Draft]
     public var pendingSaveIDs: Set<ExecutionID>
+    public var memoryNotices: [ExecutionID: [MemoryContextNotice]]
 }
 
 /// One instance per running app. Window lifetime never owns an execution.
@@ -220,7 +221,7 @@ public actor MiraApplication {
             if let live = text[execution.id] { return Draft(executionID: execution.id, text: live, updatedAt: environment.now(), trace: traces[execution.id] ?? []) }
             return try store.draft(for: execution.id)
         }
-        return .init(messages: try store.messages(in: id), executions: executions, drafts: drafts, pendingSaveIDs: Set(pendingSaves.keys))
+        return .init(messages: try store.messages(in: id), executions: executions, drafts: drafts, pendingSaveIDs: Set(pendingSaves.keys), memoryNotices: try store.memoryContextNotices(in: id, at: environment.now()))
     }
     public func diagnostics() throws -> StorageDiagnostics { try store.diagnostics() }
     public func request(for id: ExecutionID) throws -> CanonicalModelRequest? { try store.request(for: id) }
@@ -435,7 +436,8 @@ public actor MiraApplication {
                     base = try ContextBuilder.build(execution: execution, conversations: conversations,
                         workspaces: store.workspaces(), messages: messages,
                         executions: store.executions(in: execution.conversationID),
-                        memories: recalled.memories, suppressedMessageIDs: store.suppressedMemorySourceMessageIDs(), at: environment.now())
+                        memories: recalled.memories, suppressedMessageIDs: store.suppressedMemorySourceMessageIDs(),
+                        excludedHistoryExecutionIDs: Set(try store.memoryContextNotices(in: execution.conversationID, at: environment.now()).keys), at: environment.now())
                     frozenBase = base
                 }
                 let attemptID = environment.uuid()

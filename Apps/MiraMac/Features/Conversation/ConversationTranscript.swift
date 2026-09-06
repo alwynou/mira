@@ -107,7 +107,8 @@ struct ConversationTranscript: View {
                 id: message.role == .assistant ? (message.executionID.map { "execution:\($0.rawValue.uuidString)" } ?? "message:\(message.id.rawValue.uuidString)") : "message:\(message.id.rawValue.uuidString)",
                 role: message.role, text: message.text, status: message.status, isStreaming: false,
                 message: message, bodyPurgedAt: message.bodyPurgedAt,
-                executionID: message.executionID, trace: message.trace
+                executionID: message.executionID, trace: message.trace,
+                memoryNotices: message.executionID.flatMap { model.memoryNotices[$0] } ?? []
             )
         }
         if let execution = model.executions.last,
@@ -146,8 +147,9 @@ private struct TranscriptRow: View, Equatable {
                 VStack(alignment: .leading, spacing: 10) {
                     AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming, trace: item.trace)
                         .equatable()
+                    MemoryHistoryTags(notices: item.memoryNotices).padding(.leading, 40)
                     if let executionID = item.executionID, let conversationID {
-                        TranscriptCitations(text: item.text, executionID: executionID, conversationID: conversationID, model: model)
+                        TranscriptCitations(text: item.text, executionID: executionID, conversationID: conversationID, model: model, memoryNotices: item.memoryNotices)
                             .equatable()
                             .padding(.leading, 40)
                     }
@@ -181,19 +183,55 @@ private struct TranscriptCitations: View, Equatable {
     let executionID: ExecutionID
     let conversationID: ConversationID
     let model: ConversationModel
+    let memoryNotices: [MemoryContextNotice]
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.text == rhs.text && lhs.executionID == rhs.executionID && lhs.conversationID == rhs.conversationID && lhs.model === rhs.model
+        lhs.memoryNotices == rhs.memoryNotices && lhs.text == rhs.text && lhs.executionID == rhs.executionID && lhs.conversationID == rhs.conversationID && lhs.model === rhs.model
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             MemoryCitationList(references: MemoryCitationReference.references(in: text), executionID: executionID,
-                               conversationID: conversationID, application: model.application) { sourceID in
+                               conversationID: conversationID, application: model.application, memoryNotices: memoryNotices) { sourceID in
                 Task { await model.selectConversation(sourceID) }
             }
             KnowledgeCitationList(references: SourceCitationReference.references(in: text), executionID: executionID,
                                   conversationID: conversationID, application: model.application)
+        }
+    }
+}
+
+/// Status only: never copy a memory body into historical metadata.
+struct MemoryHistoryTags: View {
+    let notices: [MemoryContextNotice]
+
+    var body: some View {
+        if !notices.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(Array(Set(notices.map(\.reason))).sorted { $0.rawValue < $1.rawValue }, id: \.self) { reason in
+                    Label(title(for: reason), systemImage: "brain")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(.quaternary, in: Capsule())
+                }
+            }
+            .help("Historical reply retained. The related memory has changed or is unavailable, so this reply is excluded from future model context.")
+        }
+    }
+
+    private func title(for reason: MemoryContextNotice.Reason) -> LocalizedStringKey {
+        switch reason {
+        case .forgotten: "Related memory forgotten"
+        case .superseded: "Related memory superseded"
+        case .expired: "Related memory expired"
+        case .notYetValid: "Related memory not yet valid"
+        case .archived: "Related memory archived"
+        case .rejected: "Related memory rejected"
+        case .removed: "Related memory removed"
+        case .candidate: "Related memory pending review"
+        case .updated: "Related memory updated"
+        case .unavailable: "Related memory unavailable"
         }
     }
 }

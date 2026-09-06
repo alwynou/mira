@@ -35,7 +35,7 @@ struct MemoryDetailPane: View {
             Button("Forget memory", role: .destructive) { forget() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The memory and its revisions will be cleared. Original user messages remain visible in conversation history. Linked generated replies and audit bodies will be cleared.")
+            Text("The memory content and revisions will be cleared, and Mira will stop recalling it. Historical messages and replies remain visible in conversation history with a forgotten-memory status tag.")
         }
         .sheet(item: $replacementReview) { relation in
             MemoryReplacementReviewView(application: application, candidate: detail.memory, relation: relation,
@@ -46,10 +46,11 @@ struct MemoryDetailPane: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let lifecycleStatus = detail.memory.lifecycleStatus(at: .now)
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(L10n.string(memoryKindKey(detail.memory.draft?.kind ?? .context), locale: locale)).font(.title2.weight(.semibold))
-                Text(L10n.string(memoryStateKey(detail.memory.state), locale: locale)).font(.callout).foregroundStyle(.secondary)
+                Text(L10n.string(memoryLifecycleStatusKey(lifecycleStatus), locale: locale)).font(.callout).foregroundStyle(.secondary)
                 Spacer()
             }
             HStack(spacing: 8) {
@@ -228,7 +229,19 @@ private struct EvidenceRow: View {
     }
 }
 
-private func memoryStateKey(_ state: MemoryState) -> String { switch state { case .active: "Active"; case .candidate: "Needs review"; case .archived: "Archived"; case .rejected: "Rejected"; case .removed: "Removed" } }
+private func memoryLifecycleStatusKey(_ status: MemoryLifecycleStatus) -> String {
+    switch status {
+    case .active: "Active"
+    case .candidate: "Needs review"
+    case .archived: "Archived"
+    case .rejected: "Rejected"
+    case .removed: "Removed"
+    case .forgotten: "Forgotten"
+    case .superseded: "Superseded"
+    case .expired: "Expired"
+    case .notYetValid: "Not yet valid"
+    }
+}
 private func memoryKindKey(_ kind: MemoryKind) -> String { switch kind { case .fact: "Fact"; case .preference: "Preference"; case .decision: "Decision"; case .goal: "Goal"; case .constraint: "Constraint"; case .procedure: "Procedure"; case .learning: "Learning"; case .context: "Context" } }
 private func memorySubjectKey(_ subject: MemorySubject) -> String { subject == .user ? "User" : "Workspace" }
 private func memoryOriginKey(_ origin: MemoryOrigin) -> String { switch origin { case .explicitUser: "Explicit user"; case .observedUserStatement: "Observed user statement"; case .agentInference: "Agent inference" } }

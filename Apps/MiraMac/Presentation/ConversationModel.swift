@@ -23,6 +23,7 @@ final class ConversationModel {
     var configuration = ModelConfiguration(connections: [], models: [], routes: [], bindings: [])
     var messages: [Message] = []
     var executions: [Execution] = []
+    var memoryNotices: [ExecutionID: [MemoryContextNotice]] = [:]
     let streamBuffer = ConversationStreamBuffer()
     var pendingSaveIDs: Set<ExecutionID> = []
     var selectedWorkspaceID: WorkspaceID?
@@ -78,7 +79,7 @@ final class ConversationModel {
     }
     func selectConversation(_ id: ConversationID?) async {
         selectionGeneration += 1; selectedConversationID = id
-        messages = []; executions = []; streamBuffer.replace(drafts: [:], thinkingTraces: [:]); pendingSaveIDs = []; composer = ""; selectedRouteID = nil
+        messages = []; executions = []; memoryNotices = [:]; streamBuffer.replace(drafts: [:], thinkingTraces: [:]); pendingSaveIDs = []; composer = ""; selectedRouteID = nil
         guard let id else { return }
         if let conversation = conversations.first(where: { $0.id == id }) {
             selectedWorkspaceID = conversation.workspaceID
@@ -90,7 +91,7 @@ final class ConversationModel {
         let generation = selectionGeneration
         let state = try await application.conversation(id)
         guard generation == selectionGeneration, selectedConversationID == id else { return }
-        messages = state.messages; executions = state.executions
+        messages = state.messages; executions = state.executions; memoryNotices = state.memoryNotices
         streamBuffer.replace(
             drafts: Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.text) }),
             thinkingTraces: Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.trace) })

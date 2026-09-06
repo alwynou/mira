@@ -13,7 +13,7 @@ Contracts: [memory](../architecture/MEMORY_IMPLEMENTATION.md), [knowledge](../ar
 
 ## Acceptance evidence
 
-All fixtures use new temporary libraries and synthetic content. No credentials, user libraries, or real provider endpoints were used. Parent review covered both Luna contributions and the integrated changes.
+The automated fixtures below use new temporary libraries and synthetic content. No credentials, user libraries, or real provider endpoints were used for those fixtures. Parent review covered both Luna contributions and the integrated changes. The later live UI check is recorded separately below.
 
 | Boundary | Evidence |
 |---|---|
@@ -37,6 +37,51 @@ The first complete host run failed the existing `TranscriptScrollAnimationTests.
 
 ## Remaining evidence
 
-The isolated native demo could launch, but CUA inspection failed with ScreenCaptureKit error `-3811` before obtaining a usable UI state. The owned demo app/library were removed; the user's running Mira and development library were preserved. No native picker, sheet, keyboard, or VoiceOver walkthrough is claimed from this attempt.
+The earlier isolated native demo could launch, but CUA inspection failed with ScreenCaptureKit error `-3811` before obtaining a usable UI state. The owned demo app/library were removed; the user's running Mira and development library were preserved. No native picker, sheet, keyboard, or VoiceOver walkthrough is claimed from that attempt.
 
-Real-model extraction/recall/citation quality, attended Keychain exercises, macOS 15 and additional CPU UI use, seven-day use, signing and notarization remain in the [execution ledger](MVP_EXECUTION.md). Synthetic provider turns and presentation-state tests do not satisfy those gates. Fee estimation and other v0.1 completion gaps remain separate follow-up work. Task/reminder work remains v0.2.
+Real-model extraction/recall/citation quality, attended Keychain exercises, macOS 15 and additional CPU UI use, seven-day use, signing and notarization remain in the [execution ledger](MVP_EXECUTION.md). Synthetic provider turns and presentation-state tests do not satisfy those gates. Basic fee estimation was subsequently implemented; see [usage/cost verification](USAGE_COST_VERIFICATION.md). Task/reminder work remains v0.2.
+
+## Live explicit-save UI check
+
+Date: 2026-09-06. The user configured the provider/model and explicitly requested Computer Use testing. This check used the running Debug app, the current development library, and the selected `deepseek-v4-flash` model under DeepSeek. The fixture was a fabricated preference for organizing reading notes with blue labels. No credentials or personal conversation content are included in this record.
+
+| Step | Observed native UI evidence | Result |
+|---|---|---|
+| Submit an explicit remember request | The Chinese fixture was pasted into the composer and its exact value was checked in the accessibility tree before sending | Passed |
+| Review the model's memory request | The approval sheet showed the proposed preference, the matching original excerpt, global scope, and local-only disclosure | Passed |
+| Confirm saving | The Save Memory action completed and the model returned a save acknowledgment | Passed |
+| Verify the actual record | Opening Memories showed the matching content with Active state and Preference kind | Passed; independent of the model's acknowledgment |
+| Inspect details, recall in a new conversation, correct, and forget | Native automation disconnected while selecting the record and requesting a screenshot; reconnection attempts failed | Initially blocked; completed in the authorized native follow-up below |
+
+The stored entry was local-only. A model's promise to use it later is not evidence of authorized remote recall: that requires a separate visible remote-use choice and a new-conversation test. This check does not establish persistence across app restart, automatic extraction quality, citation correctness, or acceptance of other providers.
+
+CUA `typeText` initially dropped the Chinese characters and submitted punctuation only. The subsequent attempt used `paste` and verified the input before sending. This is recorded as an automation input failure, not a Mira text-input defect. No database edits or library reset were used as substitutes for UI actions.
+
+The automation error was `Sky Computer Use native pipe closed before response`, recurring after a CUA session reset. SkyComputerUseService diagnostic reports were present and a process check still found Mira running. No usable screenshot was captured. This is an automation-service blocker, not evidence that Mira crashed. The successful accessibility observations above support only the explicit-save path.
+
+On the user's follow-up request, the failure was reproduced specifically when selecting a memory. CUA could inspect Finder; after the user switched Mira back to a conversation, CUA could inspect both the conversation and the unselected memory list again. Selecting the memory then caused another service failure, and the screenshot fallback failed through the closed pipe. The service's diagnostic reports show `EXC_BREAKPOINT` / `SIGTRAP` with `_assertionFailure` and `Array.remove(at:)` on the faulting thread. These observations narrow the trigger to inspecting the selected-memory UI; they do not identify the exact service defect or establish a Mira accessibility violation. No speculative SwiftUI workaround was applied.
+
+## Authorized native memory follow-up
+
+Date: 2026-09-06. The user explicitly authorized AppleScript/macOS accessibility to continue the same UI tests. AppleScript operated the memory detail, editor, replacement form, and forgetting confirmation; CUA operated the working conversation, citation, and inspector surfaces. OS window captures supplied visual confirmation where AppleScript could not decode attributed button labels. All mutations went through Mira's visible UI. Provider configuration, Keychain credentials, and the development library were not reset.
+
+| Boundary | Observed evidence | Result |
+|---|---|---|
+| Detail and source | The blue-label preference showed revision 1, global scope, explicit-user authority, its exact committed-message excerpt, and remote use disallowed. Open Conversation returned to that source conversation | Passed |
+| Reviewed remote use | Only the fabricated memory's remote-use checkbox was enabled in Edit. Saving produced revision 2 and the detail displayed remote use allowed | Passed |
+| Independent recall | A new conversation asked for the saved preference without supplying the color. DeepSeek answered blue and emitted a resolvable version-2 memory citation | Passed |
+| Citation evidence | The citation sheet displayed the blue preference and the original committed-message excerpt | Passed |
+| Semantic correction | Replace Memory created a green-label preference under a new memory ID. The old entry's detail displayed the confirmed replacement relation | Passed; list presentation issue below |
+| Recall after correction | Another new conversation asked for the current preference without supplying either color. DeepSeek answered green and cited the new memory's version 1; its citation sheet displayed matching manual-entry evidence | Passed |
+| Historical reference stability | Reopening the earlier blue answer's citation still displayed version 2 with the blue content and a notice that the memory had since changed | Passed |
+| Forget and generated-content cleanup | The green memory was forgotten through the visible confirmation. It disappeared from the Active list. Its previous answer was replaced by the app's forgotten-memory cleanup notice, while the user question remained | Passed |
+| No old-preference revival in a new conversation | A further new conversation asked for the current label color without supplying an answer. The model reported no available memory. The execution inspector independently showed a completed `memory.search` receipt of `{"memories":[],"truncated":false}` | Passed for this live case |
+
+The final conversation remains open for inspection. The green replacement was forgotten; the superseded blue entry remains as historical test data. This was one live DeepSeek smoke test, not a statistical memory-quality evaluation. App restart/persistence, automatic extraction, cross-workspace isolation, other providers, VoiceOver, and the wider Q04–Q06 acceptance remain outside this run. No source changes, rebuild, or broad automated regression rerun were needed for this UI-only test.
+
+### Findings from the initial walkthrough
+
+- The Active memory list labels the superseded blue entry as Active alongside its green successor; after forgetting the successor, the old row still appears Active. Only its detail discloses that it was superseded. The live new-conversation test did not revive it, but the management UI should distinguish current and superseded entries clearly.
+- The initial model acknowledgment promised to consider the blue preference in future conversations while the saved entry was still local-only. The later recall check succeeded only after the explicit remote-use change. The save acknowledgment should explain the committed disclosure policy accurately.
+
+The follow-up [natural memory and retained-history fix](NATURAL_MEMORY_VERIFICATION.md) resolves these two findings and changes the forgetting contract. The explicit-retrieval prompts above do not establish ordinary-input recall quality. The native automation defect is tracked separately above; it was handled through the authorized AppleScript fallback, with no Mira crash observed.

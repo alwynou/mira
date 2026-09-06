@@ -1,5 +1,7 @@
 # First-class thinking verification
 
+Historical evidence: the memory-forgetting behavior described below is superseded by [natural memory and retained-history verification](NATURAL_MEMORY_VERIFICATION.md). Current memory forgetting preserves committed visible replies with status tags and excludes them from future model context; source deletion remains a separate contract.
+
 Date: 2026-09-06. Branch: `dev`. Owning contract: [Thinking and provider continuation](../architecture/THINKING.md). This increment replaces the schema-v9 reasoning-disabled policy; it does not assert that every catalog model has passed a live request.
 
 ## Delivered scope

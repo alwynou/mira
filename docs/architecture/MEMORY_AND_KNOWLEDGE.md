@@ -239,10 +239,10 @@ MemoryCurrentProjection
 
 - Archive：退出普通召回，保留来源；
 - Remove：逻辑删除，保留恢复窗口；
-- Forget：清理 Memory 正文、Evidence 摘录与派生副本，保存无正文的抑制与既有替代决定，不必删除原始 Conversation；
+- Forget：清理 Memory 正文、Evidence 摘录与派生缓存，保存无正文的抑制与既有替代决定；已提交历史消息、回复与可显示思考保留并加状态标签；
 - Permanent Delete：按用户选择物理清理规范对象与无引用 Blob。
 
-同一删除事务使 Memory 立即不可检索，并标记受影响 Snapshot / Compact / Working Memory / 搜索投影失效，取消以其为输入的未发送任务。后续清理 MemoryRevision、候选输出、Evidence 摘录、请求 / 模型输出正文和无引用 Blob；中断后 LocalJob 可继续，UI 显示清理状态。部分内容共处一个请求正文且无法可靠局部移除时，清理该请求的整段审计正文。
+同一删除事务使 Memory 立即不可检索，并标记受影响 Snapshot / Compact / Working Memory / 搜索投影失效，取消以其为输入的未发送任务。后续清理 MemoryRevision、候选输出、Evidence 摘录、请求 / 模型输出正文和无引用 Blob；中断后 LocalJob 可继续，UI 显示清理状态。部分内容共处一个请求正文且无法可靠局部移除时，清理该请求的整段审计正文。已提交的对话正文和可显示思考不随遗忘删除；隐藏工具交换会清理。受影响历史及其传递后代排除出后续模型上下文，具体契约见 [Memory implementation](MEMORY_IMPLEMENTATION.md)。
 
 ExtractionDecision 的抑制元数据不保存被遗忘正文；保留必要来源 ID、定位和处置状态。保留原始消息 / Source 时，明确告知用户原文仍可通过显式历史查看访问，不能把“停止自动使用记忆”表述为原始文本也已删除。
 

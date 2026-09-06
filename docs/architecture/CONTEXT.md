@@ -37,7 +37,7 @@ Visible Tool Schemas
 当前 Turn 冻结的工具定义
 
 Durable Conversation History
-规范用户 / Assistant 历史与必要操作结果
+规范用户 / Assistant 历史与必要操作结果（失效历史保留标签但不再回放）
 
 Turn-scoped Context
 Working Memory、相关 Memory、资料片段和环境状态
@@ -102,7 +102,7 @@ Provider-neutral 的第一版建议使用确定性、带标签文本，而不是
 规则：
 
 - Candidate 不渲染进普通请求；
-- 已被确认替代的旧 Memory 不进入普通请求；
+- 已被确认替代、已过期、尚未生效或已遗忘的 Memory 不进入普通请求；
 - 冲突内容必须带状态，不伪装为单一事实；
 - ID 用于审计和来源引用，不要求模型输出内部 ID 给普通用户；
 - 内容进行稳定转义和确定性排序。
@@ -214,7 +214,7 @@ Memory 预取、知识片段、当前时间和搜索结果不进入该层。
 - 当前系统状态；
 - Current User Message。
 
-每次选择后的实际内容保存于 RequestSnapshot，以便审计该次调用。下一请求重新校验；同一 Turn 的既有工具交换按[相关规范 §2.9](RUNTIME.md#s10-09)保留，不能因“请求级”而丢失后续 Step 仍需使用的结果。下一用户 Turn 不默认复用临时内容。
+每次选择后的实际内容保存于 RequestSnapshot，以便审计该次调用。下一请求重新校验；同一 Turn 的既有工具交换按[相关规范 §2.9](RUNTIME.md#s10-09)保留，不能因“请求级”而丢失后续 Step 仍需使用的结果。已失效 Memory 影响的已提交消息、回复和可显示 Trace（Assistant 正文和可显示思考）可以保留在本地并带状态标签；一般生命周期失效保留原始 Audit / Trace 供历史检查，Forget 才清理 Trace 中隐藏的工具消息、参数、结果和 Tool Call 标识。这些内容不再成为下一请求的 Durable History；依赖链上的传递后代同样排除。下一用户 Turn 不默认复用临时内容。
 
 <a id="s16-05"></a>
 
@@ -225,11 +225,11 @@ Memory 预取、知识片段、当前时间和搜索结果不进入该层。
 ```text
 buildContext(input)
   1. Accept frozen route / capabilities; load current policy revision
-  2. Resolve stable baseline; load durable history before triggerMessage
+  2. Resolve stable baseline; load eligible durable history before triggerMessage
   3. Build deterministic working context
   4. Prefetch relevant memories under scope / provider policy
   5. Assemble current input once and complete Turn tool exchanges
-  6. Apply provenance / trust labels and inherited privacy restrictions
+  6. Apply provenance / trust labels, inherited privacy restrictions, and transitive invalidation exclusions
   7. Apply route-specific token budget; preserve required protocol groups
   8. Render; validate effective outbound policy again
   9. Persist ContextPlan + per-Attempt RequestSnapshot before dispatch
@@ -366,7 +366,7 @@ cacheWriteTokens?
 
 ContextItem 为模型提供本次请求可引用的证据句柄，映射到对象 ID、Revision、定位信息、正文 Hash 与 RequestSnapshot。最终回答只将本次已提供且仍可查看的句柄解析成可点击引用；未知或伪造句柄标记为无效，不自动猜测源对象。
 
-用户修改内容时，新请求使用最新有效版本，旧请求在保留期内引用旧版本。删除、遗忘、来源归属纠正或策略收紧会使相关待发送请求失效；重新构建后才能发送。已发送请求可以取消后续处理，但不能承诺撤回网络数据。
+用户修改内容时，新请求使用最新有效版本，旧请求在保留期内引用旧版本。删除、遗忘、来源归属纠正或策略收紧会使相关待发送请求失效；重新构建后才能发送。Memory 忘记或生命周期失效时，已提交的受影响消息、回复和可显示 Trace（Assistant 正文和可显示思考）仍可在本地显示不含正文的状态标签；一般生命周期失效保留原始 Audit / Trace，Forget 才清理隐藏的工具消息、参数、结果和 Tool Call 标识。保留的历史及其传递后代不会进入重建的 Provider Context，也不会重放。Forget 同时清理 Memory 正文 / 修订 / Evidence、Tool / Request / Audit 缓存和活跃 Draft。已发送请求可以取消后续处理，但不能承诺撤回网络数据。
 
 <a id="s16-12"></a>
 
@@ -408,7 +408,7 @@ Stage 2：Agentic Search
 6. Workspace Provider Policy 允许发送；
 7. 来源主体没有已知归属冲突。
 
-Candidate、Rejected、Removed 和已确认 Superseded 的 Memory 不进入普通预取。
+Candidate、Rejected、Removed、Archived、已确认 Superseded、Expired、Not yet valid 和 Forgotten 的 Memory 不进入普通预取；这些状态也不能被界面标记为 Active。
 
 <a id="s17-03"></a>
 

@@ -137,7 +137,7 @@ private struct RequestSnapshotView: View {
                     }
                 }
                 ForEach(context.omissions) { omission in
-                    Text(L10n.format("Execution %@: failed, cancelled, or interrupted replies are excluded from history.", locale: locale, omission.executionID.rawValue.uuidString))
+                    Text(L10n.format(omission.reason == .memoryContextInvalidated ? "Execution %@: related memory changed or is unavailable; the historical reply is excluded from model context." : "Execution %@: failed, cancelled, or interrupted replies are excluded from history.", locale: locale, omission.executionID.rawValue.uuidString))
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }

@@ -1,5 +1,7 @@
 # Automatic memory verification
 
+Historical evidence: the memory-forgetting behavior described below is superseded by [natural memory and retained-history verification](NATURAL_MEMORY_VERIFICATION.md). Current memory forgetting preserves committed visible replies with status tags and excludes them from future model context; source deletion remains a separate contract.
+
 Date: 2026-09-05; CI confirmed 2026-09-06. Branch: `dev`. Local deterministic acceptance and exact-commit CI passed. Native interaction and real-model quality remain separate, deferred gates; this does not mark M3 or the MVP released.
 
 ## Implemented boundary
