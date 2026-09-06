@@ -196,6 +196,7 @@ private extension SQLiteMiraStore {
                 throw MiraError(.storage, "The backup database blob references do not match its manifest.")
             }
             try prepareRestoredMemoryExtractionState(in: db, at: Date())
+            try Self.pauseRestoredReminders(in: db)
             try Self.validateContents(in: db)
         }
     }

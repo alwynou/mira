@@ -12,7 +12,7 @@ private struct PreparedMemoryContext {
 /// The store deliberately exposes synchronous operations.  Its owning application
 /// actor is responsible for keeping these bounded operations off view tasks.
 public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
-    static let currentSchemaVersion = 11
+    static let currentSchemaVersion = 12
     private static let baseMigrationName = "m0_core"
     private static let auditMigrationName = "m2_execution_audit"
     let pool: DatabasePool
@@ -344,6 +344,7 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
                 let execution = Execution(id: executionID, conversationID: conversationID, triggerMessageID: messageID, route: route, createdAt: at, updatedAt: at)
                 try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_json, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'queued', ?, ?, NULL, ?, ?)", arguments: [id(executionID), id(conversationID), id(messageID), try encode(route), try encode(TokenUsage()), at.timeIntervalSince1970, at.timeIntervalSince1970])
                 try db.execute(sql: "INSERT INTO messages (id, conversation_id, execution_id, sequence, role, status, text, trace_json, created_at) VALUES (?, ?, ?, ?, 'user', 'committed', ?, '[]', ?)", arguments: [id(messageID), id(conversationID), id(executionID), sequence, text, at.timeIntervalSince1970])
+                try db.execute(sql: "INSERT INTO message_time_context (message_id, time_zone) VALUES (?, ?)", arguments: [id(messageID), TimeZone.current.identifier])
                 try db.execute(sql: "UPDATE conversations SET updated_at = ?, revision = revision + 1 WHERE id = ?", arguments: [at.timeIntervalSince1970, id(conversationID)])
                 if !hadUserMessage {
                     let preview = String(text.prefix(80))
@@ -679,7 +680,9 @@ extension SQLiteMiraStore {
             try createMemorySchema(in: db)
             try createMemoryExtractionSchema(in: db)
             try createKnowledgeSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 11")
+            try createTaskSchema(in: db)
+            try createMemoryAssertionMetadataSchema(in: db)
+            try db.execute(sql: "PRAGMA user_version = 12")
         }
         return migrator
     }
@@ -688,7 +691,7 @@ extension SQLiteMiraStore {
         var migrator = DatabaseMigrator()
         migrator.registerMigration(baseMigrationName) { db in
             try createSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 11")
+            try db.execute(sql: "PRAGMA user_version = 12")
         }
         return migrator
     }
@@ -1376,6 +1379,8 @@ extension SQLiteMiraStore {
         let tables = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
         var expectedTables: Set<String> = ["grdb_migrations", "workspaces", "conversations", "provider_connections", "model_descriptors", "model_routes", "route_bindings", "executions", "messages", "assistant_drafts", "execution_steps", "model_attempts", "tool_invocations", "memories", "memory_evidence", "memory_revisions", "memory_replacements", "memory_operation_receipts", "memory_source_suppressions", "memory_usages", "execution_history_dependencies", "memory_capture_policy", "memory_extraction_jobs", "memory_extraction_attempts", "memory_extraction_decisions", "memory_search", "memory_search_config", "memory_search_data", "memory_search_docsize", "memory_search_idx", "memory_search_content"]
         expectedTables.formUnion(try knowledgeTableNames(in: db))
+        expectedTables.formUnion(taskTableNames)
+        expectedTables.insert("memory_assertion_metadata")
         guard Set(tables) == expectedTables else { throw MiraError(.unsupported, "The backup contains an unknown database schema.") }
         let unexpectedProgrammableObjects = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type IN ('trigger', 'view')")
         guard unexpectedProgrammableObjects.isEmpty else { throw MiraError(.unsupported, "The backup contains unknown database objects.") }
@@ -1435,6 +1440,8 @@ extension SQLiteMiraStore {
         }
         try validateMemoryContents(in: db)
         try validateKnowledgeContents(in: db)
+        try validateTaskContents(in: db)
+        try validateMemoryAssertionMetadata(in: db)
         try Self.validateMemoryExtractionContents(in: db)
         // Ensure the structural constraints that are not represented by a
         // Codable payload also hold for hand-edited files.

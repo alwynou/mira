@@ -22,13 +22,15 @@ final class EverydayMemoryBaselineTests: XCTestCase {
             let executionID = ExecutionID()
             let message = Message(id: .init(), conversationID: .init(), executionID: executionID, sequence: 1, role: .user, status: .committed, text: scenario.statement, createdAt: Date(timeIntervalSince1970: 1_000))
             let source = MemoryExtractionSource(message: message, executionID: executionID, workspaceID: nil, sourceHash: "synthetic")
+            let annotation = corpus.hostAnnotations[scenario.id]
             let item: [String: Any] = [
                 "content": scenario.statement, "quote": scenario.statement,
                 "kind": "preference", "subject": "user", "sensitivity": "standard",
                 "inferred": false, "stable": true, "confidence": "high",
-                "validFrom": NSNull(), "validUntil": NSNull()
+                "validFrom": NSNull(), "validUntil": NSNull(),
+                "assertion": ["mode": annotation?.assertionMode ?? "directStable", "aspectKey": annotation?.aspectKey ?? "unannotated.preference", "changeIntent": annotation?.changeIntent ?? "independent"]
             ]
-            let data = try JSONSerialization.data(withJSONObject: ["version": 1, "items": [item]])
+            let data = try JSONSerialization.data(withJSONObject: ["version": 2, "items": [item]])
             let proposals = try MemoryExtractionValidator.validate(output: String(decoding: data, as: UTF8.self), source: source, mode: .automaticWithUndo)
             let active = proposals.contains { $0.triage == .active }
             results.append(.init(id: scenario.id, expected: scenario.expectation, gate: active ? "active" : "candidate"))
@@ -54,7 +56,8 @@ final class EverydayMemoryBaselineTests: XCTestCase {
         print("Everyday host gate: \(report.acceptedActive)/\(report.expectedActive) authored positives accepted; \(report.unsafeActive) unsafe activations.")
     }
 
-    private struct Corpus: Decodable { let version: Int; let scenarios: [Scenario] }
+    private struct Corpus: Decodable { let version: Int; let scenarios: [Scenario]; let hostAnnotations: [String: HostAnnotation] }
+    private struct HostAnnotation: Decodable { let assertionMode: String; let aspectKey: String; let changeIntent: String }
     private struct Scenario: Decodable {
         let id: String
         let language: String

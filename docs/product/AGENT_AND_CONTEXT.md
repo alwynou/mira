@@ -1,8 +1,8 @@
 # Agent、模型接入与上下文产品规范
 
-**文档版本：** v1.2  
-**更新日期：** 2026-09-05  
-**状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
+**文档版本：** v1.3
+**更新日期：** 2026-09-07
+**状态：** M6 的一次性本地 Task / Reminder 增量已实现；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md) 和 [Task / Reminder 验收记录](../engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 定义执行状态、权限体验、Provider 管理和模型上下文的用户行为；不定义协议字段或调度实现。
 
@@ -28,6 +28,8 @@ Agent 可以：
 - 产生 Artifact；
 - 请求用户确认或完成 UI 操作；
 - 保存可追溯的执行过程。
+
+当前 M6 增量中，Agent 通过 `task.list` 查看当前 Inbox / Workspace 的 Task、修订和 Reminder 交付状态，通过 `task.change` 创建或修改 Task 及可选的一次性本地 Reminder。模型参数不能授予写入权限；明确命令可直接提交，目标或时间含糊时进入 Tasks 页面审核。工具回执区分“记录已保存”和“通知已由系统确认排程”。详细字段、时间解释和恢复边界见 [Tasks and local reminders implementation](../architecture/TASKS_AND_REMINDERS.md)。
 
 <a id="s12-02"></a>
 
@@ -136,7 +138,7 @@ Disabling a model or provider preserves its saved settings and purpose selection
 
 The bundled models.dev catalog supplies model names, context/output limits, modalities, tool and reasoning information. Provider discovery supplies account-specific model IDs separately. Catalog membership does not prove account access; discovery does not prove a capability. New models with an exact catalog match open with reviewable suggestions. Existing saved models change only through an explicit edit or Apply Catalog Suggestions action. The editor shows the source, snapshot revision and retrieval date, and lets the user clear the reference for manually confirmed deployment overrides.
 
-Applied catalog restrictions exclude incompatible modalities, excessive output budgets and unsupported reasoning modes from execution. Mira initially supports standard text and explicitly disabled thinking on reviewed DeepSeek/Kimi models. Models requiring reasoning continuation remain visible for management but unavailable for execution. Current compatibility and sources are defined in [Model catalog](../architecture/MODEL_CATALOG.md).
+Applied catalog restrictions exclude incompatible modalities, excessive output budgets and unsupported reasoning modes from execution. Thinking controls are first-class route settings: when a reviewed protocol supports them, Mira preserves visible thinking and the provider continuation material needed for that protocol. Models whose required thinking or continuation policy is not supported remain visible for management but unavailable for execution. Current compatibility and sources are defined in [Model catalog](../architecture/MODEL_CATALOG.md); the continuation boundaries are defined in [Thinking](../architecture/THINKING.md).
 
 JSON extraction has its own capability declaration and Test JSON Extraction action. A simple synthetic JSON test establishes only that format check; it does not prove memory quality, factual attribution or native structured-output support. Automatic memory still requires its separate switch, budget and explicit purpose selection.
 

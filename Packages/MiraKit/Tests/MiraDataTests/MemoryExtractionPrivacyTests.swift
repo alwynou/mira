@@ -26,6 +26,42 @@ struct MemoryExtractionPrivacyTests {
         #expect(try restored.messages(in: fixture.conversation.id).first?.text == fixture.sourceText)
     }
 
+    @Test func revisedExtractionMemoryBackupRetainsHistoricalAssertionMetadataBinding() throws {
+        let fixture = try makeCompletedFixture()
+        defer { remove(fixture.directory) }
+        let revised = try fixture.store.reviseMemory(
+            fixture.memoryID,
+            workspaceID: nil,
+            draft: .init(content: "I prefer herbal tea", scope: .global, kind: .preference),
+            expectedRevision: 1,
+            at: date(1005)
+        )
+        #expect(revised.revision == 2)
+
+        let backup = try export(fixture.store, directory: fixture.directory, name: "revised")
+        let restoredDirectory = fixture.directory.appendingPathComponent("revised-restored")
+        defer { remove(backup); remove(restoredDirectory) }
+        try fixture.store.restoreBackup(from: backup, to: restoredDirectory)
+
+        let restored = try SQLiteMiraStore(directory: restoredDirectory)
+        #expect(try restored.memoryDetail(fixture.memoryID, workspaceID: nil).memory.revision == 2)
+    }
+
+    @Test func restoreRejectsPurgedAssertionMetadataOnLiveMemory() throws {
+        let fixture = try makeCompletedFixture()
+        defer { remove(fixture.directory) }
+        let backup = try export(fixture.store, directory: fixture.directory, name: "live-metadata-purged")
+        defer { remove(backup) }
+        let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
+        let changed = try database.write { db -> Int in
+            try db.execute(sql: "UPDATE memory_assertion_metadata SET semantic_key = NULL, assertion_mode = NULL, change_intent = NULL, source_hash = NULL, metadata_json = NULL, body_purged_at = ? WHERE memory_id = ?", arguments: [1010.0, fixture.memoryID.rawValue.uuidString.lowercased()])
+            return db.changesCount
+        }
+        #expect(changed == 1)
+        try resealTestBackupManifest(backup)
+        try expectStorageRestoreError(fixture.store, backup: backup, name: "live-metadata-purged-restored")
+    }
+
     @Test func forgettingExtractionMemoryPurgesBodiesAndPreservesSourceAndAccounting() throws {
         let fixture = try makeCompletedFixture()
         defer { remove(fixture.directory) }
@@ -98,7 +134,7 @@ struct MemoryExtractionPrivacyTests {
         try expectStorageRestoreError(fixture.store, backup: backup, name: "resurrected-attempt-restored")
     }
 
-    @Test(arguments: ["source", "policy", "evidence"])
+    @Test(arguments: ["source", "policy", "evidence", "assertion"])
     func restoreRejectsMismatchedDecisionOrMemoryEvidence(_ mutation: String) throws {
         let fixture = try makeCompletedFixture()
         defer { remove(fixture.directory) }
@@ -111,6 +147,15 @@ struct MemoryExtractionPrivacyTests {
                 try db.execute(sql: "UPDATE memory_extraction_decisions SET source_revision = source_revision + 1 WHERE job_id = ?", arguments: [id(fixture.claim.job.id)])
             case "policy":
                 try db.execute(sql: "UPDATE memory_extraction_decisions SET policy_revision = policy_revision + 1 WHERE job_id = ?", arguments: [id(fixture.claim.job.id)])
+            case "assertion":
+                guard let row = try Row.fetchOne(db, sql: "SELECT metadata_json FROM memory_assertion_metadata WHERE memory_id = ?", arguments: [id(fixture.memoryID)]),
+                      let original = row["metadata_json"] as String?,
+                      var metadata = try JSONSerialization.jsonObject(with: Data(original.utf8)) as? [String: Any],
+                      var assertion = metadata["assertion"] as? [String: Any] else { return 0 }
+                assertion["aspectKey"] = "other.aspect"
+                metadata["assertion"] = assertion
+                let changedJSON = try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys])
+                try db.execute(sql: "UPDATE memory_assertion_metadata SET metadata_json = ? WHERE memory_id = ?", arguments: [String(decoding: changedJSON, as: UTF8.self), id(fixture.memoryID)])
             default:
                 guard let row = try Row.fetchOne(db, sql: "SELECT evidence_json FROM memory_evidence WHERE memory_id = ?", arguments: [id(fixture.memoryID)]), let original = row["evidence_json"] as String? else { return 0 }
                 var evidence = try decode(MemoryEvidence.self, from: original)
@@ -198,7 +243,7 @@ struct MemoryExtractionPrivacyTests {
 
     private let sourceText = "I prefer tea"
     private var validOutput: String { Self.validOutputJSON }
-    private static let validOutputJSON = "{\"version\":1,\"items\":[{\"content\":\"I prefer tea\",\"quote\":\"I prefer tea\",\"kind\":\"preference\",\"subject\":\"user\",\"sensitivity\":\"standard\",\"inferred\":false,\"stable\":true,\"confidence\":\"high\",\"validFrom\":null,\"validUntil\":null}]}"
+    private static let validOutputJSON = "{\"version\":2,\"items\":[{\"content\":\"I prefer tea\",\"quote\":\"I prefer tea\",\"kind\":\"preference\",\"subject\":\"user\",\"sensitivity\":\"standard\",\"inferred\":false,\"stable\":true,\"confidence\":\"high\",\"validFrom\":null,\"validUntil\":null,\"assertion\":{\"mode\":\"directStable\",\"aspectKey\":\"drink.preference\",\"changeIntent\":\"independent\"}}]}"
 
     private func makeCompletedFixture() throws -> Fixture {
         let claimed = try makeClaimedFixture()

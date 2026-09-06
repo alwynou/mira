@@ -326,6 +326,7 @@ extension SQLiteMiraStore: MemoryStore {
             try insertMemoryRevision(MemoryRevision(memoryID: memoryID, revision: updated.revision, draft: nil, actor: "user", changedAt: at, bodyPurgedAt: at), in: db)
             try suppressSources(for: memoryID, at: at, reason: "forgotten", in: db)
             try purgeMemoryExtractionForMemory(memoryID, at: at, in: db)
+            try purgeAssertionMetadata(for: [memoryID], at: at, in: db)
             for row in try Row.fetchAll(db, sql: "SELECT id, memory_id, source_kind, source_id, source_revision, conversation_id, excerpt, source_hash, speaker_role, created_at, body_purged_at, evidence_json FROM memory_evidence WHERE memory_id = ?", arguments: [memoryIDString(memoryID)]) {
                 let evidence = try memoryEvidence(row)
                 let purged = MemoryEvidence(id: evidence.id, memoryID: evidence.memoryID, sourceKind: evidence.sourceKind, sourceID: evidence.sourceID, sourceRevision: evidence.sourceRevision, conversationID: evidence.conversationID, excerpt: nil, sourceHash: nil, speakerRole: evidence.speakerRole, createdAt: evidence.createdAt, bodyPurgedAt: at)
@@ -488,10 +489,22 @@ extension SQLiteMiraStore {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         var from = "memories m"
         var rank = "0.0"
-        let shortCJKTerms = memorySearchShortCJKTerms(trimmed, maximum: 12)
-        let terms = Array(memorySearchTerms(trimmed).prefix(24 - shortCJKTerms.count))
+        let expansion = MemoryRecallPlanner.expand(query: trimmed)
+        var shortCJKTerms = memorySearchShortCJKTerms(trimmed, maximum: 12)
+        for alias in expansion.aliasTerms where alias.unicodeScalars.count == 2 && alias.unicodeScalars.allSatisfy(isCJKScalar) {
+            if !shortCJKTerms.contains(alias) { shortCJKTerms.append(alias) }
+            if shortCJKTerms.count == 12 { break }
+        }
+        let rawTerms = memorySearchTerms(trimmed) + expansion.aliasTerms.flatMap(memorySearchTerms)
+        var uniqueTerms: [String] = []
+        var seenTerms = Set<String>()
+        for term in rawTerms where seenTerms.insert(term).inserted {
+            uniqueTerms.append(term)
+            if uniqueTerms.count == 24 { break }
+        }
+        let terms = Array(uniqueTerms.prefix(max(0, 24 - shortCJKTerms.count)))
         if !trimmed.isEmpty && enforcePolicy {
-            if trimmed.count < 3 && trimmed.unicodeScalars.allSatisfy(isCJKScalar) {
+            if trimmed.count < 3 && trimmed.unicodeScalars.allSatisfy(isCJKScalar) && expansion.aliasTerms.isEmpty {
                 // Preserve explicit short-keyword search without expanding long
                 // natural-language requests into single-character matches.
                 conditions.append("lower(COALESCE(json_extract(m.draft_json, '$.content'), '')) LIKE lower(?) ESCAPE '\\'")

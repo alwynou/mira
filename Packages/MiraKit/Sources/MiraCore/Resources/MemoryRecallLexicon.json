@@ -1,0 +1,53 @@
+{
+  "rules": [
+    {
+      "id": "breakfast",
+      "directTriggers": ["breakfast", "morning meal", "first meal", "早餐", "早饭"],
+      "contextCues": ["morning", "early", "早晨", "早上", "上午"],
+      "actionCues": ["eat", "have", "pick", "choose", "food", "meal", "drink", "order", "recommend", "吃", "选", "买", "喝", "推荐", "适合"],
+      "aliases": ["breakfast", "早餐", "早饭"]
+    },
+    {
+      "id": "morning-coffee",
+      "directTriggers": ["morning coffee", "coffee", "早晨咖啡", "早上咖啡", "咖啡"],
+      "contextCues": ["morning", "早晨", "早上", "上午"],
+      "actionCues": ["coffee", "milk", "drink", "奶", "牛奶", "燕麦奶", "喝", "咖啡"],
+      "aliases": ["coffee", "咖啡", "milk", "牛奶", "燕麦奶"]
+    },
+    {
+      "id": "reading-notes",
+      "directTriggers": ["reading notes", "book notes", "读书笔记", "阅读笔记", "读书", "笔记"],
+      "contextCues": ["book", "reading", "书", "阅读"],
+      "actionCues": ["notes", "template", "annotate", "笔记", "模板", "批注"],
+      "aliases": ["reading", "notes", "读书", "笔记"]
+    },
+    {
+      "id": "work-updates",
+      "directTriggers": ["work update", "status note", "project update", "工作消息", "项目更新"],
+      "contextCues": ["work", "project", "工作", "项目"],
+      "actionCues": ["update", "status", "message", "消息", "更新", "同事"],
+      "aliases": ["work", "update", "工作", "项目"]
+    },
+    {
+      "id": "errands",
+      "directTriggers": ["errands", "one outing", "杂事", "跑腿"],
+      "contextCues": ["weekend", "saturday", "周末", "周六"],
+      "actionCues": ["errands", "outing", "杂事", "安排", "处理"],
+      "aliases": ["errands", "saturday", "杂事", "周六"]
+    },
+    {
+      "id": "exercise",
+      "directTriggers": ["exercise", "cycling", "running", "运动", "跑步", "骑车"],
+      "contextCues": ["exercise", "workout", "运动", "锻炼"],
+      "actionCues": ["schedule", "session", "pace", "安排", "开始", "配速"],
+      "aliases": ["exercise", "workout", "运动", "锻炼"]
+    },
+    {
+      "id": "travel-lodging",
+      "directTriggers": ["hotel", "place to stay", "lodging", "住宿", "酒店", "住处"],
+      "contextCues": ["trip", "travel", "city", "旅行", "出行", "城市"],
+      "actionCues": ["compare", "choose", "stay", "比较", "选择", "优先"],
+      "aliases": ["hotel", "lodging", "住宿", "酒店"]
+    }
+  ]
+}

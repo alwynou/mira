@@ -1,10 +1,10 @@
 # 结构化记录产品规范
 
-**文档版本：** v1.2  
-**更新日期：** 2026-09-05  
-**状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
+**文档版本：** v1.3
+**更新日期：** 2026-09-07
+**状态：** M6 的一次性本地 Task / Reminder 增量已实现；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md) 和 [Task / Reminder 验收记录](../engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
-定义事件、任务、提醒、日程和轻量财务记录的业务含义及 Apple 发布体验；版本范围由 MVP 决定。
+定义事件、任务、提醒、日程和轻量财务记录的业务含义及 Apple 发布体验；当前实现的详细技术契约见 [Tasks and local reminders implementation](../architecture/TASKS_AND_REMINDERS.md)，版本范围由 MVP 决定。
 
 返回 [PRD.md](../PRD.md) · 版本范围：[MVP](../MVP.md)
 
@@ -37,13 +37,17 @@ FinancialTransaction
 收入、支出、退款或转账等轻量财务流水
 ```
 
+当前实现的是 M6 的最小纵向路径：Task 可属于 Inbox 或一个 Workspace，包含标题、备注、可选到期时间、状态和修订历史；每个 Task 最多带一个确定时刻的一次性本地 Reminder。结构化记录的其他对象仍属于设计范围，未因 Task 实现而提前开放。
+
+Tasks 页面支持创建、编辑、完成、取消、重新打开、查看来源证据和修订历史。来自对话的明确 Task / Reminder 命令使用 `task.list` 与 `task.change`；含糊目标、缺少必要时间或需要用户判断的解释保留为独立 Proposal 供审核。通知的“已保存”与“已由系统确认排程”分开显示。
+
 <a id="s15-02"></a>
 
 ### 1.2 EventRecord 边界
 
 EventRecord 只描述已经发生或已经观察到的事件，不再同时表达“未来计划”。
 
-未来计划进入 CalendarEvent；需要执行的行为进入 Task；需要通知的行为进入 Reminder。
+未来计划进入 CalendarEvent；需要执行的行为进入 Task；需要通知的行为进入 Reminder。当前 M6 只实现 Task 及其一次性本地 Reminder；CalendarEvent、EventRecord 和 FinancialTransaction 仍按后续里程碑实施。
 
 事件本身可被搜索和回顾，默认不再重复生成同内容的“memorableEvent Memory”。只有从事件中形成长期认识时，才产生 Memory。
 
@@ -68,7 +72,7 @@ EventRecord 只描述已经发生或已经观察到的事件，不再同时表�
 
 ```text
 明确命令
-→ 直接创建或修改
+→ 直接创建或修改（Task / Reminder 由 `task.change` 处理）
 
 明确事实但没有要求执行
 → 根据用户设置自动记录，或生成可撤销提示
@@ -131,7 +135,9 @@ FinancialTransaction 支持：
 
 Mira 内部 CalendarEvent 与 Reminder 是规范事实源。
 
-用户可以选择单向发布到：
+当前 M6 增量只使用 Mira 自己的本地通知。Apple Calendar / Reminders 单向发布属于后续独立增量，不是本次 Task / Reminder 能力的前置条件。
+
+未来用户可以选择单向发布到：
 
 ```text
 Mira CalendarEvent → Apple Calendar
@@ -150,14 +156,14 @@ Mira Reminder      → Apple Reminders
 
 ### 1.7 单一通知所有者
 
-为了避免重复通知，每条 Reminder / CalendarEvent 必须只有一个默认通知所有者：
+为了避免重复通知，每条 Reminder / CalendarEvent 必须只有一个默认通知所有者。当前 M6 的 Reminder 固定由 Mira 本地通知负责；Apple 作为通知所有者只在后续单向发布增量中开放：
 
 ```text
 deliveryOwner = mira
-由 Mira 的本地通知负责
+由 Mira 的本地通知负责（当前 M6）
 
 deliveryOwner = apple
-由 Apple Calendar / Reminders 负责
+由 Apple Calendar / Reminders 负责（后续增量）
 ```
 
 发布到 Apple 并启用 Apple 通知后，Mira 不再为同一触发条件重复安排本地通知。
@@ -170,7 +176,7 @@ deliveryOwner = apple
 
 相对时间以原消息发送时间和当时的时区解释。跨日重试不能把“明天”重新解释为另一天；遇到夏令时不存在或重复的本地时间、无明确时刻的表达时，展示解释并要求必要的澄清。
 
-结构化候选拥有独立审核入口，不占用 Memory 的候选生命周期。只有已提交且时间完整的 Reminder 才能尝试安排通知；通知未授权、调度失败或 Apple 发布失败都必须在记录上可见，不能显示“已安排通知”。
+结构化候选拥有独立审核入口，不占用 Memory 的候选生命周期。只有已提交且时间完整的 Reminder 才能尝试安排通知；当前 M6 中通知未授权或本地调度失败都必须在记录上可见，不能显示“已安排通知”。后续 Apple 发布也必须把发布失败保留在记录上。
 
 从 Mira 通知切换到 Apple 通知，或反向切换，是一个可能失败的多步操作。只在旧通道移除与新通道确认完成后显示成功；状态不确定时提示用户，不自动启动第二条通知通道。
 

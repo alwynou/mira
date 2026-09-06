@@ -28,6 +28,7 @@ public actor MiraApplication {
     private let tools: ToolRegistry
     private let limits: ExecutionLimits
     private let memoryApprovals: MemoryApprovalCoordinator
+    private let reminders: ReminderScheduler?
     private let memoryExtraction: MemoryExtractionWorker
     private var memoryExtractionEvents: Task<Void, Never>?
     private var expired: Set<ExecutionID> = []
@@ -42,12 +43,13 @@ public actor MiraApplication {
     private var isShuttingDown = false
     private var observers: [UUID: AsyncStream<ApplicationEvent>.Continuation] = [:]
 
-    public init(store: any MiraStore, provider: any ModelProviderPort, environment: RuntimeEnvironment = .init(), tools: ToolRegistry = .empty, limits: ExecutionLimits = .init(), memoryApprovals: MemoryApprovalCoordinator = .init()) throws {
+    public init(store: any MiraStore, provider: any ModelProviderPort, environment: RuntimeEnvironment = .init(), tools: ToolRegistry = .empty, limits: ExecutionLimits = .init(), memoryApprovals: MemoryApprovalCoordinator = .init(), reminders: ReminderScheduler? = nil) throws {
         guard limits.maxSteps > 0, limits.maxSteps <= 20, limits.maxToolCalls > 0, limits.maxToolCalls <= 32,
               limits.maxParallelTools > 0, limits.maxParallelTools <= 4, limits.maxReservedOutputTokens > 0,
               limits.turnTimeout > .zero else { throw MiraError(.configuration, "Execution limits are invalid.") }
         self.store = store; self.provider = provider; self.environment = environment; self.tools = tools; self.limits = limits
         self.memoryApprovals = memoryApprovals
+        self.reminders = reminders
         self.memoryExtraction = MemoryExtractionWorker(store: store, provider: provider, environment: environment)
         try store.recoverInterrupted(at: environment.now())
         try store.recoverMemoryExtraction(at: environment.now())
@@ -75,6 +77,8 @@ public actor MiraApplication {
             }
         }
         await memoryExtraction.wake()
+        try? await reminders?.reconcile()
+        emit(.changed)
     }
 
     private func receiveMemoryExtractionEvent(_ event: MemoryExtractionWorkerEvent) {
@@ -433,11 +437,16 @@ public actor MiraApplication {
                     let workspaceID = conversations.first { $0.id == execution.conversationID }?.workspaceID
                     let query = messages.first { $0.id == execution.triggerMessageID }?.text ?? ""
                     let recalled = try store.recallMemories(query: query, workspaceID: workspaceID, connectionID: execution.route.connectionID, limit: 6, at: environment.now())
+                    let sourceHits = KnowledgePrefetchPlan.shouldPrefetch(query: query)
+                        ? try store.searchKnowledge(query: KnowledgePrefetchPlan.sourceQuery(for: query), workspaceID: workspaceID, connectionID: execution.route.connectionID, limit: 4).hits : []
                     base = try ContextBuilder.build(execution: execution, conversations: conversations,
                         workspaces: store.workspaces(), messages: messages,
                         executions: store.executions(in: execution.conversationID),
-                        memories: recalled.memories, suppressedMessageIDs: store.suppressedMemorySourceMessageIDs(),
+                        memories: recalled.memories, sourceHits: sourceHits, suppressedMessageIDs: store.suppressedMemorySourceMessageIDs(),
                         excludedHistoryExecutionIDs: Set(try store.memoryContextNotices(in: execution.conversationID, at: environment.now()).keys), at: environment.now())
+                    let selectedChunks = Set(base.contextInfo?.references.filter { $0.kind == "sourceChunk" }.map(\.id) ?? [])
+                    let usages = sourceHits.filter { selectedChunks.contains($0.chunk.id.rawValue.uuidString.lowercased()) }.map { SourceUsage(sourceID: $0.source.id, sourceVersionID: $0.chunk.sourceVersionID, chunkID: $0.chunk.id) }
+                    if !usages.isEmpty { try store.recordSourceUsage(usages, executionID: execution.id, at: environment.now()) }
                     frozenBase = base
                 }
                 let attemptID = environment.uuid()
@@ -690,5 +699,50 @@ public actor MiraApplication {
         try store.finish(executionID: execution.id, status: status, text: text[execution.id] ?? "", trace: traces[execution.id] ?? [],
                          usage: usage[execution.id] ?? .init(), error: error,
                          assistantMessageID: .init(environment.uuid()), at: environment.now())
+    }
+}
+
+
+extension MiraApplication {
+    public func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int = 100) throws -> [MiraTask] {
+        try store.taskList(workspaceID: workspaceID, includeCompleted: includeCompleted, limit: limit)
+    }
+    public func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> MiraTask { try store.taskDetail(id, workspaceID: workspaceID) }
+    public func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> [TaskRevision] { try store.taskRevisions(id, workspaceID: workspaceID) }
+    public func taskProposals(workspaceID: WorkspaceID?) throws -> [TaskProposal] { try store.taskProposals(workspaceID: workspaceID) }
+    public func saveTask(id: MiraTaskID = .init(), workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus = .open, expectedRevision: Int? = nil, operationID: UUID = UUID()) async throws -> MiraTask {
+        guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot save a task.") }
+        let result = try store.saveTask(id, workspaceID: workspaceID, draft: draft, status: status, expectedRevision: expectedRevision, operationID: operationID, at: environment.now())
+        emit(.changed)
+        try? await reminders?.reconcile()
+        emit(.changed)
+        return try store.taskDetail(result.id, workspaceID: workspaceID)
+    }
+    public func resolveTaskProposal(id: UUID, workspaceID: WorkspaceID?, accept: Bool, correctedDraft: TaskDraft? = nil) async throws -> TaskWriteReceipt {
+        guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot save a task.") }
+        let result = try store.resolveTaskProposal(id, workspaceID: workspaceID, accept: accept, correctedDraft: correctedDraft, at: environment.now())
+        emit(.changed)
+        try? await reminders?.reconcile()
+        emit(.changed)
+        return result
+    }
+    public func resumeReminder(_ id: MiraTaskID, workspaceID: WorkspaceID?, expectedRevision: Int) async throws {
+        guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot save a task.") }
+        try store.resumeReminder(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: environment.now())
+        try await reminders?.reconcile()
+        emit(.changed)
+    }
+    public func requestNotificationAuthorization() async throws -> Bool {
+        guard !isShuttingDown else { throw MiraError(.busy, "The app is shutting down and cannot save a task.") }
+        guard let reminders else { throw MiraError(.unsupported, "Local notifications are unavailable in this session.") }
+        let allowed = try await reminders.requestPermission()
+        try await reminders.reconcile()
+        emit(.changed)
+        return allowed
+    }
+    public func refreshReminderDelivery() async {
+        guard !isShuttingDown else { return }
+        try? await reminders?.reconcile()
+        emit(.changed)
     }
 }

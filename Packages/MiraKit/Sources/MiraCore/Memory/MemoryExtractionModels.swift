@@ -79,6 +79,25 @@ public struct MemoryExtractionClaim: Sendable {
 
 public enum MemoryExtractionTriage: String, Sendable { case active, candidate }
 
+/// Model-supplied semantic metadata is only used to group assertions for
+/// review/evolution. It never grants authorization or changes source scope.
+public enum MemoryAssertionMode: String, Codable, CaseIterable, Sendable {
+    case directStable, inferred, reported, quoted, hypothetical, question, temporary, correction, uncertain
+}
+
+public enum MemoryChangeIntent: String, Codable, CaseIterable, Sendable {
+    case independent, explicitReplacement, uncertain
+}
+
+public struct MemoryAssertionMetadata: Codable, Equatable, Sendable {
+    public let mode: MemoryAssertionMode
+    public let aspectKey: String?
+    public let changeIntent: MemoryChangeIntent
+    public init(mode: MemoryAssertionMode, aspectKey: String?, changeIntent: MemoryChangeIntent) {
+        self.mode = mode; self.aspectKey = aspectKey; self.changeIntent = changeIntent
+    }
+}
+
 /// Produced by deterministic validation, never decoded as authorization from model output.
 public struct MemoryExtractionProposal: Sendable {
     public let draft: MemoryDraft
@@ -87,8 +106,10 @@ public struct MemoryExtractionProposal: Sendable {
     public let authority: MemoryAuthority
     public let triage: MemoryExtractionTriage
     public let reviewReason: String?
-    public init(draft: MemoryDraft, quote: String, origin: MemoryOrigin, authority: MemoryAuthority, triage: MemoryExtractionTriage, reviewReason: String? = nil) {
+    public let assertion: MemoryAssertionMetadata
+    public init(draft: MemoryDraft, quote: String, origin: MemoryOrigin, authority: MemoryAuthority, triage: MemoryExtractionTriage, reviewReason: String? = nil, assertion: MemoryAssertionMetadata = .init(mode: .uncertain, aspectKey: nil, changeIntent: .uncertain)) {
         self.draft = draft; self.quote = quote; self.origin = origin; self.authority = authority; self.triage = triage; self.reviewReason = reviewReason
+        self.assertion = assertion
     }
 }
 

@@ -5,6 +5,60 @@ import Testing
 
 @Suite("Natural memory recall")
 struct NaturalMemoryRecallTests {
+    @Test(arguments: [
+        "What should I eat before a long morning?",
+        "I'm picking a morning meal before work.",
+        "早餐吃什么比较适合我？" // i18n-fixture: bilingual recall planner coverage.
+    ])
+    func breakfastParaphrasesExpandToBilingualTopicTerms(_ query: String) {
+        let expansion = MemoryRecallPlanner.expand(query: query)
+        #expect(expansion.matchedTopics.contains("breakfast"))
+        #expect(expansion.aliasTerms.contains("breakfast"))
+        #expect(expansion.aliasTerms.contains("早餐")) // i18n-fixture: bilingual recall planner coverage.
+    }
+
+    @Test func genericMorningCueDoesNotExpandByItself() {
+        let expansion = MemoryRecallPlanner.expand(query: "Where should I put a writing task this morning?")
+        #expect(!expansion.matchedTopics.contains("breakfast"))
+        #expect(!expansion.aliasTerms.contains("breakfast"))
+    }
+
+    @Test(arguments: [
+        "The noteworthy summary has no reading topic here.",
+        "I am bookkeeping the budget for the team.",
+        "Help me use my reading notes",
+        "帮我整理读书笔记" // i18n-fixture: bilingual recall planner coverage.
+    ])
+    func nonBreakfastTopicsUseOnlyTheirOwnAliases(_ query: String) {
+        let expansion = MemoryRecallPlanner.expand(query: query)
+        if query.contains("noteworthy") || query.contains("bookkeeping") {
+            #expect(expansion.matchedTopics.isEmpty)
+        } else {
+            #expect(expansion.matchedTopics.contains("reading-notes"))
+            #expect(!expansion.matchedTopics.contains("breakfast"))
+            #expect(!expansion.aliasTerms.contains("breakfast"))
+        }
+    }
+
+    @Test(arguments: [
+        ("Can you help shape this status note for my team?", "work-updates"),
+        ("周六怎么安排杂事比较顺？", "errands"), // i18n-fixture: bilingual topic coverage.
+        ("What exercise sessions fit my week?", "exercise"),
+        ("下次出行选住宿时优先看什么？", "travel-lodging") // i18n-fixture: bilingual topic coverage.
+    ])
+    func boundedTopicAliasesCoverOtherEverydayParaphrases(_ value: (String, String)) {
+        let expansion = MemoryRecallPlanner.expand(query: value.0)
+        #expect(expansion.matchedTopics.contains(value.1))
+        #expect(expansion.aliasTerms.count <= 8)
+    }
+
+    @Test func sourcePrefetchGateRequiresBothCues() {
+        #expect(KnowledgePrefetchPlan.shouldPrefetch(query: "According to my Markdown notes, what does this say?"))
+        #expect(KnowledgePrefetchPlan.shouldPrefetch(query: "根据我的笔记，里面提到了什么？")) // i18n-fixture: source cue coverage.
+        #expect(!KnowledgePrefetchPlan.shouldPrefetch(query: "Please write a breakfast suggestion."))
+        #expect(!KnowledgePrefetchPlan.shouldPrefetch(query: "My notes are important."))
+    }
+
     @Test func ordinaryRelevantTaskReceivesPrefetchedMemoryWithoutMemorySearchRequest() async throws {
         let fixture = try NaturalMemoryRecallFixture()
         defer { fixture.cleanup() }
@@ -33,6 +87,30 @@ struct NaturalMemoryRecallTests {
         #expect((request.system + request.messages.map(\.text).joined()).contains(preference.citation))
         #expect((request.system + request.messages.map(\.text).joined()).contains("I prefer concise reading notes"))
         #expect(request.messages.contains { $0.text.localizedCaseInsensitiveContains("search memory") } == false)
+        await app.shutdown()
+    }
+
+    @Test func bilingualBreakfastParaphraseReceivesActiveMemory() async throws {
+        let fixture = try NaturalMemoryRecallFixture()
+        defer { fixture.cleanup() }
+        let preference = try fixture.store.createMemory(
+            draft: .init(content: "I usually go for a savory breakfast", scope: .global, allowsRemoteUse: true),
+            source: .manualEntry(id: UUID(), statement: "I usually go for a savory breakfast"),
+            operationID: UUID(), replacing: nil, expectedRevision: nil, at: Date()
+        ).memory
+        let provider = NaturalMemoryRecallProvider()
+        let app = try MiraApplication(store: fixture.store, provider: provider)
+        let conversationID = try await app.createConversation(workspaceID: nil)
+        let executionID = try await app.send(
+            conversationID: conversationID,
+            text: "早餐吃什么比较适合我？", // i18n-fixture: cross-language memory recall.
+            routeID: fixture.route.id
+        )
+        try await eventually { try fixture.store.execution(executionID)?.status.isTerminal == true }
+        let request = try #require(provider.requests.first)
+        #expect(request.contextInfo?.references.contains {
+            $0.kind == "memory" && $0.id == preference.id.rawValue.uuidString && $0.revision == preference.revision
+        } == true)
         await app.shutdown()
     }
 

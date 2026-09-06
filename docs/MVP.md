@@ -1,9 +1,9 @@
 # Mira MVP 范围与实施计划
 
 **版本：** v1.0  
-**日期：** 2026-09-06
+**日期：** 2026-09-07
 
-**状态：** M0 工程基础已实现；M1 对话、Markdown 与标准化配置路由已实现，真实端点与平台验收待补；M2 工具循环基础已实现并进行合成验收。M3 手动记忆、纠正、工具、引用与默认关闭的自动提取已实现并通过确定性测试；真实模型质量与完整原生交互验收待补。M4 资料与完整备份已实现，M5 规模查询、大资料库恢复及本机开发包验证已通过。M3–M5 的真实模型、原生交互及分发门槛仍未完成，M6 未开始。
+**状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。本次继续完成普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒。M6 已有原生界面与确定性测试，操作系统实际通知交付仍待用户配合验收。完整证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 服务商接入流程已按“配置并激活服务商 → 选择服务商模型 → 模型池 → 选择模型”更新，模型池阶段验收见 [模型池验收记录](engineering/PROVIDER_POOL_VERIFICATION.md)。新增服务商目录、models.dev 资料和用途筛选的当前范围见 [目录与筛选验收](engineering/MODEL_CATALOG_VERIFICATION.md)。
 
@@ -17,7 +17,7 @@ A user-authorized [live DeepSeek memory walkthrough](engineering/CORE_WORKFLOW_V
 
 The [ordinary capture and stable-prefix fix](engineering/AUTOMATIC_CAPTURE_PREFIX_VERIFICATION.md) extends automatic-active recognition to bounded routine preferences, adds native Chinese short-word recall, separates dynamic memory from system instructions, and makes capture-off status explicit. It retains opt-in configuration, dedicated extraction routing, and conservative review gates; it does not establish general semantic-memory quality.
 
-The [everyday conversation baseline](engineering/EVERYDAY_MEMORY_VERIFICATION.md) adds 32 natural scenarios and a native XCUITest suite. Three native UI workflows passed. The offline gate accepts only 2/16 authored positive cases; a 12-dispatch real-model sample confirms one successful continuity case and one missed activation, with two incomplete cases. Natural-memory activation remains a priority quality gap; this evidence does not close M3 acceptance.
+The [everyday conversation baseline](engineering/EVERYDAY_MEMORY_VERIFICATION.md) adds 32 natural scenarios and a native XCUITest suite. Three native UI workflows passed. That historical increment accepted 2/16 authored positive cases; its 12-dispatch real-model sample confirmed one successful continuity case and one missed activation, with two incomplete cases. The current [natural memory evolution](engineering/NATURAL_MEMORY_EVOLUTION_VERIFICATION.md) replaces the extraction contract and broadens the deterministic gate. The historical report remains unchanged; current measurements belong to the new verification records and do not close the independent M3 quality gates.
 
 The [usage and cost increment](engineering/USAGE_COST_VERIFICATION.md) adds provider cache/thinking counters and frozen per-call estimates, with separate foreground/background presentation. Unsupported or incomplete billing dimensions remain explicitly unknown. This does not close attended acceptance or introduce a monetary hard limit.
 
@@ -212,7 +212,9 @@ Working Memory 只组合用户固定项与当前 Workspace 的有效决定；尚
 
 ### M6：Task / Reminder（v0.2）
 
-**依赖：** v0.1 数据和执行质量门槛通过。
+**依赖：** 已有对话、执行、来源、存储与恢复能力。用户已授权在需人工配合的 v0.1 验收项暂缓时继续实现 M6；该授权不等于发布质量门槛通过。
+
+**当前实现：** 任务列表、手动新增与编辑、完成 / 取消 / 重新打开、独立候选审核、`task.list` / `task.change`、原消息时间与时区、一次性本地通知、权限恢复入口和恢复后暂停提醒。产品范围见 [Records](product/RECORDS.md)，技术契约见 [Tasks and reminders](architecture/TASKS_AND_REMINDERS.md)。
 
 **交付：** 明确命令创建 / 修改任务和一次性提醒、RecordProposal、Revision + Evidence、本地通知、完成 / 取消与失败状态。
 
@@ -241,7 +243,7 @@ Apple Calendar / Reminders 单向发布作为其后的独立增量：实现 Noti
 
 ## 5. 开发前条件与发布前条件
 
-**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并实现手动管理、可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆已有独立配置、任务、预算与审核实现，并通过确定性验收；M4 资料工具、完整文件备份与界面已实现并通过确定性测试和 CI；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。真实 Provider、Keychain 故障演练及完整平台交互验收仍待补；M3–M5 尚未完成里程碑验收。
+**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并实现手动管理、可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆已有独立配置、任务、预算与审核实现，并通过确定性验收；M4 资料工具、完整文件备份与界面已实现并通过确定性测试和 CI；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。本次已增加自然记忆与资料预取，并完成 M6 任务 / 一次性提醒的实现。真实 Provider 的广泛质量验证、Keychain 故障演练及完整平台交互验收仍待补；M3–M6 尚未完成全部发布验收。
 
 **实施时填写的证据：** 实际选用的模型 ID / 端点及能力验证结果、Package.resolved、最低系统与各 CPU 的验证环境。无需在文档中写入密钥。
 

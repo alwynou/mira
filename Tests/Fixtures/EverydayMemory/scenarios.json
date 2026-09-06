@@ -1,5 +1,23 @@
 {
   "version": 1,
+  "hostAnnotations": {
+    "zh-breakfast-oat-milk": {"assertionMode": "directStable", "aspectKey": "drink.breakfast", "changeIntent": "independent"},
+    "zh-work-update-conclusion-first": {"assertionMode": "directStable", "aspectKey": "communication.work-update", "changeIntent": "independent"},
+    "zh-focus-time-notifications": {"assertionMode": "directStable", "aspectKey": "work.focus-window", "changeIntent": "independent"},
+    "zh-running-easy-pace": {"assertionMode": "directStable", "aspectKey": "exercise.running", "changeIntent": "independent"},
+    "zh-travel-near-metro": {"assertionMode": "directStable", "aspectKey": "travel.lodging", "changeIntent": "independent"},
+    "zh-reading-table-of-contents": {"assertionMode": "directStable", "aspectKey": "reading.nonfiction", "changeIntent": "independent"},
+    "zh-afternoon-unsweetened-tea": {"assertionMode": "directStable", "aspectKey": "drink.afternoon", "changeIntent": "independent"},
+    "zh-saturday-errand-batching": {"assertionMode": "directStable", "aspectKey": "errands.saturday", "changeIntent": "independent"},
+    "en-savory-breakfast": {"assertionMode": "directStable", "aspectKey": "meal.breakfast", "changeIntent": "independent"},
+    "en-team-update-headline": {"assertionMode": "directStable", "aspectKey": "communication.work-update", "changeIntent": "independent"},
+    "en-morning-focus-window": {"assertionMode": "directStable", "aspectKey": "work.focus-window", "changeIntent": "independent"},
+    "en-easy-cycling-twice-weekly": {"assertionMode": "directStable", "aspectKey": "exercise.cycling", "changeIntent": "independent"},
+    "en-walkable-city-hotel": {"assertionMode": "directStable", "aspectKey": "travel.lodging", "changeIntent": "independent"},
+    "en-annotated-paper-books": {"assertionMode": "directStable", "aspectKey": "reading.annotation", "changeIntent": "independent"},
+    "en-sparkling-water-with-dinner": {"assertionMode": "directStable", "aspectKey": "drink.dinner", "changeIntent": "independent"},
+    "en-saturday-errand-batching": {"assertionMode": "directStable", "aspectKey": "errands.saturday", "changeIntent": "independent"}
+  },
   "scenarios": [
     {
       "id": "zh-breakfast-oat-milk",

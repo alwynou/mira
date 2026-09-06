@@ -1,7 +1,7 @@
 # 开发环境、工程组织与协作约定
 
-**文档版本：** v1.2  
-**更新日期：** 2026-09-05  
+**文档版本：** v1.3
+**更新日期：** 2026-09-07
 **状态：** 工程已初始化；已实现的增量与验证证据见 [实施记录](IMPLEMENTATION_STATUS.md)。
 
 定义平台、工具链、工程结构、分发和开发协作方式；产品行为和技术契约分别由产品与领域架构文档负责。
@@ -44,7 +44,7 @@ Mira/
 │       │   ├── Workspace/
 │       │   ├── Memories/
 │       │   ├── Knowledge/
-│       │   ├── Schedule/
+│       │   ├── Tasks/
 │       │   ├── Search/
 │       │   └── Settings/
 │       ├── Platform/
@@ -138,6 +138,8 @@ xcodebuild -project Mira.xcodeproj -scheme Mira \
 
 The package command exercises MiraKit. The host command runs the renamed `MiraHostTests` target, which contains localization and isolated Keychain fixtures. Native macOS UI and CI execution are separate evidence and must be recorded independently.
 
+Opt-in live memory evaluation uses `MIRA_EVAL_CASE_IDS` (one to four fixture IDs) and a shared `MIRA_EVAL_DISPATCH_CAP`; the default cap is 4 and valid overrides are 1 through 12. The cap includes provider continuations and background extraction, so a run must record the selected IDs and effective cap with its evidence. Live evaluation requires an isolated schema 12 library, configured synthetic corpus, and a new report path; it is never part of the normal package or host test commands.
+
 首次解析可使用 `swift package --package-path Packages/MiraKit resolve`。依赖升级时同时检查两个 `Package.resolved`。工程源配置为根目录 `project.yml`，新增 Host 文件后用 XcodeGen 2.46.0 生成并提交 `.xcodeproj` 与共享 Scheme。Core / Data / Providers 是 Swift Package 的三个库；测试只使用合成数据。
 
 CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) 为依据。SwiftStreamingMarkdown v0.7.0 固定依赖 swift-markdown 0.7.3，其 Package 清单要求 Swift 6.2，所以原 Xcode 16.4 不能构建当前 Host。编译器升级不改变 macOS 15 最低部署版本。CI 的运行结果与本机结果分别记录，不从配置文件存在推断 CI 已成功。
@@ -153,9 +155,11 @@ CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](htt
 
 Settings → Data → Export Library Backup creates a new `.mirabackup` directory containing `Mira.sqlite`, `manifest.json`, and the exact referenced `Blobs`. The database snapshot uses SQLite Backup API; the exporter does not copy a live WAL main file or overwrite an existing destination. Keep the entire directory together.
 
-Settings → Data → Restore to New Directory selects a backup bundle and a parent directory. Restore verifies bounded file reads and hashes before opening an owned staged database, then checks exact schema/constraints, integrity, foreign keys, typed values, and immutable chunk/blob relationships. It installs a new directory only after validation and leaves both the original backup and current library intact. Only schema v11 libraries and current-format bundles are supported.
+Settings → Data → Restore to New Directory selects a backup bundle and a parent directory. Restore verifies bounded file reads and hashes before opening an owned staged database, then checks exact schema/constraints, integrity, foreign keys, typed values, and immutable chunk/blob relationships. It installs a new directory only after validation and leaves both the original backup and current library intact. Only schema v12 libraries and current-format bundles are supported; restored future task reminders are paused until the user resumes them. The Task / Reminder contract is in [Tasks and local reminders](../architecture/TASKS_AND_REMINDERS.md).
 
 During development refactors, runtime data is disposable under the user's standing authorization. Stop affected Mira instances, remove obsolete development/test libraries and generated artifacts without making backups, and reuse the current development path. Do not accumulate schema-versioned directories or add migration/compatibility code. The app's explicit export/restore feature is a separate product behavior; it is not a required step in the development workflow.
+
+The current M6 increment includes scoped tasks and optional one-time local reminders. The Core contract is implemented under `MiraCore/Records`, persistence uses the schema 12 task tables, the macOS adapter uses `UserNotifications`, and notification permission is requested only from the Tasks UI. Recurring reminders, Apple Calendar / Reminders projection, and a background helper are outside this increment. Deterministic package evidence and remaining native acceptance belong in [Task / Reminder verification](FUNCTIONAL_MILESTONES_VERIFICATION.md).
 
 验证恢复后的目录可以先在隔离环境打开：
 

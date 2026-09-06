@@ -11,6 +11,8 @@ struct ConversationRoot: View {
     @State private var showsInspector = false
     @State private var showsMemories = false
     @State private var showsKnowledge = false
+    @State private var showsTasks = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var initialMemoryID: MemoryID?
     let isDemo: Bool
 
@@ -81,6 +83,13 @@ struct ConversationRoot: View {
             }
         }
         .sheet(isPresented: $showsWorkspaceSheet) { WorkspaceEditor(application: model.application, workspace: editingWorkspace).environment(\.locale, locale) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.application.refreshReminderDelivery() } }
+        }
+        .sheet(isPresented: $showsTasks) {
+            TaskRootView(application: model.application, workspaceID: model.selectedWorkspaceID)
+                .environment(\.locale, locale)
+        }
         .sheet(isPresented: $showsKnowledge) {
             KnowledgeRootView(application: model.application, workspaceID: model.selectedWorkspaceID, workspaces: model.workspaces)
                 .environment(\.locale, locale)
@@ -113,6 +122,11 @@ struct ConversationRoot: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(.rect)
                     }.buttonStyle(.plain).accessibilityIdentifier("sidebar.memories")
+                    Button { showsTasks = true } label: {
+                        Label("Tasks", systemImage: "checklist")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                    }.buttonStyle(.plain).accessibilityIdentifier("sidebar.tasks")
                 }
                 Section("Workspace") {
                     Button {

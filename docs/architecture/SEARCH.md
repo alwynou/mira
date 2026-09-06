@@ -91,6 +91,8 @@ FTS5 `trigram` 用于：
 
 规范化后的检索列与原文分开保存，原文和引用定位不被大小写或 Unicode 转换改写。FTS 查询使用字面词构造器，SQL 参数绑定；用户输入的引号、MATCH 运算符、`%` 和 `_` 不直接当作查询语言执行。
 
+普通 Memory 预取可以在 FTS 词项之外使用一个随 MiraKit 发布的、确定性的双语主题词表。词表只包含高信号短语（例如 breakfast / morning meal / 早餐），并仅在直接命中主题词或同时命中受限的场景词与动作词时展开；`morning`、`早上` 等通用词不能单独触发展开。展开最多产生 8 个别名词，仍受现有 24 词上限、Scope / 状态 / 时间 / Provider 发送策略和结果上限约束。别名是召回信号，不是用户文本改写，也不改变原文或引用。
+
 <a id="s25-04"></a>
 
 ### 1.4 SearchResult
@@ -139,3 +141,5 @@ SearchResult
 - 不应返回任何结果的负样本。
 
 指标：Hit@K、MRR、Scope Leak、Short-query Latency、Irrelevant Result Rate。
+
+The reviewed UTF-8 resources `MemoryRecallLexicon.json` and `KnowledgePrefetchLexicon.json` contain English/Chinese matching data for user text. Non-English terms are intentional language-recognition data, not translated prompts or UI copy. They are bounded local hints; they do not authorize disclosure or establish general semantic retrieval.

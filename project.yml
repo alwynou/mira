@@ -71,6 +71,7 @@ targets:
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
       - Apps/MiraMac/Presentation/TranscriptFollowScheduler.swift
       - Apps/MiraMac/Presentation/TranscriptScrollAnimation.swift
+      - Apps/MiraMac/Presentation/TaskModel.swift
       - Apps/MiraMac/Presentation/MemoryModel.swift
       - Apps/MiraMac/Presentation/KnowledgeModel.swift
       - Apps/MiraMac/Presentation/SourceCitationModel.swift

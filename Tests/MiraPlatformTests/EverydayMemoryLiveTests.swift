@@ -21,7 +21,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         let scenarios = try corpus.selectedScenarios(ids: configuration.caseIDs)
         let sourceStore = try SQLiteMiraStore(directory: configuration.configurationDirectory)
         let routes = try Self.readConfiguredRoutes(from: sourceStore.modelConfiguration())
-        let provider = BoundedHTTPProvider(upstream: HTTPModelProvider(credentials: KeychainCredentials()), limit: 12)
+        let provider = BoundedHTTPProvider(upstream: HTTPModelProvider(credentials: KeychainCredentials()), limit: configuration.dispatchCap)
         let startedAt = Date()
 
         var report = LiveEvaluationReport(
@@ -37,7 +37,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
             extractionProtocol: routes.extractionModel.protocolMode.rawValue,
             cases: [],
             aggregate: .init(),
-            providerDispatchCap: 12,
+            providerDispatchCap: configuration.dispatchCap,
             providerDispatchCount: 0
         )
         try Self.writeReport(report, to: configuration.reportURL)
@@ -423,6 +423,7 @@ private struct LiveEvaluationConfiguration {
     let corpusURL: URL
     let reportURL: URL
     let caseIDs: [String]
+    let dispatchCap: Int
 
     init(environment: [String: String]) throws {
         func requiredAbsoluteURL(_ name: String) throws -> URL {
@@ -462,6 +463,10 @@ private struct LiveEvaluationConfiguration {
             throw MiraError(.configuration, "MIRA_EVAL_CASE_IDS must contain one to four unique IDs.")
         }
         caseIDs = ids
+        guard let cap = Int(environment["MIRA_EVAL_DISPATCH_CAP"] ?? "4"), (1...12).contains(cap) else {
+            throw MiraError(.configuration, "MIRA_EVAL_DISPATCH_CAP must be between 1 and 12.")
+        }
+        dispatchCap = cap
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import MiraCore
 import MiraData
 import MiraProviders
@@ -56,8 +57,11 @@ final class AppContainer {
         }
         do {
             let store = try SQLiteMiraStore(directory: directory)
-            let memoryTools = MemoryTools.readOnly(store: store) + [MemoryRememberTool(store: store, approvals: memoryApprovals)] + KnowledgeTools.readOnly(store: store)
-            application = try MiraApplication(store: store, provider: provider, tools: ToolRegistry(memoryTools), memoryApprovals: memoryApprovals)
+            let notificationPort: any LocalNotificationPort = isDemo ? DemoLocalNotifications() : MacLocalNotifications()
+            let namespace = SHA256.hash(data: Data(directory.standardizedFileURL.path.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+            let reminders = ReminderScheduler(store: store, notifications: notificationPort, namespace: namespace)
+            let memoryTools = MemoryTools.readOnly(store: store) + [MemoryRememberTool(store: store, approvals: memoryApprovals)] + KnowledgeTools.readOnly(store: store) + TaskTools.registered(store: store, scheduler: reminders)
+            application = try MiraApplication(store: store, provider: provider, tools: ToolRegistry(memoryTools), memoryApprovals: memoryApprovals, reminders: reminders)
             startupError = nil
             if let application { Task { await application.startBackgroundWork() } }
             if !isDemo {

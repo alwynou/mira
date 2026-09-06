@@ -13,6 +13,13 @@ The top-level JSON object has exactly these fields:
 ```json
 {
   "version": 1,
+  "hostAnnotations": {
+    "stable-kebab-id": {
+      "assertionMode": "directStable",
+      "aspectKey": "meal.breakfast",
+      "changeIntent": "independent"
+    }
+  },
   "scenarios": [
     {
       "id": "stable-kebab-id",
@@ -28,6 +35,8 @@ The top-level JSON object has exactly these fields:
   ]
 }
 ```
+
+`hostAnnotations` is a test-only annotation for the deterministic host gate. It records the expected structured extraction classification for positive cases; production code never reads this map. Negative cases intentionally omit it. The host test supplies a valid `unannotated.preference` key when the map has no entry, so those cases still receive structurally valid direct/standard proposals and cannot pass merely because missing metadata forced review.
 
 `requiredTerms` contains only content keywords that support the expected active fact; it is empty for every `notActive` case. `forbiddenTerms` identifies an unwanted fact or inference that should not be surfaced. Terms are not intended to prescribe a response or encode an extraction prompt.
 
@@ -62,3 +71,5 @@ PY
 ```
 
 Corpus validation is offline. Real-provider execution is owned by the explicitly enabled, bounded evaluator described in [the testing workflow](../../../docs/engineering/EVERYDAY_MEMORY_TESTING.md); ordinary CI never calls model endpoints.
+
+The opt-in live runner defaults to a shared ceiling of four provider dispatches, including background extraction and tool continuations. `MIRA_EVAL_DISPATCH_CAP` may explicitly set a value from 1 through 12. Select only the necessary cases; this cap is a cost guard, not a request to run the complete corpus.

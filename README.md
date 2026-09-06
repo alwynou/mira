@@ -4,7 +4,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索与完整备份已有实现。M5 的规模查询、大资料库恢复与本机开发包验证已通过；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md) 和 [M5 验收记录](docs/engineering/M5_VERIFICATION.md)。
+> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索、完整备份，以及 M6 的一次性本地 Task / Reminder 已有实现。M5 的规模查询、大资料库恢复与本机开发包验证已通过；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收，任务原生流程已通过自动化，操作系统实际提醒交付仍待验收。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md)、[M5 验收记录](docs/engineering/M5_VERIFICATION.md) 和 [Task / Reminder 验收记录](docs/engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 ## 构建与运行
 
@@ -28,13 +28,17 @@ Build a ZIP from an exact committed revision with [the local packaging procedure
 
 Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Default Models**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
 
-The current development library uses schema v11. Development data is disposable: reset obsolete Mira libraries in place after schema changes, without migration or backup. Use isolated temporary directories for tests and delete them after verification. Actual model quality and native walkthrough gates remain pending.
+The current development library uses schema v12. Development data is disposable: reset obsolete Mira libraries in place after schema changes, without migration or backup. Use isolated temporary directories for tests and delete them after verification. Broader model quality, actual OS notification delivery and other release gates remain pending.
 
 ## Markdown knowledge
 
 Open **Knowledge** from a conversation to import Markdown snapshots. New imports stay local-only; explicitly save **Allow model use** to make their snippets and chunks available to the configured provider. Each update creates an immutable version. Search, inspect exact chunks, and open verified source references from replies. Importing never watches or modifies the original file.
 
 Library backups are directory bundles containing the database, referenced files, and a checksum manifest. Restore creates a new directory and leaves the current library open. **Settings → Data → Clean Up Unreferenced Files** collects file copies after a seven-day grace period; referenced historical versions are retained. See the [knowledge contract](docs/architecture/KNOWLEDGE_IMPLEMENTATION.md).
+
+## Tasks and local reminders
+
+Open **Tasks** from a conversation to create or edit a task in the current Inbox or Workspace. A task can have one exact-time reminder owned by Mira's local notification scheduler. Task changes retain source evidence and revision history; ambiguous requests or missing reminder times stay as proposals for review. Permission, pending, scheduled, failed, elapsed, paused, and cancelled delivery states remain visible. The current increment does not include recurring reminders, Apple Calendar / Reminders publishing, or a background helper. See the [Task / Reminder contract](docs/architecture/TASKS_AND_REMINDERS.md) and [verification record](docs/engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md).
 
 ## Interface language
 
@@ -63,7 +67,7 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 
 本地数据库与文件保存规范数据，用户配置自己的 Provider 和凭据。Conversation 保存原始交流，Execution 记录如何执行，Memory 与 Knowledge 保存可复用的认知和资料；检索、摘要与索引具有明确的派生关系。
 
-首个 MVP 包含对话、可纠正记忆、Markdown 文件检索与最小 Agent 工具循环，首批支持 OpenAI Chat Completions 兼容接口与 Anthropic Messages。任务和提醒紧随其后；具体版本边界以 MVP 文档为准。
+首个 v0.1 MVP 包含对话、可纠正记忆、Markdown 文件检索与最小 Agent 工具循环，首批支持 OpenAI Chat Completions 兼容接口与 Anthropic Messages。当前开发增量已加入 M6 的一次性本地 Task / Reminder；Apple 发布与完整结构化记录仍按后续范围推进，具体版本边界以 MVP 文档为准。
 
 ## 阅读顺序
 
@@ -87,13 +91,13 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 | 工作空间与对话 | [用户场景与交互](docs/product/WORKSPACE_AND_CONVERSATION.md) | [Runtime](docs/architecture/RUNTIME.md) |
 | 记忆与知识 | [记忆、知识与纠正体验](docs/product/MEMORY_AND_KNOWLEDGE.md) | [领域模型与处理管线](docs/architecture/MEMORY_AND_KNOWLEDGE.md) |
 | Agent、Provider 与 Context | [用户可见行为](docs/product/AGENT_AND_CONTEXT.md) | [Provider](docs/architecture/PROVIDERS.md)、[Context](docs/architecture/CONTEXT.md) |
-| 任务、提醒与其他记录 | [记录语义](docs/product/RECORDS.md) | [结构化数据与通知](docs/architecture/STRUCTURED_DATA.md) |
+| 任务、提醒与其他记录 | [记录语义](docs/product/RECORDS.md) | [Task / Reminder 实现契约](docs/architecture/TASKS_AND_REMINDERS.md)、[结构化数据与通知](docs/architecture/STRUCTURED_DATA.md) |
 | 数据与隐私 | [生命周期与隐私承诺](docs/product/DATA_AND_PRIVACY.md) | [存储与恢复](docs/architecture/DOMAIN_AND_STORAGE.md)、[平台与安全](docs/architecture/PLATFORM_AND_SECURITY.md) |
 | 本地检索 | 见记忆与知识规范 | [Search](docs/architecture/SEARCH.md) |
 
 ## 技术基线
 
-`MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例与对话运行时；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。记忆与知识契约由 Core 定义，Data 实现本地检索、托管文件和完整备份。
+`MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例、对话运行时与 Task / Reminder 契约；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。记忆、知识和本地 Task / Reminder 契约由 Core 定义，Data 实现本地检索、托管文件、任务存储和完整备份。
 
 Assistant messages use Microsoft SwiftStreamingMarkdown v0.7.0 with a small locale adaptation in `Vendor/SwiftStreamingMarkdown`; the upstream commit and changes are documented in its `UPSTREAM.md`. Remote images and unverified citations remain disabled.构建时仅对已审阅的固定依赖使用 `-skipMacroValidation`；依赖与许可证见 [第三方说明](docs/engineering/THIRD_PARTY.md)。
 

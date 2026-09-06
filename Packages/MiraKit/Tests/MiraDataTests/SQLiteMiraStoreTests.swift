@@ -595,7 +595,7 @@ struct SQLiteMiraStoreTests {
         }
         try resealTestBackupManifest(backup)
         let sourceBytes = try Data(contentsOf: testBackupDatabaseURL(backup))
-            #expect(SQLiteMiraStore.currentSchemaVersion == 11)
+            #expect(SQLiteMiraStore.currentSchemaVersion == 12)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
         #expect(!FileManager.default.fileExists(atPath: restore.path))

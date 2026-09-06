@@ -45,6 +45,18 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     func validateMemoryUsage(executionID: ExecutionID, at: Date) throws { try base.validateMemoryUsage(executionID: executionID, at: at) }
     func suppressedMemorySourceMessageIDs() throws -> Set<MessageID> { try base.suppressedMemorySourceMessageIDs() }
     func memoryContextNotices(in conversationID: ConversationID, at: Date) throws -> [ExecutionID: [MemoryContextNotice]] { try base.memoryContextNotices(in: conversationID, at: at) }
+    func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) throws -> [MiraTask] { try base.taskList(workspaceID: workspaceID, includeCompleted: includeCompleted, limit: limit) }
+    func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> MiraTask { try base.taskDetail(id, workspaceID: workspaceID) }
+    func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> [TaskRevision] { try base.taskRevisions(id, workspaceID: workspaceID) }
+    func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus, expectedRevision: Int?, operationID: UUID, at: Date) throws -> MiraTask { try base.saveTask(id, workspaceID: workspaceID, draft: draft, status: status, expectedRevision: expectedRevision, operationID: operationID, at: at) }
+    func taskProposals(workspaceID: WorkspaceID?) throws -> [TaskProposal] { try base.taskProposals(workspaceID: workspaceID) }
+    func resolveTaskProposal(_ id: UUID, workspaceID: WorkspaceID?, accept: Bool, correctedDraft: TaskDraft?, at: Date) throws -> TaskWriteReceipt { try base.resolveTaskProposal(id, workspaceID: workspaceID, accept: accept, correctedDraft: correctedDraft, at: at) }
+    func performTaskTool(arguments: JSONValue, context: ToolContext, at: Date) throws -> TaskWriteReceipt { try base.performTaskTool(arguments: arguments, context: context, at: at) }
+    func taskToolReference(context: ToolContext) throws -> TaskEvidence { try base.taskToolReference(context: context) }
+    func reminderWork(limit: Int) throws -> [MiraTask] { try base.reminderWork(limit: limit) }
+    func reminderTaskExists(_ id: MiraTaskID) throws -> Bool { try base.reminderTaskExists(id) }
+    func setReminderDelivery(_ id: MiraTaskID, expectedRevision: Int, state: ReminderDeliveryState, error: MiraError?, at: Date) throws -> Bool { try base.setReminderDelivery(id, expectedRevision: expectedRevision, state: state, error: error, at: at) }
+    func resumeReminder(_ id: MiraTaskID, workspaceID: WorkspaceID?, expectedRevision: Int, at: Date) throws { try base.resumeReminder(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: at) }
     func workspaces() throws -> [Workspace] { try base.workspaces() }
     func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws { try base.saveWorkspace(workspace, expectedRevision: expectedRevision) }
     func conversations(includeArchived: Bool) throws -> [Conversation] { try base.conversations(includeArchived: includeArchived) }

@@ -1,7 +1,7 @@
 # Mira 架构总览
 
-**文档版本：** v1.2  
-**更新日期：** 2026-09-05  
+**文档版本：** v1.3
+**更新日期：** 2026-09-07
 **状态：** 设计基线；当前实现与验收范围见 [实施记录](engineering/IMPLEMENTATION_STATUS.md)。
 
 定义系统结构、依赖方向、架构不变量和并发所有权。具体领域模型与算法位于 architecture 目录，工具链与交付规则位于 engineering 目录。
@@ -27,7 +27,8 @@
 - [模型服务商接口与路由](architecture/PROVIDERS.md)：定义 Provider 契约、路线解析、冻结与重试边界、协议兼容性、端点安全、能力和用量。
 - [提示词、上下文、召回与压缩](architecture/CONTEXT.md)：定义 Prompt、Context 生命周期、预算、请求快照、来源引用、Memory 检索和 Compact；不重复记忆写入规则。
 - [记忆与知识领域设计](architecture/MEMORY_AND_KNOWLEDGE.md)：定义记忆提取、来源、抑制、演化、工作记忆及资料版本与解析；用户可见行为在产品规范中定义。
-- [结构化记录与通知一致性](architecture/STRUCTURED_DATA.md)：定义记录、候选、时间与金额、Revision、Apple 投影及可恢复通知交付；在对应 MVP 里程碑才实施。
+- [结构化记录与通知一致性](architecture/STRUCTURED_DATA.md)：定义通用记录、候选、时间与金额、Revision、Apple 投影及通知交付边界。
+- [Task / Reminder 实现契约](architecture/TASKS_AND_REMINDERS.md)：定义当前 M6 的一次性本地 Task / Reminder、提案、时间解释、通知状态、恢复与存储契约。
 - [本地搜索与中文检索](architecture/SEARCH.md)：定义检索管线、FTS 能力探测、短查询回退、规范化、结果与向量扩展；量化验收门槛在质量标准中。
 - [平台适配、展示层与安全边界](architecture/PLATFORM_AND_SECURITY.md)：定义未来同步最低兼容性、macOS 能力与展示边界、隐私策略、数据发送和删除约束；分发构建基线在开发文档中。
 
@@ -316,16 +317,20 @@ Search Index、Graph View、Working Memory Snapshot、Memory Current Projection�
 
 ### 6.1 目标 Target
 
-以下为规划中的工程结构，当前尚未创建应用代码；完整目录与工具链由 [开发约定](engineering/DEVELOPMENT.md) 维护。
+以下为当前工程的物理 Target 与主要职责；完整目录与工具链由 [开发约定](engineering/DEVELOPMENT.md) 维护。对话、记忆、知识和当前 M6 Task / Reminder 路径已经落在这些 Target 中；仍未实现的领域对象继续留在契约文档中，不因目录存在而视为已交付。
 
 ```text
 Mira/
 ├── Apps/
 │   └── MiraMac/
+│       ├── Features/Tasks/
+│       ├── Platform/Notifications/
+│       └── Presentation/
 │
 ├── Packages/MiraKit/
 │   ├── Sources/
 │   │   ├── MiraCore/
+│   │   │   └── Records/
 │   │   ├── MiraData/
 │   │   └── MiraProviders/
 │   └── Tests/

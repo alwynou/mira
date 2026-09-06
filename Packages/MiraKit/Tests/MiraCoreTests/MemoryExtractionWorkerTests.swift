@@ -17,7 +17,7 @@ struct MemoryExtractionWorkerTests {
     @Test func duplicateWakesDrainOneClaimSerially() async throws {
         let claim = makeClaim()
         let store = WorkerStore(claim: claim)
-        let provider = WorkerProvider(events: [.textDelta("{\"version\":1,\"items\":[]}"), .usage(.init(inputTokens: 3, outputTokens: 4)), .finished(.stop)])
+        let provider = WorkerProvider(events: [.textDelta("{\"version\":2,\"items\":[]}"), .usage(.init(inputTokens: 3, outputTokens: 4)), .finished(.stop)])
         let worker = MemoryExtractionWorker(store: store, provider: provider)
         for _ in 0..<5 { await worker.wake() }
         try await waitUntil { store.completedCount == 1 }

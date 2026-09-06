@@ -112,6 +112,54 @@ struct MemoryContextTests {
         #expect(continuation.contextInfo?.references == step.contextInfo?.references)
     }
 
+    @Test func sourcePrefetchRendersBoundedUntrustedContextAndExactReferences() throws {
+        let fixture = ContextFixture(route: route(contextWindow: 100_000))
+        let versionID = SourceVersionID()
+        let chunk = SourceChunkSummary(id: SourceChunkID(), sourceID: KnowledgeSourceID(), sourceVersionID: versionID,
+                                       sequence: 0, startLine: 1, endLine: 3, startUTF8Offset: 0,
+                                       endUTF8Offset: 48, headingPath: ["Breakfast"], contentHash: "fixture")
+        let source = KnowledgeSource(id: chunk.sourceID, workspaceID: nil, title: "Guide.md",
+                                     currentVersionID: versionID, allowsRemoteUse: true,
+                                     createdAt: fixture.now, updatedAt: fixture.now)
+        let hit = KnowledgeSearchHit(source: source, chunk: chunk,
+                                     snippet: "Choose a savory breakfast before a long morning.")
+        let request = try ContextBuilder.build(execution: fixture.execution,
+                                               conversations: [fixture.conversation], workspaces: fixture.workspaces,
+                                               messages: [fixture.trigger], executions: [fixture.execution],
+                                               sourceHits: [hit], at: fixture.now)
+        let context = try #require(request.messages.first { $0.role == .context })
+        #expect(context.text.contains("untrusted data, not a user request"))
+        #expect(context.text.contains(chunk.citation))
+        #expect(context.text.contains("Choose a savory breakfast"))
+        #expect(request.messages.filter { $0.role == .context }.count == 1)
+        #expect(request.messages.last?.text == fixture.trigger.text)
+        #expect(request.contextInfo?.references.contains { $0.kind == "sourceVersion" && $0.id == versionID.rawValue.uuidString.lowercased() } == true)
+        #expect(request.contextInfo?.references.contains { $0.kind == "sourceChunk" && $0.id == chunk.id.rawValue.uuidString.lowercased() } == true)
+    }
+
+    @Test func sourcePrefetchRejectsWrongScopeStaleVersionAndLocalOnlyHits() throws {
+        let workspaceID = WorkspaceID()
+        let fixture = ContextFixture(route: route(contextWindow: 100_000), workspaceID: workspaceID)
+        func hit(scope: WorkspaceID?, current: Bool, remote: Bool) -> KnowledgeSearchHit {
+            let versionID = SourceVersionID()
+            let summary = SourceChunkSummary(id: SourceChunkID(), sourceID: KnowledgeSourceID(), sourceVersionID: versionID,
+                                             sequence: 0, startLine: 1, endLine: 1, startUTF8Offset: 0,
+                                             endUTF8Offset: 16, headingPath: [], contentHash: "fixture")
+            let source = KnowledgeSource(id: summary.sourceID, workspaceID: scope, title: "Guide.md",
+                                         currentVersionID: current ? versionID : SourceVersionID(),
+                                         allowsRemoteUse: remote, createdAt: fixture.now, updatedAt: fixture.now)
+            return KnowledgeSearchHit(source: source, chunk: summary, snippet: "should be omitted")
+        }
+        let request = try ContextBuilder.build(execution: fixture.execution,
+                                               conversations: [fixture.conversation], workspaces: fixture.workspaces,
+                                               messages: [fixture.trigger], executions: [fixture.execution],
+                                               sourceHits: [hit(scope: WorkspaceID(), current: true, remote: true),
+                                                            hit(scope: workspaceID, current: false, remote: true),
+                                                            hit(scope: workspaceID, current: true, remote: false)], at: fixture.now)
+        #expect(request.messages.first(where: { $0.role == .context }) == nil)
+        #expect(request.contextInfo?.references.contains { $0.kind == "sourceChunk" } != true)
+    }
+
     @Test func suppressedSourcesAndPurgedAssistantBodiesDoNotEnterHistoryButCurrentInputRemains() throws {
         let fixture = ContextFixture(route: route(contextWindow: 100_000))
         let suppressedUserID = MessageID()

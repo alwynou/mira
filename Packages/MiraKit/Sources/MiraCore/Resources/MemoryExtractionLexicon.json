@@ -1,53 +1,6 @@
 {
-  "preferencePrefixes": [
-    "i prefer ",
-    "i like ",
-    "i love ",
-    "i dislike ",
-    "i don't like ",
-    "i avoid ",
-    "我喜欢",
-    "我偏好",
-    "我不喜欢",
-    "我避免"
-  ],
-  "constraintPrefixes": [
-    "i need ",
-    "i require ",
-    "i must ",
-    "i cannot ",
-    "i want to avoid ",
-    "我需要",
-    "我必须",
-    "我不能",
-    "我要求"
-  ],
   "firstPersonRoots": [
     "我"
-  ],
-  "naturalPreferenceContexts": [
-    "i usually ",
-    "i generally ",
-    "i typically ",
-    "i normally ",
-    "i often ",
-    "i always ",
-    "i regularly ",
-    "i frequently ",
-    "i personally ",
-    "i consistently ",
-    "i tend to ",
-    "我通常",
-    "我一般",
-    "我平时",
-    "我经常",
-    "我常常",
-    "我总是",
-    "我每天",
-    "我每周",
-    "我每月",
-    "我每次",
-    "我日常"
   ],
   "preferencePredicates": [
     "prefer ",
@@ -60,30 +13,23 @@
     "偏好",
     "爱",
     "不喜欢",
-    "避免"
+    "避免",
+    "更愿意",
+    "希望",
+    "更常",
+    "会"
   ],
-  "routineCues": [
-    "早上",
-    "上午",
-    "中午",
-    "午餐",
-    "早餐",
-    "下午",
-    "晚上",
-    "晚餐",
-    "睡前",
-    "工作日",
-    "周末",
-    "每天",
-    "每周",
-    "每月",
-    "平时",
-    "通常",
-    "一般",
-    "经常",
-    "常常",
-    "总是",
-    "日常"
+  "constraintPredicates": [
+    "need ",
+    "require ",
+    "must ",
+    "cannot ",
+    "can't ",
+    "want to avoid ",
+    "需要",
+    "必须",
+    "不能",
+    "要求"
   ],
   "questionPrefixes": [
     "请问",
@@ -96,7 +42,6 @@
     "which ",
     "who ",
     "where ",
-    "when ",
     "why ",
     "how ",
     "什么",
@@ -119,7 +64,13 @@
   "temporaryCues": [
     "今天",
     "暂时",
-    "最近"
+    "最近",
+    "这两天",
+    "这个周末",
+    "上个月",
+    "这次",
+    "那次",
+    "本周"
   ],
   "negatedReportCues": [
     "否认"
@@ -145,9 +96,18 @@
     "我的家人",
     "我的同事",
     "我朋友",
+    "我同学",
+    "我妹妹",
+    "我哥哥",
+    "我姐姐",
+    "我弟弟",
+    "我室友",
     "我问",
     "我认为",
-    "我觉得"
+    "以前",
+    "其实",
+    "不能说明",
+    "不是一直"
   ],
   "mixedInstructionCues": [
     "remember",
@@ -165,6 +125,18 @@
     "作为记忆",
     "忽略之前"
   ],
+  "sensitiveCues": [
+    "allergy",
+    "medical history",
+    "migraine",
+    "diagnosis",
+    "medication",
+    "过敏",
+    "病史",
+    "偏头痛",
+    "诊断",
+    "药物"
+  ],
   "negationAmbiguityCues": [
     "i don't usually",
     "i do not usually",
@@ -177,5 +149,18 @@
     "我不总是",
     "我未必",
     "有时不"
+  ],
+  "replacementCues": [
+    "i now ",
+    "i no longer ",
+    "i don't anymore",
+    "i do not anymore",
+    "going forward",
+    "我现在",
+    "我不再",
+    "我改成",
+    "改为",
+    "以后改",
+    "不再喜欢"
   ]
 }

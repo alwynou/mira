@@ -124,12 +124,89 @@ struct MemoryExtractionCommitTests {
         let prior = try fixture.store.createMemory(draft: .init(content: "I prefer spacious interfaces", scope: .global, kind: .preference), source: .manualEntry(id: UUID(), statement: "I prefer spacious interfaces"), operationID: UUID(), replacing: nil, expectedRevision: nil, at: fixture.at).memory
         let claim = try fixture.dispatch("I prefer compact interfaces")
         let result = try fixture.store.completeMemoryExtraction(claim, output: fixture.output(claim.source.message.text), usage: .init(), at: fixture.at)
-        #expect(result.candidateMemoryIDs.count == 1)
+        #expect(result.candidateMemoryIDs.isEmpty)
         let unchanged = try fixture.store.memoryDetail(prior.id, workspaceID: nil).memory
         #expect(unchanged == prior)
         let candidate = try fixture.store.memoryDetail(try #require(result.memoryIDs.first), workspaceID: nil)
-        #expect(candidate.memory.state == .candidate)
+        #expect(candidate.memory.state == .active)
         #expect(candidate.replacements.isEmpty)
+    }
+
+    @Test func unrelatedSameKindAssertionsCanBothBecomeActive() throws {
+        let fixture = try ExtractionCommitFixture(); defer { fixture.cleanup() }
+        let first = try fixture.dispatch("I prefer tea")
+        _ = try fixture.store.completeMemoryExtraction(first, output: fixture.output(first.source.message.text, aspectKey: "drink.preference"), usage: .init(), at: fixture.at)
+        let second = try fixture.dispatch("I prefer quiet cafes")
+        _ = try fixture.store.completeMemoryExtraction(second, output: fixture.output(second.source.message.text, aspectKey: "travel.cafe"), usage: .init(), at: fixture.at)
+        #expect(try fixture.store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 20).memories.count == 2)
+    }
+
+    @Test func explicitNaturalChangeReplacesOnlyObservedCurrentAspect() throws {
+        let fixture = try ExtractionCommitFixture(); defer { fixture.cleanup() }
+        let first = try fixture.dispatch("I prefer tea")
+        let firstJob = try fixture.store.completeMemoryExtraction(first, output: fixture.output(first.source.message.text, aspectKey: "drink.preference"), usage: .init(), at: fixture.at)
+        let oldID = try #require(firstJob.memoryIDs.first)
+        let second = try fixture.dispatch("I now prefer coffee")
+        let secondJob = try fixture.store.completeMemoryExtraction(second, output: fixture.output(second.source.message.text, aspectKey: "drink.preference", changeIntent: "explicitReplacement"), usage: .init(), at: fixture.at)
+        let newID = try #require(secondJob.memoryIDs.first)
+        #expect(secondJob.candidateMemoryIDs.isEmpty)
+        #expect(try fixture.store.memoryDetail(oldID, workspaceID: nil).memory.supersededBy == newID)
+        #expect(try fixture.store.memoryDetail(newID, workspaceID: nil).replacements.contains { $0.state == .confirmed && $0.previousID == oldID })
+    }
+
+    @Test func explicitUserReviewBlocksAutomaticNaturalReplacement() throws {
+        let fixture = try ExtractionCommitFixture(); defer { fixture.cleanup() }
+        let first = try fixture.dispatch("I prefer tea")
+        let firstJob = try fixture.store.completeMemoryExtraction(first, output: fixture.output(first.source.message.text, aspectKey: "drink.preference"), usage: .init(), at: fixture.at)
+        let oldID = try #require(firstJob.memoryIDs.first)
+        _ = try fixture.store.changeMemoryState(oldID, workspaceID: nil, state: .active, expectedRevision: 1, at: fixture.at)
+        let second = try fixture.dispatch("I now prefer coffee")
+        let secondJob = try fixture.store.completeMemoryExtraction(second, output: fixture.output(second.source.message.text, aspectKey: "drink.preference", changeIntent: "explicitReplacement"), usage: .init(), at: fixture.at)
+        let newID = try #require(secondJob.memoryIDs.first)
+        #expect(secondJob.candidateMemoryIDs == [newID])
+        #expect(try fixture.store.memoryDetail(oldID, workspaceID: nil).memory.supersededBy == nil)
+        #expect(try fixture.store.memoryDetail(newID, workspaceID: nil).replacements.contains { $0.state == .proposed && $0.previousID == oldID })
+    }
+
+    @Test func assertionMetadataIsRevisionBoundAndPurgedWithMemory() throws {
+        let fixture = try ExtractionCommitFixture(); defer { fixture.cleanup() }
+        let claim = try fixture.dispatch("I prefer tea")
+        let job = try fixture.store.completeMemoryExtraction(claim, output: fixture.output(claim.source.message.text, aspectKey: "drink.preference"), usage: .init(), at: fixture.at)
+        let memoryID = try #require(job.memoryIDs.first)
+        let metadata = try fixture.store.pool.read { db in
+            try fixture.store.assertionMetadata(memoryID: memoryID, revision: 1, in: db)
+        }
+        #expect(metadata?.sourceMessageID == claim.source.message.id)
+        #expect(metadata?.assertion.aspectKey == "drink.preference")
+
+        let revised = try fixture.store.reviseMemory(memoryID, workspaceID: nil, draft: .init(content: "I prefer herbal tea", scope: .global, kind: .preference), expectedRevision: 1, at: fixture.at)
+        #expect(revised.revision == 2)
+        #expect(try fixture.store.pool.read { db in try fixture.store.assertionMetadata(memoryID: memoryID, revision: 2, in: db) } == nil)
+        _ = try fixture.store.forgetMemory(memoryID, workspaceID: nil, expectedRevision: 2, at: fixture.at)
+        #expect(try fixture.store.pool.read { db in try fixture.store.assertionMetadata(memoryID: memoryID, revision: 1, in: db) } == nil)
+        let purged = try fixture.store.pool.read { db in
+            try Row.fetchOne(db, sql: "SELECT semantic_key, assertion_mode, change_intent, source_hash, metadata_json, body_purged_at FROM memory_assertion_metadata WHERE memory_id = ?", arguments: [memoryID.rawValue.uuidString.lowercased()])
+        }
+        #expect(purged?["semantic_key"] as String? == nil)
+        #expect(purged?["metadata_json"] as String? == nil)
+        #expect((purged?["body_purged_at"] as Double?) != nil)
+    }
+
+    @Test func manualTopicConflictRequiresReviewButUnrelatedPreferenceStaysActive() throws {
+        let fixture = try ExtractionCommitFixture(); defer { fixture.cleanup() }
+        let prior = try fixture.store.createMemory(draft: .init(content: "I prefer a savory breakfast", scope: .global, kind: .preference), source: .manualEntry(id: UUID(), statement: "I prefer a savory breakfast"), operationID: UUID(), replacing: nil, expectedRevision: nil, at: fixture.at).memory
+        let changed = try fixture.dispatch("I now prefer a sweet breakfast")
+        let changedJob = try fixture.store.completeMemoryExtraction(changed, output: fixture.output(changed.source.message.text, aspectKey: "meal.breakfast", changeIntent: "explicitReplacement"), usage: .init(), at: fixture.at)
+        let changedID = try #require(changedJob.memoryIDs.first)
+        #expect(changedJob.candidateMemoryIDs == [changedID])
+        #expect(try fixture.store.memoryDetail(changedID, workspaceID: nil).replacements.contains { $0.state == .proposed && $0.previousID == prior.id })
+        #expect(try fixture.store.memoryDetail(prior.id, workspaceID: nil).memory.supersededBy == nil)
+
+        let unrelated = try fixture.dispatch("I now prefer compact interfaces")
+        let unrelatedJob = try fixture.store.completeMemoryExtraction(unrelated, output: fixture.output(unrelated.source.message.text, aspectKey: "interface.layout", changeIntent: "explicitReplacement"), usage: .init(), at: fixture.at)
+        let unrelatedID = try #require(unrelatedJob.memoryIDs.first)
+        #expect(unrelatedJob.candidateMemoryIDs.isEmpty)
+        #expect(try fixture.store.memoryDetail(unrelatedID, workspaceID: nil).memory.state == .active)
     }
 
     @Test func candidatePolicyAndSensitiveClassificationCannotAutoActivate() throws {
@@ -198,8 +275,10 @@ private struct ExtractionCommitFixture {
         try store.markMemoryExtractionDispatched(claim, at: at)
         return claim
     }
-    func output(_ text: String, sensitivity: String = "standard") throws -> ModelOutput {
-        let body: [String: Any] = ["version": 1, "items": [["content": text, "quote": text, "kind": "preference", "subject": "user", "sensitivity": sensitivity, "inferred": false, "stable": true, "confidence": "high", "validFrom": NSNull(), "validUntil": NSNull()]]]
+    func output(_ text: String, sensitivity: String = "standard", aspectKey: String = "drink.preference", changeIntent: String = "independent") throws -> ModelOutput {
+        let assertion: [String: Any] = ["mode": "directStable", "aspectKey": aspectKey, "changeIntent": changeIntent]
+        let item: [String: Any] = ["content": text, "quote": text, "kind": "preference", "subject": "user", "sensitivity": sensitivity, "inferred": false, "stable": true, "confidence": "high", "validFrom": NSNull(), "validUntil": NSNull(), "assertion": assertion]
+        let body: [String: Any] = ["version": 2, "items": [item]]
         return .init(text: String(decoding: try JSONSerialization.data(withJSONObject: body, options: .sortedKeys), as: UTF8.self), toolCalls: [], finishReason: .stop)
     }
 }

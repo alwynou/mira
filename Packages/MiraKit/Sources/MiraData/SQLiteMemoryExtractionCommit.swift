@@ -61,18 +61,34 @@ extension SQLiteMiraStore {
         } else if let existing = try String.fetchOne(db, sql: "SELECT id FROM memories WHERE source_kind = 'message' AND source_id = ? AND subject = ? AND scope_key = ? AND assertion_hash = ? LIMIT 1", arguments: [messageIDString(source.message.id), draft.subject.rawValue, draft.scope.key, assertionHash]) {
             memoryID = try self.memoryID(existing)
         } else {
-            // A second assertion in an occupied category is a review candidate.
-            // This broad deterministic barrier intentionally sacrifices recall:
-            // it cannot establish semantic agreement or supersede a user's fact.
-            let hasExistingCategory = try Int.fetchOne(db, sql: "SELECT 1 FROM memories WHERE scope_key = ? AND subject = ? AND state = 'active' AND superseded_by IS NULL AND forgotten_at IS NULL AND deleted_at IS NULL AND json_extract(draft_json, '$.kind') = ? LIMIT 1", arguments: [draft.scope.key, draft.subject.rawValue, draft.kind.rawValue]) != nil
-            let state: MemoryState = proposal.triage == .active && !hasExistingCategory ? .active : .candidate
-            if hasExistingCategory { reason = "Memory review required: an existing memory may cover this category." }
+            // Same-kind memories can coexist. Only an exact extractor-owned
+            // aspect key is a possible conflict; a missing or ambiguous key
+            // remains a review candidate and never triggers replacement.
+            let matching = try currentMemories(matching: proposal.assertion, draft: draft, in: db)
+            let current = matching.count == 1 ? matching[0].memory : nil
+            let canReplace = matching.count == 1 ? canAutomaticallyReplace(matching[0].memory, metadataRevision: matching[0].metadataRevision, with: proposal, source: source) : false
+            let state: MemoryState = proposal.triage == .active && (matching.isEmpty || canReplace) ? .active : .candidate
+            if !matching.isEmpty && !canReplace {
+                reason = matching.count == 1 ? "Memory review required: this assertion may replace an existing memory." : "Memory review required: multiple memories share this assertion aspect."
+            }
             let memory = Memory(draft: draft, scope: draft.scope, subject: draft.subject, state: state, origin: proposal.origin, authority: proposal.authority, createdAt: at, updatedAt: at)
             memoryID = memory.id
             disposition = state.rawValue
             try insertMemory(memory, sourceKind: .message, sourceID: source.message.id.rawValue, assertionHash: assertionHash, in: db)
             try insertMemoryEvidence(.init(memoryID: memory.id, sourceKind: .message, sourceID: source.message.id.rawValue, sourceRevision: source.sourceRevision, conversationID: source.message.conversationID, excerpt: proposal.quote, sourceHash: source.sourceHash, createdAt: at), in: db)
             try insertMemoryRevision(.init(memoryID: memory.id, revision: 1, draft: draft, actor: "memoryExtraction", changedAt: at), in: db)
+            try insertAssertionMetadata(proposal.assertion, memoryID: memory.id, memoryRevision: memory.revision, source: source, at: at, in: db)
+            if canReplace, let current {
+                try insertMemoryReplacement(.init(replacementID: memory.id, previousID: current.id, state: .confirmed, createdAt: at), in: db)
+                let oldUpdated = Memory(id: current.id, draft: current.draft, scope: current.scope, subject: current.subject, state: current.state, origin: current.origin, authority: current.authority, supersededBy: memory.id, revision: current.revision + 1, createdAt: current.createdAt, updatedAt: at, deletedAt: current.deletedAt, forgottenAt: current.forgottenAt)
+                try updateMemory(oldUpdated, in: db)
+                try insertMemoryRevision(.init(memoryID: current.id, revision: oldUpdated.revision, draft: current.draft, actor: "system", changedAt: at), in: db)
+                try indexMemory(oldUpdated, in: db)
+            } else {
+                for match in matching {
+                    try insertMemoryReplacement(.init(replacementID: memory.id, previousID: match.memory.id, state: .proposed, createdAt: at), in: db)
+                }
+            }
             try indexMemory(memory, in: db)
         }
         if let memoryID {
@@ -87,6 +103,48 @@ extension SQLiteMiraStore {
             }
         }
         try db.execute(sql: "INSERT INTO memory_extraction_decisions (id, job_id, source_message_id, source_revision, candidate_key, disposition, memory_id, excerpt, source_hash, policy_revision, changed_at, body_purged_at, review_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)", arguments: [uuidString(UUID()), id(claim.job.id), messageIDString(source.message.id), source.sourceRevision, candidateKey, disposition, memoryID.map(memoryIDString), proposal.quote, source.sourceHash, claim.policy.revision, at.timeIntervalSince1970, reason])
+    }
+
+    private func currentMemories(matching assertion: MemoryAssertionMetadata, draft: MemoryDraft, in db: Database) throws -> [(memory: Memory, metadataRevision: Int?)] {
+        var matching: [(memory: Memory, metadataRevision: Int?)] = []
+        if let aspectKey = assertion.aspectKey {
+            let rows = try Row.fetchAll(db, sql: "SELECT m.id, m.scope_key, m.scope_json, m.subject, m.state, m.origin, m.authority, m.superseded_by, m.revision, m.created_at, m.updated_at, m.deleted_at, m.forgotten_at, m.draft_json, m.source_kind, m.source_id, m.assertion_hash, m.memory_json, a.memory_revision AS assertion_memory_revision FROM memories m JOIN memory_assertion_metadata a ON a.memory_id = m.id WHERE m.scope_key = ? AND m.subject = ? AND m.state = 'active' AND m.superseded_by IS NULL AND m.forgotten_at IS NULL AND m.deleted_at IS NULL AND json_extract(m.draft_json, '$.kind') = ? AND a.semantic_key = ? AND a.body_purged_at IS NULL", arguments: [draft.scope.key, draft.subject.rawValue, draft.kind.rawValue, aspectKey])
+            matching = try rows.map { (try memory($0), $0["assertion_memory_revision"] as Int?) }
+        }
+        let exactIDs = Set(matching.map { $0.memory.id })
+        let rows = try Row.fetchAll(db, sql: "SELECT id, scope_key, scope_json, subject, state, origin, authority, superseded_by, revision, created_at, updated_at, deleted_at, forgotten_at, draft_json, source_kind, source_id, assertion_hash, memory_json FROM memories WHERE scope_key = ? AND subject = ? AND state = 'active' AND superseded_by IS NULL AND forgotten_at IS NULL AND deleted_at IS NULL AND json_extract(draft_json, '$.kind') = ? ORDER BY updated_at DESC, id LIMIT 200", arguments: [draft.scope.key, draft.subject.rawValue, draft.kind.rawValue])
+        let newTopics = Set(MemoryRecallPlanner.expand(query: draft.content).matchedTopics)
+        guard !newTopics.isEmpty else { return matching }
+        for row in rows {
+            let value = try memory(row)
+            guard !exactIDs.contains(value.id), let oldDraft = value.draft else { continue }
+            let oldTopics = Set(MemoryRecallPlanner.expand(query: oldDraft.content).matchedTopics)
+            guard !newTopics.isDisjoint(with: oldTopics) else { continue }
+            matching.append((value, nil))
+        }
+        return matching
+    }
+
+    private func canAutomaticallyReplace(_ current: Memory, metadataRevision: Int?, with proposal: MemoryExtractionProposal, source: MemoryExtractionSource) -> Bool {
+        guard let metadataRevision, proposal.triage == .active,
+              proposal.assertion.mode == .directStable,
+              proposal.assertion.changeIntent == .explicitReplacement,
+              metadataRevision == current.revision,
+              current.authority == .observedUser,
+              current.state == .active,
+              current.supersededBy == nil,
+              current.deletedAt == nil,
+              current.forgottenAt == nil,
+              let oldDraft = current.draft,
+              oldDraft.scope == proposal.draft.scope,
+              oldDraft.subject == proposal.draft.subject,
+              oldDraft.kind == proposal.draft.kind,
+              oldDraft.sensitivity == proposal.draft.sensitivity,
+              oldDraft.allowsRemoteUse == proposal.draft.allowsRemoteUse,
+              oldDraft.allowedConnectionIDs == proposal.draft.allowedConnectionIDs,
+              compatibleMemoryValidity(oldDraft, proposal.draft),
+              source.message.text == proposal.quote else { return false }
+        return true
     }
 
     private func closeExtractionJob(_ jobID: MemoryExtractionJobID, state: MemoryExtractionJobState, error: MiraError?, at: Date, in db: Database) throws {

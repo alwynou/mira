@@ -277,7 +277,7 @@ private final class ExtractionApplicationProvider: ModelProviderPort, @unchecked
 
     private static func extractionJSON(content: String, paraphrase: Bool = false) -> String {
         let proposedContent = paraphrase ? "Model rewrite that must not replace direct evidence" : content
-        return "{\"version\":1,\"items\":[{\"content\":\"\(proposedContent)\",\"quote\":\"\(content)\",\"kind\":\"preference\",\"subject\":\"user\",\"sensitivity\":\"standard\",\"inferred\":false,\"stable\":true,\"confidence\":\"high\",\"validFrom\":null,\"validUntil\":null}]}"
+        return "{\"version\":2,\"items\":[{\"content\":\"\(proposedContent)\",\"quote\":\"\(content)\",\"kind\":\"preference\",\"subject\":\"user\",\"sensitivity\":\"standard\",\"inferred\":false,\"stable\":true,\"confidence\":\"high\",\"validFrom\":null,\"validUntil\":null,\"assertion\":{\"mode\":\"directStable\",\"aspectKey\":\"drink.preference\",\"changeIntent\":\"independent\"}}]}"
     }
 }
 
