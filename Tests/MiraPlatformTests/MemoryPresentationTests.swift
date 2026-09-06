@@ -48,6 +48,10 @@ struct MemoryPresentationTests {
         #expect(model.selectedID == nil)
         #expect(model.selectedDetail == nil)
         #expect(model.error?.code == .notFound)
+        await model.reload()
+        #expect(model.error?.code == .notFound, "Background refresh must preserve the failed navigation error until it is dismissed.")
+        model.error = nil
+        #expect(model.selectedID == nil && model.selectedDetail == nil)
         #expect(await fixture.application.shutdown())
     }
 

@@ -114,10 +114,8 @@ final class MemoryModel {
                 selectedDetail = nil
                 preservesSelectedMemoryOutsideList = false
             }
-            let detailWasRequested = self.selectedID != nil
-            if detailWasRequested { await loadSelectedDetail() }
-            guard generation == reloadGeneration else { return }
-            if !detailWasRequested || self.selectedID != nil { error = nil }
+            if self.selectedID != nil { await loadSelectedDetail() }
+            // A background list refresh must not dismiss a failed detail read's alert.
         } catch {
             guard generation == reloadGeneration else { return }
             self.error = MiraError.safe(error)

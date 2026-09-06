@@ -4,7 +4,7 @@ Date: 2026-09-06. Branch: `dev`. This increment closes concrete navigation, rece
 
 ## Changes
 
-- Opening a memory from a processing result clears stale search text and retains authorized detail outside the first 100 list entries. A supplementary selected row remains visible. Failed or out-of-scope detail reads clear selection and report an error; state changes and forgetting refresh the presented record. Detail pane identity follows the selected memory.
+- Opening a memory from a processing result clears stale search text and retains authorized detail outside the first 100 list entries. A supplementary selected row remains visible. Failed or out-of-scope detail reads clear selection and report an error until dismissed; background list refreshes preserve that error. State changes and forgetting refresh the presented record. Detail pane identity follows the selected memory.
 - `memory.remember` reports the committed memory's actual remote-use permission when deduplication reuses an existing entry. It preserves the user's existing policy. Newly captured tool memories remain local-only.
 - Selecting a knowledge search hit presents the exact matching chunk, including chunks beyond the first 200 summaries. Changing source/version invalidates pending reads. Deleting the selected source clears presentation and invalidates a read that may already hold an earlier authorized snapshot.
 - Citation buttons retain availability rather than source bodies. The visible sheet resolves the complete reference/execution/conversation identity on opening and on application changes. Revocation or deletion clears the body, and closing the sheet clears its presentation copy. A source update preserves the old citation's exact historical bytes.
