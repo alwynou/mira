@@ -31,7 +31,9 @@ public struct ProviderCapabilityProbe: Sendable {
                 throw MiraError(.configuration, "First configure a context window greater than 128 tokens, then run the capability check.")
             }
             var frozen = route
-            frozen.maxOutputTokens = min(128, route.maxOutputTokens)
+            // Preserve the selected thinking configuration and its output reservation.
+            // A 128-token override would consume the answer budget during thinking.
+            frozen.maxOutputTokens = route.protocolMode == .standard ? min(128, route.maxOutputTokens) : route.maxOutputTokens
             frozen.textCapability = .declared
             frozen.toolCapability = .declared
             frozen.extractionCapability = .declared
@@ -83,6 +85,7 @@ public struct ProviderCapabilityProbe: Sendable {
                 var events: [CanonicalStreamEvent] = []
                 var sawFinished = false
                 var textBytes = 0
+                var lastReasoning: ReasoningContent?
                 for try await event in self.provider.stream(request: request, route: route) {
                     try Task.checkCancellation()
                     if sawFinished { throw MiraError(.malformedStream, "Capability check returned an event after ending.") }
@@ -96,11 +99,19 @@ public struct ProviderCapabilityProbe: Sendable {
                             throw MiraError(.malformedStream, "Capability check tool call exceeded its limit.")
                         }
                     }
+                    if case .reasoning(let value) = event {
+                        try value.validate()
+                        guard lastReasoning?.isComplete != true else { throw MiraError(.malformedStream, "Thinking content changed after completion.") }
+                        lastReasoning = value
+                        // Keep one snapshot instead of retaining every growing copy.
+                        continue
+                    }
                     events.append(event)
                     if case .finished = event { sawFinished = true }
                 }
                 try Task.checkCancellation()
                 guard sawFinished else { throw MiraError(.malformedStream, "Capability check response has no ending event.") }
+                guard lastReasoning?.isComplete != false else { throw MiraError(.malformedStream, "Thinking content ended before its continuation data was complete.") }
                 return events
             }
             group.addTask {

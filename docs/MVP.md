@@ -7,6 +7,8 @@
 
 服务商接入流程已按“配置并激活服务商 → 选择服务商模型 → 模型池 → 选择模型”更新，模型池阶段验收见 [模型池验收记录](engineering/PROVIDER_POOL_VERIFICATION.md)。新增服务商目录、models.dev 资料和用途筛选的当前范围见 [目录与筛选验收](engineering/MODEL_CATALOG_VERIFICATION.md)。
 
+Thinking is now part of the M1–M2 implementation scope: provider controls, separate streaming display, durable drafts and protocol-correct tool continuation. The contract is [Thinking](architecture/THINKING.md); acceptance and remaining live checks are recorded in [Thinking verification](engineering/THINKING_VERIFICATION.md).
+
 本文只决定做什么、按什么依赖顺序做、完成到什么程度可以进入下一阶段。产品行为由 [PRD 与领域产品规范](PRD.md) 定义，技术契约由 [架构总览及领域设计](ARCHITECTURE.md) 定义，测试数值门槛由 [质量标准](engineering/QUALITY.md#quality-gates) 统一维护。
 
 ## 1. 已确认的范围

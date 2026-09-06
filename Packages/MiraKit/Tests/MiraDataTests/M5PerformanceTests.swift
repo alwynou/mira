@@ -423,7 +423,7 @@ private struct M5PerformanceFixture {
     }
 
     private func insertMessage(_ db: Database, id: MessageID, conversationID: ConversationID, executionID: ExecutionID, sequence: Int, role: String, text: String, createdAt: Date) throws {
-        try db.execute(sql: "INSERT INTO messages (id, conversation_id, execution_id, sequence, role, status, text, body_purged_at, created_at) VALUES (?, ?, ?, ?, ?, 'committed', ?, NULL, ?)", arguments: [SQLiteMiraStore.id(id), SQLiteMiraStore.id(conversationID), SQLiteMiraStore.id(executionID), sequence, role, text, createdAt.timeIntervalSince1970])
+        try db.execute(sql: "INSERT INTO messages (id, conversation_id, execution_id, sequence, role, status, text, trace_json, body_purged_at, created_at) VALUES (?, ?, ?, ?, ?, 'committed', ?, '[]', NULL, ?)", arguments: [SQLiteMiraStore.id(id), SQLiteMiraStore.id(conversationID), SQLiteMiraStore.id(executionID), sequence, role, text, createdAt.timeIntervalSince1970])
     }
 
     private static func messageText(_ conversation: Int, _ pair: Int, role: String) -> String { "M5 \(role) message \(conversation)-\(pair)" }

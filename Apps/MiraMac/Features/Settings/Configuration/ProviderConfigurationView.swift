@@ -196,8 +196,8 @@ struct ProviderConfigurationView: View {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(verbatim: item.metadata.displayName ?? item.id)
                                 Text(verbatim: item.id).font(.caption).foregroundStyle(.secondary)
-                                if item.suggestedProtocolMode == .unsupportedReasoning {
-                                    Text("Reasoning continuation is not supported yet").font(.caption).foregroundStyle(.orange)
+                                if item.metadata.reasoning == true {
+                                    Label("Thinking", systemImage: "brain").font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                             Spacer()

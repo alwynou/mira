@@ -270,10 +270,10 @@ private struct ToolFixture {
     let store: SQLiteMiraStore
     let route: ResolvedModelRouteSnapshot
     let configuration: StoredRouteFixture
-    init() throws {
+    init(providerKind: ProviderKind = .openAICompatible) throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("MiraToolRuntime-\(UUID())")
         store = try SQLiteMiraStore(directory: directory)
-        var snapshot = ResolvedModelRouteSnapshot(name: "Tools fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "fixture", credentialReference: "no-key", contextWindow: 262_144)
+        var snapshot = ResolvedModelRouteSnapshot(name: "Tools fixture", providerKind: providerKind, baseURL: "https://example.invalid/v1", modelID: "fixture", credentialReference: "no-key", contextWindow: 262_144)
         snapshot.toolCapability = .declared
         route = snapshot
         configuration = StoredRouteFixture(snapshot)
@@ -343,4 +343,70 @@ private func toolEventually(_ predicate: @Sendable () async throws -> Bool) asyn
         try await Task.sleep(for: .milliseconds(5))
     }
     throw MiraError(.timeout, "Synthetic tool runtime condition timed out")
+}
+
+extension ToolRuntimeTests {
+    @Test(arguments: [ProviderKind.openAICompatible, .anthropic])
+    func thinkingSurvivesToolContinuationAndUsesProviderHistoryBoundary(kind: ProviderKind) async throws {
+        let fixture = try ToolFixture(providerKind: kind); defer { fixture.cleanup() }
+        let first = ReasoningContent(format: kind == .anthropic ? .anthropicBlocks : .openAIContent,
+                                     text: "Plan the lookup", isComplete: true)
+        let second = ReasoningContent(format: first.format, text: "Use the observation", isComplete: true)
+        let call = CanonicalToolCall(id: "thinking-call", name: "fixture.read", arguments: "{\"query\":\"hello\"}")
+        let provider = ScriptedToolProvider(store: fixture.store, replies: [
+            [.reasoning(first), .toolCalls([call]), .finished(.toolCalls)],
+            [.reasoning(second), .textDelta("Answer"), .finished(.stop)],
+            [.textDelta("Next answer"), .finished(.stop)]
+        ])
+        let tool = FixtureTool(name: "fixture.read") { _, _ in
+            var workspace = try #require(fixture.store.workspaces().first)
+            let revision = workspace.revision
+            workspace.background = "Changed context for the next user turn"
+            workspace.revision += 1
+            try fixture.store.saveWorkspace(workspace, expectedRevision: revision)
+            return "Synthetic observation"
+        }
+        let app = try MiraApplication(store: fixture.store, provider: provider, tools: ToolRegistry([tool]))
+        let workspace = try await app.createWorkspace(name: "Thinking", background: "Original context", allowsRemoteSend: true)
+        let conversation = try await app.createConversation(workspaceID: workspace)
+        _ = try await app.send(conversationID: conversation, text: "First question", routeID: fixture.route.id)
+        try await toolEventually { try fixture.store.executions(in: conversation).last?.status.isTerminal == true }
+        #expect(try fixture.store.executions(in: conversation).last?.status == .completed)
+        #expect(provider.requests.count == 2)
+        #expect(provider.requests[1].system == provider.requests[0].system)
+        #expect(provider.requests[1].messages.dropLast().last?.reasoning == first)
+        let answer = try #require(fixture.store.messages(in: conversation).last)
+        #expect(answer.text == "Answer")
+        #expect(answer.trace.map(\.role) == [.assistant, .tool, .assistant])
+        #expect(answer.trace.compactMap(\.reasoning) == [first, second])
+        _ = try await app.send(conversationID: conversation, text: "Next question", routeID: fixture.route.id)
+        try await toolEventually { provider.requests.count == 3 }
+        let next = provider.requests[2]
+        #expect(next.system.contains("Changed context"))
+        if kind == .openAICompatible {
+            #expect(next.messages.compactMap(\.reasoning) == [first, second])
+            #expect(next.messages.filter { $0.role == .tool }.count == 1)
+        } else {
+            #expect(next.messages.allSatisfy { $0.reasoning == nil })
+        }
+        await app.shutdown()
+    }
+
+    @Test func incompleteThinkingNeverDispatchesTools() async throws {
+        let fixture = try ToolFixture(); defer { fixture.cleanup() }
+        let recorder = ToolRecorder()
+        let call = CanonicalToolCall(id: "incomplete", name: "fixture.read", arguments: "{\"query\":\"q\"}")
+        let provider = ScriptedToolProvider(store: fixture.store, replies: [[
+            .reasoning(.init(format: .openAIContent, text: "Partial thinking")), .toolCalls([call]), .finished(.toolCalls)
+        ]])
+        let tool = FixtureTool(name: "fixture.read") { _, _ in await recorder.enter("must not execute"); return "wrong" }
+        let app = try MiraApplication(store: fixture.store, provider: provider, tools: ToolRegistry([tool]))
+        let conversation = try await app.createConversation(workspaceID: nil)
+        _ = try await app.send(conversationID: conversation, text: "Question", routeID: fixture.route.id)
+        try await toolEventually { try fixture.store.executions(in: conversation).last?.status.isTerminal == true }
+        #expect(await recorder.events.isEmpty)
+        #expect(try fixture.store.executions(in: conversation).last?.error?.code == .malformedStream)
+        #expect(try fixture.store.messages(in: conversation).last?.trace.first?.reasoning?.text == "Partial thinking")
+        await app.shutdown()
+    }
 }

@@ -46,13 +46,27 @@ public enum ContextBuilder {
             guard let prior = successful.first(where: { $0.triggerMessageID == message.id }),
                   let answer = messages.first(where: { $0.executionID == prior.id && $0.role == .assistant && $0.status == .committed && $0.conversationID == conversation.id && $0.bodyPurgedAt == nil }) else { continue }
             history.append(.init(role: .user, text: message.text))
-            history.append(.init(role: .assistant, text: answer.text))
+            if execution.route.providerKind == .openAICompatible,
+               execution.route.sharesReasoningContext(with: prior.route),
+               answer.trace.contains(where: { $0.reasoning != nil }) {
+                // DeepSeek/Kimi and gateway continuation requires every assistant
+                // reasoning segment, including intermediate tool decisions.
+                guard answer.trace.allSatisfy({ $0.reasoning?.isComplete != false }) else {
+                    throw MiraError(.storage, "Completed history contains unfinished thinking content.")
+                }
+                history += answer.trace
+            } else {
+                // The next user turn rebuilds the system/context prefix. Anthropic
+                // permits dropping ALL completed-turn signed blocks at this boundary;
+                // the current tool-use turn is frozen and replayed without edits.
+                history.append(.init(role: .assistant, text: answer.text))
+            }
             references += [message, answer].map { .init(kind: "historyMessage", id: $0.id.rawValue.uuidString) }
         }
         history.append(.init(role: .user, text: trigger.text))
         // UTF-8 byte count is a conservative estimate for the initial un-tokenized text adapter.
         // Never silently trim canonical history; a future Compact operation owns that decision.
-        let estimatedInput = system.utf8.count + history.reduce(0) { $0 + $1.text.utf8.count + 16 }
+        let estimatedInput = system.utf8.count + (try JSONEncoder().encode(history).count) + history.count * 16
         let window = execution.route.contextWindow ?? 0
         let margin = max(512, window / 10)
         guard estimatedInput + execution.route.maxOutputTokens + margin <= window else {

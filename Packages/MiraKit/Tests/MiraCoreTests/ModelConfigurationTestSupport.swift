@@ -42,7 +42,7 @@ struct StoredRouteFixture {
             name: snapshot.name,
             modelDescriptorID: snapshot.modelDescriptorID,
             maxOutputTokens: snapshot.maxOutputTokens,
-            requestsUsage: snapshot.requestsUsage
+            requestsUsage: snapshot.requestsUsage, thinking: snapshot.thinking
         )
     }
 

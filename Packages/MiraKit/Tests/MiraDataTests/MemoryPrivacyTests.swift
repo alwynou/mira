@@ -177,7 +177,8 @@ struct MemoryPrivacyTests {
         let memory = try store.createMemory(draft: .init(content: "Remember this", scope: .global), source: .message(id: source.id, excerpt: source.text), operationID: UUID(), replacing: nil, expectedRevision: nil, at: date(3)).memory
         let attemptID = UUID()
         try store.prepareAttempt(.init(id: attemptID, executionID: execution.id, stepID: UUID(), stepIndex: 1, request: .init(executionID: execution.id, system: "system", messages: [], requestID: attemptID), createdAt: date(4)))
-        try store.checkpoint(executionID: execution.id, text: "draft body", at: date(5))
+        let thinking: [CanonicalMessage] = [.init(role: .assistant, text: "", reasoning: .init(format: .openAIContent, text: "private thought", blocks: [.string("signed opaque")]))]
+        try store.checkpoint(executionID: execution.id, text: "draft body", trace: thinking, at: date(5))
         let call = CanonicalToolCall(id: "call-1", name: "fixture.read", arguments: "{}")
         let output = ModelOutput(text: "tool request", toolCalls: [call], finishReason: .toolCalls)
         let invocation = ToolInvocation(id: UUID(), attemptID: attemptID, modelOrder: 0, call: call)
@@ -191,8 +192,9 @@ struct MemoryPrivacyTests {
         let database = try DatabaseQueue(path: backup.appendingPathComponent("Mira.sqlite").path)
         let stepBefore = try database.read { db in try Row.fetchOne(db, sql: "SELECT body_purged_at, output_json FROM execution_steps WHERE execution_id = ?", arguments: [id(execution.id)]) }
         let toolBefore = try database.read { db in try Row.fetchOne(db, sql: "SELECT body_purged_at, arguments_json, result_json FROM tool_invocations WHERE execution_id = ?", arguments: [id(execution.id)]) }
-        let draftBefore = try database.read { db in try Row.fetchOne(db, sql: "SELECT body_purged_at, text FROM assistant_drafts WHERE execution_id = ?", arguments: [id(execution.id)]) }
+        let draftBefore = try database.read { db in try Row.fetchOne(db, sql: "SELECT body_purged_at, text, trace_json FROM assistant_drafts WHERE execution_id = ?", arguments: [id(execution.id)]) }
         guard stepBefore != nil, toolBefore != nil, draftBefore != nil else { Issue.record("The purged audit child rows were not present."); return }
+        #expect((draftBefore?["trace_json"] as String?) == "[]")
         let retainedOutput = try encode(output)
         let retainedResult = try encode(ToolResult(status: .succeeded, text: "retained result"))
         let changed = try database.write { db -> Int in

@@ -3,6 +3,7 @@ import Foundation
 public enum ApplicationEvent: Sendable {
     case changed
     case draft(ExecutionID, String)
+    case thinking(ExecutionID, [CanonicalMessage])
     case failure(MiraError)
 }
 public struct LibrarySnapshot: Sendable {
@@ -32,8 +33,9 @@ public actor MiraApplication {
     private var tasks: [ExecutionID: Task<Void, Never>] = [:]
     private var active: [ExecutionID: Execution] = [:]
     private var text: [ExecutionID: String] = [:]
+    private var traces: [ExecutionID: [CanonicalMessage]] = [:]
     private var usage: [ExecutionID: TokenUsage] = [:]
-    private var checkpointBytes: [ExecutionID: Int] = [:]
+    private var pendingCheckpointBytes: [ExecutionID: Int] = [:]
     private struct PendingSave { let status: ExecutionStatus; let error: MiraError? }
     private var pendingSaves: [ExecutionID: PendingSave] = [:]
     private var isShuttingDown = false
@@ -137,12 +139,13 @@ public actor MiraApplication {
     }
     public func setSourceRemoteUse(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, allowed: Bool, expectedRevision: Int) async throws -> KnowledgeSource {
         let source = try store.setSourceRemoteUse(id, workspaceID: workspaceID, allowed: allowed, expectedRevision: expectedRevision, at: environment.now())
-        if !allowed { await cancelMemoryConsumers() }
+        if !allowed { discardPurgedLiveState(); await cancelMemoryConsumers() }
         emit(.changed)
         return source
     }
     public func deleteKnowledgeSource(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int) async throws {
         try store.deleteKnowledgeSource(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: environment.now())
+        discardPurgedLiveState()
         await cancelMemoryConsumers()
         emit(.changed)
     }
@@ -184,6 +187,8 @@ public actor MiraApplication {
         for executionID in receipt.redactedExecutionIDs {
             tasks[executionID]?.cancel(); text[executionID] = nil; pendingSaves[executionID] = nil
             emit(.draft(executionID, ""))
+            traces[executionID] = []
+            emit(.thinking(executionID, []))
         }
         await cancelMemoryConsumers(); emit(.changed)
         return receipt
@@ -192,6 +197,16 @@ public actor MiraApplication {
         let memory = try store.confirmMemoryReplacement(candidateID, workspaceID: workspaceID, replacingCurrent: currentID, expectedCandidateRevision: expectedCandidateRevision, expectedCurrentRevision: expectedCurrentRevision, at: environment.now())
         await cancelMemoryConsumers(); emit(.changed)
         return memory
+    }
+    private func discardPurgedLiveState() {
+        for id in Array(active.keys) {
+            // If the authoritative row cannot be read after a privacy change,
+            // discard the live copy; the durable draft remains store-owned.
+            if let stored = try? store.execution(id), stored.bodyPurgedAt == nil { continue }
+            tasks[id]?.cancel(); pendingSaves[id] = nil
+            clearLiveState(id)
+            emit(.draft(id, "")); emit(.thinking(id, []))
+        }
     }
     private func cancelMemoryConsumers() async {
         // Conservative until dependency-specific live cancellation is needed. Store checks remain authoritative.
@@ -202,7 +217,7 @@ public actor MiraApplication {
     public func conversation(_ id: ConversationID) throws -> ConversationSnapshot {
         let executions = try store.executions(in: id)
         let drafts = try executions.filter { !$0.status.isTerminal }.compactMap { execution -> Draft? in
-            if let live = text[execution.id] { return Draft(executionID: execution.id, text: live, updatedAt: environment.now()) }
+            if let live = text[execution.id] { return Draft(executionID: execution.id, text: live, updatedAt: environment.now(), trace: traces[execution.id] ?? []) }
             return try store.draft(for: execution.id)
         }
         return .init(messages: try store.messages(in: id), executions: executions, drafts: drafts, pendingSaveIDs: Set(pendingSaves.keys))
@@ -368,7 +383,7 @@ public actor MiraApplication {
         return try store.modelConfiguration().resolve(purpose: .conversation, explicitRouteID: id, conversation: conversation, workspace: workspace)
     }
     private func launch(_ execution: Execution) {
-        active[execution.id] = execution; text[execution.id] = ""; usage[execution.id] = .init(); checkpointBytes[execution.id] = 0
+        active[execution.id] = execution; text[execution.id] = ""; usage[execution.id] = .init(); pendingCheckpointBytes[execution.id] = 0
         tasks[execution.id] = Task { await self.run(execution) }
         emit(.changed)
     }
@@ -399,6 +414,7 @@ public actor MiraApplication {
         var finalError: MiraError?
         do {
             var exchanges: [CanonicalMessage] = []
+            var frozenBase: CanonicalModelRequest?
             let definitions = (execution.route.toolCapability == .declared || execution.route.toolCapability == .verified) ? tools.definitions : []
             var toolCount = 0, reservedOutput = 0
             var priorExchange: String?, repeatedExchanges = 0
@@ -407,15 +423,21 @@ public actor MiraApplication {
                 try Task.checkCancellation()
                 guard reservedOutput <= limits.maxReservedOutputTokens - execution.route.maxOutputTokens else { throw MiraError(.outputLimit, "Output reservation for this turn reached its limit. Start a new conversation.") }
                 reservedOutput += execution.route.maxOutputTokens
-                let conversations = try store.conversations(includeArchived: true)
-                let messages = try store.messages(in: execution.conversationID)
-                let workspaceID = conversations.first { $0.id == execution.conversationID }?.workspaceID
-                let query = messages.first { $0.id == execution.triggerMessageID }?.text ?? ""
-                let recalled = try store.recallMemories(query: query, workspaceID: workspaceID, connectionID: execution.route.connectionID, limit: 6, at: environment.now())
-                let base = try ContextBuilder.build(execution: execution, conversations: conversations,
-                                                    workspaces: store.workspaces(), messages: messages,
-                                                    executions: store.executions(in: execution.conversationID),
-                                                    memories: recalled.memories, suppressedMessageIDs: store.suppressedMemorySourceMessageIDs(), at: environment.now())
+                let base: CanonicalModelRequest
+                if let frozenBase {
+                    base = frozenBase
+                } else {
+                    let conversations = try store.conversations(includeArchived: true)
+                    let messages = try store.messages(in: execution.conversationID)
+                    let workspaceID = conversations.first { $0.id == execution.conversationID }?.workspaceID
+                    let query = messages.first { $0.id == execution.triggerMessageID }?.text ?? ""
+                    let recalled = try store.recallMemories(query: query, workspaceID: workspaceID, connectionID: execution.route.connectionID, limit: 6, at: environment.now())
+                    base = try ContextBuilder.build(execution: execution, conversations: conversations,
+                        workspaces: store.workspaces(), messages: messages,
+                        executions: store.executions(in: execution.conversationID),
+                        memories: recalled.memories, suppressedMessageIDs: store.suppressedMemorySourceMessageIDs(), at: environment.now())
+                    frozenBase = base
+                }
                 let attemptID = environment.uuid()
                 let request = try ContextBuilder.extending(base, requestID: attemptID, exchanges: exchanges, tools: definitions, route: execution.route)
                 try validateDispatch(execution)
@@ -446,10 +468,13 @@ public actor MiraApplication {
                 }
                 let results = try await runTools(invocations, execution: execution)
                 try Task.checkCancellation()
-                exchanges.append(.init(role: .assistant, text: output.text, toolCalls: output.toolCalls))
+                exchanges.append(.init(role: .assistant, text: output.text, toolCalls: output.toolCalls, reasoning: output.reasoning))
                 for (invocation, result) in zip(invocations, results) {
                     exchanges.append(.init(role: .tool, text: try result.observation(), toolCallID: invocation.call.id))
                 }
+                traces[execution.id] = exchanges
+                pendingCheckpointBytes[execution.id, default: 0] += 1
+                try checkpoint(execution.id)
                 let signature = try zip(invocations, results).map { invocation, result in
                     let arguments = (try? JSONDecoder().decode(JSONValue.self, from: Data(invocation.call.arguments.utf8)).jsonString()) ?? invocation.call.arguments
                     return invocation.call.name + "\n" + arguments + "\n" + (try result.observation())
@@ -481,6 +506,12 @@ public actor MiraApplication {
         var terminal: StreamFinishReason?, calls: [CanonicalToolCall] = [], sawCalls = false, stepText = ""
         let priorUsage = usage[execution.id] ?? .init()
         let prefix = text[execution.id] ?? ""
+        let previousTrace = traces[execution.id] ?? []
+        var reasoning: ReasoningContent?
+        func currentTrace() -> [CanonicalMessage] {
+            guard reasoning != nil || !stepText.isEmpty || !calls.isEmpty else { return previousTrace }
+            return previousTrace + [.init(role: .assistant, text: stepText, toolCalls: calls.isEmpty ? nil : calls, reasoning: reasoning)]
+        }
         for try await event in provider.stream(request: request, route: execution.route) {
             try Task.checkCancellation()
             guard terminal == nil else { throw MiraError(.malformedStream, "Service returned data after the stream ended.") }
@@ -490,8 +521,20 @@ public actor MiraApplication {
                 let newText = prefix + (prefix.isEmpty || stepText.isEmpty ? "" : "\n\n") + stepText
                 guard newText.utf8.count <= 2_097_152 else { throw MiraError(.outputLimit, "Reply exceeded the local safety limit.") }
                 text[execution.id] = newText
-                if newText.utf8.count - (checkpointBytes[execution.id] ?? 0) >= 4096 { try checkpoint(execution.id) }
+                traces[execution.id] = currentTrace()
+                pendingCheckpointBytes[execution.id, default: 0] += delta.utf8.count * 2
+                if pendingCheckpointBytes[execution.id, default: 0] >= 4096 { try checkpoint(execution.id) }
                 emit(.draft(execution.id, newText))
+            case .reasoning(let value):
+                try value.validate()
+                guard reasoning?.isComplete != true else { throw MiraError(.malformedStream, "Thinking content changed after completion.") }
+                let previousSize = try reasoning.map { try JSONEncoder().encode($0).count } ?? 0
+                let newSize = try JSONEncoder().encode(value).count
+                reasoning = value
+                traces[execution.id] = currentTrace()
+                pendingCheckpointBytes[execution.id, default: 0] += max(1, abs(newSize - previousSize))
+                if pendingCheckpointBytes[execution.id, default: 0] >= 4096 { try checkpoint(execution.id) }
+                emit(.thinking(execution.id, traces[execution.id] ?? []))
             case .toolCalls(let batch):
                 let previousIDs = Set(request.messages.flatMap { $0.toolCalls ?? [] }.map(\.id))
                 guard !sawCalls, !(request.tools ?? []).isEmpty, !batch.isEmpty, batch.count <= 32,
@@ -500,6 +543,8 @@ public actor MiraApplication {
                     throw MiraError(.malformedStream, "Service returned tool calls with missing identities, duplicates, or excessive limits.")
                 }
                 sawCalls = true; calls = batch
+                traces[execution.id] = currentTrace()
+                pendingCheckpointBytes[execution.id, default: 0] += 1
             case .usage(let next):
                 guard (next.inputTokens ?? 0) >= 0, (next.outputTokens ?? 0) >= 0,
                       (next.inputTokens ?? 0) <= 100_000_000, (next.outputTokens ?? 0) <= 100_000_000 else { throw MiraError(.malformedStream, "Service returned invalid usage.") }
@@ -517,7 +562,9 @@ public actor MiraApplication {
         usage[execution.id] = priorSteps == 0 ? attemptUsage : .init(
             inputTokens: priorUsage.inputTokens.flatMap { old in attemptUsage.inputTokens.map { old + $0 } },
             outputTokens: priorUsage.outputTokens.flatMap { old in attemptUsage.outputTokens.map { old + $0 } })
-        return .init(text: stepText, toolCalls: calls, finishReason: terminal)
+        guard reasoning?.isComplete != false else { throw MiraError(.malformedStream, "Thinking content ended before its continuation data was complete.") }
+        traces[execution.id] = currentTrace()
+        return .init(text: stepText, toolCalls: calls, finishReason: terminal, reasoning: reasoning)
     }
 
     private func validateDispatch(_ execution: Execution) throws {
@@ -628,15 +675,19 @@ public actor MiraApplication {
     }
 
     private func clearLiveState(_ id: ExecutionID) {
-        active[id] = nil; text[id] = nil; usage[id] = nil; checkpointBytes[id] = nil; expired.remove(id)
+        active[id] = nil; text[id] = nil; traces[id] = nil; usage[id] = nil; pendingCheckpointBytes[id] = nil; expired.remove(id)
     }
     private func checkpoint(_ id: ExecutionID) throws {
-        guard let value = text[id], value.utf8.count != checkpointBytes[id] else { return }
-        try store.checkpoint(executionID: id, text: value, at: environment.now())
-        checkpointBytes[id] = value.utf8.count
+        guard pendingCheckpointBytes[id, default: 0] > 0 else { return }
+        let value = text[id] ?? ""
+        let trace = traces[id] ?? []
+        try AssistantTrace.validate(trace)
+        try store.checkpoint(executionID: id, text: value, trace: trace, at: environment.now())
+        pendingCheckpointBytes[id] = 0
     }
     private func finish(_ execution: Execution, status: ExecutionStatus, error: MiraError?) throws {
-        try store.finish(executionID: execution.id, status: status, text: text[execution.id] ?? "",
+        try AssistantTrace.validate(traces[execution.id] ?? [], complete: status == .completed)
+        try store.finish(executionID: execution.id, status: status, text: text[execution.id] ?? "", trace: traces[execution.id] ?? [],
                          usage: usage[execution.id] ?? .init(), error: error,
                          assistantMessageID: .init(environment.uuid()), at: environment.now())
     }

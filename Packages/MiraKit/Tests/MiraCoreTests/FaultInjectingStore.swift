@@ -79,10 +79,10 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     func finishToolInvocation(_ id: UUID, result: ToolResult, at: Date) throws -> Bool {
         try base.finishToolInvocation(id, result: result, at: at)
     }
-    func checkpoint(executionID: ExecutionID, text: String, at: Date) throws { try base.checkpoint(executionID: executionID, text: text, at: at) }
-    func finish(executionID: ExecutionID, status: ExecutionStatus, text: String, usage: TokenUsage, error: MiraError?, assistantMessageID: MessageID, at: Date) throws -> Bool {
+    func checkpoint(executionID: ExecutionID, text: String, trace: [CanonicalMessage], at: Date) throws { try base.checkpoint(executionID: executionID, text: text, trace: trace, at: at) }
+    func finish(executionID: ExecutionID, status: ExecutionStatus, text: String, trace: [CanonicalMessage], usage: TokenUsage, error: MiraError?, assistantMessageID: MessageID, at: Date) throws -> Bool {
         if lock.withLock({ failFinalization }) { throw MiraError(.storage, "Synthetic finalization failure") }
-        return try base.finish(executionID: executionID, status: status, text: text, usage: usage, error: error, assistantMessageID: assistantMessageID, at: at)
+        return try base.finish(executionID: executionID, status: status, text: text, trace: trace, usage: usage, error: error, assistantMessageID: assistantMessageID, at: at)
     }
     func recoverInterrupted(at: Date) throws { try base.recoverInterrupted(at: at) }
     func diagnostics() throws -> StorageDiagnostics { try base.diagnostics() }

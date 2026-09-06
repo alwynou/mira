@@ -242,3 +242,51 @@ private func eventually(_ predicate: @Sendable () throws -> Bool) async throws {
     }
     throw MiraError(.timeout, "Synthetic runtime condition did not become true within 2 seconds.")
 }
+
+extension MiraApplicationTests {
+    @Test func thinkingOnlyCancellationKeepsDraftAndRetryDoesNotReplayIt() async throws {
+        let fixture = try RuntimeFixture(); defer { fixture.cleanup() }
+        let app = try MiraApplication(store: fixture.store, provider: fixture.provider)
+        let conversation = try await app.createConversation(workspaceID: nil)
+        let id = try await app.send(conversationID: conversation, text: "Question", routeID: fixture.route.id)
+        try await eventually { fixture.provider.requestCount == 1 }
+        let reasoning = ReasoningContent(format: .openAIContent, text: "Thinking before any answer")
+        fixture.provider.yield(.reasoning(reasoning), for: id)
+        try await eventually { try fixture.store.draft(for: id)?.trace.first?.reasoning == reasoning }
+        #expect(try await app.conversation(conversation).drafts.first?.trace.first?.reasoning == reasoning)
+        await app.cancel(id)
+        try await eventually { try fixture.store.execution(id)?.status == .cancelled }
+        let partial = try #require(fixture.store.messages(in: conversation).last)
+        #expect(partial.role == .assistant)
+        #expect(partial.text.isEmpty)
+        #expect(partial.status == .interrupted)
+        #expect(partial.trace.first?.reasoning == reasoning)
+        let retry = try await app.retry(id, routeID: fixture.route.id)
+        try await eventually { fixture.provider.requestCount == 2 }
+        #expect(try fixture.store.request(for: retry)?.messages.compactMap(\.reasoning).isEmpty == true)
+        await app.shutdown()
+    }
+
+    @Test func pendingSaveRetainsThinkingWithoutRepeatingTheModelCall() async throws {
+        let fixture = try RuntimeFixture(); defer { fixture.cleanup() }
+        let fault = FaultInjectingStore(fixture.store)
+        let app = try MiraApplication(store: fault, provider: fixture.provider)
+        let conversation = try await app.createConversation(workspaceID: nil)
+        let id = try await app.send(conversationID: conversation, text: "Question", routeID: fixture.route.id)
+        try await eventually { fixture.provider.requestCount == 1 }
+        let reasoning = ReasoningContent(format: .openAIContent, text: "Complete thinking", isComplete: true)
+        fixture.provider.yield(.reasoning(reasoning), for: id)
+        fixture.provider.yield(.textDelta("Answer"), for: id)
+        fixture.provider.complete(id)
+        for _ in 0..<400 {
+            if try await app.conversation(conversation).pendingSaveIDs.contains(id) { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(try await app.conversation(conversation).drafts.first?.trace.first?.reasoning == reasoning)
+        fault.allowFinalization()
+        try await app.retryPendingSave(id)
+        #expect(try fixture.store.messages(in: conversation).last?.trace.first?.reasoning == reasoning)
+        #expect(fixture.provider.requestCount == 1)
+        await app.shutdown()
+    }
+}

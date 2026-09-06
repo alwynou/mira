@@ -2,6 +2,8 @@
 
 Date: 2026-09-06. Branch: `dev`. This increment responds to the missing DeepSeek/Kimi entries and the need to select models by use. The owning contract is [Model catalog](../architecture/MODEL_CATALOG.md); product behavior remains in [Agent and context](../product/AGENT_AND_CONTEXT.md).
 
+This is historical schema-v9 evidence. The subsequent [thinking increment](THINKING_VERIFICATION.md) replaces the reasoning-disabled policy and introduces schema v10; earlier results below are not claims about the newer implementation.
+
 ## Delivered scope
 
 Eight templates cover OpenAI, Anthropic, DeepSeek, Kimi / Moonshot China and international, SiliconFlow China and international, and OpenRouter, alongside the existing custom connection option. The bundled snapshot contains **542 model references**, not 542 verified working models. Manual IDs and explicit account model discovery remain available.

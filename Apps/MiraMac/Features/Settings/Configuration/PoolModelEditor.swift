@@ -11,7 +11,7 @@ struct PoolModelEditor: View {
     let initialModelID: String
     let container: AppContainer
     let onSaved: () async -> Void
-    @State private var maxOutputTokens = "1024"
+    @State private var maxOutputTokens = "8192"
     @State private var requestsUsage = true
     @State private var isEnabled = true
     @State private var modelID = ""
@@ -20,6 +20,9 @@ struct PoolModelEditor: View {
     @State private var toolsDeclared = false
     @State private var extractionDeclared = false
     @State private var protocolMode = ModelProtocolMode.standard
+    @State private var thinkingMode = ThinkingMode.providerDefault
+    @State private var thinkingEffort: ThinkingEffort?
+    @State private var thinkingBudget = ""
     @State private var catalogMetadata: ModelCatalogMetadata?
     @State private var catalogSuggestionsApplied = false
     @State private var error: MiraError?
@@ -35,6 +38,7 @@ struct PoolModelEditor: View {
                     if modelID.trimmingCharacters(in: .whitespacesAndNewlines) != updated.trimmingCharacters(in: .whitespacesAndNewlines) {
                         catalogMetadata = nil; contextWindow = ""; textDeclared = false
                         toolsDeclared = false; extractionDeclared = false; protocolMode = .standard
+                        thinkingMode = .providerDefault; thinkingEffort = nil; thinkingBudget = ""
                     }
                     modelID = updated
                 }))
@@ -45,11 +49,7 @@ struct PoolModelEditor: View {
                 Toggle("Text capability declared", isOn: $textDeclared)
                 Toggle("Tool capability declared", isOn: $toolsDeclared)
                 Toggle("JSON extraction capability declared", isOn: $extractionDeclared)
-                Picker("Thinking compatibility", selection: $protocolMode) {
-                    Text("Standard text mode").tag(ModelProtocolMode.standard)
-                    Text("Disable thinking for DeepSeek / Kimi").tag(ModelProtocolMode.thinkingDisabled)
-                    Text("Needs reasoning continuation support").tag(ModelProtocolMode.unsupportedReasoning)
-                }
+                thinkingControls
             }.disabled(saving)
             catalogReference
             Text("Catalog suggestions are declarations, not successful tests. Confirm the limits and capabilities before saving. Connection or model changes require reconfirmation.")
@@ -64,6 +64,68 @@ struct PoolModelEditor: View {
         .onAppear { load() }
         .interactiveDismissDisabled(saving)
     }
+    private var thinkingCapabilities: ThinkingCapabilities { .init(protocolMode: protocolMode, modelID: modelID.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    private var thinkingSettings: ThinkingSettings {
+        .init(mode: thinkingMode, effort: thinkingMode == .disabled ? nil : thinkingEffort,
+              budgetTokens: thinkingMode == .disabled ? nil : Int(thinkingBudget.trimmingCharacters(in: .whitespacesAndNewlines)))
+    }
+
+    @ViewBuilder private var thinkingControls: some View {
+        if catalogModel == nil {
+            Picker("Thinking interface", selection: Binding(get: { protocolMode }, set: { mode in
+                protocolMode = mode
+                thinkingMode = .providerDefault; thinkingEffort = nil; thinkingBudget = ""
+            })) {
+                Text("Service default").tag(ModelProtocolMode.standard)
+                if connection.providerKind == .anthropic {
+                    Text("Adaptive thinking").tag(ModelProtocolMode.anthropicAdaptive)
+                    Text("Thinking with token budget").tag(ModelProtocolMode.anthropicManual)
+                } else {
+                    Text("DeepSeek").tag(ModelProtocolMode.deepSeek)
+                    Text("Kimi / Moonshot").tag(ModelProtocolMode.kimi)
+                    Text("OpenAI reasoning effort").tag(ModelProtocolMode.openAI)
+                    Text("OpenRouter reasoning").tag(ModelProtocolMode.openRouter)
+                }
+            }
+        }
+        Picker("Thinking mode", selection: $thinkingMode) {
+            ForEach(thinkingCapabilities.modes, id: \.self) { mode in
+                Text(LocalizedStringKey(thinkingModeKey(mode))).tag(mode)
+            }
+        }
+        .onChange(of: thinkingMode) { _, mode in
+            if mode == .disabled { thinkingEffort = nil; thinkingBudget = "" }
+        }
+        if thinkingMode != .disabled && !thinkingCapabilities.efforts.isEmpty {
+            Picker("Thinking effort", selection: Binding(get: { thinkingEffort }, set: { value in
+                thinkingEffort = value
+                if protocolMode == .openRouter && value != nil { thinkingBudget = "" }
+            })) {
+                Text("Service default").tag(nil as ThinkingEffort?)
+                ForEach(thinkingCapabilities.efforts, id: \.self) { effort in
+                    Text(LocalizedStringKey(thinkingEffortKey(effort))).tag(Optional(effort))
+                }
+            }
+        }
+        if thinkingMode != .disabled && thinkingCapabilities.supportsBudget {
+            TextField("Thinking budget (tokens, optional)", text: Binding(get: { thinkingBudget }, set: { value in
+                thinkingBudget = value
+                if protocolMode == .openRouter && !value.isEmpty { thinkingEffort = nil }
+            }))
+            Text("Thinking and the answer share the maximum output token limit.").font(.caption).foregroundStyle(.secondary)
+        }
+        if !thinkingCapabilities.modes.contains(.disabled) && protocolMode != .standard {
+            Text("This model uses thinking by default; a disable option is not available for this interface.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func thinkingModeKey(_ mode: ThinkingMode) -> String {
+        switch mode { case .providerDefault: "Service default"; case .enabled: "Enabled"; case .disabled: "Disabled" }
+    }
+    private func thinkingEffortKey(_ effort: ThinkingEffort) -> String {
+        switch effort { case .low: "Low"; case .medium: "Medium"; case .high: "High"; case .xhigh: "Very high"; case .max: "Maximum" }
+    }
+
     private var catalogModel: CatalogModel? {
         ProviderModelCatalog.bundled.model(for: connection, modelID: modelID.trimmingCharacters(in: .whitespacesAndNewlines))
     }
@@ -93,12 +155,7 @@ struct PoolModelEditor: View {
             } else {
                 Text("No catalog reference applied. Enter and confirm this deployment’s limits and capabilities manually.")
             }
-            if protocolMode == .thinkingDisabled {
-                Text("Mira will request thinking disabled for this model. This option is supported only on the official DeepSeek and Kimi endpoints.")
-            } else if protocolMode == .unsupportedReasoning {
-                Text("This model needs reasoning continuation support. You can keep it in the pool, but it cannot be selected for execution yet.")
-                    .foregroundStyle(.orange)
-            }
+
         }.font(.caption).foregroundStyle(.secondary).padding(.vertical, 12)
     }
 
@@ -116,18 +173,23 @@ struct PoolModelEditor: View {
         catalogSuggestionsApplied = true
         catalogMetadata = item.metadata
         contextWindow = item.metadata.contextWindow.map(String.init) ?? ""
-        let requestedOutput = Int(maxOutputTokens) ?? 1024
+        let requestedOutput = Int(maxOutputTokens) ?? 8192
         let contextBound = (item.metadata.contextWindow ?? 1025) - 1
         maxOutputTokens = String(max(1, min(requestedOutput, item.metadata.maxOutputTokens ?? requestedOutput, contextBound)))
         textDeclared = item.metadata.task == .textGeneration && item.metadata.inputModalities.contains("text") && item.metadata.outputModalities.contains("text")
         toolsDeclared = item.metadata.toolCall == true
         extractionDeclared = false
         protocolMode = item.suggestedProtocolMode
+        thinkingMode = (protocolMode == .anthropicManual || protocolMode == .anthropicAdaptive) ? .enabled : .providerDefault
+        thinkingEffort = nil; thinkingBudget = ""
     }
 
     private func load() {
-        maxOutputTokens = route.map { String($0.maxOutputTokens) } ?? "1024"
+        maxOutputTokens = route.map { String($0.maxOutputTokens) } ?? "8192"
         requestsUsage = route?.requestsUsage ?? true
+        thinkingMode = route?.thinking.mode ?? .providerDefault
+        thinkingEffort = route?.thinking.effort
+        thinkingBudget = route?.thinking.budgetTokens.map(String.init) ?? ""
         guard let existing else {
             modelID = initialModelID
             if let item = catalogModel { applyCatalog(item) }
@@ -151,7 +213,7 @@ struct PoolModelEditor: View {
                   output > 0, output <= 10_000_000, parsedWindow.map({ output < $0 }) ?? true else {
                 throw MiraError(.configuration, "Maximum output tokens must be positive and smaller than the model context window.")
             }
-            let descriptorChanged = catalogSuggestionsApplied || (existing.map { $0.connectionID != connectionID || $0.connectionRevision != connection.revision || $0.modelID != modelID.trimmingCharacters(in: .whitespacesAndNewlines) || $0.contextWindow != parsedWindow || $0.protocolMode != protocolMode || $0.catalogMetadata != catalogMetadata } ?? true)
+            let descriptorChanged = (route.map { $0.thinking != thinkingSettings } ?? false) || catalogSuggestionsApplied || (existing.map { $0.connectionID != connectionID || $0.connectionRevision != connection.revision || $0.modelID != modelID.trimmingCharacters(in: .whitespacesAndNewlines) || $0.contextWindow != parsedWindow || $0.protocolMode != protocolMode || $0.catalogMetadata != catalogMetadata } ?? true)
             let textDeclarationChanged = existing.map { ($0.textCapability == .declared || $0.textCapability == .verified) != textDeclared } ?? true
             let toolsDeclarationChanged = existing.map { ($0.toolCapability == .declared || $0.toolCapability == .verified) != toolsDeclared } ?? true
             let textCapability: CapabilityState = if !descriptorChanged, let previous = existing, previous.textCapability == .verified, textDeclared { .verified } else if !descriptorChanged, let previous = existing, previous.textCapability == .failed, !textDeclared { .failed } else { textDeclared ? .declared : .unknown }
@@ -168,7 +230,12 @@ struct PoolModelEditor: View {
             }
             let preset = ModelRoute(id: model.poolRouteID, revision: (route?.revision ?? 0) + 1,
                                     name: String(model.modelID.prefix(100)), modelDescriptorID: model.id,
-                                    maxOutputTokens: output, requestsUsage: requestsUsage)
+                                    maxOutputTokens: output, requestsUsage: requestsUsage, thinking: thinkingSettings)
+            if !thinkingBudget.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && Int(thinkingBudget.trimmingCharacters(in: .whitespacesAndNewlines)) == nil {
+                throw MiraError(.configuration, "Enter a valid thinking token budget.")
+            }
+            let snapshot = ResolvedModelRouteSnapshot(route: preset, model: model, connection: connection, purpose: .conversation, selection: .explicit)
+            try snapshot.validateThinkingSettings()
             try await application.savePoolModel(model, route: preset, expectedModelRevision: existing?.revision, expectedRouteRevision: route?.revision)
             await onSaved(); dismiss()
         } catch { self.error = MiraError.safe(error) }

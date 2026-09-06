@@ -46,10 +46,10 @@ public protocol MiraStore: MemoryStore, MemoryExtractionStore, KnowledgeStore {
     func markToolDispatched(_ id: UUID, at: Date) throws
     /// CAS: exactly one terminal result, including calls which were never dispatched.
     @discardableResult func finishToolInvocation(_ id: UUID, result: ToolResult, at: Date) throws -> Bool
-    func checkpoint(executionID: ExecutionID, text: String, at: Date) throws
+    func checkpoint(executionID: ExecutionID, text: String, trace: [CanonicalMessage], at: Date) throws
     /// CAS terminal transition. Returns false for an already-terminal execution. Inserts at most one assistant message; clears its draft.
     @discardableResult
-    func finish(executionID: ExecutionID, status: ExecutionStatus, text: String, usage: TokenUsage, error: MiraError?, assistantMessageID: MessageID, at: Date) throws -> Bool
+    func finish(executionID: ExecutionID, status: ExecutionStatus, text: String, trace: [CanonicalMessage], usage: TokenUsage, error: MiraError?, assistantMessageID: MessageID, at: Date) throws -> Bool
     /// Marks unfinished executions interrupted and materializes their last durable draft. Never sends requests.
     func recoverInterrupted(at: Date) throws
     func diagnostics() throws -> StorageDiagnostics

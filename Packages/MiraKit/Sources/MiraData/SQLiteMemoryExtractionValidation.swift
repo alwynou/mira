@@ -181,6 +181,7 @@ extension SQLiteMiraStore {
         }
         if let outputJSON = row["output_json"] as String? {
             let output: ModelOutput = try decode(outputJSON)
+            try validateModelOutput(output)
             guard !purged, sent, terminal, output.toolCalls.isEmpty, output.text.utf8.count <= 32_768 else { throw invalid }
             if state == "completed" { guard output.finishReason == .stop else { throw invalid } }
         } else if state == "completed" && !purged { throw invalid }

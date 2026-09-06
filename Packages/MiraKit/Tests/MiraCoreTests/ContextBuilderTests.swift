@@ -3,6 +3,19 @@ import Testing
 @testable import MiraCore
 
 struct ContextBuilderTests {
+    @Test func thinkingReplayIsBoundToModelConnectionEndpointAndCredential() throws {
+        let original = route()
+        #expect(original.sharesReasoningContext(with: original))
+        var changed = original; changed.modelID = "other"
+        #expect(!original.sharesReasoningContext(with: changed))
+        changed = original; changed.connectionID = .init()
+        #expect(!original.sharesReasoningContext(with: changed))
+        changed = original; changed.baseURL = "https://other.invalid/v1"
+        #expect(!original.sharesReasoningContext(with: changed))
+        changed = original; changed.credentialVersion += 1
+        #expect(!original.sharesReasoningContext(with: changed))
+    }
+
     private func route(window: Int? = 32_768) -> ResolvedModelRouteSnapshot {
         .init(name: "Fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "synthetic", credentialReference: "test-reference", contextWindow: window)
     }

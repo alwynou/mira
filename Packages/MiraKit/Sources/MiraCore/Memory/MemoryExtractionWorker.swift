@@ -126,6 +126,7 @@ public actor MemoryExtractionWorker {
             defer { group.cancelAll() }
             group.addTask {
                 var text = ""
+                var reasoning: ReasoningContent?
                 var terminal: StreamFinishReason?
                 var inputTokens: Int?
                 var outputTokens: Int?
@@ -138,6 +139,10 @@ public actor MemoryExtractionWorker {
                     case .textDelta(let delta):
                         text.append(contentsOf: delta)
                         guard text.utf8.count <= 32_768 else { throw MiraError(.outputLimit, "Automatic memory extraction output must be at most 32 KiB.") }
+                    case .reasoning(let value):
+                        try value.validate()
+                        guard reasoning?.isComplete != true else { throw MiraError(.malformedStream, "Thinking content changed after completion.") }
+                        reasoning = value
                     case .toolCalls:
                         throw MiraError(.providerRejected, "Automatic memory extraction does not permit tool calls.")
                     case .usage(let observed):
@@ -158,8 +163,9 @@ public actor MemoryExtractionWorker {
                     if terminal == .outputLimit { throw MiraError(.outputLimit, "Automatic memory extraction reached the provider output limit.") }
                     throw MiraError(.malformedStream, "Automatic memory extraction returned a non-text finish reason.")
                 }
+                guard reasoning?.isComplete != false else { throw MiraError(.malformedStream, "Thinking content ended before its continuation data was complete.") }
                 let usage = usageIsUnknown ? TokenUsage() : TokenUsage(inputTokens: inputTokens, outputTokens: outputTokens)
-                return (.init(text: text, toolCalls: [], finishReason: .stop), usage)
+                return (.init(text: text, toolCalls: [], finishReason: .stop, reasoning: reasoning), usage)
             }
             group.addTask {
                 try await clock.sleep(for: .seconds(90))

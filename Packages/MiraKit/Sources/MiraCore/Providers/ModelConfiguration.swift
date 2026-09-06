@@ -87,9 +87,10 @@ public struct ModelRoute: Identifiable, Codable, Sendable, Equatable {
     public var modelDescriptorID: ModelDescriptorID
     public var maxOutputTokens: Int
     public var requestsUsage: Bool
-    public init(id: RouteID = .init(), revision: Int = 1, name: String, modelDescriptorID: ModelDescriptorID, maxOutputTokens: Int = 1024, requestsUsage: Bool = true) {
+    public var thinking: ThinkingSettings
+    public init(id: RouteID = .init(), revision: Int = 1, name: String, modelDescriptorID: ModelDescriptorID, maxOutputTokens: Int = 1024, requestsUsage: Bool = true, thinking: ThinkingSettings = .init()) {
         self.id = id; self.revision = revision; self.name = name; self.modelDescriptorID = modelDescriptorID
-        self.maxOutputTokens = maxOutputTokens; self.requestsUsage = requestsUsage
+        self.maxOutputTokens = maxOutputTokens; self.requestsUsage = requestsUsage; self.thinking = thinking
     }
     public func validate() throws {
         guard revision > 0, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 100,

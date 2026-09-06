@@ -54,9 +54,11 @@ public struct Message: Identifiable, Codable, Sendable, Equatable {
     public var role: MessageRole
     public var status: MessageStatus
     public var text: String
+    public var trace: [CanonicalMessage]
     public var createdAt: Date
     public var bodyPurgedAt: Date?
-    public init(id: MessageID, conversationID: ConversationID, executionID: ExecutionID?, sequence: Int, role: MessageRole, status: MessageStatus, text: String, createdAt: Date, bodyPurgedAt: Date? = nil) {
+    public init(id: MessageID, conversationID: ConversationID, executionID: ExecutionID?, sequence: Int, role: MessageRole, status: MessageStatus, text: String, createdAt: Date, bodyPurgedAt: Date? = nil, trace: [CanonicalMessage] = []) {
+        self.trace = trace
         self.id = id; self.conversationID = conversationID; self.executionID = executionID
         self.sequence = sequence; self.role = role; self.status = status; self.text = text; self.createdAt = createdAt
         self.bodyPurgedAt = bodyPurgedAt
@@ -96,8 +98,10 @@ public struct Execution: Identifiable, Codable, Sendable, Equatable {
 public struct Draft: Codable, Sendable, Equatable {
     public var executionID: ExecutionID
     public var text: String
+    public var trace: [CanonicalMessage]
     public var updatedAt: Date
-    public init(executionID: ExecutionID, text: String, updatedAt: Date) {
+    public init(executionID: ExecutionID, text: String, updatedAt: Date, trace: [CanonicalMessage] = []) {
+        self.trace = trace
         self.executionID = executionID; self.text = text; self.updatedAt = updatedAt
     }
 }

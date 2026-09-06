@@ -24,6 +24,7 @@ final class ConversationModel {
     var messages: [Message] = []
     var executions: [Execution] = []
     var drafts: [ExecutionID: String] = [:]
+    var thinkingTraces: [ExecutionID: [CanonicalMessage]] = [:]
     var pendingSaveIDs: Set<ExecutionID> = []
     var selectedWorkspaceID: WorkspaceID?
     var selectedConversationID: ConversationID?
@@ -56,6 +57,8 @@ final class ConversationModel {
             switch event {
             case .changed: await reload()
             case .draft(let id, let value): if executions.contains(where: { $0.id == id }) { drafts[id] = value }
+            case .thinking(let id, let trace):
+                if executions.contains(where: { $0.id == id }) { thinkingTraces[id] = trace; if drafts[id] == nil { drafts[id] = "" } }
             case .failure(let failure): error = failure
             }
         }
@@ -75,7 +78,7 @@ final class ConversationModel {
     }
     func selectConversation(_ id: ConversationID?) async {
         selectionGeneration += 1; selectedConversationID = id
-        messages = []; executions = []; drafts = [:]; pendingSaveIDs = []; composer = ""; selectedRouteID = nil
+        messages = []; executions = []; drafts = [:]; thinkingTraces = [:]; pendingSaveIDs = []; composer = ""; selectedRouteID = nil
         guard let id else { return }
         if let conversation = conversations.first(where: { $0.id == id }) {
             selectedWorkspaceID = conversation.workspaceID
@@ -89,6 +92,7 @@ final class ConversationModel {
         guard generation == selectionGeneration, selectedConversationID == id else { return }
         messages = state.messages; executions = state.executions
         drafts = Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.text) })
+        thinkingTraces = Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.trace) })
         pendingSaveIDs = state.pendingSaveIDs
         inspectionRevision += 1
     }

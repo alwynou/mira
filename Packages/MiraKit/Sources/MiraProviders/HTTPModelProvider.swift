@@ -71,11 +71,11 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
         result.setValue(request.dispatchID.uuidString, forHTTPHeaderField: "X-Mira-Request-ID")
         if route.providerKind == .openAICompatible {
             result.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
-            result.httpBody = try JSONEncoder().encode(OpenAIRequest(request: request, model: route.modelID, maxTokens: route.maxOutputTokens, includeUsage: route.requestsUsage, protocolMode: route.protocolMode))
+            result.httpBody = try JSONEncoder().encode(OpenAIRequest(request: request, route: route))
         } else {
             result.setValue(secret, forHTTPHeaderField: "x-api-key")
             result.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            result.httpBody = try JSONEncoder().encode(AnthropicRequest(request: request, model: route.modelID, maxTokens: route.maxOutputTokens))
+            result.httpBody = try JSONEncoder().encode(AnthropicRequest(request: request, route: route))
         }
         return result
     }
@@ -90,9 +90,18 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
         var responseReceived = false
         var parser = SSEParser()
         var protocolFinished = false
-        var openAIState = OpenAIStreamState(toolDefinitions: request.tools ?? [], toolsEnabled: request.tools?.isEmpty == false)
-        var anthropicState = AnthropicStreamState(toolDefinitions: request.tools ?? [], toolsEnabled: request.tools?.isEmpty == false)
+        var openAIState = OpenAIStreamState(toolDefinitions: request.tools ?? [], toolsEnabled: request.tools?.isEmpty == false, protocolMode: route.protocolMode)
+        var anthropicState = AnthropicStreamState(toolDefinitions: request.tools ?? [], toolsEnabled: request.tools?.isEmpty == false, protocolMode: route.protocolMode)
 
+        defer {
+            if !protocolFinished && !Task.isCancelled {
+                if route.providerKind == .openAICompatible {
+                    try? openAIState.flushReasoning(continuation: continuation)
+                } else {
+                    try? anthropicState.flushReasoning(continuation: continuation)
+                }
+            }
+        }
         for try await event in input {
             try Task.checkCancellation()
             switch event {
@@ -173,6 +182,7 @@ private func validateToolHistory(_ request: CanonicalModelRequest) throws -> Boo
     var seenCallIDs = Set<String>()
     var sawToolContent = false
     for message in request.messages {
+        guard message.role == .assistant || message.reasoning == nil else { throw ProviderProtocolError.malformed }
         switch message.role {
         case .assistant:
             guard message.toolCallID == nil else { throw ProviderProtocolError.malformed }
@@ -238,13 +248,24 @@ private struct OpenAIStreamState {
     private var sawDone = false
     private var usage: TokenUsage?
     private var calls: [Int: OpenAIToolAccumulator] = [:]
+    private var reasoningText = ""
+    private var reasoningDetails: [JSONValue] = []
+    private var sawReasoningDetails = false
+    private var reasoningPendingBytes = 0
+    private var reasoningDetailsPendingBytes = 0
+    private var reasoningDetailsBytes = 0
+    private var emittedReasoningSnapshot = false
+    private var lastReasoningEmission: ContinuousClock.Instant?
+    private var hasReasoning = false
+    private let protocolMode: ModelProtocolMode
     private let decoder = JSONDecoder()
     private let names: ToolNameMap
     private let toolsEnabled: Bool
 
-    init(toolDefinitions: [ToolDefinition], toolsEnabled: Bool) {
+    init(toolDefinitions: [ToolDefinition], toolsEnabled: Bool, protocolMode: ModelProtocolMode) {
         self.names = ToolNameMap(definitions: toolDefinitions)
         self.toolsEnabled = toolsEnabled
+        self.protocolMode = protocolMode
     }
 
     var isFinished: Bool { sawDone }
@@ -254,6 +275,8 @@ private struct OpenAIStreamState {
             guard !sawDone, finish != nil else { throw ProviderProtocolError.malformed }
             if finish == .toolCalls {
                 let calls = try finalizeCalls()
+                try flushReasoning(continuation: continuation)
+                try finishReasoning(continuation: continuation)
                 try yieldCanonical(.toolCalls(calls), to: continuation)
             } else if !calls.isEmpty {
                 // A provider cannot turn a tool proposal into a normal stop.
@@ -261,6 +284,7 @@ private struct OpenAIStreamState {
                 // as a runnable call.
                 guard finish == .outputLimit else { throw ProviderProtocolError.malformed }
             }
+            if finish != .toolCalls { try flushReasoning(continuation: continuation); try finishReasoning(continuation: continuation) }
             sawDone = true
             try yieldCanonical(.finished(finish!), to: continuation)
             return
@@ -288,17 +312,47 @@ private struct OpenAIStreamState {
         }
         for choice in chunk.choices ?? [] {
             if let delta = choice.delta {
-                if let reasoning = delta.reasoningContent, !reasoning.isEmpty {
-                    throw ProviderProtocolError.unsupportedReasoning
+                var detailHasVisibleText = false
+                var receivedDetails = false
+                if let details = delta.reasoningDetails {
+                    guard case .array(let fragments) = details else { throw ProviderProtocolError.malformed }
+                    guard fragments.count <= ProviderLimits.maxReasoningDetails else { throw ProviderProtocolError.resourceLimit }
+                    for fragment in fragments {
+                        guard case .object(let object) = fragment else { throw ProviderProtocolError.malformed }
+                        if let visible = object["text"] ?? object["summary"] {
+                            guard let text = visible.stringValue else { throw ProviderProtocolError.malformed }
+                            try appendReasoningText(text, continuation: nil)
+                            detailHasVisibleText = detailHasVisibleText || !text.isEmpty
+                        }
+                        let fragmentBytes = try JSONEncoder().encode(fragment).count
+                        guard reasoningDetailsBytes + fragmentBytes <= ProviderLimits.maxReasoningPayloadBytes else { throw ProviderProtocolError.resourceLimit }
+                        reasoningDetailsBytes += fragmentBytes
+                        reasoningDetailsPendingBytes += fragmentBytes
+                    }
+                    reasoningDetails.append(contentsOf: fragments)
+                    guard reasoningDetails.count <= ProviderLimits.maxReasoningDetails else { throw ProviderProtocolError.resourceLimit }
+                    if !fragments.isEmpty {
+                        receivedDetails = true
+                        sawReasoningDetails = true
+                        hasReasoning = true
+                    }
                 }
-                if let details = delta.reasoningDetails, details.hasNonNullContent {
-                    throw ProviderProtocolError.unsupportedReasoning
+                if !detailHasVisibleText {
+                    let alias = delta.reasoningContent ?? delta.reasoning ?? ""
+                    if !alias.isEmpty { try appendReasoningText(alias, continuation: continuation) }
+                }
+                if receivedDetails {
+                    try emitReasoningIfNeeded(continuation: continuation)
                 }
                 if finish != nil && (delta.content != nil || delta.toolCalls != nil || delta.functionCall != nil || choice.finishReason != nil) {
                     throw ProviderProtocolError.malformed
                 }
-                if let text = delta.content, !text.isEmpty { try yieldText(text, to: continuation) }
+                if let text = delta.content, !text.isEmpty {
+                    try flushReasoning(continuation: continuation)
+                    try yieldText(text, to: continuation)
+                }
                 if let toolDeltas = delta.toolCalls {
+                    try flushReasoning(continuation: continuation)
                     for toolDelta in toolDeltas { try append(toolDelta) }
                 }
                 if delta.functionCall != nil { throw ProviderProtocolError.unsupportedTools }
@@ -315,6 +369,47 @@ private struct OpenAIStreamState {
                 }
             }
         }
+    }
+
+    private mutating func appendReasoningText(_ fragment: String, continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation?) throws {
+        guard reasoningText.utf8.count + fragment.utf8.count <= ProviderLimits.maxReasoningTextBytes else { throw ProviderProtocolError.resourceLimit }
+        reasoningText.append(fragment)
+        hasReasoning = true
+        reasoningPendingBytes += fragment.utf8.count
+        if let continuation { try emitReasoningIfNeeded(continuation: continuation) }
+    }
+
+    mutating func flushReasoning(continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation) throws {
+        guard hasReasoning, reasoningPendingBytes > 0 || reasoningDetailsPendingBytes > 0 else { return }
+        try emitReasoning(continuation: continuation)
+    }
+
+    private mutating func emitReasoningIfNeeded(continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation) throws {
+        guard !emittedReasoningSnapshot ||
+                reasoningPendingBytes + reasoningDetailsPendingBytes >= ProviderLimits.reasoningSnapshotBytes ||
+                lastReasoningEmission.map({ ContinuousClock.now - $0 >= .milliseconds(100) }) == true else { return }
+        try emitReasoning(continuation: continuation)
+    }
+
+    private var reasoningFormat: ReasoningFormat {
+        sawReasoningDetails || protocolMode == .openRouter ? .openRouterDetails : .openAIContent
+    }
+
+    private mutating func emitReasoning(continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation) throws {
+        let content = ReasoningContent(format: reasoningFormat, text: reasoningText, blocks: reasoningDetails, isComplete: false)
+        do { try content.validate() } catch { throw ProviderProtocolError.resourceLimit }
+        try yieldCanonical(.reasoning(content), to: continuation)
+        reasoningPendingBytes = 0
+        reasoningDetailsPendingBytes = 0
+        emittedReasoningSnapshot = true
+        lastReasoningEmission = .now
+    }
+
+    private mutating func finishReasoning(continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation) throws {
+        guard hasReasoning else { return }
+        let content = ReasoningContent(format: reasoningFormat, text: reasoningText, blocks: reasoningDetails, isComplete: true)
+        do { try content.validate() } catch { throw ProviderProtocolError.resourceLimit }
+        try yieldCanonical(.reasoning(content), to: continuation)
     }
 
     private mutating func append(_ delta: OpenAIResponseToolCall) throws {
@@ -378,12 +473,20 @@ private struct AnthropicStreamState {
     private var nextBlockIndex = 0
     private var openBlockIndex: Int?
     private var toolCalls: [Int: AnthropicToolAccumulator] = [:]
+    private var contentBlocks: [JSONValue] = []
+    private var reasoningText = ""
+    private var reasoningStarted = false
+    private var reasoningPendingBytes = 0
+    private var emittedReasoningSnapshot = false
+    private var lastReasoningEmission: ContinuousClock.Instant?
     private let names: ToolNameMap
     private let toolsEnabled: Bool
+    private let protocolMode: ModelProtocolMode
 
-    init(toolDefinitions: [ToolDefinition], toolsEnabled: Bool) {
+    init(toolDefinitions: [ToolDefinition], toolsEnabled: Bool, protocolMode: ModelProtocolMode) {
         self.names = ToolNameMap(definitions: toolDefinitions)
         self.toolsEnabled = toolsEnabled
+        self.protocolMode = protocolMode
     }
 
     var isFinished: Bool { sawStop }
@@ -419,18 +522,37 @@ private struct AnthropicStreamState {
             catch { throw ProviderProtocolError.malformed }
             guard let contentBlock = value.contentBlock else { throw ProviderProtocolError.malformed }
             guard let index = value.index, index == nextBlockIndex, openBlockIndex == nil else { throw ProviderProtocolError.malformed }
+            guard contentBlocks.count < ProviderLimits.maxReasoningBlocks else { throw ProviderProtocolError.resourceLimit }
+            let envelope = try decoder.decode(JSONValue.self, from: Data(frame.data.utf8))
+            guard case .object(let rawBlock) = envelope["content_block"] else { throw ProviderProtocolError.malformed }
+            contentBlocks.append(.object(rawBlock))
             openBlockIndex = index
             switch contentBlock.type {
             case "text":
                 openBlockKind = .text
-                if let text = contentBlock.text, !text.isEmpty { try yieldText(text, to: continuation) }
+                if let text = contentBlock.text, !text.isEmpty {
+                    try flushReasoning(continuation: continuation)
+                    try yieldText(text, to: continuation)
+                }
             case "tool_use":
                 guard toolsEnabled else { throw ProviderProtocolError.unsupportedTools }
                 guard toolCalls.count < ProviderLimits.maxToolCalls else { throw ProviderProtocolError.resourceLimit }
                 openBlockKind = .tool
                 toolCalls[index] = try AnthropicToolAccumulator(id: contentBlock.id, name: contentBlock.name, input: contentBlock.input)
-            case "thinking", "redacted_thinking":
-                throw ProviderProtocolError.unsupportedTools
+            case "thinking":
+                openBlockKind = .thinking
+                reasoningStarted = true
+                if let text = contentBlock.thinking, !text.isEmpty {
+                    guard reasoningText.utf8.count + text.utf8.count <= ProviderLimits.maxReasoningTextBytes else { throw ProviderProtocolError.resourceLimit }
+                    reasoningText.append(text)
+                    reasoningPendingBytes += text.utf8.count
+                    try emitReasoningIfNeeded(continuation: continuation)
+                }
+            case "redacted_thinking":
+                openBlockKind = .redactedThinking
+                reasoningStarted = true
+                reasoningPendingBytes += try JSONEncoder().encode(contentBlocks[index]).count
+                try emitReasoningIfNeeded(continuation: continuation)
             default:
                 throw ProviderProtocolError.malformed
             }
@@ -443,14 +565,35 @@ private struct AnthropicStreamState {
             guard let delta = value.delta else { throw ProviderProtocolError.malformed }
             switch (openBlockKind, delta.type) {
             case (.text, "text_delta"):
-                if let text = delta.text, !text.isEmpty { try yieldText(text, to: continuation) }
+                if let text = delta.text, !text.isEmpty {
+                    try flushReasoning(continuation: continuation)
+                    try yieldText(text, to: continuation)
+                    try appendBlockText(text, at: openBlockIndex!)
+                }
             case (.tool, "input_json_delta"):
+                try flushReasoning(continuation: continuation)
                 guard let partial = delta.partialJSON else { throw ProviderProtocolError.malformed }
                 guard var call = toolCalls[openBlockIndex!] else { throw ProviderProtocolError.malformed }
                 try call.append(partial)
                 toolCalls[openBlockIndex!] = call
-            case (_, "thinking_delta"), (_, "signature_delta"):
-                throw ProviderProtocolError.unsupportedTools
+            case (.thinking, "thinking_delta"):
+                guard let text = delta.thinking else { throw ProviderProtocolError.malformed }
+                reasoningStarted = true
+                if !text.isEmpty {
+                    guard reasoningText.utf8.count + text.utf8.count <= ProviderLimits.maxReasoningTextBytes else { throw ProviderProtocolError.resourceLimit }
+                    reasoningText.append(text)
+                    reasoningPendingBytes += text.utf8.count
+                    let currentThinking = contentBlocks[openBlockIndex!]["thinking"]?.stringValue ?? ""
+                    try appendBlockField("thinking", value: .string(currentThinking + text), at: openBlockIndex!)
+                    try emitReasoningIfNeeded(continuation: continuation)
+                }
+            case (.thinking, "signature_delta"), (.redactedThinking, "signature_delta"):
+                guard let signature = delta.signature else { throw ProviderProtocolError.malformed }
+                let previousSignature = contentBlocks[openBlockIndex!]["signature"]?.stringValue ?? ""
+                try appendBlockField("signature", value: .string(previousSignature + signature), at: openBlockIndex!)
+                reasoningStarted = true
+                reasoningPendingBytes += signature.utf8.count
+                try emitReasoningIfNeeded(continuation: continuation)
             default:
                 throw ProviderProtocolError.malformed
             }
@@ -460,6 +603,11 @@ private struct AnthropicStreamState {
             do { value = try decoder.decode(AnthropicContentBlockStop.self, from: Data(frame.data.utf8)) }
             catch { throw ProviderProtocolError.malformed }
             guard value.index == openBlockIndex else { throw ProviderProtocolError.malformed }
+            if openBlockKind == .tool, let index = openBlockIndex, let call = toolCalls[index] {
+                guard let input = try? JSONDecoder().decode(JSONValue.self, from: Data(call.arguments.utf8)), case .object = input else { throw ProviderProtocolError.malformed }
+                try appendBlockField("input", value: input, at: index)
+                toolCalls[index] = call
+            }
             openBlockKind = nil
             openBlockIndex = nil
             nextBlockIndex += 1
@@ -493,14 +641,51 @@ private struct AnthropicStreamState {
             guard started, !sawStop, finish != nil, openBlockKind == nil else { throw ProviderProtocolError.malformed }
             if finish == .toolCalls {
                 let calls = try finalizeCalls()
+                try emitReasoning(continuation: continuation, complete: true)
                 try yieldCanonical(.toolCalls(calls), to: continuation)
             } else if !toolCalls.isEmpty {
                 guard finish == .outputLimit else { throw ProviderProtocolError.malformed }
             }
+            if finish != .toolCalls { try emitReasoning(continuation: continuation, complete: true) }
             sawStop = true
             try yieldCanonical(.finished(finish!), to: continuation)
         default: break
         }
+    }
+
+    private mutating func appendBlockText(_ fragment: String, at index: Int) throws {
+        guard index < contentBlocks.count, case .object(let block) = contentBlocks[index] else { throw ProviderProtocolError.malformed }
+        let current = block["text"]?.stringValue ?? ""
+        try appendBlockField("text", value: .string(current + fragment), at: index)
+    }
+
+    private mutating func appendBlockField(_ key: String, value: JSONValue, at index: Int) throws {
+        guard index < contentBlocks.count, case .object(var block) = contentBlocks[index] else { throw ProviderProtocolError.malformed }
+        block[key] = value
+        contentBlocks[index] = .object(block)
+    }
+
+    private mutating func emitReasoningIfNeeded(continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation) throws {
+        guard !emittedReasoningSnapshot ||
+                reasoningPendingBytes >= ProviderLimits.reasoningSnapshotBytes ||
+                lastReasoningEmission.map({ ContinuousClock.now - $0 >= .milliseconds(100) }) == true else { return }
+        try emitReasoning(continuation: continuation, complete: false)
+    }
+
+    mutating func flushReasoning(continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation) throws {
+        guard reasoningPendingBytes > 0 else { return }
+        try emitReasoning(continuation: continuation, complete: false)
+    }
+
+    private mutating func emitReasoning(continuation: AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation, complete: Bool) throws {
+        guard reasoningStarted else { return }
+        if complete { try validateAnthropicThinkingBlocks(contentBlocks) }
+        let content = ReasoningContent(format: .anthropicBlocks, text: reasoningText, blocks: contentBlocks, isComplete: complete)
+        do { try content.validate() } catch { throw ProviderProtocolError.resourceLimit }
+        try yieldCanonical(.reasoning(content), to: continuation)
+        reasoningPendingBytes = 0
+        emittedReasoningSnapshot = true
+        lastReasoningEmission = .now
     }
 
     private func finalizeCalls() throws -> [CanonicalToolCall] {
@@ -554,6 +739,11 @@ private enum ProviderLimits {
     static let maxToolJSONBytes = 65_536
     static let maxToolIDBytes = 256
     static let maxToolNameBytes = 128
+    static let maxReasoningTextBytes = 2_097_152
+    static let maxReasoningBlocks = 256
+    static let maxReasoningDetails = 65_536
+    static let maxReasoningPayloadBytes = 4_194_304
+    static let reasoningSnapshotBytes = 4_096
 }
 
 private struct OpenAIToolAccumulator {
@@ -571,7 +761,7 @@ private struct OpenAIToolAccumulator {
     }
 }
 
-private enum AnthropicBlockKind { case text, tool }
+private enum AnthropicBlockKind: Equatable { case text, tool, thinking, redactedThinking }
 
 private struct AnthropicToolAccumulator {
     var id: String?
@@ -698,15 +888,18 @@ private struct OpenAIRequest: Encodable {
     let model: String
     let messages: [OpenAIMessage]
     let stream: Bool
-    let maxTokens: Int
+    let maxTokens: Int?
+    let maxCompletionTokens: Int?
     let streamOptions: OpenAIStreamOptions?
     let tools: [OpenAIToolDefinition]?
     let thinking: OpenAIThinking?
+    let reasoningEffort: String?
+    let reasoning: OpenRouterReasoning?
 
-    init(request: CanonicalModelRequest, model: String, maxTokens: Int, includeUsage: Bool, protocolMode: ModelProtocolMode) {
-        self.model = model
+    init(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) throws {
+        self.model = route.modelID
         let names = ToolNameMap(definitions: request.tools ?? [])
-        self.messages = [OpenAIMessage(role: "system", content: request.system, toolCalls: nil, toolCallID: nil)] + request.messages.map {
+        self.messages = try [OpenAIMessage(role: route.protocolMode == .openAI ? "developer" : "system", content: request.system, toolCalls: nil, toolCallID: nil, reasoning: nil, mode: route.protocolMode)] + request.messages.map {
             let calls = $0.toolCalls?.map { call in
                 OpenAIToolCall(id: call.id, type: "function", function: OpenAIFunction(name: names.wireName(for: call.name), arguments: call.arguments))
             }
@@ -716,26 +909,81 @@ private struct OpenAIRequest: Encodable {
             case .assistant: role = "assistant"
             case .tool: role = "tool"
             }
-            return OpenAIMessage(role: role, content: $0.text, toolCalls: calls, toolCallID: $0.toolCallID)
+            return try OpenAIMessage(role: role, content: $0.text, toolCalls: calls, toolCallID: $0.toolCallID, reasoning: $0.reasoning, mode: route.protocolMode)
         }
         self.stream = true
-        self.maxTokens = maxTokens
-        self.streamOptions = includeUsage ? OpenAIStreamOptions(includeUsage: true) : nil
+        self.maxTokens = ProviderThinkingRules.usesCompletionTokenLimit(for: route) ? nil : route.maxOutputTokens
+        self.maxCompletionTokens = ProviderThinkingRules.usesCompletionTokenLimit(for: route) ? route.maxOutputTokens : nil
+        self.streamOptions = route.requestsUsage ? OpenAIStreamOptions(includeUsage: true) : nil
         self.tools = request.tools?.map { definition in
             OpenAIToolDefinition(type: "function", function: OpenAIFunctionDefinition(name: definition.wireName, description: definition.description, parameters: definition.inputSchema))
         }
-        self.thinking = protocolMode == .thinkingDisabled ? OpenAIThinking(type: "disabled") : nil
+        self.thinking = ProviderThinkingRules.openAIThinkingType(for: route).map {
+            OpenAIThinking(type: $0, keep: ProviderThinkingRules.preservesKimiThinking(for: route) ? "all" : nil)
+        }
+        self.reasoningEffort = ProviderThinkingRules.openAIReasoningEffort(for: route)
+        if let router = ProviderThinkingRules.openRouterReasoning(for: route) {
+            self.reasoning = OpenRouterReasoning(enabled: router.enabled, effort: router.effort, maxTokens: router.maxTokens)
+        } else {
+            self.reasoning = nil
+        }
     }
-    enum CodingKeys: String, CodingKey { case model, messages, stream, maxTokens = "max_tokens", streamOptions = "stream_options", tools, thinking }
+    enum CodingKeys: String, CodingKey { case model, messages, stream, maxTokens = "max_tokens", maxCompletionTokens = "max_completion_tokens", streamOptions = "stream_options", tools, thinking, reasoningEffort = "reasoning_effort", reasoning }
 }
-private struct OpenAIThinking: Encodable { let type: String }
+private struct OpenAIThinking: Encodable { let type: String; let keep: String? }
+private struct OpenRouterReasoning: Encodable {
+    let enabled: Bool?
+    let effort: String?
+    let maxTokens: Int?
+    enum CodingKeys: String, CodingKey { case enabled, effort; case maxTokens = "max_tokens" }
+}
 private struct OpenAIStreamOptions: Encodable { let includeUsage: Bool; enum CodingKeys: String, CodingKey { case includeUsage = "include_usage" } }
 private struct OpenAIMessage: Encodable {
     let role: String
     let content: String?
     let toolCalls: [OpenAIToolCall]?
     let toolCallID: String?
-    enum CodingKeys: String, CodingKey { case role, content; case toolCalls = "tool_calls"; case toolCallID = "tool_call_id" }
+    let reasoningContent: String?
+    let reasoningDetails: [JSONValue]?
+    let reasoningText: String?
+
+    init(role: String, content: String?, toolCalls: [OpenAIToolCall]?, toolCallID: String?, reasoning: ReasoningContent?, mode: ModelProtocolMode) throws {
+        self.role = role; self.content = content; self.toolCalls = toolCalls; self.toolCallID = toolCallID
+        var reasoningContent: String? = role == "assistant" && (mode == .deepSeek || mode == .kimi) ? "" : nil
+        var reasoningDetails: [JSONValue]? = nil
+        var reasoningText: String? = nil
+        if role == "assistant", let reasoning {
+            try reasoning.validate()
+            if mode == .openRouter {
+                guard reasoning.format == .openRouterDetails else { throw ProviderProtocolError.malformed }
+            } else if mode != .standard {
+                guard reasoning.format == .openAIContent else { throw ProviderProtocolError.malformed }
+            }
+            switch reasoning.format {
+            case .openAIContent:
+                guard reasoning.isComplete else { throw ProviderProtocolError.malformed }
+                reasoningContent = reasoning.text
+            case .openRouterDetails:
+                guard reasoning.isComplete else { throw ProviderProtocolError.malformed }
+                reasoningDetails = reasoning.blocks.isEmpty ? nil : reasoning.blocks
+                reasoningText = reasoning.blocks.isEmpty ? reasoning.text : nil
+            case .anthropicBlocks:
+                throw ProviderProtocolError.malformed
+            }
+        }
+        self.reasoningContent = reasoningContent
+        self.reasoningDetails = reasoningDetails
+        self.reasoningText = reasoningText
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case role, content
+        case toolCalls = "tool_calls"
+        case toolCallID = "tool_call_id"
+        case reasoningContent = "reasoning_content"
+        case reasoningDetails = "reasoning_details"
+        case reasoningText = "reasoning"
+    }
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -743,6 +991,9 @@ private struct OpenAIMessage: Encodable {
         try container.encode(content, forKey: .content)
         if let toolCalls { try container.encode(toolCalls, forKey: .toolCalls) }
         if let toolCallID { try container.encode(toolCallID, forKey: .toolCallID) }
+        if let reasoningContent { try container.encode(reasoningContent, forKey: .reasoningContent) }
+        if let reasoningDetails { try container.encode(reasoningDetails, forKey: .reasoningDetails) }
+        if let reasoningText { try container.encode(reasoningText, forKey: .reasoningText) }
     }
 }
 private struct OpenAIToolDefinition: Encodable { let type: String; let function: OpenAIFunctionDefinition }
@@ -762,29 +1013,20 @@ private struct OpenAIChunk: Decodable {
     let error: OpenAIError?
 }
 private struct OpenAIChoice: Decodable { let delta: OpenAIDelta?; let finishReason: String?; enum CodingKeys: String, CodingKey { case delta; case finishReason = "finish_reason" } }
-private extension JSONValue {
-    var hasNonNullContent: Bool {
-        switch self {
-        case .null: return false
-        case .string(let value): return !value.isEmpty
-        case .array(let values): return !values.isEmpty
-        case .object(let values): return !values.isEmpty
-        case .number, .bool: return true
-        }
-    }
-}
 private struct OpenAIDelta: Decodable {
     let content: String?
     let toolCalls: [OpenAIResponseToolCall]?
     let functionCall: OpenAIFunctionCall?
     let reasoningContent: String?
     let reasoningDetails: JSONValue?
+    let reasoning: String?
     enum CodingKeys: String, CodingKey {
         case content
         case toolCalls = "tool_calls"
         case functionCall = "function_call"
         case reasoningContent = "reasoning_content"
         case reasoningDetails = "reasoning_details"
+        case reasoning
     }
 }
 private struct OpenAIResponseToolCall: Decodable {
@@ -804,18 +1046,32 @@ private struct AnthropicRequest: Encodable {
     let maxTokens: Int
     let stream: Bool
     let tools: [AnthropicToolDefinition]?
-    init(request: CanonicalModelRequest, model: String, maxTokens: Int) throws {
-        self.model = model
+    let thinking: AnthropicThinking?
+    let outputConfig: AnthropicOutputConfig?
+    init(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) throws {
+        self.model = route.modelID
         self.messages = try AnthropicMessageBuilder.build(request.messages, definitions: request.tools ?? [])
         self.system = request.system
-        self.maxTokens = maxTokens
+        self.maxTokens = route.maxOutputTokens
         self.stream = true
         self.tools = request.tools?.map { definition in
             AnthropicToolDefinition(name: definition.wireName, description: definition.description, inputSchema: definition.inputSchema)
         }
+        if let thinking = ProviderThinkingRules.anthropicThinking(for: route) {
+            self.thinking = AnthropicThinking(type: thinking.type, budgetTokens: thinking.budgetTokens)
+        } else {
+            self.thinking = nil
+        }
+        self.outputConfig = ProviderThinkingRules.anthropicOutputEffort(for: route).map { AnthropicOutputConfig(effort: $0) }
     }
-    enum CodingKeys: String, CodingKey { case model, messages, system, maxTokens = "max_tokens", stream, tools }
+    enum CodingKeys: String, CodingKey { case model, messages, system, maxTokens = "max_tokens", stream, tools, thinking; case outputConfig = "output_config" }
 }
+private struct AnthropicThinking: Encodable {
+    let type: String
+    let budgetTokens: Int?
+    enum CodingKeys: String, CodingKey { case type; case budgetTokens = "budget_tokens" }
+}
+private struct AnthropicOutputConfig: Encodable { let effort: String }
 private struct AnthropicMessage: Encodable {
     let role: String
     let content: AnthropicContent
@@ -839,6 +1095,7 @@ private enum AnthropicContentBlock: Encodable {
     case text(String)
     case toolUse(id: String, name: String, input: JSONValue)
     case toolResult(id: String, content: String)
+    case raw(JSONValue)
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: DynamicCodingKey.self)
@@ -855,6 +1112,8 @@ private enum AnthropicContentBlock: Encodable {
             try container.encode("tool_result", forKey: DynamicCodingKey("type"))
             try container.encode(id, forKey: DynamicCodingKey("tool_use_id"))
             try container.encode(content, forKey: DynamicCodingKey("content"))
+        case .raw(let value):
+            try value.encode(to: encoder)
         }
     }
 }
@@ -895,7 +1154,10 @@ private enum AnthropicMessageBuilder {
                 continue
             }
             flushResults()
-            if message.role == .assistant, let calls = message.toolCalls, !calls.isEmpty {
+            if message.role == .assistant, let reasoning = message.reasoning {
+                try validateAnthropicReplay(reasoning, message: message, names: names)
+                result.append(AnthropicMessage(role: "assistant", content: .blocks(reasoning.blocks.map(AnthropicContentBlock.raw))))
+            } else if message.role == .assistant, let calls = message.toolCalls, !calls.isEmpty {
                 var blocks: [AnthropicContentBlock] = []
                 if !message.text.isEmpty { blocks.append(.text(message.text)) }
                 for call in calls {
@@ -914,7 +1176,53 @@ private enum AnthropicMessageBuilder {
         flushResults()
         return result
     }
+
+    private static func validateAnthropicReplay(_ reasoning: ReasoningContent, message: CanonicalMessage, names: ToolNameMap) throws {
+        guard reasoning.format == .anthropicBlocks, reasoning.isComplete else { throw ProviderProtocolError.malformed }
+        do { try reasoning.validate() } catch { throw ProviderProtocolError.malformed }
+        try validateAnthropicThinkingBlocks(reasoning.blocks)
+        var text = ""
+        var calls: [(String, String, JSONValue)] = []
+        for block in reasoning.blocks {
+            guard case .object(let object) = block, let type = object["type"]?.stringValue else { throw ProviderProtocolError.malformed }
+            switch type {
+            case "text":
+                guard let value = object["text"]?.stringValue else { throw ProviderProtocolError.malformed }
+                text.append(value)
+            case "tool_use":
+                guard let id = object["id"]?.stringValue, let name = object["name"]?.stringValue,
+                      let input = object["input"], case .object = input else { throw ProviderProtocolError.malformed }
+                calls.append((id, name, input))
+            case "thinking", "redacted_thinking":
+                continue
+            default:
+                throw ProviderProtocolError.malformed
+            }
+        }
+        guard text == message.text, calls.count == (message.toolCalls?.count ?? 0) else { throw ProviderProtocolError.malformed }
+        for (actual, expected) in zip(calls, message.toolCalls ?? []) {
+            guard actual.0 == expected.id,
+                  actual.1 == names.wireName(for: expected.name),
+                  let expectedInput = try? JSONDecoder().decode(JSONValue.self, from: Data(expected.arguments.utf8)),
+                  actual.2 == expectedInput else { throw ProviderProtocolError.malformed }
+        }
+    }
 }
+/// Complete signed/redacted continuation must be available before exposing a
+/// runnable tool batch. Partial snapshots are retained only for recovery/display.
+private func validateAnthropicThinkingBlocks(_ blocks: [JSONValue]) throws {
+    for block in blocks {
+        switch block["type"]?.stringValue {
+        case "thinking":
+            guard block["thinking"]?.stringValue != nil,
+                  let signature = block["signature"]?.stringValue, !signature.isEmpty else { throw ProviderProtocolError.malformed }
+        case "redacted_thinking":
+            guard let data = block["data"]?.stringValue, !data.isEmpty else { throw ProviderProtocolError.malformed }
+        default: break
+        }
+    }
+}
+
 private struct AnthropicMessageStart: Decodable { let message: AnthropicMessageEnvelope? }
 private struct AnthropicMessageEnvelope: Decodable { let usage: AnthropicUsage? }
 private struct AnthropicUsage: Decodable { let inputTokens: Int?; let outputTokens: Int?; enum CodingKeys: String, CodingKey { case inputTokens = "input_tokens"; case outputTokens = "output_tokens" } }
@@ -925,14 +1233,19 @@ private struct AnthropicWireContentBlock: Decodable {
     let id: String?
     let name: String?
     let input: JSONValue?
+    let thinking: String?
+    let signature: String?
+    let data: String?
 }
 private struct AnthropicContentBlockDelta: Decodable { let index: Int?; let delta: AnthropicDelta? }
 private struct AnthropicDelta: Decodable {
     let type: String?
     let text: String?
+    let thinking: String?
     let partialJSON: String?
     let stopReason: String?
-    enum CodingKeys: String, CodingKey { case type, text; case partialJSON = "partial_json"; case stopReason = "stop_reason" }
+    let signature: String?
+    enum CodingKeys: String, CodingKey { case type, text, thinking, signature; case partialJSON = "partial_json"; case stopReason = "stop_reason" }
 }
 private struct AnthropicMessageDelta: Decodable { let delta: AnthropicDelta?; let usage: AnthropicUsage? }
 private struct AnthropicContentBlockStop: Decodable { let index: Int? }

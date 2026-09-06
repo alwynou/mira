@@ -2,7 +2,7 @@ import Foundation
 
 public enum ProviderKind: String, Codable, CaseIterable, Sendable { case openAICompatible, anthropic }
 public enum CapabilityState: String, Codable, Sendable { case unknown, declared, verified, failed }
-public enum ModelProtocolMode: String, Codable, CaseIterable, Sendable { case standard, thinkingDisabled, unsupportedReasoning }
+public enum ModelProtocolMode: String, Codable, CaseIterable, Sendable { case standard, deepSeek, kimi, anthropicManual, anthropicAdaptive, openAI, openRouter }
 
 /// Non-secret configuration. A copy is frozen in each execution before context construction.
 public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equatable {
@@ -33,11 +33,12 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
     public var extractionCapability: CapabilityState
     public var protocolMode: ModelProtocolMode
     public var catalogMetadata: ModelCatalogMetadata?
-    public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true, connectionID: ConnectionID = .init(), connectionRevision: Int = 1, modelDescriptorID: ModelDescriptorID = .init(), modelRevision: Int = 1, purpose: ModelPurpose = .conversation, selectionSource: RouteSelectionSource = .explicit, extractionCapability: CapabilityState = .unknown, protocolMode: ModelProtocolMode = .standard, catalogMetadata: ModelCatalogMetadata? = nil) {
+    public var thinking: ThinkingSettings
+    public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true, connectionID: ConnectionID = .init(), connectionRevision: Int = 1, modelDescriptorID: ModelDescriptorID = .init(), modelRevision: Int = 1, purpose: ModelPurpose = .conversation, selectionSource: RouteSelectionSource = .explicit, extractionCapability: CapabilityState = .unknown, protocolMode: ModelProtocolMode = .standard, catalogMetadata: ModelCatalogMetadata? = nil, thinking: ThinkingSettings = .init()) {
         self.connectionID = connectionID; self.connectionRevision = connectionRevision
         self.modelDescriptorID = modelDescriptorID; self.modelRevision = modelRevision
         self.purpose = purpose; self.selectionSource = selectionSource
-        self.adapterVersion = providerKind == .anthropic ? "anthropic-messages/1" : "openai-chat-completions/2"
+        self.adapterVersion = providerKind == .anthropic ? "anthropic-messages/2" : "openai-chat-completions/3"
         self.id = id; self.revision = revision; self.name = name; self.providerKind = providerKind
         self.baseURL = baseURL; self.modelID = modelID; self.credentialReference = credentialReference
         self.credentialVersion = credentialVersion; self.contextWindow = contextWindow
@@ -48,6 +49,7 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
         self.extractionCapability = extractionCapability
         self.protocolMode = protocolMode
         self.catalogMetadata = catalogMetadata
+        self.thinking = thinking
     }
 
     public init(route: ModelRoute, model: ModelDescriptor, connection: ProviderConnection, purpose: ModelPurpose, selection: RouteSelectionSource) {
@@ -59,7 +61,7 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
                   connectionID: connection.id, connectionRevision: connection.revision,
                   modelDescriptorID: model.id, modelRevision: model.revision, purpose: purpose, selectionSource: selection,
                   extractionCapability: model.connectionRevision == connection.revision ? model.extractionCapability : .unknown,
-                  protocolMode: model.protocolMode, catalogMetadata: model.catalogMetadata)
+                  protocolMode: model.protocolMode, catalogMetadata: model.catalogMetadata, thinking: route.thinking)
         self.toolCapability = model.connectionRevision == connection.revision ? model.toolCapability : .unknown
         self.probeObservation = model.connectionRevision == connection.revision ? model.probeObservation : nil
     }
@@ -84,8 +86,7 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
         guard let window = contextWindow, window > 0, window <= 10_000_000,
               maxOutputTokens > 0, maxOutputTokens < window else { throw MiraError(.configuration, "Configure a valid context window and maximum output token count.") }
         guard textCapability == .declared || textCapability == .verified else { throw MiraError(.configuration, "Confirm that this model supports streaming text conversations.") }
-        if protocolMode == .unsupportedReasoning { throw MiraError(.unsupported, "This model's reasoning protocol is not supported by Mira.") }
-        if protocolMode == .thinkingDisabled { try validateThinkingDisabledEndpoint() }
+        try validateThinkingSettings()
         if let catalogMetadata {
             try catalogMetadata.validate()
             guard catalogMetadata.task == .textGeneration || catalogMetadata.task == .unknown else {
@@ -101,40 +102,53 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
             if let catalogLimit = catalogMetadata.maxOutputTokens {
                 guard catalogLimit > 0, maxOutputTokens <= catalogLimit else { throw MiraError(.configuration, "The route output limit exceeds the provider catalog limit.") }
             }
-            if providerKind == .openAICompatible,
-               protocolMode == .standard,
-               catalogMetadata.requiresReasoningContinuation {
-                throw MiraError(.unsupported, "This model requires a reasoning continuation protocol that Mira does not support in standard mode.")
-            }
         }
         if purpose == .memoryExtraction {
             guard extractionCapability == .declared || extractionCapability == .verified else { throw MiraError(.configuration, "Confirm that this model supports memory extraction.") }
         }
     }
 
-    private func validateThinkingDisabledEndpoint() throws {
-        guard providerKind == .openAICompatible,
-              let components = URLComponents(string: baseURL), components.scheme?.lowercased() == "https",
-              components.user == nil, components.password == nil, components.query == nil, components.fragment == nil,
-              components.port == nil || components.port == 443 else {
-            throw MiraError(.unsupported, "Thinking-disabled mode is supported only on approved HTTPS model endpoints.")
+    public var thinkingCapabilities: ThinkingCapabilities {
+        ThinkingCapabilities(protocolMode: protocolMode, modelID: modelID)
+    }
+
+    public func validateThinkingSettings() throws {
+        let anthropicMode = protocolMode == .anthropicManual || protocolMode == .anthropicAdaptive
+        guard protocolMode == .standard || anthropicMode == (providerKind == .anthropic) else {
+            throw MiraError(.configuration, "The thinking protocol does not match the provider interface.")
         }
-        let host = components.host?.lowercased() ?? ""
-        let path = components.percentEncodedPath
-        let reviewedModel: Bool
-        switch host {
-        case "api.deepseek.com":
-            reviewedModel = ["", "/", "/v1", "/v1/"].contains(path)
-                ? ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-flash-vision-exp"].contains(modelID)
-                : false
-        case "api.moonshot.ai", "api.moonshot.cn":
-            reviewedModel = ["/v1", "/v1/"].contains(path) && ["kimi-k2.5", "kimi-k2.6"].contains(modelID)
-        default:
-            reviewedModel = false
+        let capabilities = thinkingCapabilities
+        guard capabilities.modes.contains(thinking.mode) else {
+            throw MiraError(.configuration, "This model does not support the selected thinking mode.")
         }
-        guard reviewedModel else {
-            throw MiraError(.unsupported, "Thinking-disabled mode is supported only on approved HTTPS model endpoints.")
+        if let effort = thinking.effort {
+            guard thinking.mode != .disabled, capabilities.efforts.contains(effort) else {
+                throw MiraError(.configuration, "This model does not support the selected thinking effort.")
+            }
         }
+        if protocolMode == .openRouter, thinking.effort != nil, thinking.budgetTokens != nil {
+            throw MiraError(.configuration, "Choose either thinking effort or a token budget.")
+        }
+        if let budget = thinking.budgetTokens {
+            guard capabilities.supportsBudget, thinking.mode != .disabled,
+                  budget >= 1024, budget < maxOutputTokens else {
+                throw MiraError(.configuration, "The thinking budget must be at least 1024 tokens and smaller than maximum output tokens.")
+            }
+        }
+        if protocolMode == .anthropicManual && thinking.mode == .enabled {
+            guard (thinking.budgetTokens ?? 2048) < maxOutputTokens else {
+                throw MiraError(.configuration, "Maximum output tokens must leave room for both the thinking budget and the answer.")
+            }
+        }
+    }
+
+    /// Opaque continuation data is never transferred to a different model,
+    /// connection or endpoint. Ordinary completed answer text remains history.
+    public func sharesReasoningContext(with other: Self) -> Bool {
+        connectionID == other.connectionID && providerKind == other.providerKind &&
+        credentialReference == other.credentialReference && credentialVersion == other.credentialVersion &&
+        modelID == other.modelID && protocolMode == other.protocolMode &&
+        (try? validatedEndpoint()) == (try? other.validatedEndpoint())
     }
 }
 
@@ -144,7 +158,9 @@ public struct CanonicalMessage: Codable, Sendable, Equatable {
     public var text: String
     public var toolCalls: [CanonicalToolCall]?
     public var toolCallID: String?
-    public init(role: CanonicalRole, text: String, toolCalls: [CanonicalToolCall]? = nil, toolCallID: String? = nil) {
+    public var reasoning: ReasoningContent?
+    public init(role: CanonicalRole, text: String, toolCalls: [CanonicalToolCall]? = nil, toolCallID: String? = nil, reasoning: ReasoningContent? = nil) {
+        self.reasoning = reasoning
         self.role = role; self.text = text; self.toolCalls = toolCalls; self.toolCallID = toolCallID
     }
 }
@@ -164,6 +180,8 @@ public struct CanonicalModelRequest: Codable, Sendable, Equatable {
 public enum StreamFinishReason: String, Codable, Sendable { case stop, outputLimit, toolCalls }
 public enum CanonicalStreamEvent: Sendable, Equatable {
     case textDelta(String)
+    /// A cumulative snapshot; incomplete snapshots are displayable but never replayable.
+    case reasoning(ReasoningContent)
     /// One ordered, completely assembled batch. Never execute partial JSON from a stream.
     case toolCalls([CanonicalToolCall])
     case usage(TokenUsage)

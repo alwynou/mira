@@ -89,6 +89,7 @@ extension SQLiteMiraStore: MemoryExtractionStore {
             let context = try loadRevalidateMemoryExtractionClaim(claim, at: at, in: db)
             let expectedRequest = try MemoryExtractionRequestBuilder.request(for: claim)
             guard request == expectedRequest else { throw MiraError(.invalidInput, "The memory extraction request is invalid.") }
+            try Self.validateRequestReasoning(request)
             let requestJSON = try Self.encode(request)
             let bytes = requestJSON.utf8.count
             guard bytes <= extractionMaxRequestBytes else { throw MiraError(.invalidInput, "The memory extraction request is too large.") }
@@ -214,7 +215,7 @@ extension SQLiteMiraStore: MemoryExtractionStore {
         let policy = try extractionPolicy(in: db)
         guard policy.mode != .manualOnly, let enabledAt = policy.enabledAt, at >= enabledAt,
               let execution = try execution(executionID, in: db), execution.status == .completed, execution.bodyPurgedAt == nil,
-              let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, created_at, body_purged_at FROM messages WHERE id = ?", arguments: [id(execution.triggerMessageID)]) else { return }
+              let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, trace_json, created_at, body_purged_at FROM messages WHERE id = ?", arguments: [id(execution.triggerMessageID)]) else { return }
         let message = try Self.message(row)
         guard message.role == .user, message.status == .committed, message.bodyPurgedAt == nil,
               message.createdAt >= enabledAt, !message.text.isEmpty, message.text.utf8.count <= extractionMaxSourceBytes,
@@ -436,7 +437,7 @@ extension SQLiteMiraStore {
     func extractionSource(_ job: MemoryExtractionJob, in db: Database) throws -> MemoryExtractionSource {
         guard let jobRow = try Row.fetchOne(db, sql: "SELECT source_execution_id, source_revision, source_hash, workspace_id, body_purged_at FROM memory_extraction_jobs WHERE id = ?", arguments: [id(job.id)]),
               (jobRow["body_purged_at"] as Double?) == nil, (jobRow["source_revision"] as Int) == 1,
-              let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, created_at, body_purged_at FROM messages WHERE id = ?", arguments: [id(job.sourceMessageID)]) else { throw MiraError(.conflict, "The memory extraction source is no longer available.") }
+              let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, execution_id, sequence, role, status, text, trace_json, created_at, body_purged_at FROM messages WHERE id = ?", arguments: [id(job.sourceMessageID)]) else { throw MiraError(.conflict, "The memory extraction source is no longer available.") }
         let message = try Self.message(row)
         let sourceExecutionID = ExecutionID(try uuid(jobRow["source_execution_id"] as String))
         guard message.conversationID == job.conversationID, message.role == .user, message.status == .committed,
@@ -456,7 +457,7 @@ extension SQLiteMiraStore {
         let configuration = ModelConfiguration(
             connections: try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, is_enabled, connection_json FROM provider_connections ORDER BY id").map { try Self.providerConnection($0) },
             models: try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, extraction_capability, protocol_mode, model_json FROM model_descriptors ORDER BY id").map { try Self.modelDescriptor($0) },
-            routes: try Row.fetchAll(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes ORDER BY id").map { try Self.modelRoute($0) },
+            routes: try Row.fetchAll(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, thinking_json, route_json FROM model_routes ORDER BY id").map { try Self.modelRoute($0) },
             bindings: try Row.fetchAll(db, sql: "SELECT id, scope_key, purpose, route_id, revision, binding_json FROM route_bindings ORDER BY id").map { try Self.routeBinding($0) }
         )
         return try configuration.resolve(purpose: .memoryExtraction, conversation: conversation, workspace: workspace)

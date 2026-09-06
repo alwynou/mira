@@ -43,14 +43,9 @@ OFFICIAL_DOCUMENTATION_URLS = {
 }
 MAX_INPUT_BYTES = 16 * 1024 * 1024
 MAX_MODELS_PER_PROVIDER = 2_000
-DISABLED_THINKING_IDS = {
-    "deepseek": {"deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-flash-vision-exp"},
-    "moonshotai-cn": {"kimi-k2.5", "kimi-k2.6"},
-    "moonshotai": {"kimi-k2.5", "kimi-k2.6"},
-}
-UNSUPPORTED_REASONING_IDS = {
-    "moonshotai-cn": {"kimi-k2-thinking", "kimi-k2-thinking-turbo", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k3"},
-    "moonshotai": {"kimi-k2-thinking", "kimi-k2-thinking-turbo", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k3"},
+ANTHROPIC_ADAPTIVE_IDS = {
+    "claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7", "claude-opus-4-8", "claude-sonnet-5",
+    "claude-opus-5", "claude-fable-5", "claude-fable-5-1", "claude-mythos-5",
 }
 
 
@@ -111,14 +106,25 @@ def modalities(value: Any, field: str) -> list[str]:
     return result
 
 
-def suggested_mode(provider_id: str, model_id: str, requires_continuation: bool) -> str:
-    if model_id in DISABLED_THINKING_IDS.get(provider_id, set()):
-        return "thinkingDisabled"
-    if model_id in UNSUPPORTED_REASONING_IDS.get(provider_id, set()):
-        return "unsupportedReasoning"
-    if not requires_continuation:
+def suggested_mode(provider_id: str, model_id: str, raw: dict[str, Any], task: str = "textGeneration") -> str:
+    # Provider protocol controls are only safe for models whose upstream
+    # metadata explicitly advertises reasoning. Other models remain generic
+    # OpenAI-compatible/Anthropic routes even when their provider supports a
+    # thinking API.
+    reasoning = raw.get("reasoning")
+    if task != "textGeneration" or reasoning is not True:
         return "standard"
-    return "unsupportedReasoning"
+    if provider_id == "deepseek":
+        return "deepSeek"
+    if provider_id in {"moonshotai-cn", "moonshotai"}:
+        return "kimi"
+    if provider_id == "anthropic":
+        return "anthropicAdaptive" if any(model_id == base or model_id.startswith(base + "-20") for base in ANTHROPIC_ADAPTIVE_IDS) else "anthropicManual"
+    if provider_id == "openai":
+        return "openAI"
+    if provider_id == "openrouter":
+        return "openRouter"
+    return "standard"
 
 
 def model_task(raw: dict[str, Any], output_modalities: list[str]) -> str:
@@ -184,7 +190,7 @@ def normalize_model(provider_id: str, raw_id: str, raw: Any, source_revision: st
     }
     return {
         "metadata": metadata,
-        "suggestedProtocolMode": suggested_mode(provider_id, model_id, requires_continuation),
+        "suggestedProtocolMode": suggested_mode(provider_id, model_id, raw, task),
     }
 
 
@@ -222,7 +228,11 @@ def normalize(input_path: Path, retrieved_at: str) -> dict[str, Any]:
         if not upstream_documentation.startswith("https://"):
             fail(f"documentation URL must use HTTPS {provider_id}")
         documentation = OFFICIAL_DOCUMENTATION_URLS.get(provider_id, upstream_documentation)
-        models = [normalize_model(provider_id, model_id, raw_model, source_revision, retrieved_at) for model_id, raw_model in raw_models.items()]
+        # K2.5 was retired on 2026-08-31 according to Kimi's official lifecycle.
+        # Keep stale upstream records out of new-model recommendations.
+        models = [normalize_model(provider_id, model_id, raw_model, source_revision, retrieved_at)
+                  for model_id, raw_model in raw_models.items()
+                  if not (provider_id in {"moonshotai", "moonshotai-cn"} and model_id == "kimi-k2.5")]
         models.sort(key=lambda model: model["metadata"]["modelID"])
         provider_name = PROVIDER_NAMES.get(provider_id)
         if provider_name is None:

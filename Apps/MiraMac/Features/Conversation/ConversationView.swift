@@ -235,7 +235,7 @@ private struct ConversationDetail: View {
                                 .font(.callout).foregroundStyle(.secondary)
                         } else if item.role == .assistant {
                             VStack(alignment: .leading, spacing: 10) {
-                                AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming)
+                                AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming, trace: item.trace)
                                 if let executionID = item.executionID, let conversationID = model.selectedConversationID {
                                     MemoryCitationList(references: MemoryCitationReference.references(in: item.text), executionID: executionID,
                                                        conversationID: conversationID, application: model.application) { sourceID in
@@ -284,7 +284,7 @@ private struct ConversationDetail: View {
                 isStreaming: false,
                 message: message,
                 bodyPurgedAt: message.bodyPurgedAt,
-                executionID: message.executionID
+                executionID: message.executionID, trace: message.trace
             )
         }
         if let execution = model.executions.last,
@@ -294,7 +294,7 @@ private struct ConversationDetail: View {
                 id: "execution:\(execution.id.rawValue.uuidString)", role: .assistant, text: draft,
                 status: execution.status.isTerminal ? .interrupted : nil,
                 isStreaming: !execution.status.isTerminal,
-                executionID: execution.id
+                executionID: execution.id, trace: model.thinkingTraces[execution.id] ?? []
             ))
         }
         return items

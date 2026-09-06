@@ -96,8 +96,8 @@ extension SQLiteMiraStore {
             try db.execute(sql: "UPDATE model_attempts SET request_json = NULL, output_json = NULL, error_json = NULL, body_purged_at = ?, status = CASE WHEN status = 'prepared' THEN 'interrupted' ELSE status END, completed_at = CASE WHEN status = 'prepared' THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [time, time, key])
             try db.execute(sql: "UPDATE tool_invocations SET arguments_json = NULL, result_json = NULL, body_purged_at = ?, status = CASE WHEN status = 'pending' THEN 'cancelledBeforeDispatch' WHEN status = 'dispatched' THEN 'interrupted' ELSE status END, completed_at = CASE WHEN status IN ('pending','dispatched') THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [time, time, key])
             try db.execute(sql: "UPDATE execution_steps SET output_json = NULL, error_json = NULL, body_purged_at = ?, state = CASE WHEN state IN ('running','waitingForTool') THEN 'interrupted' ELSE state END, completed_at = CASE WHEN state IN ('running','waitingForTool') THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [time, time, key])
-            try db.execute(sql: "UPDATE messages SET text = '', body_purged_at = ? WHERE execution_id = ? AND role = 'assistant'", arguments: [time, key])
-            try db.execute(sql: "UPDATE assistant_drafts SET text = '', body_purged_at = ? WHERE execution_id = ?", arguments: [time, key])
+            try db.execute(sql: "UPDATE messages SET text = '', trace_json = '[]', body_purged_at = ? WHERE execution_id = ? AND role = 'assistant'", arguments: [time, key])
+            try db.execute(sql: "UPDATE assistant_drafts SET text = '', trace_json = '[]', body_purged_at = ? WHERE execution_id = ?", arguments: [time, key])
         }
     }
 

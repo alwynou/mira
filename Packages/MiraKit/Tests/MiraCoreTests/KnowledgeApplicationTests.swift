@@ -101,13 +101,20 @@ struct KnowledgeApplicationTests {
         let conversationID = try await app.createConversation(workspaceID: nil)
         let executionID = try await app.send(conversationID: conversationID, text: "Read before revocation", routeID: fixture.route.id)
         try await knowledgeEventually(named: "suspended source final") { provider.isSuspended }
+        try await knowledgeEventually(named: "source thinking checkpoint") {
+            try fixture.store.draft(for: executionID)?.trace.contains { $0.reasoning?.text == "Synthetic source-dependent thinking" } == true
+        }
         _ = try await app.setSourceRemoteUse(fixture.source.id, workspaceID: nil, allowed: false, expectedRevision: fixture.source.revision)
         try await knowledgeEventually(named: "revoked execution purge") { try fixture.store.execution(executionID)?.bodyPurgedAt != nil }
         provider.releaseSuspended()
         let messages = try fixture.store.messages(in: conversationID)
         #expect(messages.contains { $0.role == .user && $0.text == "Read before revocation" })
-        #expect(messages.filter { $0.role == .assistant }.allSatisfy { $0.bodyPurgedAt != nil && $0.text.isEmpty })
+        #expect(messages.filter { $0.role == .assistant }.allSatisfy { $0.bodyPurgedAt != nil && $0.text.isEmpty && $0.trace.isEmpty })
         #expect(try fixture.store.attempts(for: executionID).allSatisfy { $0.bodyPurgedAt != nil && $0.request == nil })
+
+        let cleared = try await app.conversation(conversationID)
+        #expect(cleared.drafts.allSatisfy { $0.trace.isEmpty && $0.text.isEmpty })
+        #expect(cleared.pendingSaveIDs.isEmpty)
 
         provider.setSuspendFinal(false)
         let independentConversationID = try await app.createConversation(workspaceID: nil)
@@ -136,7 +143,7 @@ struct KnowledgeApplicationTests {
         #expect(beforeThird.contains { $0.role == .user && $0.text == "Continue after source" })
         let purgedAssistants = beforeThird.filter { $0.role == .assistant }
         #expect(purgedAssistants.count == 2)
-        #expect(purgedAssistants.allSatisfy { $0.bodyPurgedAt != nil && $0.text.isEmpty })
+        #expect(purgedAssistants.allSatisfy { $0.bodyPurgedAt != nil && $0.text.isEmpty && $0.trace.isEmpty })
 
         let thirdExecutionID = try await app.send(conversationID: conversationID, text: "Third independent request", routeID: fixture.route.id)
         try await knowledgeEventually(named: "post-delete execution") { try fixture.store.execution(thirdExecutionID)?.status == .completed }
@@ -174,6 +181,7 @@ private final class KnowledgeApplicationProvider: ModelProviderPort, @unchecked 
         let step = lock.withLock { index < steps.count ? steps[index] : .final("Synthetic independent answer.") }
         if lock.withLock({ suspendFinal }), case .final = step {
             let pair = AsyncThrowingStream<CanonicalStreamEvent, any Error>.makeStream()
+            pair.continuation.yield(.reasoning(.init(format: .openAIContent, text: "Synthetic source-dependent thinking")))
             lock.withLock { suspended.append(pair.continuation) }
             return pair.stream
         }

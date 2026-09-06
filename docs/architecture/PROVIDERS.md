@@ -248,6 +248,6 @@ The interaction reference is LobeHub's [provider enable switch](https://github.c
 
 ## 4. Model metadata and selection requirements
 
-The [model catalog contract](MODEL_CATALOG.md) defines bundled models.dev references, exact endpoint/model matching, reviewed thinking compatibility and purpose eligibility. `ModelDescriptor` and frozen snapshots now carry independent extraction capability, protocol mode and an optional applied catalog reference. Schema v9 stores these fields directly; v8 and earlier libraries are rejected intact.
+The [model catalog contract](MODEL_CATALOG.md) defines bundled models.dev references, exact endpoint/model matching, thinking controls and continuation and purpose eligibility. `ModelDescriptor` and frozen snapshots now carry independent extraction capability, protocol mode and an optional applied catalog reference. Schema v10 adds route thinking settings and durable assistant traces; v9 and earlier libraries are rejected intact. See [thinking and provider continuation](THINKING.md).
 
 `ModelConfiguration.modelPool` remains the management query. `models(for:)` returns ready candidates for conversation, Agent tools or memory extraction; route resolution and provider dispatch enforce the same send gates. JSON extraction uses a bounded synthetic JSON-text probe and updates only its own capability through the existing frozen-revision commit check. Text/tool tests cannot certify extraction or restore stale unrelated capabilities.

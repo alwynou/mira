@@ -333,7 +333,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -358,7 +358,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -383,7 +383,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -408,7 +408,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -433,7 +433,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -458,7 +458,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -483,7 +483,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -508,7 +508,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -559,7 +559,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -585,7 +585,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -611,7 +611,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -636,7 +636,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -661,7 +661,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -686,7 +686,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -712,7 +712,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -738,7 +738,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -764,7 +764,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -790,7 +790,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -816,7 +816,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -842,7 +842,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -868,7 +868,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -1023,7 +1023,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -1048,7 +1048,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -1074,7 +1074,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -1098,7 +1098,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -1123,7 +1123,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -1148,7 +1148,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openAI"
         },
         {
           "metadata": {
@@ -1255,7 +1255,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         },
         {
           "metadata": {
@@ -1281,7 +1281,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         },
         {
           "metadata": {
@@ -1307,7 +1307,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicManual"
         },
         {
           "metadata": {
@@ -1333,7 +1333,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicManual"
         },
         {
           "metadata": {
@@ -1359,7 +1359,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicManual"
         },
         {
           "metadata": {
@@ -1385,7 +1385,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicManual"
         },
         {
           "metadata": {
@@ -1411,7 +1411,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         },
         {
           "metadata": {
@@ -1437,7 +1437,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         },
         {
           "metadata": {
@@ -1463,7 +1463,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         },
         {
           "metadata": {
@@ -1489,7 +1489,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         },
         {
           "metadata": {
@@ -1515,7 +1515,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicManual"
         },
         {
           "metadata": {
@@ -1541,7 +1541,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicManual"
         },
         {
           "metadata": {
@@ -1567,7 +1567,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         },
         {
           "metadata": {
@@ -1593,7 +1593,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "anthropicAdaptive"
         }
       ]
     },
@@ -1626,7 +1626,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "thinkingDisabled"
+          "suggestedProtocolMode": "deepSeek"
         },
         {
           "metadata": {
@@ -1651,7 +1651,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "thinkingDisabled"
+          "suggestedProtocolMode": "deepSeek"
         },
         {
           "metadata": {
@@ -1675,7 +1675,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "thinkingDisabled"
+          "suggestedProtocolMode": "deepSeek"
         }
       ]
     },
@@ -1756,7 +1756,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -1780,7 +1780,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -1809,32 +1809,6 @@
         {
           "metadata": {
             "providerID": "moonshotai-cn",
-            "modelID": "kimi-k2.5",
-            "displayName": "Kimi K2.5",
-            "sourceURL": "https://models.dev/api.json",
-            "sourceRevision": "sha256:d918bb97da7705f6725ed038536d254bbc51ed37e2a20c9e412eaf302096d95e",
-            "retrievedAt": "2026-09-06T04:49:05Z",
-            "contextWindow": 262144,
-            "maxOutputTokens": 262144,
-            "inputModalities": [
-              "image",
-              "text",
-              "video"
-            ],
-            "outputModalities": [
-              "text"
-            ],
-            "toolCall": true,
-            "structuredOutput": true,
-            "reasoning": true,
-            "requiresReasoningContinuation": true,
-            "task": "textGeneration"
-          },
-          "suggestedProtocolMode": "thinkingDisabled"
-        },
-        {
-          "metadata": {
-            "providerID": "moonshotai-cn",
             "modelID": "kimi-k2.6",
             "displayName": "Kimi K2.6",
             "sourceURL": "https://models.dev/api.json",
@@ -1856,7 +1830,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "thinkingDisabled"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -1882,7 +1856,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -1908,7 +1882,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -1934,7 +1908,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         }
       ]
     },
@@ -2015,7 +1989,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -2039,7 +2013,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -2068,32 +2042,6 @@
         {
           "metadata": {
             "providerID": "moonshotai",
-            "modelID": "kimi-k2.5",
-            "displayName": "Kimi K2.5",
-            "sourceURL": "https://models.dev/api.json",
-            "sourceRevision": "sha256:d918bb97da7705f6725ed038536d254bbc51ed37e2a20c9e412eaf302096d95e",
-            "retrievedAt": "2026-09-06T04:49:05Z",
-            "contextWindow": 262144,
-            "maxOutputTokens": 262144,
-            "inputModalities": [
-              "image",
-              "text",
-              "video"
-            ],
-            "outputModalities": [
-              "text"
-            ],
-            "toolCall": true,
-            "structuredOutput": true,
-            "reasoning": true,
-            "requiresReasoningContinuation": true,
-            "task": "textGeneration"
-          },
-          "suggestedProtocolMode": "thinkingDisabled"
-        },
-        {
-          "metadata": {
-            "providerID": "moonshotai",
             "modelID": "kimi-k2.6",
             "displayName": "Kimi K2.6",
             "sourceURL": "https://models.dev/api.json",
@@ -2115,7 +2063,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "thinkingDisabled"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -2141,7 +2089,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -2167,7 +2115,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         },
         {
           "metadata": {
@@ -2193,7 +2141,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "kimi"
         }
       ]
     },
@@ -2275,7 +2223,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -2396,7 +2344,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -2421,7 +2369,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -2445,7 +2393,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -2469,7 +2417,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -3211,7 +3159,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -3355,7 +3303,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         }
       ]
     },
@@ -4163,7 +4111,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -4187,7 +4135,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -4284,7 +4232,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -4309,7 +4257,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -4477,7 +4425,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -4501,7 +4449,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -4525,7 +4473,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         },
         {
           "metadata": {
@@ -4550,7 +4498,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "standard"
         }
       ]
     },
@@ -4583,7 +4531,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4607,7 +4555,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4631,7 +4579,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4682,7 +4630,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4856,7 +4804,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4882,7 +4830,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4908,7 +4856,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4934,7 +4882,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4960,7 +4908,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -4986,7 +4934,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5012,7 +4960,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5038,7 +4986,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5064,7 +5012,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5090,7 +5038,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5116,7 +5064,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5142,7 +5090,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5168,7 +5116,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5194,7 +5142,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5218,7 +5166,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5243,7 +5191,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5269,7 +5217,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5295,7 +5243,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5321,7 +5269,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5347,7 +5295,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5373,7 +5321,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5399,7 +5347,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5568,7 +5516,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5640,7 +5588,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5664,7 +5612,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5688,7 +5636,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5712,7 +5660,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5736,7 +5684,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5760,7 +5708,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5784,7 +5732,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5808,7 +5756,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5832,7 +5780,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5857,7 +5805,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5881,7 +5829,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5905,7 +5853,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5930,7 +5878,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -5958,7 +5906,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6012,7 +5960,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6040,7 +5988,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6067,7 +6015,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6095,7 +6043,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6123,7 +6071,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6255,7 +6203,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6309,7 +6257,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6337,7 +6285,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6365,7 +6313,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6393,7 +6341,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6421,7 +6369,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6449,7 +6397,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6477,7 +6425,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6505,7 +6453,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6630,7 +6578,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6656,7 +6604,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6682,7 +6630,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6708,7 +6656,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6832,7 +6780,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6856,7 +6804,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6880,7 +6828,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6904,7 +6852,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6928,7 +6876,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6952,7 +6900,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -6976,7 +6924,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7048,7 +6996,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7096,7 +7044,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7316,7 +7264,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7344,7 +7292,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7372,7 +7320,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7400,7 +7348,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7428,7 +7376,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7456,7 +7404,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7553,7 +7501,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7577,7 +7525,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7625,7 +7573,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7649,7 +7597,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7673,7 +7621,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7697,7 +7645,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7723,7 +7671,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -7749,7 +7697,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8002,7 +7950,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8126,7 +8074,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8299,7 +8247,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8324,7 +8272,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8349,7 +8297,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8374,7 +8322,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8400,7 +8348,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8473,7 +8421,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8498,7 +8446,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8570,7 +8518,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8594,7 +8542,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8618,7 +8566,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8645,7 +8593,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8669,7 +8617,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8693,7 +8641,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8717,7 +8665,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8741,7 +8689,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8766,7 +8714,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8791,7 +8739,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8815,7 +8763,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -8839,7 +8787,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9268,7 +9216,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9348,7 +9296,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9374,7 +9322,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9400,7 +9348,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9426,7 +9374,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9451,7 +9399,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9476,7 +9424,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9501,7 +9449,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9527,7 +9475,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9578,7 +9526,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9604,7 +9552,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9630,7 +9578,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9656,7 +9604,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9709,7 +9657,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9735,7 +9683,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9761,7 +9709,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9787,7 +9735,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9813,7 +9761,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9839,7 +9787,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9865,7 +9813,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9891,7 +9839,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9917,7 +9865,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9943,7 +9891,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9969,7 +9917,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -9995,7 +9943,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10021,7 +9969,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10123,7 +10071,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10147,7 +10095,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10171,7 +10119,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10197,7 +10145,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10223,7 +10171,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10249,7 +10197,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10274,7 +10222,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10299,7 +10247,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10325,7 +10273,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10351,7 +10299,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10377,7 +10325,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10455,7 +10403,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10529,7 +10477,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10578,7 +10526,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10628,7 +10576,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10653,7 +10601,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10677,7 +10625,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10701,7 +10649,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10725,7 +10673,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10749,7 +10697,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10918,7 +10866,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10942,7 +10890,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -10990,7 +10938,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11014,7 +10962,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11062,7 +11010,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11086,7 +11034,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11110,7 +11058,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11278,7 +11226,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11326,7 +11274,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11376,7 +11324,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11426,7 +11374,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11501,7 +11449,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11527,7 +11475,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11553,7 +11501,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11579,7 +11527,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11605,7 +11553,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11631,7 +11579,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11657,7 +11605,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11683,7 +11631,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11709,7 +11657,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11735,7 +11683,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11761,7 +11709,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11787,7 +11735,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11811,7 +11759,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11837,7 +11785,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11863,7 +11811,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11887,7 +11835,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11912,7 +11860,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11936,7 +11884,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11962,7 +11910,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -11988,7 +11936,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12014,7 +11962,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12064,7 +12012,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12137,7 +12085,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12163,7 +12111,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12259,7 +12207,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12285,7 +12233,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12309,7 +12257,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12405,7 +12353,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12429,7 +12377,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12453,7 +12401,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12551,7 +12499,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12577,7 +12525,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12603,7 +12551,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12629,7 +12577,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12677,7 +12625,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12701,7 +12649,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12751,7 +12699,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12777,7 +12725,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12803,7 +12751,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12829,7 +12777,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12855,7 +12803,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12881,7 +12829,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12908,7 +12856,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12932,7 +12880,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12956,7 +12904,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -12980,7 +12928,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13005,7 +12953,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13029,7 +12977,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13055,7 +13003,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13079,7 +13027,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13103,7 +13051,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13127,7 +13075,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13151,7 +13099,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13175,7 +13123,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13199,7 +13147,7 @@
             "requiresReasoningContinuation": true,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "unsupportedReasoning"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13223,7 +13171,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13247,7 +13195,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13273,7 +13221,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13299,7 +13247,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13325,7 +13273,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13351,7 +13299,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13377,7 +13325,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13403,7 +13351,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13427,7 +13375,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13455,7 +13403,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13483,7 +13431,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13509,7 +13457,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13535,7 +13483,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13561,7 +13509,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13587,7 +13535,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13613,7 +13561,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         },
         {
           "metadata": {
@@ -13637,7 +13585,7 @@
             "requiresReasoningContinuation": false,
             "task": "textGeneration"
           },
-          "suggestedProtocolMode": "standard"
+          "suggestedProtocolMode": "openRouter"
         }
       ]
     }

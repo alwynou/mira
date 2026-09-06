@@ -112,7 +112,9 @@ public struct ModelOutput: Codable, Sendable, Equatable {
     public var text: String
     public var toolCalls: [CanonicalToolCall]
     public var finishReason: StreamFinishReason
-    public init(text: String, toolCalls: [CanonicalToolCall], finishReason: StreamFinishReason) {
+    public var reasoning: ReasoningContent?
+    public init(text: String, toolCalls: [CanonicalToolCall], finishReason: StreamFinishReason, reasoning: ReasoningContent? = nil) {
+        self.reasoning = reasoning
         self.text = text; self.toolCalls = toolCalls; self.finishReason = finishReason
     }
 }

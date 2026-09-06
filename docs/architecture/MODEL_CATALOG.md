@@ -20,13 +20,9 @@ New exact matches prefill reviewable context/output settings, text/tool declarat
 
 An applied reference constrains output size and excludes non-generation tasks and advertised non-text modalities. This separate task check matters because some upstream embedding entries advertise text input/output and list embedding dimensions as output limits; those values must not become chat output budgets. These are conservative configuration restrictions, not successful probe observations. Users can clear the reference and confirm their deployment's values manually. Capability states remain `unknown`, `declared`, `verified` or `failed`; catalog metadata never writes `verified`. Provider credential/endpoint/protocol changes make text, tools and extraction stale. Historical snapshots retain their original metadata and restrictions.
 
-## Thinking compatibility
+## Thinking capability and request controls
 
-`ModelProtocolMode` is frozen with the selected model. Standard mode sends the existing canonical text/tool protocol. Thinking-disabled mode emits only the reviewed top-level `thinking: { "type": "disabled" }` option; generic endpoints receive no provider-specific field.
-
-The reviewed allowlist is DeepSeek `deepseek-v4-flash`, `deepseek-v4-pro`, `deepseek-v4-flash-vision-exp`, and Kimi `kimi-k2.5`, `kimi-k2.6`, on their exact official HTTPS endpoints. The Core send gate checks both model and endpoint before credentials are read. Unsupported mode blocks execution, including explicit and inherited selections.
-
-Official [DeepSeek thinking semantics](https://api-docs.deepseek.com/guides/thinking_mode/) and [Kimi model parameters](https://platform.kimi.ai/docs/api/chat) take precedence over catalog hints. In particular, Kimi K3 and K2.7 Code require reasoning; the catalog's K3 toggle hint must not enable thinking-disabled mode. Required reasoning continuation is not yet implemented. Mira does not discard required reasoning history and pretend that the next tool step can proceed successfully.
+[Thinking and provider continuation](THINKING.md) owns the first-class reasoning contract. Catalog suggestions select a wire policy for supported interfaces; they never force thinking off to bypass an incomplete parser. Mode, effort and budget are saved on the selected route and frozen for an execution. Model-specific mandatory thinking and supported controls are validated separately from text/tool/extraction declarations.
 
 ## Eligibility and verification
 

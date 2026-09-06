@@ -347,8 +347,8 @@ extension SQLiteMiraStore: MemoryStore {
                 try db.execute(sql: "UPDATE model_attempts SET request_json = NULL, output_json = NULL, error_json = NULL, body_purged_at = ?, status = CASE WHEN status = 'prepared' THEN 'interrupted' ELSE status END, completed_at = CASE WHEN status = 'prepared' THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [at.timeIntervalSince1970, at.timeIntervalSince1970, executionKey])
                 try db.execute(sql: "UPDATE tool_invocations SET arguments_json = NULL, result_json = NULL, body_purged_at = ?, status = CASE WHEN status = 'pending' THEN 'cancelledBeforeDispatch' WHEN status = 'dispatched' THEN 'interrupted' ELSE status END, completed_at = CASE WHEN status IN ('pending', 'dispatched') THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [at.timeIntervalSince1970, at.timeIntervalSince1970, executionKey])
                 try db.execute(sql: "UPDATE execution_steps SET output_json = NULL, error_json = NULL, body_purged_at = ?, state = CASE WHEN state IN ('running', 'waitingForTool') THEN 'interrupted' ELSE state END, completed_at = CASE WHEN state IN ('running', 'waitingForTool') THEN COALESCE(completed_at, ?) ELSE completed_at END WHERE execution_id = ?", arguments: [at.timeIntervalSince1970, at.timeIntervalSince1970, executionKey])
-                try db.execute(sql: "UPDATE messages SET text = '', body_purged_at = ? WHERE execution_id = ? AND role = 'assistant'", arguments: [at.timeIntervalSince1970, executionKey])
-                try db.execute(sql: "UPDATE assistant_drafts SET text = '', body_purged_at = ? WHERE execution_id = ?", arguments: [at.timeIntervalSince1970, executionKey])
+                try db.execute(sql: "UPDATE messages SET text = '', trace_json = '[]', body_purged_at = ? WHERE execution_id = ? AND role = 'assistant'", arguments: [at.timeIntervalSince1970, executionKey])
+                try db.execute(sql: "UPDATE assistant_drafts SET text = '', trace_json = '[]', body_purged_at = ? WHERE execution_id = ?", arguments: [at.timeIntervalSince1970, executionKey])
             }
             return MemoryForgetReceipt(memoryID: memoryID, redactedExecutionIDs: executionIDs)
         }}
@@ -627,7 +627,7 @@ extension SQLiteMiraStore {
     }
 
     func currentRoute(for frozen: ResolvedModelRouteSnapshot, in db: Database) throws -> ResolvedModelRouteSnapshot {
-        guard let routeRow = try Row.fetchOne(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes WHERE id = ?", arguments: [Self.id(frozen.id)]),
+        guard let routeRow = try Row.fetchOne(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, thinking_json, route_json FROM model_routes WHERE id = ?", arguments: [Self.id(frozen.id)]),
               let modelID: String = routeRow["model_descriptor_id"] else { throw MiraError(.conflict, "The provider route no longer exists.") }
         let route = try Self.modelRoute(routeRow)
         guard let modelRow = try Row.fetchOne(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, extraction_capability, protocol_mode, model_json FROM model_descriptors WHERE id = ?", arguments: [modelID]) else { throw MiraError(.conflict, "The provider model no longer exists.") }

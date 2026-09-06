@@ -54,12 +54,27 @@ class ModelCatalogGeneratorTests(unittest.TestCase):
         self.assertEqual(normalized["metadata"]["task"], "embedding")
         self.assertIsNone(normalized["metadata"]["maxOutputTokens"])
 
-    def test_official_thinking_contract_overrides_missing_or_wrong_catalog_hints(self):
-        self.assertEqual(catalog.suggested_mode("moonshotai", "kimi-k3", False), "unsupportedReasoning")
-        self.assertEqual(catalog.suggested_mode("moonshotai-cn", "kimi-k2.7-code", False), "unsupportedReasoning")
-        self.assertEqual(catalog.suggested_mode("moonshotai", "kimi-k2.6", False), "thinkingDisabled")
-        self.assertEqual(catalog.suggested_mode("deepseek", "deepseek-v4-flash", False), "thinkingDisabled")
-        self.assertEqual(catalog.suggested_mode("custom", "kimi-k2.6", True), "unsupportedReasoning")
+    def test_protocol_suggestions_require_reasoning_and_match_provider_contracts(self):
+        self.assertEqual(catalog.suggested_mode("moonshotai", "kimi-k3", {"reasoning": True}), "kimi")
+        self.assertEqual(catalog.suggested_mode("moonshotai-cn", "kimi-k2.7-code", {"reasoning": True}), "kimi")
+        self.assertEqual(catalog.suggested_mode("moonshotai", "kimi-k2.6", {"reasoning": True}), "kimi")
+        self.assertEqual(catalog.suggested_mode("deepseek", "deepseek-v4-flash", {"reasoning": True}), "deepSeek")
+        self.assertEqual(catalog.suggested_mode("custom", "kimi-k2.6", {"reasoning": True}), "standard")
+        self.assertEqual(catalog.suggested_mode("openai", "gpt-4", {"reasoning": False}), "standard")
+        for model_id in ("claude-opus-5", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-4-6-20260217"):
+            self.assertEqual(catalog.suggested_mode("anthropic", model_id, {"reasoning": True}), "anthropicAdaptive")
+
+    def test_retired_kimi_model_is_not_recommended_on_native_endpoints(self):
+        source = {provider_id: {
+            "id": provider_id, "name": "Fixture", "doc": "https://documentation.example/models",
+            "models": {"kimi-k2.5": model("kimi-k2.5", reasoning=True)},
+        } for provider_id in catalog.PROVIDER_ORDER}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "source.json"
+            path.write_text(json.dumps(source))
+            normalized = catalog.normalize(path, "2026-09-06T04:49:05Z")
+        for provider in normalized["providers"]:
+            self.assertEqual(len(provider["models"]), 0 if provider["id"] in {"moonshotai", "moonshotai-cn"} else 1)
 
     def test_boolean_limits_and_malformed_continuations_are_rejected(self):
         for value in (False, True, -1, 10_000_001, "8192"):

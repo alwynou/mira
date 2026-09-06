@@ -703,3 +703,8 @@ Mira Runtime 负责全局并发，ProviderScheduler 可以按连接限速进一�
 - 聚合 Execution 状态目前沿用 queued / waitingForModel 与终态；工具的排队、执行、拒绝状态由审计记录展示。Context 构建失败记录在 Execution；独立的构建失败 Step、自动 Attempt 重试、人工确认 UI 和更完整 ModelOutput Typed Parts 后续逐项补齐，未注册依赖这些能力的生产工具。
 
 本节是当前实现与前文完整设计的对应，不代替 [实际验收记录](../engineering/IMPLEMENTATION_STATUS.md)。
+
+
+## First-class thinking
+
+The [thinking contract](THINKING.md) adds separate stream snapshots, ordered assistant/tool traces and provider-specific replay data to the existing runtime. Thinking-only drafts participate in checkpoint, cancellation, recovery and terminal uniqueness. The current tool-use turn freezes its base request so signed provider state can be replayed without prefix changes. Authorization continues to run before every dispatch.

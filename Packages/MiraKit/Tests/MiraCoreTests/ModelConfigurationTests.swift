@@ -263,27 +263,29 @@ struct ModelConfigurationTests {
         expectError(.unsupported) { try snapshot.validateForSending() }
     }
 
-    @Test func reasoningModesAreFailClosedByEndpointAndReviewedModel() throws {
-        var deepSeek = ResolvedModelRouteSnapshot(name: "DeepSeek", providerKind: .openAICompatible, baseURL: "https://api.deepseek.com/v1", modelID: "deepseek-v4-flash", credentialReference: "fixture", contextWindow: 8192, textCapability: .declared, protocolMode: .thinkingDisabled)
-        #expect(throws: Never.self) { try deepSeek.validateForSending() }
-
-        deepSeek.modelID = "manual-model"
-        expectError(.unsupported) { try deepSeek.validateForSending() }
-        deepSeek.modelID = "deepseek-v4-flash"
-        deepSeek.baseURL = "https://api.deepseek.com/v1/hostile"
-        expectError(.unsupported) { try deepSeek.validateForSending() }
-        deepSeek.baseURL = "https://api.deepseek.com:444/v1"
-        expectError(.unsupported) { try deepSeek.validateForSending() }
-
-        var standard = deepSeek
-        standard.baseURL = "https://example.invalid/v1"
-        standard.protocolMode = .standard
-        standard.catalogMetadata = ModelCatalogMetadata(providerID: "deepseek", modelID: standard.modelID, sourceURL: "https://catalog.example", sourceRevision: "1", retrievedAt: "2026-09-06", requiresReasoningContinuation: true)
-        expectError(.unsupported) { try standard.validateForSending() }
-
-        standard.protocolMode = .unsupportedReasoning
-        expectError(.unsupported) { try standard.validateForSending() }
+    @Test func thinkingSettingsRespectProtocolModelAndOutputBudget() throws {
+        var snapshot = ResolvedModelRouteSnapshot(name: "Thinking", providerKind: .openAICompatible, baseURL: "https://api.deepseek.com/v1", modelID: "deepseek-v4-flash", credentialReference: "fixture", contextWindow: 32_768, maxOutputTokens: 8192, protocolMode: .deepSeek)
+        try snapshot.validateForSending()
+        snapshot.thinking = .init(mode: .enabled, effort: .max)
+        try snapshot.validateForSending()
+        snapshot.thinking = .init(mode: .disabled)
+        try snapshot.validateForSending()
+        snapshot.protocolMode = .kimi; snapshot.modelID = "kimi-k3"
+        expectError(.configuration) { try snapshot.validateForSending() }
+        snapshot.thinking = .init(mode: .enabled, effort: .max)
+        try snapshot.validateForSending()
+        snapshot.providerKind = .anthropic
+        expectError(.configuration) { try snapshot.validateForSending() }
+        snapshot.protocolMode = .anthropicManual
+        snapshot.thinking = .init(mode: .enabled, budgetTokens: 2048)
+        try snapshot.validateForSending()
+        snapshot.maxOutputTokens = 2048
+        expectError(.configuration) { try snapshot.validateForSending() }
+        snapshot.maxOutputTokens = 8192
+        snapshot.thinking = .init(mode: .enabled, budgetTokens: 100)
+        expectError(.configuration) { try snapshot.validateForSending() }
     }
+
 }
 
 private struct RoutingFixture {

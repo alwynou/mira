@@ -310,3 +310,12 @@ Mira 在第一次形成有效 Memory 时应清晰展示：
 - 如何撤销或编辑。
 
 用户应在第一天就理解 Mira 与普通聊天窗口的差异。
+
+
+## Thinking in conversations
+
+Thinking is a core conversation capability. A supported model can use its native thinking mode during ordinary replies and Agent tool calls. Settings expose service default, on/off when supported, and the model's available effort or token-budget controls. A model that always thinks does not receive a misleading disable option.
+
+Provider-returned visible thinking appears in a collapsible section before the answer and remains available after reopening the conversation. A stopped response may contain thinking without an answer; it remains visibly incomplete. Signatures and encrypted/redacted provider state are never presented as readable thought text. Thinking is not automatically saved as a user fact or a memory.
+
+Changing settings applies to a new execution. A running assistant/tool turn retains its frozen settings and continuation state. Model capability, enabled settings and a successful connection test are separate facts; an error is surfaced without silently switching models or disabling thinking.

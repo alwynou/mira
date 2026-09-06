@@ -61,22 +61,78 @@ struct SQLiteMiraStoreTests {
         #expect(try Data(contentsOf: path) == before)
     }
 
-    @Test func catalogAndProtocolFieldsRoundTripThroughSchema9TypedMirrors() throws {
+    @Test func schema9IsRejectedWithoutChangingTheLibraryFile() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        do { _ = try SQLiteMiraStore(directory: directory) }
+        let path = directory.appendingPathComponent("Mira.sqlite")
+        let database = try DatabaseQueue(path: path.path)
+        try database.write { db in try db.execute(sql: "PRAGMA user_version = 9") }
+        let before = try Data(contentsOf: path)
+
+        #expect(throws: MiraError.self) { _ = try SQLiteMiraStore(directory: directory) }
+        #expect(try Data(contentsOf: path) == before)
+    }
+
+    @Test func catalogAndProtocolFieldsRoundTripThroughSchema10TypedMirrors() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try SQLiteMiraStore(directory: directory)
         let connection = ProviderConnection(name: "Catalog provider", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
         let catalog = ModelCatalogMetadata(providerID: "provider", modelID: "fixture", displayName: "Fixture", sourceURL: "https://catalog.example/models", sourceRevision: "2026-09", retrievedAt: "2026-09-06T00:00:00Z", contextWindow: 8192, maxOutputTokens: 512, inputModalities: ["text"], outputModalities: ["text"], toolCall: true, structuredOutput: false, reasoning: false, requiresReasoningContinuation: false)
-        let model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 8192, textCapability: .declared, toolCapability: .declared, extractionCapability: .declared, protocolMode: .thinkingDisabled, catalogMetadata: catalog)
+        let model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 8192, textCapability: .declared, toolCapability: .declared, extractionCapability: .declared, protocolMode: .openAI, catalogMetadata: catalog)
         let route = ModelRoute(id: model.poolRouteID, name: "Fixture", modelDescriptorID: model.id, maxOutputTokens: 512)
         try store.saveConnection(connection, expectedRevision: nil)
         try store.savePoolModel(model, route: route, expectedModelRevision: nil, expectedRouteRevision: nil)
 
         let saved = try #require(try store.modelConfiguration().models.first)
         #expect(saved.extractionCapability == .declared)
-        #expect(saved.protocolMode == .thinkingDisabled)
+        #expect(saved.protocolMode == .openAI)
         #expect(saved.catalogMetadata == catalog)
         #expect(try store.modelConfiguration().modelPool.first?.route.id == model.poolRouteID)
+    }
+
+    @Test func reasoningOnlyDraftRecoversAsInterruptedAssistantTrace() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let conversation = Conversation(id: .init(), workspaceID: nil, title: "Thinking", createdAt: .now, updatedAt: .now)
+        try store.createConversation(conversation)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "question", route: route, executionID: .init(), messageID: .init(), at: .now)
+        let trace: [CanonicalMessage] = [.init(role: .assistant, text: "", reasoning: .init(format: .openAIContent, text: "opaque partial", blocks: [.string("signed-block")]))]
+        try store.checkpoint(executionID: execution.id, text: "", trace: trace, at: .now)
+        try store.recoverInterrupted(at: .now)
+
+        let messages = try store.messages(in: conversation.id)
+        #expect(messages.last?.status == .interrupted)
+        #expect(messages.last?.text == "")
+        #expect(messages.last?.trace == trace)
+        #expect(try store.draft(for: execution.id) == nil)
+    }
+
+    @Test func completeReasoningTraceSurvivesBackupAndMalformedTraceIsRejected() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let backup = directory.deletingLastPathComponent().appendingPathComponent("mira-thinking-\(UUID().uuidString).sqlite")
+        let restore = directory.deletingLastPathComponent().appendingPathComponent("mira-thinking-restore-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: backup); try? FileManager.default.removeItem(at: restore) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let conversation = Conversation(id: .init(), workspaceID: nil, title: "Thinking", createdAt: .now, updatedAt: .now)
+        try store.createConversation(conversation)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "question", route: route, executionID: .init(), messageID: .init(), at: .now)
+        let trace: [CanonicalMessage] = [.init(role: .assistant, text: "", reasoning: .init(format: .openAIContent, text: "opaque signed", blocks: [.object(["signature": .string("abc")])], isComplete: true))]
+        try store.finish(executionID: execution.id, status: .completed, text: "answer", trace: trace, usage: .init(), error: nil, assistantMessageID: .init(), at: .now)
+        try store.exportBackup(to: backup)
+        try store.restoreBackup(from: backup, to: restore)
+        let restored = try SQLiteMiraStore(directory: restore)
+        #expect(try restored.messages(in: conversation.id).last?.trace == trace)
+
+        let database = try DatabaseQueue(path: testBackupDatabaseURL(backup).path)
+        try database.write { db in try db.execute(sql: "UPDATE messages SET trace_json = ? WHERE role = 'assistant'", arguments: ["not-json"]) }
+        try resealTestBackupManifest(backup)
+        #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore.appendingPathComponent("malformed")) }
     }
 
     @Test func failedMigrationPreservesExistingRows() throws {
@@ -439,6 +495,36 @@ struct SQLiteMiraStoreTests {
         #expect(try store.finish(executionID: execution.id, status: .completed, text: "late", usage: .init(), error: nil, assistantMessageID: MessageID(), at: .now) == false)
     }
 
+    @Test func concurrentFinishCommitsOneAssistantMessage() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let first = try SQLiteMiraStore(directory: directory)
+        let second = try SQLiteMiraStore(directory: directory)
+        let conversation = Conversation(id: .init(), workspaceID: nil, title: "Finish race", createdAt: .now, updatedAt: .now)
+        try first.createConversation(conversation)
+        let route = try installFixtureConfiguration(in: first)
+        let execution = try first.enqueue(conversationID: conversation.id, text: "question", route: route, executionID: .init(), messageID: .init(), at: .now)
+
+        let results = await withTaskGroup(of: Bool.self) { group in
+            for (store, text) in [(first, "first"), (second, "second")] {
+                group.addTask {
+                    do {
+                        return try store.finish(executionID: execution.id, status: .completed, text: text, usage: .init(), error: nil, assistantMessageID: .init(), at: .now)
+                    } catch {
+                        return false
+                    }
+                }
+            }
+            var committed = 0
+            for await result in group where result { committed += 1 }
+            return committed
+        }
+
+        #expect(results == 1)
+        #expect(try first.messages(in: conversation.id).filter { $0.role == .assistant }.count == 1)
+        #expect(try first.executions(in: conversation.id).first?.status == .completed)
+    }
+
     @Test func backupRestoresIntoUnusedDirectoryAndDiagnosticsProbeSQLite() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -505,7 +591,7 @@ struct SQLiteMiraStoreTests {
         }
         try resealTestBackupManifest(backup)
         let sourceBytes = try Data(contentsOf: testBackupDatabaseURL(backup))
-        #expect(SQLiteMiraStore.currentSchemaVersion == 9)
+        #expect(SQLiteMiraStore.currentSchemaVersion == 10)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
         #expect(!FileManager.default.fileExists(atPath: restore.path))
@@ -622,6 +708,51 @@ struct SQLiteMiraStoreTests {
         }
         try resealTestBackupManifest(corrupted)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: corrupted, to: directory.appendingPathComponent("corrupted-restored")) }
+
+        let reasoningCorrupted = directory.appendingPathComponent("audit-reasoning-corrupted.sqlite")
+        try FileManager.default.copyItem(at: backup, to: reasoningCorrupted)
+        let reasoningDB = try DatabaseQueue(path: testBackupDatabaseURL(reasoningCorrupted).path)
+        try reasoningDB.write { db in
+            guard let original = try String.fetchOne(db, sql: "SELECT output_json FROM model_attempts WHERE id = ?", arguments: [attemptID.uuidString.lowercased()]) else { throw MiraError(.storage, "missing audit output") }
+            var output = try JSONDecoder().decode(ModelOutput.self, from: Data(original.utf8))
+            output.reasoning = .init(format: .openAIContent, text: "partial", isComplete: false)
+            let changed = String(decoding: try JSONEncoder().encode(output), as: UTF8.self)
+            try db.execute(sql: "UPDATE model_attempts SET output_json = ? WHERE id = ?", arguments: [changed, attemptID.uuidString.lowercased()])
+        }
+        try resealTestBackupManifest(reasoningCorrupted)
+        #expect(throws: MiraError.self) { try store.restoreBackup(from: reasoningCorrupted, to: directory.appendingPathComponent("reasoning-corrupted-restored")) }
+    }
+
+    @Test func incompleteModelReasoningIsRejectedBeforeToolAuditWrites() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let conversation = Conversation(id: .init(), workspaceID: nil, title: "Incomplete thinking", createdAt: .now, updatedAt: .now)
+        try store.createConversation(conversation)
+        let route = try installFixtureConfiguration(in: store)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "question", route: route, executionID: .init(), messageID: .init(), at: .now)
+        let attemptID = UUID()
+        try store.prepareAttempt(.init(id: attemptID, executionID: execution.id, stepID: UUID(), stepIndex: 1, request: .init(executionID: execution.id, system: "", messages: [], requestID: attemptID), createdAt: .now))
+        let call = CanonicalToolCall(id: "call", name: "fixture.read", arguments: "{}")
+        let output = ModelOutput(text: "", toolCalls: [call], finishReason: .toolCalls, reasoning: .init(format: .openAIContent, text: "still thinking"))
+
+        #expect(throws: MiraError.self) {
+            try store.finishAttempt(attemptID, output: output, invocations: [.init(id: UUID(), attemptID: attemptID, modelOrder: 0, call: call)], usage: .init(), error: nil, at: .now)
+        }
+        #expect(try store.toolInvocations(for: execution.id).isEmpty)
+        #expect(try store.attempts(for: execution.id).first?.status == .prepared)
+        #expect(try store.attempts(for: execution.id).first?.output == nil)
+    }
+
+    @Test func invalidThinkingBudgetIsRejectedBeforeRouteCommit() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let route = try installFixtureConfiguration(in: store)
+        let invalid = ModelRoute(id: .init(), name: "Invalid thinking", modelDescriptorID: route.modelDescriptorID, thinking: .init(budgetTokens: -1))
+
+        #expect(throws: MiraError.self) { try store.saveRoute(invalid, expectedRevision: nil) }
+        #expect(try store.modelConfiguration().routes.count == 1)
     }
 
     @Test func recoveryClosesAuditCallsExactlyOnceByDispatchState() throws {

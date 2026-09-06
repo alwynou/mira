@@ -15,6 +15,7 @@
 - Persist a user message and queued execution atomically. Enforce one active execution per conversation in SQLite. Preserve recoverable drafts and terminal-state uniqueness.
 - API keys live in Keychain. Persist only credential references and versions. No raw request bodies, responses, keys, or personal content in ordinary logs/errors.
 - Provider requests use frozen routes, explicit context limits, no cross-origin credential redirects, and no implicit fallback. Test providers never enter production automatically.
+- Thinking is a first-class output. Preserve provider continuation data through streams, drafts, tool calls, persistence and privacy cleanup; never force thinking off to hide an incomplete adapter. Follow `docs/architecture/THINKING.md` for provider-specific replay boundaries.
 - Build only the current milestone. Do not add speculative packages, empty feature screens, shell tools, sync, or a backend.
 
 ## Verification

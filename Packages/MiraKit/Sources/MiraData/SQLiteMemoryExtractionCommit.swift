@@ -4,6 +4,7 @@ import MiraCore
 
 extension SQLiteMiraStore {
     public func completeMemoryExtraction(_ claim: MemoryExtractionClaim, output: ModelOutput, usage: TokenUsage, at: Date) throws -> MemoryExtractionJob {
+        try Self.validateModelOutput(output)
         let outcome: Result<MemoryExtractionJob, MiraError> = try safely { try pool.write { db in
             let key = uuidString(claim.attemptID)
             guard let attempt = try Row.fetchOne(db, sql: "SELECT job_id, lease_id, status, body_purged_at FROM memory_extraction_attempts WHERE id = ?", arguments: [key]),
