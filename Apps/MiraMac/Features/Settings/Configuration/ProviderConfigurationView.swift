@@ -10,6 +10,8 @@ struct ProviderConfigurationView: View {
     @State private var modelEditor: ModelEditorSelection?
     @State private var removal: RemovalSelection?
     @State private var search = ""
+    @State private var providerSearch = ""
+    @State private var useFilter: ModelSelectionUse?
 
     init(container: AppContainer) { _model = State(initialValue: ProviderLibraryModel(container: container)) }
 
@@ -41,6 +43,7 @@ struct ProviderConfigurationView: View {
         }
         .padding(16)
         .task { await model.observe() }
+        .onChange(of: model.selectedConnectionID) { _, _ in providerSearch = "" }
         .onDisappear { model.stopRequests() }
         .sheet(isPresented: $showingConnectionEditor) {
             ProviderConnectionEditor(existing: editingConnection, container: model.container) { id in
@@ -138,6 +141,9 @@ struct ProviderConfigurationView: View {
             } else {
                 Label("Activate this provider to fetch or add models.", systemImage: "pause.circle").font(.callout)
             }
+            TextField("Search provider models", text: $providerSearch).textFieldStyle(.roundedBorder)
+            Text("The bundled catalog supplies model information, not account access. Fetch Models checks the provider list; catalog entries may be unavailable for your account.")
+                .font(.caption).foregroundStyle(.secondary)
             providerModelList(connection)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -146,7 +152,7 @@ struct ProviderConfigurationView: View {
         List {
             if !model.providerModels.isEmpty {
                 Section("Saved Models") {
-                    ForEach(model.providerModels) { descriptor in
+                    ForEach(model.providerModels.filter { matchesProviderSearch($0.modelID) }) { descriptor in
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(verbatim: descriptor.modelID).font(.headline)
@@ -170,7 +176,7 @@ struct ProviderConfigurationView: View {
             }
             if !model.newDiscoveredModels.isEmpty {
                 Section("Available from Provider") {
-                    ForEach(model.newDiscoveredModels) { discovered in
+                    ForEach(model.newDiscoveredModels.filter { matchesProviderSearch($0.id, name: $0.displayName) }) { discovered in
                         HStack {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(verbatim: discovered.id)
@@ -183,8 +189,26 @@ struct ProviderConfigurationView: View {
                     }
                 }
             }
+            if !model.newCatalogModels.isEmpty {
+                Section("Bundled Catalog · models.dev") {
+                    ForEach(model.newCatalogModels.filter { matchesProviderSearch($0.id, name: $0.metadata.displayName) }) { item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(verbatim: item.metadata.displayName ?? item.id)
+                                Text(verbatim: item.id).font(.caption).foregroundStyle(.secondary)
+                                if item.suggestedProtocolMode == .unsupportedReasoning {
+                                    Text("Reasoning continuation is not supported yet").font(.caption).foregroundStyle(.orange)
+                                }
+                            }
+                            Spacer()
+                            Button("Add to Pool") { editModel(nil, connection: connection, modelID: item.id) }
+                                .disabled(!connection.isEnabled || model.isWorking || model.container.isDemo)
+                        }
+                    }
+                }
+            }
         }.overlay {
-            if model.providerModels.isEmpty && model.newDiscoveredModels.isEmpty {
+            if model.providerModels.isEmpty && model.newDiscoveredModels.isEmpty && model.newCatalogModels.isEmpty {
                 ContentUnavailableView("No Models Selected", systemImage: "cube.transparent",
                                        description: Text("Fetch the model list or add a Model ID manually, then configure the models you want to use."))
             }
@@ -192,9 +216,15 @@ struct ProviderConfigurationView: View {
     }
 
     private var pool: some View {
-        ConfigurationSection(title: "Model Pool", subtitle: "Models enabled under active providers appear here and in model selectors. Configure limits and verify capabilities before sending.") {
+        ConfigurationSection(title: "Model Pool", subtitle: "Manage enabled models here. Model selectors show only models ready for their purpose; use the filters to check readiness.") {
             TextField("Search models or providers", text: $search)
                 .textFieldStyle(.roundedBorder)
+            Picker("Filter by use", selection: $useFilter) {
+                Text("All Models").tag(nil as ModelSelectionUse?)
+                Text("Conversation").tag(Optional(ModelSelectionUse.conversation))
+                Text("Agent Tools").tag(Optional(ModelSelectionUse.agentTools))
+                Text("Memory Extraction").tag(Optional(ModelSelectionUse.memoryExtraction))
+            }.pickerStyle(.segmented)
             List {
                 ForEach(filteredPool) { entry in
                     VStack(alignment: .leading, spacing: 7) {
@@ -212,13 +242,14 @@ struct ProviderConfigurationView: View {
                         HStack {
                             Button("Test Text") { model.probe(entry.model, kind: .text) }
                             Button("Test Tools") { model.probe(entry.model, kind: .tools) }
+                            Button("Test JSON Extraction") { model.probe(entry.model, kind: .jsonExtraction) }
                         }.disabled(model.isProbing)
                     }.padding(.vertical, 6).disabled(model.isWorking || model.container.isDemo)
                 }
             }.overlay {
                 if filteredPool.isEmpty {
-                    ContentUnavailableView("No Models in Pool", systemImage: "square.stack.3d.up",
-                                           description: Text("Activate a provider and enable its models. Disabled providers keep their selections but are hidden from this pool."))
+                    ContentUnavailableView("No Matching Models", systemImage: "square.stack.3d.up",
+                                           description: Text("Clear the search or filter, or configure model capabilities under All Models. Only active providers contribute to the pool."))
                 }
             }
             HStack {
@@ -233,7 +264,13 @@ struct ProviderConfigurationView: View {
 
     private var filteredPool: [ModelPoolEntry] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        return model.configuration.modelPool.filter { query.isEmpty || $0.model.modelID.localizedStandardContains(query) || $0.connection.name.localizedStandardContains(query) }
+        let candidates = useFilter.map { model.configuration.models(for: $0) } ?? model.configuration.modelPool
+        return candidates.filter { query.isEmpty || $0.model.modelID.localizedStandardContains(query) || $0.connection.name.localizedStandardContains(query) }
+    }
+
+    private func matchesProviderSearch(_ id: String, name: String? = nil) -> Bool {
+        let query = providerSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty || id.localizedStandardContains(query) || name?.localizedStandardContains(query) == true
     }
 
     @ViewBuilder private func modelReadiness(_ descriptor: ModelDescriptor) -> some View {
@@ -242,12 +279,25 @@ struct ProviderConfigurationView: View {
                 .accessibilityValue(L10n.string(capabilityTitle(descriptor.textCapability), locale: locale))
             Label("Tools", systemImage: capabilityIcon(descriptor.toolCapability))
                 .accessibilityValue(L10n.string(capabilityTitle(descriptor.toolCapability), locale: locale))
+            Label("JSON Extraction", systemImage: capabilityIcon(descriptor.extractionCapability))
+                .accessibilityValue(L10n.string(capabilityTitle(descriptor.extractionCapability), locale: locale))
+        }.font(.caption).foregroundStyle(.secondary)
+        HStack(spacing: 10) {
             if let window = descriptor.contextWindow { Text(L10n.format("Context window: %@ tokens", locale: locale, String(window))) }
             else { Text("Context window unknown") }
             if model.configuration.connections.first(where: { $0.id == descriptor.connectionID })?.revision != descriptor.connectionRevision {
                 Text("Needs reconfirmation").foregroundStyle(.orange)
             }
         }.font(.caption).foregroundStyle(.secondary)
+        if let snapshot = try? model.configuration.snapshot(routeID: descriptor.poolRouteID),
+           let reason = readinessError(snapshot) {
+            Text(L10n.error(reason, locale: locale)).font(.caption).foregroundStyle(.orange)
+        }
+    }
+
+    private func readinessError(_ snapshot: ResolvedModelRouteSnapshot) -> MiraError? {
+        do { try snapshot.validateForSending(); return nil }
+        catch { return MiraError.safe(error) }
     }
 
     private func capabilityTitle(_ state: CapabilityState) -> String {

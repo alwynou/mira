@@ -1,0 +1,257 @@
+#!/usr/bin/env python3
+"""Build Mira's bounded, advisory model catalog from a local models.dev JSON snapshot."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import json
+import unicodedata
+from pathlib import Path
+from typing import Any
+
+SOURCE_URL = "https://models.dev/api.json"
+PROVIDER_ORDER = [
+    "openai",
+    "anthropic",
+    "deepseek",
+    "moonshotai-cn",
+    "moonshotai",
+    "siliconflow-cn",
+    "siliconflow",
+    "openrouter",
+]
+PROVIDER_KINDS = {"openai": "openAICompatible", "anthropic": "anthropic"}
+PROVIDER_NAMES = {
+    "moonshotai-cn": "Kimi / Moonshot (China)",
+    "moonshotai": "Kimi / Moonshot (International)",
+}
+OFFICIAL_BASE_URLS = {
+    "openai": "https://api.openai.com/v1",
+    "anthropic": "https://api.anthropic.com/v1",
+    "deepseek": "https://api.deepseek.com",
+    "moonshotai-cn": "https://api.moonshot.cn/v1",
+    "moonshotai": "https://api.moonshot.ai/v1",
+    "siliconflow-cn": "https://api.siliconflow.cn/v1",
+    "siliconflow": "https://api.siliconflow.com/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+}
+OFFICIAL_DOCUMENTATION_URLS = {
+    "openai": "https://developers.openai.com/api/reference/resources/models/methods/list",
+    "anthropic": "https://platform.claude.com/docs/en/api/models/list",
+}
+MAX_INPUT_BYTES = 16 * 1024 * 1024
+MAX_MODELS_PER_PROVIDER = 2_000
+DISABLED_THINKING_IDS = {
+    "deepseek": {"deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-flash-vision-exp"},
+    "moonshotai-cn": {"kimi-k2.5", "kimi-k2.6"},
+    "moonshotai": {"kimi-k2.5", "kimi-k2.6"},
+}
+UNSUPPORTED_REASONING_IDS = {
+    "moonshotai-cn": {"kimi-k2-thinking", "kimi-k2-thinking-turbo", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k3"},
+    "moonshotai": {"kimi-k2-thinking", "kimi-k2-thinking-turbo", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k3"},
+}
+
+
+class CatalogInputError(ValueError):
+    pass
+
+
+def fail(message: str) -> None:
+    raise CatalogInputError(message)
+
+
+def text(value: Any, field: str, maximum: int = 300) -> str:
+    if not isinstance(value, str) or not value or len(value) > maximum or any(unicodedata.category(c) == "Cc" for c in value):
+        fail(f"invalid {field}")
+    return value
+
+
+def token(value: Any, field: str, maximum: int = 300) -> str:
+    result = text(value, field, maximum)
+    if any(c.isspace() for c in result):
+        fail(f"invalid {field}")
+    return result
+
+
+def optional_text(value: Any, field: str, maximum: int = 300) -> str | None:
+    if value is None:
+        return None
+    return text(value, field, maximum)
+
+
+def optional_bool(value: Any, field: str) -> bool | None:
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        fail(f"invalid {field}")
+    return value
+
+
+def bounded_int(value: Any, field: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        fail(f"invalid {field}")
+    # models.dev uses zero for an unknown limit on non-text model families.
+    if value == 0:
+        return None
+    if not 0 < value <= 10_000_000:
+        fail(f"invalid {field}")
+    return value
+
+
+def modalities(value: Any, field: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or len(value) > 32:
+        fail(f"invalid {field}")
+    result = sorted({text(item, f"{field} item", 32) for item in value})
+    return result
+
+
+def suggested_mode(provider_id: str, model_id: str, requires_continuation: bool) -> str:
+    if model_id in DISABLED_THINKING_IDS.get(provider_id, set()):
+        return "thinkingDisabled"
+    if model_id in UNSUPPORTED_REASONING_IDS.get(provider_id, set()):
+        return "unsupportedReasoning"
+    if not requires_continuation:
+        return "standard"
+    return "unsupportedReasoning"
+
+
+def model_task(raw: dict[str, Any], output_modalities: list[str]) -> str:
+    """Classify only from upstream family/modalities facts, never an ID guess."""
+    family = raw.get("family")
+    if family == "text-embedding":
+        return "embedding"
+    if family == "gpt-image":
+        return "imageGeneration"
+    if "audio" in output_modalities:
+        return "audio"
+    if "image" in output_modalities:
+        return "imageGeneration"
+    if "text" in output_modalities:
+        return "textGeneration"
+    return "unknown"
+
+
+def normalize_model(provider_id: str, raw_id: str, raw: Any, source_revision: str, retrieved_at: str) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        fail(f"invalid model {provider_id}/{raw_id}")
+    model_id = token(raw.get("id"), f"model id {provider_id}/{raw_id}")
+    if model_id != raw_id:
+        fail(f"model key/id mismatch {provider_id}/{raw_id}")
+    limit = raw.get("limit")
+    if not isinstance(limit, dict):
+        fail(f"missing limit {provider_id}/{model_id}")
+    modalities_value = raw.get("modalities")
+    if not isinstance(modalities_value, dict):
+        fail(f"missing modalities {provider_id}/{model_id}")
+    input_modalities = modalities(modalities_value.get("input"), f"input modalities {provider_id}/{model_id}")
+    output_modalities = modalities(modalities_value.get("output"), f"output modalities {provider_id}/{model_id}")
+    task = model_task(raw, output_modalities)
+    output_limit = bounded_int(limit.get("output"), f"output {provider_id}/{model_id}")
+    interleaved = raw.get("interleaved")
+    if isinstance(interleaved, bool):
+        requires_continuation = interleaved
+    elif interleaved is None:
+        requires_continuation = False
+    elif isinstance(interleaved, dict):
+        field = interleaved.get("field")
+        if not isinstance(field, str) or not field or len(field) > 100 or any(ord(c) < 32 or ord(c) == 127 for c in field):
+            fail(f"invalid interleaved metadata {provider_id}/{model_id}")
+        requires_continuation = True
+    else:
+        fail(f"invalid interleaved metadata {provider_id}/{model_id}")
+    metadata = {
+        "providerID": provider_id,
+        "modelID": model_id,
+        "displayName": optional_text(raw.get("name"), f"display name {provider_id}/{model_id}"),
+        "sourceURL": SOURCE_URL,
+        "sourceRevision": source_revision,
+        "retrievedAt": retrieved_at,
+        "contextWindow": bounded_int(limit.get("context"), f"context {provider_id}/{model_id}"),
+        "maxOutputTokens": output_limit if task == "textGeneration" else None,
+        "inputModalities": input_modalities,
+        "outputModalities": output_modalities,
+        "toolCall": optional_bool(raw.get("tool_call"), f"tool_call {provider_id}/{model_id}"),
+        "structuredOutput": optional_bool(raw.get("structured_output"), f"structured_output {provider_id}/{model_id}"),
+        "reasoning": optional_bool(raw.get("reasoning"), f"reasoning {provider_id}/{model_id}"),
+        "requiresReasoningContinuation": requires_continuation,
+        "task": task,
+    }
+    return {
+        "metadata": metadata,
+        "suggestedProtocolMode": suggested_mode(provider_id, model_id, requires_continuation),
+    }
+
+
+def normalize(input_path: Path, retrieved_at: str) -> dict[str, Any]:
+    try:
+        retrieved = dt.datetime.fromisoformat(retrieved_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        fail(f"retrieved-at must be ISO-8601: {exc}")
+    if retrieved.tzinfo is None:
+        fail("retrieved-at must include a timezone")
+    source_bytes = input_path.read_bytes()
+    if len(source_bytes) > MAX_INPUT_BYTES:
+        fail("input exceeds 16 MiB")
+    try:
+        source = json.loads(source_bytes)
+    except json.JSONDecodeError as exc:
+        fail(f"invalid JSON: {exc}")
+    if not isinstance(source, dict):
+        fail("top-level source must be an object")
+    source_revision = "sha256:" + hashlib.sha256(source_bytes).hexdigest()
+    providers: list[dict[str, Any]] = []
+    for provider_id in PROVIDER_ORDER:
+        raw = source.get(provider_id)
+        if not isinstance(raw, dict):
+            fail(f"missing provider {provider_id}")
+        if raw.get("id") != provider_id:
+            fail(f"provider key/id mismatch {provider_id}")
+        raw_models = raw.get("models")
+        if not isinstance(raw_models, dict) or not raw_models:
+            fail(f"missing models {provider_id}")
+        if len(raw_models) > MAX_MODELS_PER_PROVIDER:
+            fail(f"too many models {provider_id}")
+        api = OFFICIAL_BASE_URLS[provider_id]
+        upstream_documentation = text(raw.get("doc"), f"documentation URL {provider_id}", 500)
+        if not upstream_documentation.startswith("https://"):
+            fail(f"documentation URL must use HTTPS {provider_id}")
+        documentation = OFFICIAL_DOCUMENTATION_URLS.get(provider_id, upstream_documentation)
+        models = [normalize_model(provider_id, model_id, raw_model, source_revision, retrieved_at) for model_id, raw_model in raw_models.items()]
+        models.sort(key=lambda model: model["metadata"]["modelID"])
+        provider_name = PROVIDER_NAMES.get(provider_id)
+        if provider_name is None:
+            provider_name = text(raw.get("name"), f"provider name {provider_id}", 100)
+        providers.append({
+            "id": provider_id,
+            "name": provider_name,
+            "baseURL": api,
+            "documentationURL": documentation,
+            "providerKind": PROVIDER_KINDS.get(provider_id, "openAICompatible"),
+            "models": models,
+        })
+    return {"providers": providers}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True, type=Path)
+    parser.add_argument("--retrieved-at", required=True)
+    parser.add_argument("--output", type=Path, default=Path("Packages/MiraKit/Sources/MiraProviders/Resources/ModelCatalog.json"))
+    args = parser.parse_args()
+    try:
+        document = normalize(args.input, args.retrieved_at)
+    except CatalogInputError as exc:
+        parser.error(str(exc))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

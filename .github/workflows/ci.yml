@@ -21,6 +21,8 @@ jobs:
         run: xcodebuild -version && swift --version
       - name: Package tests
         run: swift test --package-path Packages/MiraKit --disable-automatic-resolution
+      - name: Catalog generator tests
+        run: python3 -m unittest discover -s scripts/tests -v
       - name: Language policy
         run: python3 scripts/check_language_policy.py
       - name: macOS app and localization tests

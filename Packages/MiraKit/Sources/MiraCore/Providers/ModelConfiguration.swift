@@ -7,6 +7,7 @@ public typealias ModelDescriptorID = EntityID<ModelDescriptorTag>
 
 public enum ModelPurpose: String, Codable, CaseIterable, Sendable { case conversation, memoryExtraction }
 public enum RouteSelectionSource: String, Codable, Sendable { case explicit, conversation, workspace, global }
+public enum ModelSelectionUse: String, Codable, CaseIterable, Sendable { case conversation, agentTools, memoryExtraction }
 
 public struct ProviderConnection: Identifiable, Codable, Sendable, Equatable {
     public var id: ConnectionID
@@ -47,18 +48,23 @@ public struct ModelDescriptor: Identifiable, Codable, Sendable, Equatable {
     public var toolCapability: CapabilityState
     public var probeObservation: ProbeObservation?
     public var isEnabled: Bool
+    public var extractionCapability: CapabilityState
+    public var protocolMode: ModelProtocolMode
+    public var catalogMetadata: ModelCatalogMetadata?
     public var poolRouteID: RouteID { RouteID(id.rawValue) }
-    public init(id: ModelDescriptorID = .init(), revision: Int = 1, connectionID: ConnectionID, connectionRevision: Int = 1, modelID: String, contextWindow: Int? = nil, textCapability: CapabilityState = .unknown, toolCapability: CapabilityState = .unknown, probeObservation: ProbeObservation? = nil, isEnabled: Bool = true) {
+    public init(id: ModelDescriptorID = .init(), revision: Int = 1, connectionID: ConnectionID, connectionRevision: Int = 1, modelID: String, contextWindow: Int? = nil, textCapability: CapabilityState = .unknown, toolCapability: CapabilityState = .unknown, probeObservation: ProbeObservation? = nil, isEnabled: Bool = true, extractionCapability: CapabilityState = .unknown, protocolMode: ModelProtocolMode = .standard, catalogMetadata: ModelCatalogMetadata? = nil) {
         self.id = id; self.revision = revision; self.connectionID = connectionID; self.modelID = modelID
         self.connectionRevision = connectionRevision
         self.contextWindow = contextWindow; self.textCapability = textCapability
         self.toolCapability = toolCapability; self.probeObservation = probeObservation; self.isEnabled = isEnabled
+        self.extractionCapability = extractionCapability; self.protocolMode = protocolMode; self.catalogMetadata = catalogMetadata
     }
     public func validate() throws {
         guard revision > 0, connectionRevision > 0, !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, modelID.count <= 300,
               contextWindow.map({ $0 > 0 && $0 <= 10_000_000 }) ?? true else {
             throw MiraError(.configuration, "Enter a model ID and a valid context window, or leave the window unknown.")
         }
+        try catalogMetadata?.validate()
     }
 }
 
@@ -142,6 +148,21 @@ public struct ModelConfiguration: Sendable, Equatable {
             let lhsModel = $0.model.modelID.lowercased(), rhsModel = $1.model.modelID.lowercased()
             if lhsModel != rhsModel { return lhsModel < rhsModel }
             return $0.model.id.rawValue.uuidString.lowercased() < $1.model.id.rawValue.uuidString.lowercased()
+        }
+    }
+
+    /// Returns pool entries that are currently eligible for a concrete use.
+    /// Management callers should use `modelPool` to retain unknown-capability
+    /// entries for configuration and probing.
+    public func models(for use: ModelSelectionUse) -> [ModelPoolEntry] {
+        let purpose: ModelPurpose = use == .memoryExtraction ? .memoryExtraction : .conversation
+        return modelPool.filter { entry in
+            guard let snapshot = try? snapshot(routeID: entry.route.id, purpose: purpose),
+                  (try? snapshot.validateForSending()) != nil else { return false }
+            if use == .agentTools {
+                return snapshot.toolCapability == .declared || snapshot.toolCapability == .verified
+            }
+            return true
         }
     }
 

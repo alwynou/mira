@@ -13,7 +13,7 @@ let package = Package(
     targets: [
         .target(name: "MiraCore", resources: [.process("Resources")]),
         .target(name: "MiraData", dependencies: ["MiraCore", .product(name: "GRDB", package: "GRDB.swift")]),
-        .target(name: "MiraProviders", dependencies: ["MiraCore"]),
+        .target(name: "MiraProviders", dependencies: ["MiraCore"], resources: [.process("Resources")]),
         .testTarget(name: "MiraCoreTests", dependencies: ["MiraCore", "MiraData"]),
         .testTarget(name: "MiraDataTests", dependencies: ["MiraData", "MiraCore", .product(name: "GRDB", package: "GRDB.swift")]),
         .testTarget(name: "MiraProvidersTests", dependencies: ["MiraProviders", "MiraCore"])

@@ -36,14 +36,21 @@ struct PurposeRoutingView: View {
                 }
                 Picker("Model", selection: Binding(get: { routeID }, set: { routeID = $0 })) {
                     Text("Inherit / no binding").tag(nil as RouteID?)
-                    if let routeID, !configuration.modelPool.contains(where: { $0.route.id == routeID }) {
+                    if let routeID, !eligibleModels.contains(where: { $0.route.id == routeID }) {
                         Text("Unavailable model").tag(Optional(routeID))
                     }
-                    ForEach(configuration.modelPool) { entry in
+                    ForEach(eligibleModels) { entry in
                         Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id))
                     }
                 }
             }.formStyle(.grouped).disabled(saving)
+            Text(LocalizedStringKey(purpose == .conversation
+                ? "Conversation models need streaming text and valid token limits. Agent tools also need tool-call capability."
+                : "Memory extraction needs streaming text, valid token limits, and a separate JSON extraction declaration. Native structured output is optional."))
+                .font(.caption).foregroundStyle(.secondary)
+            if eligibleModels.isEmpty {
+                Text("No models are ready for this purpose. Configure capabilities in the model pool.").font(.callout).foregroundStyle(.orange)
+            }
             HStack {
                 Button("Save Selection") { saveBinding() }.buttonStyle(.borderedProminent).disabled(saving || container.isDemo || !selectionAvailable || (routeID == nil && loadedBinding == nil))
                 Button("Use Inherited Model", role: .destructive) { removeBinding() }.disabled(saving || container.isDemo || loadedBinding == nil)
@@ -59,7 +66,11 @@ struct PurposeRoutingView: View {
         .onChange(of: configuration.bindings) { _, _ in loadBinding() }
     }
 
-    private var selectionAvailable: Bool { routeID.map { id in configuration.modelPool.contains { $0.route.id == id } } ?? true }
+    private var eligibleModels: [ModelPoolEntry] {
+        configuration.models(for: purpose == .conversation ? .conversation : .memoryExtraction)
+    }
+
+    private var selectionAvailable: Bool { routeID.map { id in eligibleModels.contains { $0.route.id == id } } ?? true }
     private var currentRouteScope: RouteScope { switch scope { case .global: .global; case .workspace(let id): .workspace(id); case .conversation(let id): .conversation(id) } }
     private var currentBinding: RouteBinding? { configuration.bindings.first { $0.scope == currentRouteScope && $0.purpose == purpose } }
     private func loadBinding() {

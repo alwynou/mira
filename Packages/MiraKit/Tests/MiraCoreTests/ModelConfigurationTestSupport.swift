@@ -31,7 +31,10 @@ struct StoredRouteFixture {
             contextWindow: snapshot.contextWindow,
             textCapability: snapshot.textCapability,
             toolCapability: snapshot.toolCapability,
-            probeObservation: snapshot.probeObservation
+            probeObservation: snapshot.probeObservation,
+            extractionCapability: snapshot.extractionCapability,
+            protocolMode: snapshot.protocolMode,
+            catalogMetadata: snapshot.catalogMetadata
         )
         route = ModelRoute(
             id: snapshot.id,

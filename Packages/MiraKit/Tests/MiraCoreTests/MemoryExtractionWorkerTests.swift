@@ -148,7 +148,7 @@ private func makeClaim() -> MemoryExtractionClaim {
     let source = MemoryExtractionSource(message: message, executionID: executionID, workspaceID: nil, sourceHash: "fixture-hash")
     let job = MemoryExtractionJob(id: MemoryExtractionJobID(), sourceMessageID: message.id, conversationID: message.conversationID, policyRevision: 1, state: .running, createdAt: message.createdAt, updatedAt: message.createdAt)
     let policy = MemoryCapturePolicy(revision: 1, mode: .candidateOnly, dailyTokenLimit: 10_000, enabledAt: message.createdAt)
-    let route = ResolvedModelRouteSnapshot(name: "Memory fixture", providerKind: .openAICompatible, baseURL: "https://example.com/v1", modelID: "fixture", credentialReference: "fixture", contextWindow: 65_536, purpose: .memoryExtraction)
+    let route = ResolvedModelRouteSnapshot(name: "Memory fixture", providerKind: .openAICompatible, baseURL: "https://example.com/v1", modelID: "fixture", credentialReference: "fixture", contextWindow: 65_536, purpose: .memoryExtraction, extractionCapability: .declared)
     return MemoryExtractionClaim(job: job, source: source, policy: policy, route: route, leaseID: UUID(), leaseExpiresAt: message.createdAt.addingTimeInterval(120), attemptID: UUID())
 }
 

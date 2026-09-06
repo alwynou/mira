@@ -1,5 +1,6 @@
 import SwiftUI
 import MiraCore
+import MiraProviders
 
 struct ProviderConnectionEditor: View {
     @Environment(\.locale) private var locale
@@ -7,7 +8,7 @@ struct ProviderConnectionEditor: View {
     let existing: ProviderConnection?
     let container: AppContainer
     let onSaved: (ConnectionID) async -> Void
-    @State private var template = ProviderTemplate.openAI
+    @State private var templateID = "openai"
     @State private var name = "OpenAI"
     @State private var kind = ProviderKind.openAICompatible
     @State private var baseURL = "https://api.openai.com/v1"
@@ -16,17 +17,17 @@ struct ProviderConnectionEditor: View {
     @State private var error: MiraError?
     @State private var saving = false
 
-    private enum ProviderTemplate: Hashable { case openAI, anthropic, custom }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(LocalizedStringKey(existing == nil ? "Add Provider" : "Edit Provider")).font(.title2.weight(.semibold))
             Form {
                 if existing == nil {
-                    Picker("Provider Template", selection: $template) {
-                        Text("OpenAI").tag(ProviderTemplate.openAI)
-                        Text("Anthropic").tag(ProviderTemplate.anthropic)
-                        Text("Custom Provider").tag(ProviderTemplate.custom)
+                    Picker("Provider Template", selection: $templateID) {
+                        ForEach(ProviderModelCatalog.bundled.providers) { provider in
+                            Text(verbatim: provider.name).tag(provider.id)
+                        }
+                        Text("Custom Provider").tag("custom")
                     }
                 }
                 TextField("Name", text: $name)
@@ -55,18 +56,19 @@ struct ProviderConnectionEditor: View {
         }
         .padding(28).frame(width: 590)
         .onAppear { load() }
-        .onChange(of: template) { _, _ in applyTemplate() }
+        .onChange(of: templateID) { _, _ in applyTemplate() }
         .onDisappear { secret = "" }
         .interactiveDismissDisabled(saving)
     }
 
     private func applyTemplate() {
         guard existing == nil else { return }
-        switch template {
-        case .openAI: name = "OpenAI"; kind = .openAICompatible; baseURL = "https://api.openai.com/v1"
-        case .anthropic: name = "Anthropic"; kind = .anthropic; baseURL = "https://api.anthropic.com/v1"
-        case .custom: name = ""; baseURL = ""; kind = .openAICompatible
+        if let provider = ProviderModelCatalog.bundled.providers.first(where: { $0.id == templateID }) {
+            name = provider.name; kind = provider.providerKind; baseURL = provider.baseURL
+        } else {
+            name = ""; baseURL = ""; kind = .openAICompatible
         }
+        allowsHTTP = false
     }
 
     private func load() {

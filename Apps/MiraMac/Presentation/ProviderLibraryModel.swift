@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import MiraCore
+import MiraProviders
 
 @MainActor @Observable
 final class ProviderLibraryModel {
@@ -30,6 +31,12 @@ final class ProviderLibraryModel {
     var newDiscoveredModels: [DiscoveredModel] {
         let saved = Set(providerModels.map(\.modelID))
         return discoveredModels.filter { !saved.contains($0.id) }
+    }
+
+    var newCatalogModels: [CatalogModel] {
+        guard let selectedConnection else { return [] }
+        let existingIDs = Set(providerModels.map(\.modelID) + discoveredModels.map(\.id))
+        return ProviderModelCatalog.bundled.models(for: selectedConnection).filter { !existingIDs.contains($0.id) }
     }
 
     func observe() async {

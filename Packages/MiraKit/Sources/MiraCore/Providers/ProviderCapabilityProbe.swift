@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CapabilityProbeKind: String, Codable, Sendable { case text, tools }
+public enum CapabilityProbeKind: String, Codable, Sendable { case text, tools, jsonExtraction }
 
 public struct ProbeObservation: Codable, Sendable, Equatable {
     public var checkedAt: Date
@@ -34,6 +34,8 @@ public struct ProviderCapabilityProbe: Sendable {
             frozen.maxOutputTokens = min(128, route.maxOutputTokens)
             frozen.textCapability = .declared
             frozen.toolCapability = .declared
+            frozen.extractionCapability = .declared
+            frozen.purpose = kind == .jsonExtraction ? .memoryExtraction : .conversation
             try frozen.validateForSending()
             let request = makeRequest(route: frozen, kind: kind)
             let requestSize = try JSONEncoder().encode(request).count
@@ -58,10 +60,16 @@ public struct ProviderCapabilityProbe: Sendable {
             name: "probe.echo", description: "Synthetic capability probe. Do not execute.",
             inputSchema: .object(["type": .string("object"), "properties": .object(["value": .object(["type": .string("string"), "enum": .array([.string("MIRA_PROBE")]), "maxLength": .number(10)])]), "required": .array([.string("value")]), "additionalProperties": .bool(false)])
         ) : nil
+        let prompt: String
+        switch kind {
+        case .text: prompt = "MIRA_SYNTHETIC_TEXT_PROBE: return a short non-empty text response and finish with stop."
+        case .tools: prompt = "MIRA_SYNTHETIC_TOOL_PROBE: call probe.echo exactly once with JSON arguments {\"value\":\"MIRA_PROBE\"}, then finish with toolCalls. Do not add other arguments or text."
+        case .jsonExtraction: prompt = "MIRA_SYNTHETIC_JSON_PROBE: extract the value MIRA_PROBE into exactly this JSON object: {\"value\":\"MIRA_PROBE\"}. Return only the JSON object, without Markdown fences, extra keys, or commentary. Finish with stop."
+        }
         return .init(
             executionID: .init(environment.uuid()),
             system: "Capability probe. Return only the requested synthetic result.",
-            messages: [.init(role: .user, text: kind == .text ? "MIRA_SYNTHETIC_TEXT_PROBE: return a short non-empty text response and finish with stop." : "MIRA_SYNTHETIC_TOOL_PROBE: call probe.echo exactly once with JSON arguments {\"value\":\"MIRA_PROBE\"}, then finish with toolCalls. Do not add other arguments or text.")],
+            messages: [.init(role: .user, text: prompt)],
             requestID: environment.uuid(), tools: tool.map { [$0] }
         )
     }
@@ -111,6 +119,13 @@ public struct ProviderCapabilityProbe: Sendable {
             let text = events.compactMap { if case .textDelta(let value) = $0 { value } else { nil } }.joined()
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, reason == .stop,
                   !events.contains(where: { if case .toolCalls = $0 { true } else { false } }) else { throw MiraError(.providerRejected, "Text capability check result does not meet requirements.") }
+        case .jsonExtraction:
+            let text = events.compactMap { if case .textDelta(let value) = $0 { value } else { nil } }.joined()
+            guard reason == .stop,
+                  !events.contains(where: { if case .toolCalls = $0 { true } else { false } }),
+                  (try? JSONDecoder().decode([String: String].self, from: Data(text.utf8))) == ["value": "MIRA_PROBE"] else {
+                throw MiraError(.providerRejected, "JSON extraction check did not return the requested JSON object.")
+            }
         case .tools:
             guard reason == .toolCalls,
                   events.count(where: { if case .toolCalls = $0 { true } else { false } }) == 1,

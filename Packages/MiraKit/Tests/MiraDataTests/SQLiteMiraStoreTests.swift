@@ -48,6 +48,37 @@ struct SQLiteMiraStoreTests {
         #expect(try Data(contentsOf: path) == before)
     }
 
+    @Test func schema8IsRejectedWithoutChangingTheLibraryFile() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        do { _ = try SQLiteMiraStore(directory: directory) }
+        let path = directory.appendingPathComponent("Mira.sqlite")
+        let database = try DatabaseQueue(path: path.path)
+        try database.write { db in try db.execute(sql: "PRAGMA user_version = 8") }
+        let before = try Data(contentsOf: path)
+
+        #expect(throws: MiraError.self) { _ = try SQLiteMiraStore(directory: directory) }
+        #expect(try Data(contentsOf: path) == before)
+    }
+
+    @Test func catalogAndProtocolFieldsRoundTripThroughSchema9TypedMirrors() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let connection = ProviderConnection(name: "Catalog provider", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
+        let catalog = ModelCatalogMetadata(providerID: "provider", modelID: "fixture", displayName: "Fixture", sourceURL: "https://catalog.example/models", sourceRevision: "2026-09", retrievedAt: "2026-09-06T00:00:00Z", contextWindow: 8192, maxOutputTokens: 512, inputModalities: ["text"], outputModalities: ["text"], toolCall: true, structuredOutput: false, reasoning: false, requiresReasoningContinuation: false)
+        let model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 8192, textCapability: .declared, toolCapability: .declared, extractionCapability: .declared, protocolMode: .thinkingDisabled, catalogMetadata: catalog)
+        let route = ModelRoute(id: model.poolRouteID, name: "Fixture", modelDescriptorID: model.id, maxOutputTokens: 512)
+        try store.saveConnection(connection, expectedRevision: nil)
+        try store.savePoolModel(model, route: route, expectedModelRevision: nil, expectedRouteRevision: nil)
+
+        let saved = try #require(try store.modelConfiguration().models.first)
+        #expect(saved.extractionCapability == .declared)
+        #expect(saved.protocolMode == .thinkingDisabled)
+        #expect(saved.catalogMetadata == catalog)
+        #expect(try store.modelConfiguration().modelPool.first?.route.id == model.poolRouteID)
+    }
+
     @Test func failedMigrationPreservesExistingRows() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -177,7 +208,7 @@ struct SQLiteMiraStoreTests {
         #expect(saved.routes.first?.name == "Changed")
     }
 
-    @Test func disabledProviderAndModelRoundTripThroughBackup() throws {
+    @Test(arguments: [true, false]) func disabledProviderAndModelRoundTripThroughBackup(modelEnabled: Bool) throws {
         let directory = try temporaryDirectory()
         let backup = directory.deletingLastPathComponent().appendingPathComponent("mira-disabled-\(UUID().uuidString).sqlite")
         let restoredDirectory = directory.deletingLastPathComponent().appendingPathComponent("mira-disabled-restored-\(UUID().uuidString)")
@@ -188,18 +219,23 @@ struct SQLiteMiraStoreTests {
         }
         let store = try SQLiteMiraStore(directory: directory)
         let connection = ProviderConnection(name: "Provider", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
-        let model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 4096, textCapability: .declared)
+        let catalog = ModelCatalogMetadata(providerID: "fixture", modelID: "fixture", sourceURL: "https://catalog.example/models", sourceRevision: "fixture", retrievedAt: "2026-09-06", task: .textGeneration)
+        var model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 4096, textCapability: .declared, extractionCapability: .verified, catalogMetadata: catalog)
         try store.saveConnection(connection, expectedRevision: nil)
         try store.savePoolModel(model, route: .init(id: model.poolRouteID, name: "fixture", modelDescriptorID: model.id), expectedModelRevision: nil, expectedRouteRevision: nil)
         var disabled = connection
         disabled.revision = 2; disabled.isEnabled = false
         try store.saveConnection(disabled, expectedRevision: 1)
+        model.revision = 3; model.connectionRevision = 2; model.isEnabled = modelEnabled
+        try store.savePoolModel(model, route: .init(id: model.poolRouteID, revision: 2, name: "fixture", modelDescriptorID: model.id), expectedModelRevision: 2, expectedRouteRevision: 1)
         try store.exportBackup(to: backup)
         try store.restoreBackup(from: backup, to: restoredDirectory)
         let restored = try SQLiteMiraStore(directory: restoredDirectory)
         let configuration = try restored.modelConfiguration()
         #expect(configuration.connections.first?.isEnabled == false)
-        #expect(configuration.models.first?.isEnabled == true)
+        #expect(configuration.models.first?.isEnabled == modelEnabled)
+        #expect(configuration.models.first?.extractionCapability == .verified)
+        #expect(configuration.models.first?.catalogMetadata == catalog)
     }
 
     @Test func deletingConnectionCascadesConfigurationButPreservesExecutionSnapshotAndPolicy() throws {
@@ -469,7 +505,7 @@ struct SQLiteMiraStoreTests {
         }
         try resealTestBackupManifest(backup)
         let sourceBytes = try Data(contentsOf: testBackupDatabaseURL(backup))
-        #expect(SQLiteMiraStore.currentSchemaVersion == 8)
+        #expect(SQLiteMiraStore.currentSchemaVersion == 9)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
         #expect(!FileManager.default.fileExists(atPath: restore.path))

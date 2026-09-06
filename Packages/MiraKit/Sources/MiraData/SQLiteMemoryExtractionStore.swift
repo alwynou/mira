@@ -455,7 +455,7 @@ extension SQLiteMiraStore {
         let workspace = try conversation.workspaceID.map { try workspaceValue($0, in: db) }
         let configuration = ModelConfiguration(
             connections: try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, is_enabled, connection_json FROM provider_connections ORDER BY id").map { try Self.providerConnection($0) },
-            models: try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, model_json FROM model_descriptors ORDER BY id").map { try Self.modelDescriptor($0) },
+            models: try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, extraction_capability, protocol_mode, model_json FROM model_descriptors ORDER BY id").map { try Self.modelDescriptor($0) },
             routes: try Row.fetchAll(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes ORDER BY id").map { try Self.modelRoute($0) },
             bindings: try Row.fetchAll(db, sql: "SELECT id, scope_key, purpose, route_id, revision, binding_json FROM route_bindings ORDER BY id").map { try Self.routeBinding($0) }
         )

@@ -71,7 +71,7 @@ public struct HTTPModelProvider: ModelProviderPort, Sendable {
         result.setValue(request.dispatchID.uuidString, forHTTPHeaderField: "X-Mira-Request-ID")
         if route.providerKind == .openAICompatible {
             result.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
-            result.httpBody = try JSONEncoder().encode(OpenAIRequest(request: request, model: route.modelID, maxTokens: route.maxOutputTokens, includeUsage: route.requestsUsage))
+            result.httpBody = try JSONEncoder().encode(OpenAIRequest(request: request, model: route.modelID, maxTokens: route.maxOutputTokens, includeUsage: route.requestsUsage, protocolMode: route.protocolMode))
         } else {
             result.setValue(secret, forHTTPHeaderField: "x-api-key")
             result.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -288,6 +288,12 @@ private struct OpenAIStreamState {
         }
         for choice in chunk.choices ?? [] {
             if let delta = choice.delta {
+                if let reasoning = delta.reasoningContent, !reasoning.isEmpty {
+                    throw ProviderProtocolError.unsupportedReasoning
+                }
+                if let details = delta.reasoningDetails, details.hasNonNullContent {
+                    throw ProviderProtocolError.unsupportedReasoning
+                }
                 if finish != nil && (delta.content != nil || delta.toolCalls != nil || delta.functionCall != nil || choice.finishReason != nil) {
                     throw ProviderProtocolError.malformed
                 }
@@ -529,6 +535,7 @@ private func safeProviderError(_ error: any Error) -> MiraError {
     if let error = error as? ProviderProtocolError {
         switch error {
         case .unsupportedTools: return MiraError(.unsupported, "This request contains tool content unsupported by the provider.")
+        case .unsupportedReasoning: return MiraError(.unsupported, "This provider returned reasoning content that Mira cannot continue safely.")
         case .provider: return MiraError(.providerRejected, "The provider rejected the request.")
         case .prematureEOF: return MiraError(.interrupted, "The provider connection ended before generation completed.")
         case .malformed: return MiraError(.malformedStream, "The provider returned an unparseable stream.")
@@ -540,7 +547,7 @@ private func safeProviderError(_ error: any Error) -> MiraError {
 }
 
 private struct HTTPStatusError: Error { let statusCode: Int }
-private enum ProviderProtocolError: Error { case malformed, prematureEOF, provider, unsupportedTools, resourceLimit }
+private enum ProviderProtocolError: Error { case malformed, prematureEOF, provider, unsupportedTools, unsupportedReasoning, resourceLimit }
 
 private enum ProviderLimits {
     static let maxToolCalls = 32
@@ -694,8 +701,9 @@ private struct OpenAIRequest: Encodable {
     let maxTokens: Int
     let streamOptions: OpenAIStreamOptions?
     let tools: [OpenAIToolDefinition]?
+    let thinking: OpenAIThinking?
 
-    init(request: CanonicalModelRequest, model: String, maxTokens: Int, includeUsage: Bool) {
+    init(request: CanonicalModelRequest, model: String, maxTokens: Int, includeUsage: Bool, protocolMode: ModelProtocolMode) {
         self.model = model
         let names = ToolNameMap(definitions: request.tools ?? [])
         self.messages = [OpenAIMessage(role: "system", content: request.system, toolCalls: nil, toolCallID: nil)] + request.messages.map {
@@ -716,9 +724,11 @@ private struct OpenAIRequest: Encodable {
         self.tools = request.tools?.map { definition in
             OpenAIToolDefinition(type: "function", function: OpenAIFunctionDefinition(name: definition.wireName, description: definition.description, parameters: definition.inputSchema))
         }
+        self.thinking = protocolMode == .thinkingDisabled ? OpenAIThinking(type: "disabled") : nil
     }
-    enum CodingKeys: String, CodingKey { case model, messages, stream, maxTokens = "max_tokens", streamOptions = "stream_options", tools }
+    enum CodingKeys: String, CodingKey { case model, messages, stream, maxTokens = "max_tokens", streamOptions = "stream_options", tools, thinking }
 }
+private struct OpenAIThinking: Encodable { let type: String }
 private struct OpenAIStreamOptions: Encodable { let includeUsage: Bool; enum CodingKeys: String, CodingKey { case includeUsage = "include_usage" } }
 private struct OpenAIMessage: Encodable {
     let role: String
@@ -752,7 +762,31 @@ private struct OpenAIChunk: Decodable {
     let error: OpenAIError?
 }
 private struct OpenAIChoice: Decodable { let delta: OpenAIDelta?; let finishReason: String?; enum CodingKeys: String, CodingKey { case delta; case finishReason = "finish_reason" } }
-private struct OpenAIDelta: Decodable { let content: String?; let toolCalls: [OpenAIResponseToolCall]?; let functionCall: OpenAIFunctionCall?; enum CodingKeys: String, CodingKey { case content; case toolCalls = "tool_calls"; case functionCall = "function_call" } }
+private extension JSONValue {
+    var hasNonNullContent: Bool {
+        switch self {
+        case .null: return false
+        case .string(let value): return !value.isEmpty
+        case .array(let values): return !values.isEmpty
+        case .object(let values): return !values.isEmpty
+        case .number, .bool: return true
+        }
+    }
+}
+private struct OpenAIDelta: Decodable {
+    let content: String?
+    let toolCalls: [OpenAIResponseToolCall]?
+    let functionCall: OpenAIFunctionCall?
+    let reasoningContent: String?
+    let reasoningDetails: JSONValue?
+    enum CodingKeys: String, CodingKey {
+        case content
+        case toolCalls = "tool_calls"
+        case functionCall = "function_call"
+        case reasoningContent = "reasoning_content"
+        case reasoningDetails = "reasoning_details"
+    }
+}
 private struct OpenAIResponseToolCall: Decodable {
     let index: Int?
     let id: String?

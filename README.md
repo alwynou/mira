@@ -28,7 +28,7 @@ Build a ZIP from an exact committed revision with [the local packaging procedure
 
 Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Default Models**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
 
-The current development library uses fresh schema v8. Previous development libraries are rejected intact; use a separate disposable `--data-directory` when testing. Actual model quality and native walkthrough gates remain pending.
+The current development library uses fresh schema v9. Previous development libraries are rejected intact; use a separate disposable `--data-directory` when testing. Actual model quality and native walkthrough gates remain pending.
 
 ## Markdown knowledge
 

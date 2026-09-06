@@ -141,7 +141,7 @@ private struct ExtractionCommitFixture {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("mira-extraction-commit-\(UUID())")
         store = try SQLiteMiraStore(directory: directory)
         let connection = ProviderConnection(name: "Synthetic", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "synthetic")
-        let model = ModelDescriptor(connectionID: connection.id, modelID: "synthetic", contextWindow: 32_768, textCapability: .declared)
+        let model = ModelDescriptor(connectionID: connection.id, modelID: "synthetic", contextWindow: 32_768, textCapability: .declared, extractionCapability: .declared)
         let preset = ModelRoute(name: "Synthetic", modelDescriptorID: model.id, maxOutputTokens: 2048)
         try store.saveConnection(connection, expectedRevision: nil)
         try store.saveModel(model, expectedRevision: nil)

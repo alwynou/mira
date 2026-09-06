@@ -100,11 +100,11 @@ Agent 长任务可以持久化状态，并在 Mira 再次打开后恢复或明�
 
 ### 2.1 Provider 管理
 
-The normal setup flow is **configure provider → activate provider → select that provider's models → model pool → choose a model**. New providers are inactive until explicitly enabled. Mira initially offers OpenAI, Anthropic, and a custom provider template using either supported protocol; templates do not imply that a model or endpoint has been verified.
+The normal setup flow is **configure provider → activate provider → select that provider's models → model pool → choose a model**. New providers are inactive until explicitly enabled. Mira offers OpenAI, Anthropic, DeepSeek, Kimi / Moonshot (China and international), SiliconFlow (China and international), OpenRouter, and custom connection templates. Regions are explicit choices and never switch automatically. Templates do not imply that a model or endpoint has been verified.
 
 Activation, credential presence, and verified model capabilities are separate states. Under an active provider, users may fetch the remote model list or add a private Model ID manually. Fetching never enables or overwrites saved selections. Saving a selected model includes its output settings and a stable call preset, so normal onboarding does not require a separate route editor.
 
-The model pool contains enabled models belonging to active providers. Context and capability information can remain unknown while configuring a model; sending remains blocked until the selected purpose's requirements are met. Conversation and default-purpose selectors use this same pool and identify both model and provider. Pool membership does not automatically assign a default or authorize background memory extraction.
+The model pool contains enabled models belonging to active providers. Context and capability information can remain unknown while configuring a model; sending remains blocked until the selected purpose's requirements are met. Conversation and default-purpose selectors filter this pool by the requirements of their purpose and identify both model and provider. Management retains models that are not ready and explains their missing capabilities or unsupported protocol. The pool can be filtered for conversation, Agent tools, and memory extraction. Pool membership does not automatically assign a default or authorize background memory extraction.
 
 Disabling a model or provider preserves its saved settings and purpose selections, hides it from available choices, and stops affected execution work. A previously selected unavailable model stays visibly unavailable and cannot silently fall back. Reactivating a provider restores previously enabled model entries. Removing an entry deletes dependent presets/selections and is presented separately from disabling it.
 
@@ -133,6 +133,12 @@ Disabling a model or provider preserves its saved settings and purpose selection
 <a id="s13-03"></a>
 
 ### 2.3 Model Discovery（模型发现）
+
+The bundled models.dev catalog supplies model names, context/output limits, modalities, tool and reasoning information. Provider discovery supplies account-specific model IDs separately. Catalog membership does not prove account access; discovery does not prove a capability. New models with an exact catalog match open with reviewable suggestions. Existing saved models change only through an explicit edit or Apply Catalog Suggestions action. The editor shows the source, snapshot revision and retrieval date, and lets the user clear the reference for manually confirmed deployment overrides.
+
+Applied catalog restrictions exclude incompatible modalities, excessive output budgets and unsupported reasoning modes from execution. Mira initially supports standard text and explicitly disabled thinking on reviewed DeepSeek/Kimi models. Models requiring reasoning continuation remain visible for management but unavailable for execution. Current compatibility and sources are defined in [Model catalog](../architecture/MODEL_CATALOG.md).
+
+JSON extraction has its own capability declaration and Test JSON Extraction action. A simple synthetic JSON test establishes only that format check; it does not prove memory quality, factual attribution or native structured-output support. Automatic memory still requires its separate switch, budget and explicit purpose selection.
 
 Mira 可以读取 Provider 模型列表，但用户始终可以手工填写 Model ID。
 

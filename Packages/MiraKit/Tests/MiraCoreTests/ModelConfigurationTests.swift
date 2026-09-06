@@ -205,6 +205,85 @@ struct ModelConfigurationTests {
         expectError(.configuration) { _ = try configuration.resolve(purpose: .conversation, explicitRouteID: route.id) }
         #expect(configuration.modelPool.map(\.id) == [otherModel.id])
     }
+
+    @Test func modelSelectionUsesKeepUnknownModelsForManagementButGateEachUse() throws {
+        let entries: [(String, CapabilityState, CapabilityState)] = [
+            ("ready", .declared, .unknown),
+            ("tools", .declared, .declared),
+            ("extraction", .declared, .unknown),
+            ("unknown-text", .unknown, .declared)
+        ]
+        var connections: [ProviderConnection] = []
+        var models: [ModelDescriptor] = []
+        var routes: [ModelRoute] = []
+        for (modelID, text, tool) in entries {
+            let connection = ProviderConnection(name: modelID, providerKind: .openAICompatible, baseURL: "https://\(modelID).example.invalid/v1", credentialReference: modelID)
+            let model = ModelDescriptor(connectionID: connection.id, modelID: modelID, contextWindow: 8192, textCapability: text, toolCapability: tool, extractionCapability: modelID == "extraction" ? .declared : .unknown)
+            connections.append(connection); models.append(model)
+            routes.append(.init(id: model.poolRouteID, name: modelID, modelDescriptorID: model.id))
+        }
+        let configuration = ModelConfiguration(connections: connections, models: models, routes: routes, bindings: [])
+
+        #expect(configuration.modelPool.map(\.model.modelID) == ["extraction", "ready", "tools", "unknown-text"])
+        #expect(configuration.models(for: .conversation).map(\.model.modelID) == ["extraction", "ready", "tools"])
+        #expect(configuration.models(for: .agentTools).map(\.model.modelID) == ["tools"])
+        #expect(configuration.models(for: .memoryExtraction).map(\.model.modelID) == ["extraction"])
+    }
+
+    @Test func staleExtractionCapabilityIsClearedFromSnapshotsAndSelection() throws {
+        var connection = ProviderConnection(name: "Rotated", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
+        connection.revision = 2
+        let model = ModelDescriptor(connectionID: connection.id, connectionRevision: 1, modelID: "extract", contextWindow: 8192, textCapability: .declared, extractionCapability: .verified)
+        let route = ModelRoute(id: model.poolRouteID, name: "extract", modelDescriptorID: model.id)
+        let configuration = ModelConfiguration(connections: [connection], models: [model], routes: [route], bindings: [])
+
+        let snapshot = try configuration.snapshot(routeID: route.id, purpose: .memoryExtraction)
+        #expect(snapshot.extractionCapability == .unknown)
+        expectError(.configuration) { try snapshot.validateForSending() }
+        #expect(configuration.modelPool.count == 1)
+        #expect(configuration.models(for: .memoryExtraction).isEmpty)
+    }
+
+    @Test func catalogMetadataBoundsModelIDModalitiesAndOutputLimit() throws {
+        let base = ResolvedModelRouteSnapshot(name: "Catalog", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "fixture", credentialReference: "fixture", contextWindow: 8192, maxOutputTokens: 1024, textCapability: .declared)
+        let mismatch = ModelCatalogMetadata(providerID: "fixture", modelID: "other", sourceURL: "https://catalog.example", sourceRevision: "1", retrievedAt: "2026-09-06")
+        var snapshot = base; snapshot.catalogMetadata = mismatch
+        expectError(.configuration) { try snapshot.validateForSending() }
+
+        let audioOnly = ModelCatalogMetadata(providerID: "fixture", modelID: "fixture", sourceURL: "https://catalog.example", sourceRevision: "1", retrievedAt: "2026-09-06", inputModalities: ["image"], outputModalities: ["text"])
+        snapshot.catalogMetadata = audioOnly
+        expectError(.unsupported) { try snapshot.validateForSending() }
+
+        let smallOutput = ModelCatalogMetadata(providerID: "fixture", modelID: "fixture", sourceURL: "https://catalog.example", sourceRevision: "1", retrievedAt: "2026-09-06", maxOutputTokens: 512, inputModalities: ["text"], outputModalities: ["text"])
+        snapshot.catalogMetadata = smallOutput
+        expectError(.configuration) { try snapshot.validateForSending() }
+
+        let embedding = ModelCatalogMetadata(providerID: "fixture", modelID: "fixture", sourceURL: "https://catalog.example", sourceRevision: "1", retrievedAt: "2026-09-06", inputModalities: ["text"], outputModalities: ["text"], task: .embedding)
+        snapshot.catalogMetadata = embedding
+        expectError(.unsupported) { try snapshot.validateForSending() }
+    }
+
+    @Test func reasoningModesAreFailClosedByEndpointAndReviewedModel() throws {
+        var deepSeek = ResolvedModelRouteSnapshot(name: "DeepSeek", providerKind: .openAICompatible, baseURL: "https://api.deepseek.com/v1", modelID: "deepseek-v4-flash", credentialReference: "fixture", contextWindow: 8192, textCapability: .declared, protocolMode: .thinkingDisabled)
+        #expect(throws: Never.self) { try deepSeek.validateForSending() }
+
+        deepSeek.modelID = "manual-model"
+        expectError(.unsupported) { try deepSeek.validateForSending() }
+        deepSeek.modelID = "deepseek-v4-flash"
+        deepSeek.baseURL = "https://api.deepseek.com/v1/hostile"
+        expectError(.unsupported) { try deepSeek.validateForSending() }
+        deepSeek.baseURL = "https://api.deepseek.com:444/v1"
+        expectError(.unsupported) { try deepSeek.validateForSending() }
+
+        var standard = deepSeek
+        standard.baseURL = "https://example.invalid/v1"
+        standard.protocolMode = .standard
+        standard.catalogMetadata = ModelCatalogMetadata(providerID: "deepseek", modelID: standard.modelID, sourceURL: "https://catalog.example", sourceRevision: "1", retrievedAt: "2026-09-06", requiresReasoningContinuation: true)
+        expectError(.unsupported) { try standard.validateForSending() }
+
+        standard.protocolMode = .unsupportedReasoning
+        expectError(.unsupported) { try standard.validateForSending() }
+    }
 }
 
 private struct RoutingFixture {
@@ -213,7 +292,7 @@ private struct RoutingFixture {
 
     init() {
         connection = ProviderConnection(name: "Fixture connection", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
-        model = ModelDescriptor(connectionID: connection.id, connectionRevision: connection.revision, modelID: "fixture", contextWindow: 32_768, textCapability: .declared)
+        model = ModelDescriptor(connectionID: connection.id, connectionRevision: connection.revision, modelID: "fixture", contextWindow: 32_768, textCapability: .declared, extractionCapability: .declared)
     }
 }
 

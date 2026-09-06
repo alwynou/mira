@@ -280,8 +280,12 @@ public actor MiraApplication {
         }
         let previousRevision = model.revision
         model.textCapability = snapshot.textCapability; model.toolCapability = snapshot.toolCapability
-        if observation.type == .text { model.textCapability = observation.state }
-        else { model.toolCapability = observation.state }
+        model.extractionCapability = snapshot.extractionCapability
+        switch observation.type {
+        case .text: model.textCapability = observation.state
+        case .tools: model.toolCapability = observation.state
+        case .jsonExtraction: model.extractionCapability = observation.state
+        }
         model.connectionRevision = snapshot.connectionRevision
         model.probeObservation = observation; model.revision += 1
         try await saveModel(model, expectedRevision: previousRevision)

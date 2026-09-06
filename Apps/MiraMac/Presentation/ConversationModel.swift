@@ -69,7 +69,7 @@ final class ConversationModel {
     func reload() async {
         do {
             let library = try await application.library(includeArchived: true)
-            workspaces = library.workspaces; conversations = library.conversations; routes = library.configuration.modelPool.map(\.route); configuration = library.configuration
+            workspaces = library.workspaces; conversations = library.conversations; routes = library.configuration.models(for: .conversation).map(\.route); configuration = library.configuration
             if let id = selectedConversationID { try await loadConversation(id) }
         } catch { self.error = MiraError.safe(error) }
     }

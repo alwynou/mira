@@ -233,7 +233,7 @@ Connection deletion removes its live models, presets, and bindings. Execution sn
 
 ## 3. Provider activation and the model pool
 
-`ProviderConnection.isEnabled` and `ModelDescriptor.isEnabled` are independent, required stored fields with checked SQLite mirrors. Schema v8 directly replaces the development schema; earlier libraries and backup formats are rejected intact. Host-created connections start inactive. Enabling a provider never enables its model descriptors or assigns purpose bindings.
+`ProviderConnection.isEnabled` and `ModelDescriptor.isEnabled` are independent, required stored fields with checked SQLite mirrors. Schema v9 directly replaces the development schema; earlier libraries and backup formats are rejected intact. Host-created connections start inactive. Enabling a provider never enables its model descriptors or assigns purpose bindings.
 
 `ModelDescriptor.poolRouteID` uses the descriptor UUID in the route ID domain. `savePoolModel` saves the descriptor and its canonical `ModelRoute` in one transaction with revision checks for both records. A conflicting route update rolls back the descriptor update. Model IDs are unique within a connection. Model pool queries require an enabled descriptor, enabled parent, and an actually persisted matching canonical route; they never invent missing routes. Other internal route APIs retain explicit snapshot and binding semantics.
 
@@ -244,3 +244,10 @@ The application cancels affected foreground work and invalidates background extr
 Limits are 2 MiB per page, 8 MiB total, 2,000 distinct models, 10 Anthropic pages, and a 30-second operation deadline. Exceeding a bound fails the operation without presenting a partial list. Endpoints retain their configured base prefix; Anthropic pagination stays on the same model endpoint. Transport redirects are rejected, credentials remain headers, and remote error bodies never become user-visible diagnostics. Failed discovery leaves manual entry and existing models available.
 
 The interaction reference is LobeHub's [provider enable switch](https://github.com/lobehub/lobehub/blob/main/src/features/Settings/provider/features/ProviderConfig/EnableSwitch.tsx), [per-provider model list](https://github.com/lobehub/lobehub/blob/main/src/features/Settings/provider/features/ModelList/index.tsx), and [model selector](https://github.com/lobehub/lobehub/blob/main/src/features/ModelSelect/index.tsx). Mira implements its own native flow and preserves its explicit background authorization and fail-closed route semantics.
+
+
+## 4. Model metadata and selection requirements
+
+The [model catalog contract](MODEL_CATALOG.md) defines bundled models.dev references, exact endpoint/model matching, reviewed thinking compatibility and purpose eligibility. `ModelDescriptor` and frozen snapshots now carry independent extraction capability, protocol mode and an optional applied catalog reference. Schema v9 stores these fields directly; v8 and earlier libraries are rejected intact.
+
+`ModelConfiguration.modelPool` remains the management query. `models(for:)` returns ready candidates for conversation, Agent tools or memory extraction; route resolution and provider dispatch enforce the same send gates. JSON extraction uses a bounded synthetic JSON-text probe and updates only its own capability through the existing frozen-revision commit check. Text/tool tests cannot certify extraction or restore stale unrelated capabilities.

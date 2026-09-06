@@ -17147,6 +17147,890 @@
           }
         }
       }
+    },
+    "Agent Tools": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent Tools"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent 工具"
+          }
+        }
+      }
+    },
+    "All Models": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部模型"
+          }
+        }
+      }
+    },
+    "Applied catalog limits restrict selection and output size. Clear the reference to use manually confirmed deployment limits instead.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applied catalog limits restrict selection and output size. Clear the reference to use manually confirmed deployment limits instead."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已应用的目录限制会约束模型选择和输出大小。若部署限制不同，可清除引用后手动确认。"
+          }
+        }
+      }
+    },
+    "Apply Catalog Suggestions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply Catalog Suggestions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用目录建议"
+          }
+        }
+      }
+    },
+    "Audio": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音频"
+          }
+        }
+      }
+    },
+    "Bundled Catalog · models.dev": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bundled Catalog · models.dev"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内置目录 · models.dev"
+          }
+        }
+      }
+    },
+    "Catalog declares native structured output": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog declares native structured output"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录声明支持原生结构化输出"
+          }
+        }
+      }
+    },
+    "Catalog does not declare native structured output": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog does not declare native structured output"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录未声明支持原生结构化输出"
+          }
+        }
+      }
+    },
+    "Catalog output limit: %@ tokens": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog output limit: %@ tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录输出上限：%@ Token"
+          }
+        }
+      }
+    },
+    "Catalog retrieved: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog retrieved: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录获取时间：%@"
+          }
+        }
+      }
+    },
+    "Catalog suggestions are declarations, not successful tests. Confirm the limits and capabilities before saving. Connection or model changes require reconfirmation.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog suggestions are declarations, not successful tests. Confirm the limits and capabilities before saving. Connection or model changes require reconfirmation."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录建议属于能力声明，不代表测试通过。保存前请确认限制和能力；连接或模型变更后需要重新确认。"
+          }
+        }
+      }
+    },
+    "Clear Catalog Reference": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Catalog Reference"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除目录引用"
+          }
+        }
+      }
+    },
+    "Clear the search or filter, or configure model capabilities under All Models. Only active providers contribute to the pool.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the search or filter, or configure model capabilities under All Models. Only active providers contribute to the pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请清除搜索或筛选，或在“全部模型”中配置能力。模型池仅包含已激活服务商的模型。"
+          }
+        }
+      }
+    },
+    "Confirm that this model supports memory extraction.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm that this model supports memory extraction."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请确认此模型支持记忆提取。"
+          }
+        }
+      }
+    },
+    "Conversation models need streaming text and valid token limits. Agent tools also need tool-call capability.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversation models need streaming text and valid token limits. Agent tools also need tool-call capability."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话模型需要支持流式文本，并配置有效的 Token 限制；Agent 工具还需要工具调用能力。"
+          }
+        }
+      }
+    },
+    "Disable thinking for DeepSeek / Kimi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disable thinking for DeepSeek / Kimi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭 DeepSeek / Kimi 思考模式"
+          }
+        }
+      }
+    },
+    "Embedding": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Embedding"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向量嵌入"
+          }
+        }
+      }
+    },
+    "Filter by use": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter by use"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按用途筛选"
+          }
+        }
+      }
+    },
+    "Image Generation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image Generation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图像生成"
+          }
+        }
+      }
+    },
+    "Input Modalities": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Modalities"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入类型"
+          }
+        }
+      }
+    },
+    "JSON Extraction": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON Extraction"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON 提取"
+          }
+        }
+      }
+    },
+    "JSON extraction capability declared": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON extraction capability declared"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "声明支持 JSON 提取"
+          }
+        }
+      }
+    },
+    "JSON extraction check did not return the requested JSON object.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON extraction check did not return the requested JSON object."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON 提取测试未返回要求的 JSON 对象。"
+          }
+        }
+      }
+    },
+    "Manage enabled models here. Model selectors show only models ready for their purpose; use the filters to check readiness.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage enabled models here. Model selectors show only models ready for their purpose; use the filters to check readiness."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此管理已启用模型。选择器仅显示符合用途要求的模型，可通过筛选检查就绪状态。"
+          }
+        }
+      }
+    },
+    "Memory extraction needs streaming text, valid token limits, and a separate JSON extraction declaration. Native structured output is optional.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory extraction needs streaming text, valid token limits, and a separate JSON extraction declaration. Native structured output is optional."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提取需要流式文本、有效的 Token 限制及独立的 JSON 提取能力声明；原生结构化输出是可选能力。"
+          }
+        }
+      }
+    },
+    "Memory extraction uses JSON text with local validation. Declare it separately or run Test JSON Extraction in the pool. Native structured output is not required.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory extraction uses JSON text with local validation. Declare it separately or run Test JSON Extraction in the pool. Native structured output is not required."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提取使用 JSON 文本并在本地校验。请单独声明此能力，或在模型池中测试 JSON 提取，无需原生结构化输出。"
+          }
+        }
+      }
+    },
+    "Mira will request thinking disabled for this model. This option is supported only on the official DeepSeek and Kimi endpoints.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mira will request thinking disabled for this model. This option is supported only on the official DeepSeek and Kimi endpoints."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mira 将请求关闭此模型的思考模式。此选项仅支持已确认的 DeepSeek 和 Kimi 官方端点及型号。"
+          }
+        }
+      }
+    },
+    "Model Type": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model Type"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型类型"
+          }
+        }
+      }
+    },
+    "Model information from models.dev": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model information from models.dev"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型资料来自 models.dev"
+          }
+        }
+      }
+    },
+    "Needs reasoning continuation support": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs reasoning continuation support"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要推理续接支持"
+          }
+        }
+      }
+    },
+    "No Matching Models": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Matching Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的模型"
+          }
+        }
+      }
+    },
+    "No catalog reference applied. Enter and confirm this deployment’s limits and capabilities manually.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No catalog reference applied. Enter and confirm this deployment’s limits and capabilities manually."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未应用目录引用，请手动填写并确认此部署的限制与能力。"
+          }
+        }
+      }
+    },
+    "No models are ready for this purpose. Configure capabilities in the model pool.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No models are ready for this purpose. Configure capabilities in the model pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无符合此用途的模型，请在模型池中配置能力。"
+          }
+        }
+      }
+    },
+    "Output Modalities": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output Modalities"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出类型"
+          }
+        }
+      }
+    },
+    "Reasoning continuation is not supported yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reasoning continuation is not supported yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂不支持推理续接"
+          }
+        }
+      }
+    },
+    "Search provider models": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search provider models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索服务商模型"
+          }
+        }
+      }
+    },
+    "Standard text mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard text mode"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准文本模式"
+          }
+        }
+      }
+    },
+    "Test JSON Extraction": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test JSON Extraction"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试 JSON 提取"
+          }
+        }
+      }
+    },
+    "Text Generation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text Generation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文本生成"
+          }
+        }
+      }
+    },
+    "The bundled catalog supplies model information, not account access. Fetch Models checks the provider list; catalog entries may be unavailable for your account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bundled catalog supplies model information, not account access. Fetch Models checks the provider list; catalog entries may be unavailable for your account."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内置目录提供模型资料，不代表账号可用权限。“获取模型”会读取服务商列表；账号可能无法使用部分目录模型。"
+          }
+        }
+      }
+    },
+    "The model catalog metadata does not match the configured model ID.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model catalog metadata does not match the configured model ID."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型目录资料与配置的模型 ID 不一致。"
+          }
+        }
+      }
+    },
+    "The provider catalog does not advertise a text-generation model.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider catalog does not advertise a text-generation model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商目录未将此型号标记为文本生成模型。"
+          }
+        }
+      }
+    },
+    "The provider catalog does not advertise text input for this model.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider catalog does not advertise text input for this model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商目录未声明此模型支持文本输入。"
+          }
+        }
+      }
+    },
+    "The provider catalog does not advertise text output for this model.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider catalog does not advertise text output for this model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商目录未声明此模型支持文本输出。"
+          }
+        }
+      }
+    },
+    "The provider model catalog metadata is invalid.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider model catalog metadata is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商模型目录资料无效。"
+          }
+        }
+      }
+    },
+    "The route output limit exceeds the provider catalog limit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route output limit exceeds the provider catalog limit."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置的输出上限超过了服务商目录中的限制。"
+          }
+        }
+      }
+    },
+    "Thinking compatibility": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking compatibility"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考模式兼容性"
+          }
+        }
+      }
+    },
+    "Thinking-disabled mode is supported only on approved HTTPS model endpoints.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking-disabled mode is supported only on approved HTTPS model endpoints."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭思考模式仅适用于已确认支持的 HTTPS 端点及模型。"
+          }
+        }
+      }
+    },
+    "This model needs reasoning continuation support. You can keep it in the pool, but it cannot be selected for execution yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This model needs reasoning continuation support. You can keep it in the pool, but it cannot be selected for execution yet."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此模型需要推理续接支持，可以保留在模型池中，但暂时无法选择用于执行。"
+          }
+        }
+      }
+    },
+    "This model requires a reasoning continuation protocol that Mira does not support in standard mode.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This model requires a reasoning continuation protocol that Mira does not support in standard mode."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此模型需要推理续接协议，Mira 的标准模式暂不支持。"
+          }
+        }
+      }
+    },
+    "This model's reasoning protocol is not supported by Mira.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This model's reasoning protocol is not supported by Mira."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mira 暂不支持此模型的推理协议。"
+          }
+        }
+      }
+    },
+    "This provider returned reasoning content that Mira cannot continue safely.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This provider returned reasoning content that Mira cannot continue safely."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商返回了 Mira 暂不支持续接的推理内容。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -2,6 +2,7 @@ import Foundation
 
 public enum ProviderKind: String, Codable, CaseIterable, Sendable { case openAICompatible, anthropic }
 public enum CapabilityState: String, Codable, Sendable { case unknown, declared, verified, failed }
+public enum ModelProtocolMode: String, Codable, CaseIterable, Sendable { case standard, thinkingDisabled, unsupportedReasoning }
 
 /// Non-secret configuration. A copy is frozen in each execution before context construction.
 public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equatable {
@@ -29,11 +30,14 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
     public var toolCapability: CapabilityState
     /// Last explicit capability probe result; absent until the first probe.
     public var probeObservation: ProbeObservation?
-    public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true, connectionID: ConnectionID = .init(), connectionRevision: Int = 1, modelDescriptorID: ModelDescriptorID = .init(), modelRevision: Int = 1, purpose: ModelPurpose = .conversation, selectionSource: RouteSelectionSource = .explicit) {
+    public var extractionCapability: CapabilityState
+    public var protocolMode: ModelProtocolMode
+    public var catalogMetadata: ModelCatalogMetadata?
+    public init(id: RouteID = RouteID(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, modelID: String, credentialReference: String, credentialVersion: Int = 1, contextWindow: Int? = nil, maxOutputTokens: Int = 1024, textCapability: CapabilityState = .declared, allowsLoopbackHTTP: Bool = false, requestsUsage: Bool = true, connectionID: ConnectionID = .init(), connectionRevision: Int = 1, modelDescriptorID: ModelDescriptorID = .init(), modelRevision: Int = 1, purpose: ModelPurpose = .conversation, selectionSource: RouteSelectionSource = .explicit, extractionCapability: CapabilityState = .unknown, protocolMode: ModelProtocolMode = .standard, catalogMetadata: ModelCatalogMetadata? = nil) {
         self.connectionID = connectionID; self.connectionRevision = connectionRevision
         self.modelDescriptorID = modelDescriptorID; self.modelRevision = modelRevision
         self.purpose = purpose; self.selectionSource = selectionSource
-        self.adapterVersion = providerKind == .anthropic ? "anthropic-messages/1" : "openai-chat-completions/1"
+        self.adapterVersion = providerKind == .anthropic ? "anthropic-messages/1" : "openai-chat-completions/2"
         self.id = id; self.revision = revision; self.name = name; self.providerKind = providerKind
         self.baseURL = baseURL; self.modelID = modelID; self.credentialReference = credentialReference
         self.credentialVersion = credentialVersion; self.contextWindow = contextWindow
@@ -41,6 +45,9 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
         self.allowsLoopbackHTTP = allowsLoopbackHTTP; self.requestsUsage = requestsUsage
         self.toolCapability = .unknown
         self.probeObservation = nil
+        self.extractionCapability = extractionCapability
+        self.protocolMode = protocolMode
+        self.catalogMetadata = catalogMetadata
     }
 
     public init(route: ModelRoute, model: ModelDescriptor, connection: ProviderConnection, purpose: ModelPurpose, selection: RouteSelectionSource) {
@@ -50,7 +57,9 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
                   maxOutputTokens: route.maxOutputTokens, textCapability: model.connectionRevision == connection.revision ? model.textCapability : .unknown,
                   allowsLoopbackHTTP: connection.allowsLoopbackHTTP, requestsUsage: route.requestsUsage,
                   connectionID: connection.id, connectionRevision: connection.revision,
-                  modelDescriptorID: model.id, modelRevision: model.revision, purpose: purpose, selectionSource: selection)
+                  modelDescriptorID: model.id, modelRevision: model.revision, purpose: purpose, selectionSource: selection,
+                  extractionCapability: model.connectionRevision == connection.revision ? model.extractionCapability : .unknown,
+                  protocolMode: model.protocolMode, catalogMetadata: model.catalogMetadata)
         self.toolCapability = model.connectionRevision == connection.revision ? model.toolCapability : .unknown
         self.probeObservation = model.connectionRevision == connection.revision ? model.probeObservation : nil
     }
@@ -75,6 +84,57 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
         guard let window = contextWindow, window > 0, window <= 10_000_000,
               maxOutputTokens > 0, maxOutputTokens < window else { throw MiraError(.configuration, "Configure a valid context window and maximum output token count.") }
         guard textCapability == .declared || textCapability == .verified else { throw MiraError(.configuration, "Confirm that this model supports streaming text conversations.") }
+        if protocolMode == .unsupportedReasoning { throw MiraError(.unsupported, "This model's reasoning protocol is not supported by Mira.") }
+        if protocolMode == .thinkingDisabled { try validateThinkingDisabledEndpoint() }
+        if let catalogMetadata {
+            try catalogMetadata.validate()
+            guard catalogMetadata.task == .textGeneration || catalogMetadata.task == .unknown else {
+                throw MiraError(.unsupported, "The provider catalog does not advertise a text-generation model.")
+            }
+            guard catalogMetadata.modelID == modelID else { throw MiraError(.configuration, "The model catalog metadata does not match the configured model ID.") }
+            if !catalogMetadata.inputModalities.isEmpty {
+                guard catalogMetadata.inputModalities.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "text" }) else { throw MiraError(.unsupported, "The provider catalog does not advertise text input for this model.") }
+            }
+            if !catalogMetadata.outputModalities.isEmpty {
+                guard catalogMetadata.outputModalities.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "text" }) else { throw MiraError(.unsupported, "The provider catalog does not advertise text output for this model.") }
+            }
+            if let catalogLimit = catalogMetadata.maxOutputTokens {
+                guard catalogLimit > 0, maxOutputTokens <= catalogLimit else { throw MiraError(.configuration, "The route output limit exceeds the provider catalog limit.") }
+            }
+            if providerKind == .openAICompatible,
+               protocolMode == .standard,
+               catalogMetadata.requiresReasoningContinuation {
+                throw MiraError(.unsupported, "This model requires a reasoning continuation protocol that Mira does not support in standard mode.")
+            }
+        }
+        if purpose == .memoryExtraction {
+            guard extractionCapability == .declared || extractionCapability == .verified else { throw MiraError(.configuration, "Confirm that this model supports memory extraction.") }
+        }
+    }
+
+    private func validateThinkingDisabledEndpoint() throws {
+        guard providerKind == .openAICompatible,
+              let components = URLComponents(string: baseURL), components.scheme?.lowercased() == "https",
+              components.user == nil, components.password == nil, components.query == nil, components.fragment == nil,
+              components.port == nil || components.port == 443 else {
+            throw MiraError(.unsupported, "Thinking-disabled mode is supported only on approved HTTPS model endpoints.")
+        }
+        let host = components.host?.lowercased() ?? ""
+        let path = components.percentEncodedPath
+        let reviewedModel: Bool
+        switch host {
+        case "api.deepseek.com":
+            reviewedModel = ["", "/", "/v1", "/v1/"].contains(path)
+                ? ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-flash-vision-exp"].contains(modelID)
+                : false
+        case "api.moonshot.ai", "api.moonshot.cn":
+            reviewedModel = ["/v1", "/v1/"].contains(path) && ["kimi-k2.5", "kimi-k2.6"].contains(modelID)
+        default:
+            reviewedModel = false
+        }
+        guard reviewedModel else {
+            throw MiraError(.unsupported, "Thinking-disabled mode is supported only on approved HTTPS model endpoints.")
+        }
     }
 }
 

@@ -630,7 +630,7 @@ extension SQLiteMiraStore {
         guard let routeRow = try Row.fetchOne(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes WHERE id = ?", arguments: [Self.id(frozen.id)]),
               let modelID: String = routeRow["model_descriptor_id"] else { throw MiraError(.conflict, "The provider route no longer exists.") }
         let route = try Self.modelRoute(routeRow)
-        guard let modelRow = try Row.fetchOne(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, model_json FROM model_descriptors WHERE id = ?", arguments: [modelID]) else { throw MiraError(.conflict, "The provider model no longer exists.") }
+        guard let modelRow = try Row.fetchOne(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, extraction_capability, protocol_mode, model_json FROM model_descriptors WHERE id = ?", arguments: [modelID]) else { throw MiraError(.conflict, "The provider model no longer exists.") }
         let model = try Self.modelDescriptor(modelRow)
         guard let connectionRow = try Row.fetchOne(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, is_enabled, connection_json FROM provider_connections WHERE id = ?", arguments: [Self.id(model.connectionID)]) else { throw MiraError(.conflict, "The provider connection no longer exists.") }
         let connection = try Self.providerConnection(connectionRow)

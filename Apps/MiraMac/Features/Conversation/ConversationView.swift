@@ -305,7 +305,7 @@ private struct ConversationDetail: View {
                 Picker("Conversation model", selection: $model.selectedRouteID) {
                     Text("Use default model").tag(nil as RouteID?)
                     if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) { Text("Unavailable model").tag(Optional(selected)) }
-                    ForEach(model.configuration.modelPool) { entry in Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id)) }
+                    ForEach(model.configuration.models(for: .conversation)) { entry in Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id)) }
                 }.labelsHidden().frame(maxWidth: 320).disabled(model.activeExecution != nil)
                 Spacer()
                 if model.needsPersistenceRetry { Label("Reply pending save", systemImage: "externaldrive.badge.exclamationmark").font(.caption).foregroundStyle(.orange) }

@@ -171,7 +171,7 @@ private struct ExtractionApplicationFixture {
     init() throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("MiraExtractionApplication-\(UUID())")
         let store = try SQLiteMiraStore(directory: directory)
-        let snapshot = ResolvedModelRouteSnapshot(name: "Extraction application fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "synthetic", credentialReference: "no-key", contextWindow: 32_768)
+        let snapshot = ResolvedModelRouteSnapshot(name: "Extraction application fixture", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", modelID: "synthetic", credentialReference: "no-key", contextWindow: 32_768, extractionCapability: .declared)
         let fixture = StoredRouteFixture(snapshot)
         try fixture.install(in: store, binding: .init(scope: .global, purpose: .conversation, routeID: fixture.route.id))
         try store.saveRouteBinding(.init(scope: .global, purpose: .memoryExtraction, routeID: fixture.route.id), expectedRevision: nil)

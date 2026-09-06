@@ -91,6 +91,26 @@ struct ProviderCapabilityProbeTests {
         #expect(provider.terminated)
     }
 
+    @Test func jsonExtractionProbeRequiresExactJSONAndDoesNotDeclareTextOrTools() async throws {
+        let provider = ProbeFixtureProvider(events: [.textDelta("{ \"value\": \"MIRA_PROBE\" }"), .finished(.stop)])
+        let original = route()
+        let result = await ProviderCapabilityProbe(provider: provider).run(route: original, kind: .jsonExtraction)
+        #expect(result.state == .verified)
+        #expect(result.type == .jsonExtraction)
+        #expect(original.extractionCapability == .unknown)
+        let request = try #require(provider.requests.first)
+        #expect(request.tools == nil)
+        #expect(request.messages[0].text.contains("MIRA_SYNTHETIC_JSON_PROBE"))
+        #expect(provider.routes.first?.purpose == .memoryExtraction)
+        #expect(provider.routes.first?.extractionCapability == .declared)
+        for text in ["ok", "{}", "{\"value\":\"MIRA_PROBE\",\"extra\":\"no\"}", "```json\n{\"value\":\"MIRA_PROBE\"}\n```"] {
+            let invalid = ProbeFixtureProvider(events: [.textDelta(text), .finished(.stop)])
+            #expect((await ProviderCapabilityProbe(provider: invalid).run(route: original, kind: .jsonExtraction)).state == .failed)
+        }
+        let limited = ProbeFixtureProvider(events: [.textDelta("{\"value\":\"MIRA_PROBE\"}"), .finished(.outputLimit)])
+        #expect((await ProviderCapabilityProbe(provider: limited).run(route: original, kind: .jsonExtraction)).state == .failed)
+    }
+
     private func route(window: Int? = 8_192) -> ResolvedModelRouteSnapshot {
         .init(name: "fixture", providerKind: .openAICompatible, baseURL: "https://example.com/v1", modelID: "fixture", credentialReference: "fixture", contextWindow: window)
     }
