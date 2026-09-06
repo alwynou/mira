@@ -29,7 +29,7 @@ Local verification uses isolated temporary libraries, synthetic transports, Appl
 - Provider tests exercise repeated cumulative reports, cache aliases/conflicts, Anthropic partial event merging, omitted counters, invalid values and interrupted streams.
 - Runtime/store tests cover the missing-usage follow-up, extended usage across reopening, inclusive/exclusive extraction charges, reserved fallback, invalid-use atomicity, snapshot freezing and incomplete totals. The existing current-format backup/reopen suite passes with schema 11.
 
-Initial test runs exposed stale adapter-version assertions, a Swift test macro error, and host-test resource loading. These were corrected before the full reruns. No unresolved test failure is attributed to this feature.
+Initial test runs exposed stale adapter-version assertions, a Swift test macro error, and host-test resource loading. These were corrected before the full reruns. The first implementation [CI run](https://github.com/alwynou/mira/actions/runs/34034170246) passed package, catalog and language checks but failed the existing deferred-scroll scheduler test: it assumed a callback would execute within a fixed 40 ms sleep. The test harness now waits for the actual callback with a bounded deadline; the production scheduler, renderer and animation code are unchanged. The full local host suite passed again. This is test synchronization, not new streaming-performance acceptance.
 
 ## Remaining acceptance
 
