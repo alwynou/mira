@@ -1113,7 +1113,10 @@ private enum AnthropicContentBlock: Encodable {
             try container.encode(id, forKey: DynamicCodingKey("tool_use_id"))
             try container.encode(content, forKey: DynamicCodingKey("content"))
         case .raw(let value):
-            try value.encode(to: encoder)
+            guard case .object(let fields) = value else { throw ProviderProtocolError.malformed }
+            // Use one container per encoder. Opening a second single-value
+            // container can corrupt sibling array positions on older Foundation.
+            for (key, field) in fields { try container.encode(field, forKey: DynamicCodingKey(key)) }
         }
     }
 }
