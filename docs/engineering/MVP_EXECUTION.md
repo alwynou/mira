@@ -60,3 +60,5 @@ Provider onboarding implementation commit `c5d9706864ec096aadaba60ac66052b8befa9
 ## Provider catalog and purpose filtering follow-up
 
 DeepSeek/Kimi and additional compatible templates, a sourced models.dev snapshot, model task exclusions, purpose eligibility, reviewed thinking-disabled transport and separate JSON extraction probes are implemented on fresh schema v9. Parent local acceptance passed the package suite, 16 Host tests, four offline catalog-generator tests and 1,087 bilingual/extracted keys. See [Catalog verification](MODEL_CATALOG_VERIFICATION.md) for exact scope and evidence. Real endpoint quality and required thinking continuation remain deferred; M6 is unchanged.
+
+Implementation revision `823e5113f8f10b88b6558723d86eb35a4867d70d` passed [CI 34013769247](https://github.com/alwynou/mira/actions/runs/34013769247). Its Debug app includes the verified catalog resource; the final evidence commit changes documentation only. The earlier running preview and its schema-v8 data were preserved.

@@ -22,6 +22,8 @@ Schema v9 directly replaces the development schema. Libraries at v8 or earlier a
 | Localization | English source policy, **1,087 bilingual keys**, and compiler-extracted UI key coverage passed. |
 | Snapshot reproducibility | Identical normalized output from the recorded source bytes and retrieval timestamp. |
 
+Implementation revision `823e5113f8f10b88b6558723d86eb35a4867d70d` passed all clean macOS checks in [CI 34013769247](https://github.com/alwynou/mira/actions/runs/34013769247), including the new generator tests and compiler-extracted language coverage. The Debug app bundles the exact normalized catalog resource with eight providers and 542 references. The final evidence commit changes documentation only.
+
 Tests cover capability-specific readiness, stale extraction, unsupported reasoning before credential access, unexpected reasoning response content, exact endpoint/model matching, frozen metadata, schema rejection, typed mirrors, and backup restoration with both enabled and disabled model selections under a disabled provider. A probe regression proves temporary request capabilities cannot certify unrelated capabilities or bypass the frozen-snapshot comparison.
 
 Parent integration reviewed the delegated diffs and added source task exclusions, stricter endpoint paths, fixed template destinations, source provenance, JSON probes, restored-state coverage and English/Chinese display handling. Core remains Foundation-only and the Host never sends provider requests from a view.
