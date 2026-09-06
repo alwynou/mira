@@ -1,0 +1,168 @@
+{
+  "acceptedActive" : 2,
+  "cases" : [
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "zh-breakfast-oat-milk"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "zh-work-update-conclusion-first"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "zh-focus-time-notifications"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "zh-running-easy-pace"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "zh-travel-near-metro"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "zh-reading-table-of-contents"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "zh-afternoon-unsweetened-tea"
+    },
+    {
+      "expected" : "active",
+      "gate" : "active",
+      "id" : "zh-saturday-errand-batching"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-hoarse-no-iced-drinks"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-sister-pour-over-coffee"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-seaside-swimming-hypothesis"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-should-run-every-morning"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-migraine-light-sensitivity"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-early-riser-project-correction"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-hostel-budget-correction"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "zh-weekend-reading-sprint"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "en-savory-breakfast"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "en-team-update-headline"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "en-morning-focus-window"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "en-easy-cycling-twice-weekly"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "en-walkable-city-hotel"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "en-annotated-paper-books"
+    },
+    {
+      "expected" : "active",
+      "gate" : "candidate",
+      "id" : "en-sparkling-water-with-dinner"
+    },
+    {
+      "expected" : "active",
+      "gate" : "active",
+      "id" : "en-saturday-errand-batching"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-cold-skipping-iced-drinks"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-partner-spicy-food"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-marathon-training-hypothesis"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-coffee-after-lunch-question"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-peanut-allergy"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-early-flight-correction"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-long-novels-correction"
+    },
+    {
+      "expected" : "notActive",
+      "gate" : "candidate",
+      "id" : "en-deadline-late-nights"
+    }
+  ],
+  "expectedActive" : 16,
+  "qualification" : "none; optimistic synthetic extractor output isolates host triage only",
+  "unsafeActive" : 0
+}

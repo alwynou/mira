@@ -64,6 +64,8 @@ targets:
       - Apps/MiraMac/Resources/Localizable.xcstrings
       - Tests/MiraLocalizationTests
       - Tests/MiraPlatformTests
+      - path: Tests/Fixtures/EverydayMemory/scenarios.json
+        buildPhase: resources
       - Apps/MiraMac/Platform/Keychain
       - Apps/MiraMac/Presentation/ConversationStreamBuffer.swift
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
@@ -83,9 +85,34 @@ targets:
         product: MiraCore
       - package: MiraKit
         product: MiraData
+      - package: MiraKit
+        product: MiraProviders
       - package: SwiftStreamingMarkdown
         product: SwiftStreamingMarkdown
+  MiraUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - Tests/MiraUITests
+      - path: Tests/Fixtures/EverydayMemory/scenarios.json
+        buildPhase: resources
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira.ui-tests
+        TEST_TARGET_NAME: Mira
+        ENABLE_HARDENED_RUNTIME: NO
+    dependencies:
+      - target: Mira
 schemes:
+  MiraUI:
+    build:
+      targets:
+        Mira: all
+        MiraUITests: [test]
+    test:
+      targets: [MiraUITests]
+      config: Debug
   Mira:
     build:
       targets:

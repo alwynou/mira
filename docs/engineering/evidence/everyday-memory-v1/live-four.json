@@ -1,0 +1,199 @@
+{
+  "aggregate" : {
+    "activeMemoryCount" : 1,
+    "approvalDenialCount" : 0,
+    "candidateMemoryCount" : 1,
+    "casesMeasured" : 4,
+    "casesWithErrors" : 2,
+    "prefetchedMemoryCount" : 1,
+    "referencedMemoryCount" : 1,
+    "verifiedCitationCount" : 1
+  },
+  "cases" : [
+    {
+      "active" : [
+        {
+          "content" : "我喜欢把需要跑一趟的杂事集中到周六处理，这样工作日晚上能清静一点。",
+          "evidenceIDs" : [
+            "3d061924-4167-4499-b3ce-5e18776c3232"
+          ],
+          "state" : "active"
+        }
+      ],
+      "activeCapturePassed" : true,
+      "activeCount" : 1,
+      "actual" : "active",
+      "answer" : "按你之前的偏好——需要出门跑的杂事集中到周六，工作日晚上留清静 [memory:0c52640c-459b-4531-9b53-8eadd272188d@1]——大方向会是这样：\n\n**基本框架**\n- **周六**：把需要跑一趟的（取件、办事窗口、超市、送修等）尽量排在一起，按“路线顺”的顺序走，一趟全办完。如果能预约的（银行、政务、维修）优先约周六早上，减少排队和不确定性。\n- **周一至周五晚上**：只留不用出门、在家顺手能做完的小事（回消息、线上缴费、整理收纳），不再额外安排外跑。\n- **周日晚**：留白或只做极轻的收尾，避免周一前太累。\n\n不过目前我这边只看到这一条偏好，还没有这周具体的杂事清单。你可以把本周要办的几件事列给我（比如办事、取件、购物、约人这类），我就能按**地理顺路 + 时间窗口**帮你排出具体到周六的动线，以及哪些小事确实可以塞进工作日晚上。要现在列一下吗？",
+      "approvalDenialCount" : 0,
+      "candidateCount" : 0,
+      "candidates" : [
+
+      ],
+      "expectationMet" : true,
+      "expected" : "active",
+      "extractionState" : "completed",
+      "forbiddenTerms" : [
+
+      ],
+      "id" : "zh-saturday-errand-batching",
+      "keywordHeuristicsPass" : true,
+      "mismatchReasons" : [
+
+      ],
+      "prefetchedMemoryCount" : 1,
+      "referencedMemoryCount" : 1,
+      "requiredTerms" : [
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : true,
+          "term" : "周六"
+        },
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : true,
+          "term" : "杂事"
+        }
+      ],
+      "verifiedCitationCount" : 1
+    },
+    {
+      "active" : [
+
+      ],
+      "activeCapturePassed" : false,
+      "activeCount" : 0,
+      "actual" : "candidate",
+      "answer" : "I checked for any stored preferences about your eating habits, but I don't have anything saved on that yet, so here's a solid general pick for a long morning.\n\n**Best bet: a balanced combo** — protein + slow carbs + a little fat keeps energy steady and avoids the mid-morning crash:\n- **Greek yogurt with oats, berries, and nuts\/seeds** — fast to assemble, filling, and portable if you're in a rush.\n- **Eggs on whole-grain toast with avocado** — protein and fiber that holds you for hours.\n- **Oatmeal with nut butter and banana** — great slow-release energy, easy to customize.\n\nWhatever you choose, pair it with water (and coffee or tea if that's your thing), and avoid anything pure-sugar-heavy like pastries or sugary cereal — those spike you fast and fade before noon.\n\nIf you tell me a bit about your preferences — sweet vs. savory, time you have, any dietary restrictions — I can narrow it down. Want me to remember a breakfast preference for next time?",
+      "approvalDenialCount" : 0,
+      "candidateCount" : 1,
+      "candidates" : [
+        {
+          "content" : "I usually go for a savory breakfast; a sweet pastry first thing leaves me hungry again before noon.",
+          "evidenceIDs" : [
+            "ca66a0bb-2fb4-437d-8303-3d01bdb357cc"
+          ],
+          "state" : "candidate"
+        }
+      ],
+      "expectationMet" : false,
+      "expected" : "active",
+      "extractionState" : "completed",
+      "forbiddenTerms" : [
+
+      ],
+      "id" : "en-savory-breakfast",
+      "keywordHeuristicsPass" : false,
+      "mismatchReasons" : [
+        "memory_expectation_mismatch"
+      ],
+      "prefetchedMemoryCount" : 0,
+      "referencedMemoryCount" : 0,
+      "requiredTerms" : [
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : false,
+          "term" : "savory breakfast"
+        }
+      ],
+      "verifiedCitationCount" : 0
+    },
+    {
+      "active" : [
+
+      ],
+      "activeCapturePassed" : true,
+      "activeCount" : 0,
+      "actual" : "none",
+      "approvalDenialCount" : 0,
+      "candidateCount" : 0,
+      "candidates" : [
+
+      ],
+      "errorCode" : "outputLimit",
+      "expectationMet" : true,
+      "expected" : "notActive",
+      "extractionErrorCode" : "malformedStream",
+      "extractionState" : "paused",
+      "forbiddenTerms" : [
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : false,
+          "term" : "嗓子有点哑"
+        },
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : false,
+          "term" : "不喝冰饮"
+        }
+      ],
+      "id" : "zh-hoarse-no-iced-drinks",
+      "keywordHeuristicsPass" : true,
+      "mismatchReasons" : [
+        "foreground_or_followup_error",
+        "extraction_error"
+      ],
+      "prefetchedMemoryCount" : 0,
+      "referencedMemoryCount" : 0,
+      "requiredTerms" : [
+
+      ],
+      "verifiedCitationCount" : 0
+    },
+    {
+      "active" : [
+
+      ],
+      "activeCapturePassed" : true,
+      "activeCount" : 0,
+      "actual" : "none",
+      "approvalDenialCount" : 0,
+      "candidateCount" : 0,
+      "candidates" : [
+
+      ],
+      "errorCode" : "outputLimit",
+      "expectationMet" : true,
+      "expected" : "notActive",
+      "forbiddenTerms" : [
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : false,
+          "term" : "partner"
+        },
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : false,
+          "term" : "spicy food"
+        }
+      ],
+      "id" : "en-partner-spicy-food",
+      "keywordHeuristicsPass" : true,
+      "mismatchReasons" : [
+        "foreground_or_followup_error"
+      ],
+      "prefetchedMemoryCount" : 0,
+      "referencedMemoryCount" : 0,
+      "requiredTerms" : [
+
+      ],
+      "verifiedCitationCount" : 0
+    }
+  ],
+  "conversationModelID" : "deepseek-v4-flash",
+  "conversationProtocol" : "deepSeek",
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-06T17:46:36Z",
+  "extractionModelID" : "deepseek-v4-flash",
+  "extractionProtocol" : "deepSeek",
+  "providerDispatchCap" : 12,
+  "providerDispatchCount" : 12,
+  "qualification" : "none",
+  "selectedCaseIDs" : [
+    "zh-saturday-errand-batching",
+    "en-savory-breakfast",
+    "zh-hoarse-no-iced-drinks",
+    "en-partner-spicy-food"
+  ],
+  "status" : "completed_with_mismatches",
+  "version" : 1
+}

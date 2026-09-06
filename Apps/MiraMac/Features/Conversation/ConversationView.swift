@@ -46,10 +46,12 @@ struct ConversationRoot: View {
                     ToolbarItem {
                         Button("New conversation", systemImage: "square.and.pencil") { Task { await model.newConversation() } }
                             .keyboardShortcut("n", modifiers: .command)
+                            .accessibilityIdentifier("conversation.new")
                     }
                     ToolbarItem {
                         Button("Execution details", systemImage: "sidebar.right") { showsInspector.toggle() }
                             .disabled(model.executions.isEmpty)
+                            .accessibilityIdentifier("conversation.inspector")
                     }
                     ToolbarItem {
                         Button("Knowledge", systemImage: "book.closed") { showsKnowledge = true }
@@ -110,7 +112,7 @@ struct ConversationRoot: View {
                             .foregroundStyle(showsMemories ? Color.accentColor : Color.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(.rect)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.plain).accessibilityIdentifier("sidebar.memories")
                 }
                 Section("Workspace") {
                     Button {
@@ -149,6 +151,7 @@ struct ConversationRoot: View {
                             .foregroundStyle(model.selectedConversationID == conversation.id ? Color.accentColor : Color.primary)
                             .contentShape(.rect)
                         }.buttonStyle(.plain)
+                            .accessibilityIdentifier("conversation.row.\(conversation.id.rawValue.uuidString)")
                             .contextMenu {
                                 if !conversation.isArchived { Button("Archive conversation", systemImage: "archivebox") { Task { await model.archive(conversation.id) } } }
                             }
@@ -272,6 +275,7 @@ private struct ConversationComposer: View {
             TextField("Send a message…", text: $model.composer, axis: .vertical)
                 .textFieldStyle(.plain).lineLimit(3...8).font(.body).focused($composerFocused)
                 .accessibilityLabel("Message input")
+                .accessibilityIdentifier("conversation.composer")
             HStack {
                 Text(L10n.string(isDemo ? "Local demo" : "Send to selected model service · ⌘ Return to send", locale: locale))
                     .font(.caption).foregroundStyle(.tertiary)
@@ -280,10 +284,12 @@ private struct ConversationComposer: View {
                     Button("Retry save", systemImage: "externaldrive") { Task { await model.retrySaving() } }.buttonStyle(.borderedProminent)
                 } else if model.activeExecution != nil {
                     Button("Stop", systemImage: "stop.fill") { Task { await model.cancel() } }.keyboardShortcut(".", modifiers: .command)
+                        .accessibilityIdentifier("conversation.stop")
                 } else {
                     Button("Send", systemImage: "arrow.up") { Task { await model.send(); composerFocused = true } }
                         .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
                         .disabled(model.isSending || model.selectedModelUnavailable || model.routes.isEmpty || model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("conversation.send")
                 }
             }
         }
