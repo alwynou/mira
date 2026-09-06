@@ -4,6 +4,29 @@ import MiraCore
 import MiraData
 
 struct ToolRuntimeTests {
+    @Test func interruptedFollowupDoesNotReusePreviousCallsUsage() async throws {
+        let fixture = try ToolFixture(); defer { fixture.cleanup() }
+        let call = CanonicalToolCall(id: "usage-call", name: "fixture.read", arguments: "{\"query\":\"q\"}")
+        let usage = TokenUsage(inputTokens: 100, outputTokens: 20, cacheReadTokens: 40, reasoningTokens: 5)
+        let provider = ScriptedToolProvider(store: fixture.store, replies: [
+            [.toolCalls([call]), .usage(usage), .finished(.toolCalls)],
+            [.textDelta("Interrupted without a final usage report")]
+        ])
+        let tool = FixtureTool(name: "fixture.read") { _, _ in "Observation" }
+        let app = try MiraApplication(store: fixture.store, provider: provider, tools: ToolRegistry([tool]))
+        let conversation = try await app.createConversation(workspaceID: nil)
+        let id = try await app.send(conversationID: conversation, text: "Inspect", routeID: fixture.route.id)
+        try await toolEventually { try fixture.store.execution(id)?.status.isTerminal == true }
+        let execution = try #require(try fixture.store.execution(id))
+        #expect(execution.status == .interrupted)
+        #expect(execution.usage.inputTokens == nil && execution.usage.outputTokens == nil && execution.usage.cacheReadTokens == nil)
+        let attempts = try fixture.store.attempts(for: id)
+        #expect(attempts.count == 2)
+        #expect(attempts.first?.usage == usage)
+        #expect(attempts.last?.usage == .init())
+        await app.shutdown()
+    }
+
     @Test func twoStepsKeepCompleteExchangeButNextTurnDoesNotReuseToolObservations() async throws {
         let fixture = try ToolFixture()
         defer { fixture.cleanup() }

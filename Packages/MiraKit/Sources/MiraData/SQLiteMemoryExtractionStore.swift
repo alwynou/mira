@@ -76,7 +76,7 @@ extension SQLiteMiraStore: MemoryExtractionStore {
             let leaseID = UUID(), attemptID = UUID(), expires = at.addingTimeInterval(extractionLeaseDuration)
             try db.execute(sql: "UPDATE memory_extraction_jobs SET state = 'running', attempt_count = attempt_count + 1, lease_id = ?, lease_expires_at = ?, route_json = ?, updated_at = ? WHERE id = ? AND state = 'queued'", arguments: [leaseID.uuidString.lowercased(), expires.timeIntervalSince1970, try Self.encode(route), at.timeIntervalSince1970, id(job.id)])
             guard db.changesCount == 1 else { return nil }
-            try db.execute(sql: "INSERT INTO memory_extraction_attempts (id, job_id, ordinal, lease_id, route_json, status, request_json, output_json, reserved_tokens, charged_tokens, usage_input, usage_output, budget_day, created_at, dispatched_at, completed_at, body_purged_at) VALUES (?, ?, ?, ?, ?, 'claimed', NULL, NULL, 0, 0, NULL, NULL, ?, ?, NULL, NULL, NULL)", arguments: [attemptID.uuidString.lowercased(), id(job.id), job.attemptCount + 1, leaseID.uuidString.lowercased(), try Self.encode(route), extractionDay(at), at.timeIntervalSince1970])
+            try db.execute(sql: "INSERT INTO memory_extraction_attempts (id, job_id, ordinal, lease_id, route_json, status, request_json, output_json, reserved_tokens, charged_tokens, usage_json, budget_day, created_at, dispatched_at, completed_at, body_purged_at) VALUES (?, ?, ?, ?, ?, 'claimed', NULL, NULL, 0, 0, ?, ?, ?, NULL, NULL, NULL)", arguments: [attemptID.uuidString.lowercased(), id(job.id), job.attemptCount + 1, leaseID.uuidString.lowercased(), try Self.encode(route), try Self.encode(TokenUsage()), extractionDay(at), at.timeIntervalSince1970])
             let claimedJob = try extractionJob(try Row.fetchOne(db, sql: "SELECT id, source_message_id, conversation_id, policy_revision, extractor_version, state, attempt_count, created_at, updated_at, error_json FROM memory_extraction_jobs WHERE id = ?", arguments: [id(job.id)])!, in: db)
             return MemoryExtractionClaim(job: claimedJob, source: source, policy: policy, route: route, leaseID: leaseID, leaseExpiresAt: expires, attemptID: attemptID)
             }
@@ -201,12 +201,16 @@ extension SQLiteMiraStore: MemoryExtractionStore {
         let status = row["status"] as String
         guard status == "dispatched" else { throw MiraError(.conflict, "The memory extraction attempt is not settleable.") }
         let reserved = row["reserved_tokens"] as Int
-        let input = usage.inputTokens ?? -1
-        let output = usage.outputTokens ?? -1
-        let (actual, overflow) = input.addingReportingOverflow(output)
-        let validActual = input >= 0 && output >= 0 && input <= 100_000_000 && output <= 100_000_000 && !overflow
-        let charged = validActual ? actual : reserved
-        try db.execute(sql: "UPDATE memory_extraction_attempts SET status = 'completed', usage_input = ?, usage_output = ?, charged_tokens = ?, reserved_tokens = 0, completed_at = ? WHERE id = ? AND lease_id = ? AND status = 'dispatched'", arguments: [validActual ? input : nil, validActual ? output : nil, charged, at.timeIntervalSince1970, claim.attemptID.uuidString.lowercased(), claim.leaseID.uuidString.lowercased()])
+        try usage.validate()
+        let actual: Int?
+        if let input = usage.totalInputTokens, let output = usage.outputTokens {
+            let (value, overflow) = input.addingReportingOverflow(output)
+            actual = overflow ? nil : value
+        } else {
+            actual = nil
+        }
+        let charged = actual ?? reserved
+        try db.execute(sql: "UPDATE memory_extraction_attempts SET status = 'completed', usage_json = ?, charged_tokens = ?, reserved_tokens = 0, completed_at = ? WHERE id = ? AND lease_id = ? AND status = 'dispatched'", arguments: [try Self.encode(usage), charged, at.timeIntervalSince1970, claim.attemptID.uuidString.lowercased(), claim.leaseID.uuidString.lowercased()])
         guard db.changesCount == 1 else { throw MiraError(.conflict, "The memory extraction attempt is no longer settleable.") }
         return charged
     }
@@ -381,8 +385,7 @@ extension SQLiteMiraStore {
           reserved_tokens INTEGER NOT NULL CHECK(reserved_tokens >= 0),
           reservation_limit INTEGER NOT NULL DEFAULT 0 CHECK(reservation_limit >= 0),
           charged_tokens INTEGER NOT NULL CHECK(charged_tokens >= 0),
-          usage_input INTEGER,
-          usage_output INTEGER,
+          usage_json TEXT NOT NULL DEFAULT '{"inputTokenBasis":"includesCache"}',
           budget_day TEXT NOT NULL,
           created_at REAL NOT NULL,
           dispatched_at REAL,
@@ -431,7 +434,15 @@ extension SQLiteMiraStore {
         let error: MiraError? = try (row["error_json"] as String?).map { try Self.decode($0) }
         let memoryIDs = try String.fetchAll(db, sql: "SELECT DISTINCT memory_id FROM memory_extraction_decisions WHERE job_id = ? AND memory_id IS NOT NULL ORDER BY memory_id", arguments: [row["id"] as String]).compactMap(UUID.init(uuidString:)).map(MemoryID.init)
         let candidateMemoryIDs = try String.fetchAll(db, sql: "SELECT DISTINCT d.memory_id FROM memory_extraction_decisions d JOIN memories m ON m.id = d.memory_id WHERE d.job_id = ? AND d.memory_id IS NOT NULL AND m.state = 'candidate' AND m.forgotten_at IS NULL ORDER BY d.memory_id", arguments: [row["id"] as String]).compactMap(UUID.init(uuidString:)).map(MemoryID.init)
-        return MemoryExtractionJob(id: MemoryExtractionJobID(id), sourceMessageID: MessageID(messageID), conversationID: ConversationID(conversationID), policyRevision: row["policy_revision"] as Int, extractorVersion: row["extractor_version"] as Int, state: state, attemptCount: row["attempt_count"] as Int, createdAt: Date(timeIntervalSince1970: row["created_at"] as Double), updatedAt: Date(timeIntervalSince1970: row["updated_at"] as Double), error: error, memoryIDs: memoryIDs, candidateMemoryIDs: candidateMemoryIDs)
+        var job = MemoryExtractionJob(id: MemoryExtractionJobID(id), sourceMessageID: MessageID(messageID), conversationID: ConversationID(conversationID), policyRevision: row["policy_revision"] as Int, extractorVersion: row["extractor_version"] as Int, state: state, attemptCount: row["attempt_count"] as Int, createdAt: Date(timeIntervalSince1970: row["created_at"] as Double), updatedAt: Date(timeIntervalSince1970: row["updated_at"] as Double), error: error, memoryIDs: memoryIDs, candidateMemoryIDs: candidateMemoryIDs)
+        job.callUsages = try Row.fetchAll(db, sql: "SELECT id, route_json, usage_json, status, dispatched_at FROM memory_extraction_attempts WHERE job_id = ? AND dispatched_at IS NOT NULL ORDER BY ordinal, rowid", arguments: [row["id"] as String]).map { attempt in
+            guard let attemptID = UUID(uuidString: attempt["id"] as String), let dispatchedAt = attempt["dispatched_at"] as Double? else { throw MiraError(.storage, "The memory extraction attempt is invalid.") }
+            let route: ResolvedModelRouteSnapshot = try Self.decodeRoute(attempt["route_json"] as String)
+            let usage: TokenUsage = try Self.decode(attempt["usage_json"] as String)
+            try usage.validate()
+            return ModelCallUsage(id: attemptID, route: route, usage: usage, createdAt: Date(timeIntervalSince1970: dispatchedAt), isComplete: (attempt["status"] as String) == "completed")
+        }
+        return job
     }
 
     func extractionSource(_ job: MemoryExtractionJob, in db: Database) throws -> MemoryExtractionSource {
@@ -464,7 +475,7 @@ extension SQLiteMiraStore {
     }
 
     private func execution(_ executionID: ExecutionID, in db: Database) throws -> Execution? {
-        guard let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at, body_purged_at FROM executions WHERE id = ?", arguments: [id(executionID)]) else { return nil }
+        guard let row = try Row.fetchOne(db, sql: "SELECT id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_json, error_json, created_at, updated_at, body_purged_at FROM executions WHERE id = ?", arguments: [id(executionID)]) else { return nil }
         return try Self.execution(row)
     }
 
@@ -511,7 +522,7 @@ extension SQLiteMiraStore {
                       ((row["workspace_id"] as String?) == (try String.fetchOne(db, sql: "SELECT workspace_id FROM conversations WHERE id = ?", arguments: [row["conversation_id"] as String]))) else { throw MiraError(.storage, "The memory extraction source identity is invalid.") }
             }
         }
-        for row in try Row.fetchAll(db, sql: "SELECT id, job_id, ordinal, lease_id, status, request_json, output_json, reserved_tokens, charged_tokens, usage_input, usage_output, budget_day, created_at, dispatched_at, completed_at, body_purged_at FROM memory_extraction_attempts") {
+        for row in try Row.fetchAll(db, sql: "SELECT id, job_id, ordinal, lease_id, status, request_json, output_json, reserved_tokens, charged_tokens, usage_json, budget_day, created_at, dispatched_at, completed_at, body_purged_at FROM memory_extraction_attempts") {
             guard UUID(uuidString: row["id"] as String) != nil, UUID(uuidString: row["job_id"] as String) != nil, (row["ordinal"] as Int) > 0, !(row["lease_id"] as String).isEmpty,
                   (row["reserved_tokens"] as Int) >= 0, (row["charged_tokens"] as Int) >= 0, (row["budget_day"] as String).count == 10,
                   (row["created_at"] as Double) > 0 else { throw MiraError(.storage, "The memory extraction attempt is invalid.") }

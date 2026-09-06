@@ -166,6 +166,8 @@ Memory / Knowledge 后台任务
 
 ### 1.8 Usage 与成本
 
+The current implementation contract, cache counter semantics, frozen pricing, and supported estimate range are defined in [Usage and cost](USAGE_AND_COST.md).
+
 规范 Usage：
 
 ```text

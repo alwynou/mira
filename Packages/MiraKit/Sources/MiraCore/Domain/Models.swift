@@ -69,13 +69,6 @@ public enum ExecutionStatus: String, Codable, Sendable, CaseIterable {
     case queued, waitingForModel, completed, failed, cancelled, interrupted
     public var isTerminal: Bool { [.completed, .failed, .cancelled, .interrupted].contains(self) }
 }
-public struct TokenUsage: Codable, Sendable, Equatable {
-    public var inputTokens: Int?
-    public var outputTokens: Int?
-    public init(inputTokens: Int? = nil, outputTokens: Int? = nil) {
-        self.inputTokens = inputTokens; self.outputTokens = outputTokens
-    }
-}
 public struct Execution: Identifiable, Codable, Sendable, Equatable {
     public var id: ExecutionID
     public var conversationID: ConversationID

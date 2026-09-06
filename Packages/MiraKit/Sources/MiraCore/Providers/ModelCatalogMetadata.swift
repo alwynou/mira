@@ -27,17 +27,20 @@ public struct ModelCatalogMetadata: Codable, Sendable, Equatable {
     public let reasoning: Bool?
     public let requiresReasoningContinuation: Bool
     public let task: ModelCatalogTask
+    public let pricing: ModelPricing?
 
-    public init(providerID: String, modelID: String, displayName: String? = nil, sourceURL: String, sourceRevision: String, retrievedAt: String, contextWindow: Int? = nil, maxOutputTokens: Int? = nil, inputModalities: [String] = [], outputModalities: [String] = [], toolCall: Bool? = nil, structuredOutput: Bool? = nil, reasoning: Bool? = nil, requiresReasoningContinuation: Bool = false, task: ModelCatalogTask = .unknown) {
+    public init(providerID: String, modelID: String, displayName: String? = nil, sourceURL: String, sourceRevision: String, retrievedAt: String, contextWindow: Int? = nil, maxOutputTokens: Int? = nil, inputModalities: [String] = [], outputModalities: [String] = [], toolCall: Bool? = nil, structuredOutput: Bool? = nil, reasoning: Bool? = nil, requiresReasoningContinuation: Bool = false, task: ModelCatalogTask = .unknown, pricing: ModelPricing? = nil) {
         self.providerID = providerID; self.modelID = modelID; self.displayName = displayName
         self.sourceURL = sourceURL; self.sourceRevision = sourceRevision; self.retrievedAt = retrievedAt
         self.contextWindow = contextWindow; self.maxOutputTokens = maxOutputTokens
         self.inputModalities = inputModalities; self.outputModalities = outputModalities
         self.toolCall = toolCall; self.structuredOutput = structuredOutput; self.reasoning = reasoning
         self.requiresReasoningContinuation = requiresReasoningContinuation; self.task = task
+        self.pricing = pricing
     }
 
     public func validate() throws {
+        try pricing?.validate()
         guard !providerID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               providerID.count <= 300,
               !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,

@@ -185,7 +185,7 @@ func anthropicPath() async throws {
     let provider = HTTPModelProvider(credentials: FixtureCredentials(), transport: transport)
     var events: [CanonicalStreamEvent] = []
     for try await event in provider.stream(request: request(), route: route(.anthropic, baseURL: "https://example.test/api")) { events.append(event) }
-    #expect(events == [.usage(TokenUsage(inputTokens: 4, outputTokens: 0)), .textDelta("hello"), .usage(TokenUsage(inputTokens: 4, outputTokens: 7)), .finished(.outputLimit)])
+    #expect(events == [.usage(TokenUsage(inputTokens: 4, outputTokens: 0, inputTokenBasis: .excludesCache)), .textDelta("hello"), .usage(TokenUsage(inputTokens: 4, outputTokens: 7, inputTokenBasis: .excludesCache)), .finished(.outputLimit)])
 }
 
 @Test("OpenAI payload and Anthropic headers use the frozen route endpoint")
@@ -651,7 +651,7 @@ func anthropicToolCallStream() async throws {
     var events: [CanonicalStreamEvent] = []
     for try await event in HTTPModelProvider(credentials: FixtureCredentials(), transport: transport).stream(request: toolRequest(requestID: UUID()), route: toolRoute(.anthropic)) { events.append(event) }
     #expect(events == [
-        .usage(TokenUsage(inputTokens: nil, outputTokens: nil)),
+        .usage(TokenUsage(inputTokens: nil, outputTokens: nil, inputTokenBasis: .excludesCache)),
         .toolCalls([CanonicalToolCall(id: "toolu-1", name: "memory.search", arguments: #"{"query":"swift"}"#)]),
         .finished(.toolCalls)
     ])

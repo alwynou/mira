@@ -132,6 +132,11 @@ extension SQLiteMiraStore {
         let limit = row["reservation_limit"] as Int
         let reserved = row["reserved_tokens"] as Int
         let charged = row["charged_tokens"] as Int
+        let usage: TokenUsage
+        do {
+            usage = try SQLiteMiraStore.decode(row["usage_json"] as String)
+            try usage.validate()
+        } catch { throw invalid }
         guard limit >= 0, limit <= 10_000_000, reserved >= 0, charged >= 0,
               terminal == ((row["completed_at"] as Double?) != nil),
               terminal ? reserved == 0 : charged == 0 else { throw invalid }
@@ -145,12 +150,9 @@ extension SQLiteMiraStore {
         if sent { guard limit > 0 else { throw invalid } }
         if state == "completed" || state == "paused" { guard sent else { throw invalid } }
         if terminal {
-            let input = row["usage_input"] as Int?
-            let output = row["usage_output"] as Int?
-            guard (input == nil) == (output == nil) else { throw invalid }
-            if let input, let output {
-                guard sent, input >= 0, input <= 100_000_000, output >= 0, output <= 100_000_000,
-                      charged == input + output else { throw invalid }
+            if let input = usage.totalInputTokens, let output = usage.outputTokens {
+                let (actual, overflow) = input.addingReportingOverflow(output)
+                guard sent, !overflow, charged == actual else { throw invalid }
             } else { guard charged == (sent ? limit : 0) else { throw invalid } }
         }
         let dayDate = Date(timeIntervalSince1970: (row["dispatched_at"] as Double?) ?? (row["created_at"] as Double))

@@ -71,6 +71,7 @@ targets:
       - Apps/MiraMac/Presentation/MemoryModel.swift
       - Apps/MiraMac/Presentation/KnowledgeModel.swift
       - Apps/MiraMac/Presentation/SourceCitationModel.swift
+      - Apps/MiraMac/Features/Conversation/UsageCostView.swift
       - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests
     settings:
       base:

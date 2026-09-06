@@ -122,6 +122,9 @@ private struct CatalogDocument: Decodable {
             var modelIDs = Set<String>()
             for model in provider.models {
                 let metadata = model.metadata
+                guard (try? metadata.validate()) != nil else {
+                    throw ProviderModelCatalogError.malformed
+                }
                 guard metadata.providerID == provider.id,
                       validToken(metadata.modelID), modelIDs.insert(metadata.modelID).inserted,
                       validOptionalDisplayText(metadata.displayName),
@@ -136,8 +139,23 @@ private struct CatalogDocument: Decodable {
                       metadata.outputModalities.allSatisfy(validModality) else {
                     throw ProviderModelCatalogError.malformed
                 }
+                if let pricing = metadata.pricing {
+                    guard pricingEndpointsMatch(pricing.baseURLs, providerID: provider.id, providerBaseURL: provider.baseURL) else {
+                        throw ProviderModelCatalogError.malformed
+                    }
+                }
             }
         }
+    }
+
+    private func pricingEndpointsMatch(_ values: [String], providerID: String, providerBaseURL: String) -> Bool {
+        guard let expected = CanonicalAddress(providerBaseURL), !values.isEmpty else { return false }
+        let endpoints = values.compactMap(CanonicalAddress.init)
+        guard endpoints.count == values.count else { return false }
+        if providerID == "deepseek" {
+            return endpoints.allSatisfy { $0.scheme == expected.scheme && $0.host == expected.host && $0.port == expected.port && ($0.path == expected.path || $0.path == expected.path + "/v1") }
+        }
+        return endpoints.count == 1 && endpoints[0] == expected
     }
 }
 

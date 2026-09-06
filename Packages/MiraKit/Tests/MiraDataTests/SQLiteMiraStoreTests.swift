@@ -74,7 +74,7 @@ struct SQLiteMiraStoreTests {
         #expect(try Data(contentsOf: path) == before)
     }
 
-    @Test func catalogAndProtocolFieldsRoundTripThroughSchema10TypedMirrors() throws {
+    @Test func catalogAndProtocolFieldsRoundTripThroughSchema11TypedMirrors() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try SQLiteMiraStore(directory: directory)
@@ -469,13 +469,17 @@ struct SQLiteMiraStoreTests {
         let attempt = ModelAttempt(id: requestID, executionID: execution.id, stepID: UUID(), stepIndex: 1, request: request, createdAt: Date(timeIntervalSince1970: 12))
         try store.prepareAttempt(attempt)
         try store.checkpoint(executionID: execution.id, text: "partial", at: Date(timeIntervalSince1970: 13))
-        try store.finishAttempt(requestID, output: ModelOutput(text: "model", toolCalls: [], finishReason: .stop), invocations: [], usage: TokenUsage(inputTokens: 1, outputTokens: 1), error: nil, at: Date(timeIntervalSince1970: 13.5))
-        _ = try store.finish(executionID: execution.id, status: .completed, text: "done", usage: TokenUsage(inputTokens: 1, outputTokens: 2), error: nil, assistantMessageID: MessageID(), at: Date(timeIntervalSince1970: 14))
+        let attemptUsage = TokenUsage(inputTokens: 100, outputTokens: 30, cacheReadTokens: 40, cacheWriteTokens: 5, reasoningTokens: 10)
+        let executionUsage = TokenUsage(inputTokens: 200_000_000, outputTokens: 42, cacheReadTokens: 80, cacheWriteTokens: 10, reasoningTokens: 12, inputTokenBasis: .excludesCache)
+        try store.finishAttempt(requestID, output: ModelOutput(text: "model", toolCalls: [], finishReason: .stop), invocations: [], usage: attemptUsage, error: nil, at: Date(timeIntervalSince1970: 13.5))
+        _ = try store.finish(executionID: execution.id, status: .completed, text: "done", usage: executionUsage, error: nil, assistantMessageID: MessageID(), at: Date(timeIntervalSince1970: 14))
 
         let reopened = try SQLiteMiraStore(directory: directory)
         #expect(try reopened.workspaces() == [workspace])
         #expect(try reopened.messages(in: conversation.id).map(\.text) == ["hello", "done"])
         #expect(try reopened.executions(in: conversation.id).first?.status == .completed)
+        #expect(try reopened.executions(in: conversation.id).first?.usage == executionUsage)
+        #expect(try reopened.attempts(for: execution.id).first?.usage == attemptUsage)
         #expect(try reopened.draft(for: execution.id) == nil)
     }
 
@@ -591,7 +595,7 @@ struct SQLiteMiraStoreTests {
         }
         try resealTestBackupManifest(backup)
         let sourceBytes = try Data(contentsOf: testBackupDatabaseURL(backup))
-        #expect(SQLiteMiraStore.currentSchemaVersion == 10)
+            #expect(SQLiteMiraStore.currentSchemaVersion == 11)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
         #expect(!FileManager.default.fileExists(atPath: restore.path))

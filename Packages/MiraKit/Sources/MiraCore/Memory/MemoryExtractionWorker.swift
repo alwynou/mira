@@ -128,8 +128,7 @@ public actor MemoryExtractionWorker {
                 var text = ""
                 var reasoning: ReasoningContent?
                 var terminal: StreamFinishReason?
-                var inputTokens: Int?
-                var outputTokens: Int?
+                var usage = TokenUsage()
                 var usageIsUnknown = false
                 try Task.checkCancellation()
                 for try await event in provider.stream(request: request, route: route) {
@@ -147,10 +146,9 @@ public actor MemoryExtractionWorker {
                         throw MiraError(.providerRejected, "Automatic memory extraction does not permit tool calls.")
                     case .usage(let observed):
                         guard !usageIsUnknown else { continue }
-                        guard Self.mergeUsage(observed, input: &inputTokens, output: &outputTokens) else {
+                        guard Self.mergeUsage(observed, into: &usage) else {
                             usageIsUnknown = true
-                            inputTokens = nil
-                            outputTokens = nil
+                            usage = .init()
                             continue
                         }
                     case .finished(let reason):
@@ -164,7 +162,6 @@ public actor MemoryExtractionWorker {
                     throw MiraError(.malformedStream, "Automatic memory extraction returned a non-text finish reason.")
                 }
                 guard reasoning?.isComplete != false else { throw MiraError(.malformedStream, "Thinking content ended before its continuation data was complete.") }
-                let usage = usageIsUnknown ? TokenUsage() : TokenUsage(inputTokens: inputTokens, outputTokens: outputTokens)
                 return (.init(text: text, toolCalls: [], finishReason: .stop, reasoning: reasoning), usage)
             }
             group.addTask {
@@ -178,16 +175,21 @@ public actor MemoryExtractionWorker {
         }
     }
 
-    private static func mergeUsage(_ observed: TokenUsage, input: inout Int?, output: inout Int?) -> Bool {
-        if let value = observed.inputTokens {
-            guard value >= 0, value <= 100_000_000, input.map({ value >= $0 }) ?? true else { return false }
-            input = value
-        }
-        if let value = observed.outputTokens {
-            guard value >= 0, value <= 100_000_000, output.map({ value >= $0 }) ?? true else { return false }
-            output = value
-        }
-        return true
+    private static func mergeUsage(_ observed: TokenUsage, into usage: inout TokenUsage) -> Bool {
+        guard (try? observed.validate()) != nil else { return false }
+        let previous = [usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens, usage.reasoningTokens]
+        let next = [observed.inputTokens, observed.outputTokens, observed.cacheReadTokens, observed.cacheWriteTokens, observed.reasoningTokens]
+        guard zip(previous, next).allSatisfy({ old, new in
+            guard let old, let new else { return true }
+            return new >= old
+        }) else { return false }
+        usage = .init(inputTokens: observed.inputTokens ?? usage.inputTokens,
+                      outputTokens: observed.outputTokens ?? usage.outputTokens,
+                      cacheReadTokens: observed.cacheReadTokens ?? usage.cacheReadTokens,
+                      cacheWriteTokens: observed.cacheWriteTokens ?? usage.cacheWriteTokens,
+                      reasoningTokens: observed.reasoningTokens ?? usage.reasoningTokens,
+                      inputTokenBasis: observed.inputTokenBasis)
+        return (try? usage.validate()) != nil
     }
 
     private func emit(_ event: MemoryExtractionWorkerEvent) {

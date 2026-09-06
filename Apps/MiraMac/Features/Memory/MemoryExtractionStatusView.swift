@@ -71,6 +71,23 @@ struct MemoryExtractionStatusView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
+            CostSummaryView(calls: job.callUsages, isBackground: true)
+            if !job.callUsages.isEmpty {
+                DisclosureGroup("Model call usage") {
+                    ForEach(job.callUsages) { call in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(verbatim: call.route.modelID)
+                            Text(call.createdAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                            UsageCostView(usage: call.usage, route: call.route, isComplete: call.isComplete)
+                            if let metadata = call.route.catalogMetadata, metadata.pricing != nil {
+                                Text(L10n.format("Catalog retrieved: %@", locale: locale, metadata.retrievedAt))
+                                Text(verbatim: metadata.sourceRevision).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                            }
+                        }.font(.caption).padding(.vertical, 6)
+                    }
+                }
+            }
+
             if let error = job.error {
                 Text(L10n.error(error, locale: locale))
                     .font(.callout)

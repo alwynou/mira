@@ -6,6 +6,42 @@ import Testing
 
 @Suite("Atomic memory extraction commit")
 struct MemoryExtractionCommitTests {
+    @Test(arguments: [InputTokenBasis.includesCache, .excludesCache])
+    func persistsExtendedUsageAndChargesInclusiveInput(basis: InputTokenBasis) throws {
+        let fixture = try ExtractionCommitFixture(mode: .candidateOnly)
+        defer { fixture.cleanup() }
+        let claim = try fixture.dispatch("I prefer tea")
+        let usage = TokenUsage(inputTokens: 100, outputTokens: 7, cacheReadTokens: 20, cacheWriteTokens: 5, reasoningTokens: 3, inputTokenBasis: basis)
+        let job = try fixture.store.completeMemoryExtraction(claim, output: fixture.output("I prefer tea"), usage: usage, at: fixture.at)
+        #expect(job.callUsages.count == 1)
+        #expect(job.callUsages.first?.usage == usage)
+        let database = try GRDB.DatabaseQueue(path: fixture.directory.appendingPathComponent("Mira.sqlite").path)
+        #expect(try database.read { db in try Int.fetchOne(db, sql: "SELECT charged_tokens FROM memory_extraction_attempts WHERE id = ?", arguments: [claim.attemptID.uuidString.lowercased()]) } == (basis == .includesCache ? 107 : 132))
+    }
+
+    @Test func missingExclusiveCacheUsagePreservesPartialCountersAndChargesReservation() throws {
+        let fixture = try ExtractionCommitFixture(mode: .candidateOnly)
+        defer { fixture.cleanup() }
+        let claim = try fixture.dispatch("I prefer tea")
+        let database = try GRDB.DatabaseQueue(path: fixture.directory.appendingPathComponent("Mira.sqlite").path)
+        let reserved = try database.read { db in try Int.fetchOne(db, sql: "SELECT reserved_tokens FROM memory_extraction_attempts WHERE id = ?", arguments: [claim.attemptID.uuidString.lowercased()]) }
+        let usage = TokenUsage(inputTokens: 100, outputTokens: 7, cacheReadTokens: 20, inputTokenBasis: .excludesCache)
+        let job = try fixture.store.completeMemoryExtraction(claim, output: fixture.output("I prefer tea"), usage: usage, at: fixture.at)
+        #expect(job.callUsages.first?.usage == usage)
+        #expect(try database.read { db in try Int.fetchOne(db, sql: "SELECT charged_tokens FROM memory_extraction_attempts WHERE id = ?", arguments: [claim.attemptID.uuidString.lowercased()]) } == reserved)
+    }
+
+    @Test func rejectsInvalidUsageBeforeSettlingAttempt() throws {
+        let fixture = try ExtractionCommitFixture(mode: .candidateOnly)
+        defer { fixture.cleanup() }
+        let claim = try fixture.dispatch("I prefer tea")
+        #expect(throws: MiraError.self) {
+            _ = try fixture.store.completeMemoryExtraction(claim, output: fixture.output("I prefer tea"), usage: .init(inputTokens: -1, outputTokens: 7), at: fixture.at)
+        }
+        let database = try GRDB.DatabaseQueue(path: fixture.directory.appendingPathComponent("Mira.sqlite").path)
+        #expect(try database.read { db in try String.fetchOne(db, sql: "SELECT status FROM memory_extraction_attempts WHERE id = ?", arguments: [claim.attemptID.uuidString.lowercased()]) } == "dispatched")
+    }
+
     @Test(arguments: [1_800_000_000.123456, 1_788_616_032.27312, 1_000.0000001])
     func fractionalActivationAndReviewedMemorySurviveBackup(_ seconds: Double) throws {
         let fixture = try ExtractionCommitFixture(mode: .candidateOnly, at: Date(timeIntervalSince1970: seconds)); defer { fixture.cleanup() }

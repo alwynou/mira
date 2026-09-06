@@ -344,7 +344,7 @@ private struct M5PerformanceFixture {
                     let assistantID = Self.assistantMessageID(conversationIndex, pair)
                     let userText = Self.messageText(conversationIndex, pair, role: "user")
                     let created = date.addingTimeInterval(Double(conversationIndex * 100 + pair))
-                    try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'completed', ?, NULL, NULL, NULL, ?, ?)", arguments: [SQLiteMiraStore.id(executionID), SQLiteMiraStore.id(conversations[conversationIndex].id), SQLiteMiraStore.id(userID), routeJSON, created.timeIntervalSince1970, created.timeIntervalSince1970])
+                    try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_json, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'completed', ?, ?, NULL, ?, ?)", arguments: [SQLiteMiraStore.id(executionID), SQLiteMiraStore.id(conversations[conversationIndex].id), SQLiteMiraStore.id(userID), routeJSON, SQLiteMiraStore.encode(TokenUsage()), created.timeIntervalSince1970, created.timeIntervalSince1970])
                     try insertMessage(db, id: userID, conversationID: conversations[conversationIndex].id, executionID: executionID, sequence: pair * 2 + 1, role: "user", text: userText, createdAt: created)
                     try insertMessage(db, id: assistantID, conversationID: conversations[conversationIndex].id, executionID: executionID, sequence: pair * 2 + 2, role: "assistant", text: "M5 assistant reply \(conversationIndex)-\(pair)", createdAt: created.addingTimeInterval(0.1))
                 }
@@ -352,13 +352,13 @@ private struct M5PerformanceFixture {
                     let failedExecution = Self.executionID(conversationIndex, 49)
                     let failedUser = Self.userMessageID(conversationIndex, 49)
                     let failedCreated = date.addingTimeInterval(4_900)
-                    try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'failed', ?, NULL, NULL, NULL, ?, ?)", arguments: [SQLiteMiraStore.id(failedExecution), SQLiteMiraStore.id(conversations[0].id), SQLiteMiraStore.id(failedUser), routeJSON, failedCreated.timeIntervalSince1970, failedCreated.timeIntervalSince1970])
+            try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_json, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'failed', ?, ?, NULL, ?, ?)", arguments: [SQLiteMiraStore.id(failedExecution), SQLiteMiraStore.id(conversations[0].id), SQLiteMiraStore.id(failedUser), routeJSON, SQLiteMiraStore.encode(TokenUsage()), failedCreated.timeIntervalSince1970, failedCreated.timeIntervalSince1970])
                     try insertMessage(db, id: failedUser, conversationID: conversations[0].id, executionID: failedExecution, sequence: 99, role: "user", text: Self.messageText(0, 49, role: "user"), createdAt: failedCreated)
 
                     let currentExecution = Self.executionID(conversationIndex, 50)
                     let trigger = Self.userMessageID(conversationIndex, 50)
                     let currentCreated = date.addingTimeInterval(5_000)
-                    try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_input, usage_output, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'queued', ?, NULL, NULL, NULL, ?, ?)", arguments: [SQLiteMiraStore.id(currentExecution), SQLiteMiraStore.id(conversations[0].id), SQLiteMiraStore.id(trigger), routeJSON, currentCreated.timeIntervalSince1970, currentCreated.timeIntervalSince1970])
+            try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_json, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'queued', ?, ?, NULL, ?, ?)", arguments: [SQLiteMiraStore.id(currentExecution), SQLiteMiraStore.id(conversations[0].id), SQLiteMiraStore.id(trigger), routeJSON, SQLiteMiraStore.encode(TokenUsage()), currentCreated.timeIntervalSince1970, currentCreated.timeIntervalSince1970])
                     try insertMessage(db, id: trigger, conversationID: conversations[0].id, executionID: currentExecution, sequence: 100, role: "user", text: "M5 memory preference query", createdAt: currentCreated)
                 }
             }

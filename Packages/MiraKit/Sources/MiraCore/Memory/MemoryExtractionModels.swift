@@ -54,6 +54,7 @@ public struct MemoryExtractionJob: Identifiable, Sendable {
     public var error: MiraError?
     public var memoryIDs: [MemoryID]
     public var candidateMemoryIDs: [MemoryID]
+    public var callUsages: [ModelCallUsage] = []
     public init(id: MemoryExtractionJobID, sourceMessageID: MessageID, conversationID: ConversationID, policyRevision: Int, extractorVersion: Int = 1, state: MemoryExtractionJobState, attemptCount: Int = 0, createdAt: Date, updatedAt: Date, error: MiraError? = nil, memoryIDs: [MemoryID] = [], candidateMemoryIDs: [MemoryID] = []) {
         self.id = id; self.sourceMessageID = sourceMessageID; self.conversationID = conversationID
         self.policyRevision = policyRevision; self.extractorVersion = extractorVersion; self.state = state

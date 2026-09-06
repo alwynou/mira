@@ -505,6 +505,11 @@ public actor MiraApplication {
     private func receiveOutput(request: CanonicalModelRequest, execution: Execution, priorSteps: Int, attemptUsage: inout TokenUsage) async throws -> ModelOutput {
         var terminal: StreamFinishReason?, calls: [CanonicalToolCall] = [], sawCalls = false, stepText = ""
         let priorUsage = usage[execution.id] ?? .init()
+        defer {
+            // A failed or cancelled call without usage must also invalidate
+            // an otherwise known multi-step total.
+            usage[execution.id] = priorSteps == 0 ? attemptUsage : priorUsage.adding(attemptUsage)
+        }
         let prefix = text[execution.id] ?? ""
         let previousTrace = traces[execution.id] ?? []
         var reasoning: ReasoningContent?
@@ -546,22 +551,15 @@ public actor MiraApplication {
                 traces[execution.id] = currentTrace()
                 pendingCheckpointBytes[execution.id, default: 0] += 1
             case .usage(let next):
-                guard (next.inputTokens ?? 0) >= 0, (next.outputTokens ?? 0) >= 0,
-                      (next.inputTokens ?? 0) <= 100_000_000, (next.outputTokens ?? 0) <= 100_000_000 else { throw MiraError(.malformedStream, "Service returned invalid usage.") }
+                try next.validate()
                 attemptUsage = next
-                usage[execution.id] = priorSteps == 0 ? next : .init(
-                    inputTokens: priorUsage.inputTokens.flatMap { old in next.inputTokens.map { old + $0 } },
-                    outputTokens: priorUsage.outputTokens.flatMap { old in next.outputTokens.map { old + $0 } })
+                usage[execution.id] = priorSteps == 0 ? next : priorUsage.adding(next)
             case .finished(let reason): terminal = reason
             }
         }
         try Task.checkCancellation()
         guard let terminal else { throw MiraError(.malformedStream, "Connection ended early; the reply may be incomplete.") }
         guard (terminal == .toolCalls) == !calls.isEmpty else { throw MiraError(.malformedStream, "Tool calls do not match the model's stop reason.") }
-        // A missing report in any attempt keeps the aggregate unknown, rather than reusing the last attempt's total.
-        usage[execution.id] = priorSteps == 0 ? attemptUsage : .init(
-            inputTokens: priorUsage.inputTokens.flatMap { old in attemptUsage.inputTokens.map { old + $0 } },
-            outputTokens: priorUsage.outputTokens.flatMap { old in attemptUsage.outputTokens.map { old + $0 } })
         guard reasoning?.isComplete != false else { throw MiraError(.malformedStream, "Thinking content ended before its continuation data was complete.") }
         traces[execution.id] = currentTrace()
         return .init(text: stepText, toolCalls: calls, finishReason: terminal, reasoning: reasoning)

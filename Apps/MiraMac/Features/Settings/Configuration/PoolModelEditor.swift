@@ -142,6 +142,16 @@ struct PoolModelEditor: View {
                 LabeledContent("Input Modalities") { Text(verbatim: metadata.inputModalities.joined(separator: ", ")) }
                 LabeledContent("Output Modalities") { Text(verbatim: metadata.outputModalities.joined(separator: ", ")) }
                 Text(L10n.format("Catalog retrieved: %@", locale: locale, metadata.retrievedAt))
+                if let pricing = metadata.pricing {
+                    Text(L10n.format("Catalog USD per million tokens · Input: %@ · Output: %@", locale: locale,
+                                     CostPresentation.amount(pricing.input, locale: locale), CostPresentation.amount(pricing.output, locale: locale)))
+                    if let read = pricing.cacheRead {
+                        Text(L10n.format("Cached input USD per million tokens: %@", locale: locale, CostPresentation.amount(read, locale: locale)))
+                    }
+                    Text("Estimates use the catalog frozen for each call. They are not the provider's bill.")
+                } else {
+                    Text("No supported text pricing is saved for this model.")
+                }
                 if let output = metadata.maxOutputTokens {
                     Text(L10n.format("Catalog output limit: %@ tokens", locale: locale, String(output)))
                 }

@@ -7,6 +7,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,11 @@ OFFICIAL_BASE_URLS = {
     "siliconflow-cn": "https://api.siliconflow.cn/v1",
     "siliconflow": "https://api.siliconflow.com/v1",
     "openrouter": "https://openrouter.ai/api/v1",
+}
+OFFICIAL_PRICING_BASE_URLS = {
+    **{provider_id: [base_url] for provider_id, base_url in OFFICIAL_BASE_URLS.items()},
+    # The adapter accepts both forms for the native DeepSeek endpoint.
+    "deepseek": ["https://api.deepseek.com", "https://api.deepseek.com/v1"],
 }
 OFFICIAL_DOCUMENTATION_URLS = {
     "openai": "https://developers.openai.com/api/reference/resources/models/methods/list",
@@ -82,6 +88,101 @@ def optional_bool(value: Any, field: str) -> bool | None:
     if not isinstance(value, bool):
         fail(f"invalid {field}")
     return value
+
+
+def pricing_rate(value: Any, field: str) -> int | float:
+    """Validate a models.dev USD/MTok rate without treating missing as zero."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        fail(f"invalid {field}")
+    if value < 0 or value > 1_000_000:
+        fail(f"invalid {field}")
+    return value
+
+
+def catalog_pricing(provider_id: str, model_id: str, raw: dict[str, Any], task: str) -> dict[str, Any] | None:
+    """Keep only below-threshold text-token pricing supported by Mira's estimator.
+
+    models.dev also publishes context tiers, reasoning-specific rates, audio
+    rates and cache-write rates. Only the base tariff below the first verified
+    context threshold is retained; the higher bands remain unsupported.
+    """
+    cost = raw.get("cost")
+    if cost is None:
+        return None
+    if not isinstance(cost, dict):
+        fail(f"invalid cost {provider_id}/{model_id}")
+    input_rate = pricing_rate(cost.get("input"), f"input price {provider_id}/{model_id}")
+    output_rate = pricing_rate(cost.get("output"), f"output price {provider_id}/{model_id}")
+    for key in ("reasoning", "cache_read", "cache_write", "input_audio", "output_audio"):
+        if key in cost:
+            pricing_rate(cost[key], f"{key} price {provider_id}/{model_id}")
+    tiers = cost.get("tiers")
+    maximum_input_tokens: int | None = None
+    if "tiers" in cost:
+        if not isinstance(tiers, list):
+            fail(f"invalid pricing tiers {provider_id}/{model_id}")
+        tier_sizes: list[int] = []
+        for index, tier in enumerate(tiers):
+            if not isinstance(tier, dict):
+                fail(f"invalid pricing tier {provider_id}/{model_id}/{index}")
+            tier_info = tier.get("tier")
+            if not isinstance(tier_info, dict) or tier_info.get("type") != "context":
+                fail(f"invalid pricing tier {provider_id}/{model_id}/{index}")
+            size = tier_info.get("size")
+            if isinstance(size, bool) or not isinstance(size, int) or not 0 < size <= 10_000_000:
+                fail(f"invalid pricing tier size {provider_id}/{model_id}/{index}")
+            # CostTier has the same required/optional rates as Cost. Validate
+            # them even though this increment does not apply higher bands.
+            for key in ("input", "output"):
+                pricing_rate(tier.get(key), f"tier {key} price {provider_id}/{model_id}/{index}")
+            for key in ("reasoning", "cache_read", "cache_write", "input_audio", "output_audio"):
+                if key in tier:
+                    pricing_rate(tier[key], f"tier {key} price {provider_id}/{model_id}/{index}")
+            tier_sizes.append(size)
+        if len(set(tier_sizes)) != len(tier_sizes):
+            fail(f"duplicate pricing tier size {provider_id}/{model_id}")
+        if tier_sizes:
+            # The tier size is the first token count at which the higher
+            # tariff starts. Stop one token earlier to avoid pricing equality
+            # at an unsupported boundary with the base rate.
+            maximum_input_tokens = min(tier_sizes) - 1
+
+    legacy = cost.get("context_over_200k")
+    if "context_over_200k" in cost:
+        if not isinstance(legacy, dict):
+            fail(f"invalid legacy pricing tier {provider_id}/{model_id}")
+        for key in ("input", "output"):
+            pricing_rate(legacy.get(key), f"legacy {key} price {provider_id}/{model_id}")
+        for key in ("reasoning", "cache_read", "cache_write", "input_audio", "output_audio"):
+            if key in legacy:
+                pricing_rate(legacy[key], f"legacy {key} price {provider_id}/{model_id}")
+        # This field represents the legacy >200k band. Keep only its proven
+        # base range, even when a modern tier list is also present.
+        maximum_input_tokens = min(maximum_input_tokens or 199_999, 199_999)
+    # Reasoning is a separate billable dimension in the upstream schema and
+    # is not represented by Mira's current usage contract.
+    if "reasoning" in cost:
+        return None
+    # This increment is text-generation only. Do not attach token prices to
+    # non-text tasks or models carrying separate audio tariffs.
+    if task != "textGeneration" or any(cost.get(key) is not None for key in ("input_audio", "output_audio")):
+        return None
+    # Cache-write rates are deliberately not copied into ModelPricing. The
+    # runtime still prices calls with no reported writes; a positive reported
+    # write count returns unsupportedCacheWrite instead of using this tariff.
+    result = {
+        "input": input_rate,
+        "output": output_rate,
+        "baseURLs": OFFICIAL_PRICING_BASE_URLS[provider_id],
+    }
+    if maximum_input_tokens is not None:
+        if maximum_input_tokens < 1:
+            return None
+        result["maxInputTokens"] = maximum_input_tokens
+    cache_read = cost.get("cache_read")
+    if cache_read is not None:
+        result["cacheRead"] = pricing_rate(cache_read, f"cache_read price {provider_id}/{model_id}")
+    return result
 
 
 def bounded_int(value: Any, field: str) -> int | None:
@@ -188,6 +289,9 @@ def normalize_model(provider_id: str, raw_id: str, raw: Any, source_revision: st
         "requiresReasoningContinuation": requires_continuation,
         "task": task,
     }
+    pricing = catalog_pricing(provider_id, model_id, raw, task)
+    if pricing is not None:
+        metadata["pricing"] = pricing
     return {
         "metadata": metadata,
         "suggestedProtocolMode": suggested_mode(provider_id, model_id, raw, task),

@@ -54,6 +54,78 @@ class ModelCatalogGeneratorTests(unittest.TestCase):
         self.assertEqual(normalized["metadata"]["task"], "embedding")
         self.assertIsNone(normalized["metadata"]["maxOutputTokens"])
 
+    def test_flat_text_pricing_preserves_usd_rates_and_exact_endpoints(self):
+        raw = model("deepseek-chat", cost={
+            "input": 0.14, "output": 0.28, "cache_read": 0.0028,
+        })
+        normalized = catalog.normalize_model("deepseek", raw["id"], raw, "fixture", "2026-09-06T00:00:00Z")
+        pricing = normalized["metadata"]["pricing"]
+        self.assertEqual(pricing["input"], 0.14)
+        self.assertEqual(pricing["output"], 0.28)
+        self.assertEqual(pricing["cacheRead"], 0.0028)
+        self.assertEqual(pricing["baseURLs"], [
+            "https://api.deepseek.com", "https://api.deepseek.com/v1",
+        ])
+        self.assertNotIn("maxInputTokens", pricing)
+        self.assertNotIn("effectiveAt", pricing)
+
+    def test_unsupported_pricing_dimensions_are_omitted(self):
+        cases = [
+            {"input": 1, "output": 2, "reasoning": 0.5},
+            {"input": 1, "output": 2, "reasoning": 0},
+            {"input": 1, "output": 2, "input_audio": 0.5},
+        ]
+        for cost in cases:
+            with self.subTest(cost=cost):
+                raw = model(cost=cost)
+                normalized = catalog.normalize_model("fixture", "fixture", raw, "fixture", "2026-09-06T00:00:00Z")
+                self.assertNotIn("pricing", normalized["metadata"])
+
+    def test_context_tiers_scope_base_pricing_one_token_below_first_boundary(self):
+        raw = model(cost={
+            "input": 1, "output": 2,
+            "tiers": [
+                {"input": 3, "output": 4, "tier": {"type": "context", "size": 200000}},
+                {"input": 5, "output": 6, "tier": {"type": "context", "size": 400000}},
+            ],
+        })
+        normalized = catalog.normalize_model("openai", "fixture", raw, "fixture", "2026-09-06T00:00:00Z")
+        self.assertEqual(normalized["metadata"]["pricing"]["maxInputTokens"], 199999)
+
+        legacy = model(cost={"input": 1, "output": 2, "context_over_200k": {"input": 3, "output": 4}})
+        normalized = catalog.normalize_model("openai", "fixture", legacy, "fixture", "2026-09-06T00:00:00Z")
+        self.assertEqual(normalized["metadata"]["pricing"]["maxInputTokens"], 199999)
+
+    def test_malformed_context_tiers_are_rejected(self):
+        for tiers in (
+            [{"input": 3, "output": 4, "tier": {"type": "tokens", "size": 200000}}],
+            [{"input": 3, "output": 4, "tier": {"type": "context", "size": 0}}],
+            [{"input": 3, "output": 4, "tier": {"type": "context", "size": True}}],
+            [{"input": 3, "output": 4, "tier": {"type": "context", "size": 10_000_001}}],
+            [{"input": 3, "output": 4, "tier": {"type": "context", "size": 200000}},
+             {"input": 5, "output": 6, "tier": {"type": "context", "size": 200000}}],
+        ):
+            with self.subTest(tiers=tiers), self.assertRaises(catalog.CatalogInputError):
+                catalog.normalize_model("openai", "fixture", model(cost={"input": 1, "output": 2, "tiers": tiers}), "fixture", "2026-09-06T00:00:00Z")
+
+    def test_cache_write_rate_is_omitted_but_flat_pricing_remains_available(self):
+        raw = model(cost={"input": 1, "output": 2, "cache_read": 0.1, "cache_write": 0.5})
+        normalized = catalog.normalize_model("openai", "fixture", raw, "fixture", "2026-09-06T00:00:00Z")
+        self.assertEqual(normalized["metadata"]["pricing"], {
+            "input": 1, "output": 2, "cacheRead": 0.1,
+            "baseURLs": ["https://api.openai.com/v1"],
+        })
+
+    def test_pricing_rates_reject_missing_negative_boolean_and_nonfinite_values(self):
+        for cost in (
+            {"output": 1},
+            {"input": 1, "output": -1},
+            {"input": True, "output": 1},
+            {"input": float("nan"), "output": 1},
+        ):
+            with self.subTest(cost=cost), self.assertRaises(catalog.CatalogInputError):
+                catalog.normalize_model("fixture", "fixture", model(cost=cost), "fixture", "2026-09-06T00:00:00Z")
+
     def test_protocol_suggestions_require_reasoning_and_match_provider_contracts(self):
         self.assertEqual(catalog.suggested_mode("moonshotai", "kimi-k3", {"reasoning": True}), "kimi")
         self.assertEqual(catalog.suggested_mode("moonshotai-cn", "kimi-k2.7-code", {"reasoning": True}), "kimi")

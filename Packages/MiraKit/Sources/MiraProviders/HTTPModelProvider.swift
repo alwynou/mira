@@ -243,6 +243,15 @@ private func yieldText(
     if !piece.isEmpty { try yieldCanonical(.textDelta(piece), to: continuation) }
 }
 
+private func validatedProviderUsage(_ usage: TokenUsage) throws -> TokenUsage {
+    do {
+        try usage.validate()
+        return usage
+    } catch {
+        throw ProviderProtocolError.malformed
+    }
+}
+
 private struct OpenAIStreamState {
     private var finish: StreamFinishReason?
     private var sawDone = false
@@ -299,7 +308,7 @@ private struct OpenAIStreamState {
         if chunk.error != nil { throw ProviderProtocolError.provider }
 
         if let reported = chunk.usage {
-            let next = TokenUsage(inputTokens: reported.promptTokens, outputTokens: reported.completionTokens)
+            let next = try reported.tokenUsage()
             // Provider usage reports are cumulative snapshots. Never add them.
             if usage != next {
                 usage = next
@@ -469,6 +478,8 @@ private struct AnthropicStreamState {
     private var finish: StreamFinishReason?
     private var inputTokens: Int?
     private var outputTokens: Int?
+    private var cacheReadTokens: Int?
+    private var cacheWriteTokens: Int?
     private var lastUsage: TokenUsage?
     private var nextBlockIndex = 0
     private var openBlockIndex: Int?
@@ -510,7 +521,11 @@ private struct AnthropicStreamState {
             started = true
             inputTokens = message.usage?.inputTokens
             outputTokens = message.usage?.outputTokens
-            let current = TokenUsage(inputTokens: inputTokens, outputTokens: outputTokens)
+            cacheReadTokens = message.usage?.cacheReadInputTokens
+            cacheWriteTokens = message.usage?.cacheCreationInputTokens
+            let current = try validatedProviderUsage(.init(inputTokens: inputTokens, outputTokens: outputTokens,
+                                                           cacheReadTokens: cacheReadTokens, cacheWriteTokens: cacheWriteTokens,
+                                                           inputTokenBasis: .excludesCache))
             if message.usage != nil {
                 lastUsage = current
                 try yieldCanonical(.usage(current), to: continuation)
@@ -631,7 +646,11 @@ private struct AnthropicStreamState {
             if let reported = value.usage {
                 if let input = reported.inputTokens { inputTokens = input }
                 if let output = reported.outputTokens { outputTokens = output }
-                let current = TokenUsage(inputTokens: inputTokens, outputTokens: outputTokens)
+                if let cacheRead = reported.cacheReadInputTokens { cacheReadTokens = cacheRead }
+                if let cacheWrite = reported.cacheCreationInputTokens { cacheWriteTokens = cacheWrite }
+                let current = try validatedProviderUsage(.init(inputTokens: inputTokens, outputTokens: outputTokens,
+                                                               cacheReadTokens: cacheReadTokens, cacheWriteTokens: cacheWriteTokens,
+                                                               inputTokenBasis: .excludesCache))
                 if lastUsage != current {
                     lastUsage = current
                     try yieldCanonical(.usage(current), to: continuation)
@@ -1036,7 +1055,39 @@ private struct OpenAIResponseToolCall: Decodable {
     let function: OpenAIFunctionCall?
 }
 private struct OpenAIFunctionCall: Decodable { let name: String?; let arguments: String? }
-private struct OpenAIUsage: Decodable { let promptTokens: Int?; let completionTokens: Int?; enum CodingKeys: String, CodingKey { case promptTokens = "prompt_tokens"; case completionTokens = "completion_tokens" } }
+private struct OpenAIUsage: Decodable {
+    let promptTokens: Int?
+    let completionTokens: Int?
+    let promptTokensDetails: OpenAITokenDetails?
+    let completionTokensDetails: OpenAITokenDetails?
+    let cachedTokens: Int?
+    let promptCacheHitTokens: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case promptTokens = "prompt_tokens"
+        case completionTokens = "completion_tokens"
+        case promptTokensDetails = "prompt_tokens_details"
+        case completionTokensDetails = "completion_tokens_details"
+        case cachedTokens = "cached_tokens"
+        case promptCacheHitTokens = "prompt_cache_hit_tokens"
+    }
+
+    func tokenUsage() throws -> TokenUsage {
+        let cacheReads = [promptTokensDetails?.cachedTokens, cachedTokens, promptCacheHitTokens].compactMap { $0 }
+        guard Set(cacheReads).count <= 1 else { throw ProviderProtocolError.malformed }
+        return try validatedProviderUsage(.init(inputTokens: promptTokens, outputTokens: completionTokens,
+                                                cacheReadTokens: cacheReads.first,
+                                                reasoningTokens: completionTokensDetails?.reasoningTokens))
+    }
+}
+private struct OpenAITokenDetails: Decodable {
+    let cachedTokens: Int?
+    let reasoningTokens: Int?
+    enum CodingKeys: String, CodingKey {
+        case cachedTokens = "cached_tokens"
+        case reasoningTokens = "reasoning_tokens"
+    }
+}
 private struct OpenAIError: Decodable { let message: String?; let type: String? }
 
 private struct AnthropicRequest: Encodable {
@@ -1228,7 +1279,18 @@ private func validateAnthropicThinkingBlocks(_ blocks: [JSONValue]) throws {
 
 private struct AnthropicMessageStart: Decodable { let message: AnthropicMessageEnvelope? }
 private struct AnthropicMessageEnvelope: Decodable { let usage: AnthropicUsage? }
-private struct AnthropicUsage: Decodable { let inputTokens: Int?; let outputTokens: Int?; enum CodingKeys: String, CodingKey { case inputTokens = "input_tokens"; case outputTokens = "output_tokens" } }
+private struct AnthropicUsage: Decodable {
+    let inputTokens: Int?
+    let outputTokens: Int?
+    let cacheReadInputTokens: Int?
+    let cacheCreationInputTokens: Int?
+    enum CodingKeys: String, CodingKey {
+        case inputTokens = "input_tokens"
+        case outputTokens = "output_tokens"
+        case cacheReadInputTokens = "cache_read_input_tokens"
+        case cacheCreationInputTokens = "cache_creation_input_tokens"
+    }
+}
 private struct AnthropicContentBlockStart: Decodable { let index: Int?; let contentBlock: AnthropicWireContentBlock?; enum CodingKeys: String, CodingKey { case index; case contentBlock = "content_block" } }
 private struct AnthropicWireContentBlock: Decodable {
     let type: String?

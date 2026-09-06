@@ -58,6 +58,14 @@ func bundledCatalogProvenanceAndModes() throws {
     #expect(deepSeek.suggestedProtocolMode == .deepSeek)
     let kimi = try #require(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.moonshot.ai/v1"), modelID: "kimi-k2-thinking"))
     #expect(kimi.suggestedProtocolMode == .kimi)
+
+    let priced = try #require(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.openai.com/v1"), modelID: "gpt-5"))
+    #expect(priced.metadata.pricing?.input == Decimal(string: "1.25"))
+    #expect(priced.metadata.pricing?.output == Decimal(string: "10"))
+    #expect(priced.metadata.pricing?.cacheRead == Decimal(string: "0.125"))
+    #expect(priced.metadata.pricing?.baseURLs == ["https://api.openai.com/v1"])
+    #expect(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.anthropic.com/v1"), modelID: "claude-sonnet-4-6")?.metadata.pricing == nil)
+    #expect(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.deepseek.com/v1"), modelID: "deepseek-v4-pro")?.metadata.pricing == nil)
 }
 
 @Test("Catalog matching requires exact canonical endpoints and supports only DeepSeek's /v1 alias")
@@ -84,6 +92,41 @@ func malformedCatalogAndUnknownMetadata() throws {
     #expect(model.metadata.contextWindow == nil)
     #expect(model.metadata.maxOutputTokens == nil)
     #expect(model.metadata.toolCall == nil)
+}
+
+@Test("Catalog pricing provenance is restricted to the registered provider endpoint")
+func pricingProvenanceMatchesProviderEndpoint() throws {
+    var object = try #require(JSONSerialization.jsonObject(with: minimalCatalogJSON()) as? [String: Any])
+    var providers = try #require(object["providers"] as? [[String: Any]])
+    var provider = try #require(providers.first)
+    var models = try #require(provider["models"] as? [[String: Any]])
+    var model = try #require(models.first)
+    var metadata = try #require(model["metadata"] as? [String: Any])
+    metadata["pricing"] = ["input": 1.0, "output": 2.0, "baseURLs": ["https://other.example/v1"]]
+    model["metadata"] = metadata
+    models[0] = model
+    provider["models"] = models
+    providers[0] = provider
+    object["providers"] = providers
+    let tampered = try JSONSerialization.data(withJSONObject: object)
+    #expect(throws: ProviderModelCatalogError.malformed) {
+        try ProviderModelCatalog(data: tampered)
+    }
+
+    metadata["task"] = "textGeneration"
+    metadata["pricing"] = [
+        "input": 1.0, "output": 2.0,
+        "baseURLs": ["https://fixture.test/v1"],
+        "maxInputTokens": 199_999,
+    ]
+    model["metadata"] = metadata
+    models[0] = model
+    provider["models"] = models
+    providers[0] = provider
+    object["providers"] = providers
+    let scoped = try ProviderModelCatalog(data: JSONSerialization.data(withJSONObject: object))
+    let scopedModel = try #require(scoped.model(for: catalogConnection(.openAICompatible, baseURL: "https://fixture.test/v1"), modelID: "model"))
+    #expect(scopedModel.metadata.pricing?.maxInputTokens == 199_999)
 }
 
 @Test("Thinking-disabled OpenAI requests add only the approved top-level thinking object")

@@ -13,6 +13,9 @@ M1 streaming layout, auto-follow, and bounded appended-text fades have passed lo
 
 Further streaming-performance work is paused at the user's request. The [core workflow follow-up](engineering/CORE_WORKFLOW_VERIFICATION.md) fixes memory navigation/receipt and knowledge source-presentation defects, with synthetic application-reopen and backup continuity checks. These checks improve v0.1 readiness without closing the remaining real-model, native interaction, or delivery gates.
 
+The [usage and cost increment](engineering/USAGE_COST_VERIFICATION.md) adds provider cache/thinking counters and frozen per-call estimates, with separate foreground/background presentation. Unsupported or incomplete billing dimensions remain explicitly unknown. This does not close attended acceptance or introduce a monetary hard limit.
+
+
 本文只决定做什么、按什么依赖顺序做、完成到什么程度可以进入下一阶段。产品行为由 [PRD 与领域产品规范](PRD.md) 定义，技术契约由 [架构总览及领域设计](ARCHITECTURE.md) 定义，测试数值门槛由 [质量标准](engineering/QUALITY.md#quality-gates) 统一维护。
 
 ## 1. 已确认的范围

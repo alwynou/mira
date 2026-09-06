@@ -38,7 +38,7 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
         self.connectionID = connectionID; self.connectionRevision = connectionRevision
         self.modelDescriptorID = modelDescriptorID; self.modelRevision = modelRevision
         self.purpose = purpose; self.selectionSource = selectionSource
-        self.adapterVersion = providerKind == .anthropic ? "anthropic-messages/2" : "openai-chat-completions/3"
+        self.adapterVersion = providerKind == .anthropic ? "anthropic-messages/3" : "openai-chat-completions/4"
         self.id = id; self.revision = revision; self.name = name; self.providerKind = providerKind
         self.baseURL = baseURL; self.modelID = modelID; self.credentialReference = credentialReference
         self.credentialVersion = credentialVersion; self.contextWindow = contextWindow

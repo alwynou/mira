@@ -5,9 +5,13 @@ struct ExecutionInspector: View {
     @Environment(\.locale) private var locale
     @Bindable var model: ConversationModel
     @State private var selectedID: ExecutionID?
-    @State private var attempts: [ModelAttempt] = []
-    @State private var invocations: [ToolInvocation] = []
+    @State private var loadedAttempts: [ModelAttempt] = []
+    @State private var loadedInvocations: [ToolInvocation] = []
+    @State private var auditExecutionID: ExecutionID?
+    @State private var auditError: MiraError?
     private var execution: Execution? { model.executions.first { $0.id == selectedID } ?? model.executions.last }
+    private var attempts: [ModelAttempt] { auditExecutionID == execution?.id ? loadedAttempts : [] }
+    private var invocations: [ToolInvocation] { auditExecutionID == execution?.id ? loadedInvocations : [] }
     private var refreshID: String { "\(execution?.id.rawValue.uuidString ?? "none")-\(model.inspectionRevision)" }
 
     private func selectionTitle(_ source: RouteSelectionSource) -> String {
@@ -38,19 +42,30 @@ struct ExecutionInspector: View {
                     LabeledContent("Route selection", value: L10n.string(selectionTitle(execution.route.selectionSource), locale: locale))
                     LabeledContent("Provider origin", value: execution.route.origin)
                     LabeledContent("Connection revision") { Text(execution.route.connectionRevision, format: .number) }
-                    LabeledContent("Input tokens", value: execution.usage.inputTokens.map(String.init) ?? L10n.string("Service did not provide this", locale: locale))
+                    LabeledContent("Input tokens", value: execution.usage.totalInputTokens.map(String.init) ?? L10n.string("Service did not provide this", locale: locale))
                     LabeledContent("Output tokens", value: execution.usage.outputTokens.map(String.init) ?? L10n.string("Service did not provide this", locale: locale))
-                    Text("Costs are not estimated; refer to the provider's bill.").font(.caption).foregroundStyle(.secondary)
+                    if auditExecutionID == execution.id {
+                        CostSummaryView(calls: attempts.map { .init(id: $0.id, route: execution.route, usage: $0.usage, createdAt: $0.createdAt, isComplete: $0.status == .completed) }, isBackground: false)
+                    }
+                    if let metadata = execution.route.catalogMetadata, metadata.pricing != nil {
+                        Text(L10n.format("Catalog retrieved: %@", locale: locale, metadata.retrievedAt)).font(.caption).foregroundStyle(.secondary)
+                        Text(verbatim: metadata.sourceRevision).font(.caption2).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                    }
                     Divider()
                     Text("Local execution record").font(.subheadline.weight(.semibold))
                     Text("Includes actual requests, tool parameters, and results; API keys are excluded. Tool observations are reused only for the current turn.").font(.caption).foregroundStyle(.secondary)
-                    if attempts.isEmpty {
+                    if auditExecutionID != execution.id {
+                        if let auditError {
+                            Text(L10n.error(auditError, locale: locale)).font(.caption).foregroundStyle(.secondary)
+                        } else { ProgressView() }
+                    } else if attempts.isEmpty {
                         Text("Request not sent yet").foregroundStyle(.secondary)
                     }
                     ForEach(attempts) { attempt in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(L10n.format("Step %lld · Attempt %lld", locale: locale, Int64(attempt.stepIndex), Int64(attempt.attemptIndex))).font(.subheadline.weight(.semibold))
                             Text(L10n.string(attempt.status.displayTitle, locale: locale)).font(.caption).foregroundStyle(.secondary)
+                            UsageCostView(usage: attempt.usage, route: execution.route, isComplete: attempt.status == .completed)
                             if let error = attempt.error { Text(L10n.error(error, locale: locale)).font(.caption).foregroundStyle(.orange) }
                             if let request = attempt.request {
                                 DisclosureGroup("Request snapshot") {
@@ -85,12 +100,17 @@ struct ExecutionInspector: View {
         }
         .task(id: refreshID) {
             let id = execution?.id
-            guard let id else { attempts = []; invocations = []; return }
+            auditExecutionID = nil; loadedAttempts = []; loadedInvocations = []; auditError = nil
+            guard let id else { return }
             do {
                 let audit = try await model.application.audit(for: id)
                 guard !Task.isCancelled, execution?.id == id else { return }
-                attempts = audit.attempts; invocations = audit.invocations
-            } catch { if !Task.isCancelled { model.error = MiraError.safe(error) } }
+                loadedAttempts = audit.attempts; loadedInvocations = audit.invocations; auditExecutionID = id
+            } catch {
+                if !Task.isCancelled, execution?.id == id {
+                    auditError = MiraError.safe(error); model.error = auditError
+                }
+            }
         }
     }
 }

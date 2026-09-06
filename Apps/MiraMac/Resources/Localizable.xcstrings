@@ -1994,23 +1994,6 @@
         }
       }
     },
-    "Costs are not estimated; refer to the provider's bill.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Costs are not estimated; refer to the provider's bill."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "费用未估算；以服务商账单为准。"
-          }
-        }
-      }
-    },
     "Create a memory from a committed user message or add one manually.": {
       "localizations": {
         "en": {
@@ -18784,6 +18767,380 @@
           "stringUnit": {
             "state": "translated",
             "value": "渲染基准测试需要演示模式、绝对路径和新的测试目录。未打开任何资料库。"
+          }
+        }
+      }
+    },
+    "Background estimated cost (USD)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background estimated cost (USD)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台费用估算（美元）"
+          }
+        }
+      }
+    },
+    "Cache read tokens": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache read tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存读取 Token"
+          }
+        }
+      }
+    },
+    "Cache write pricing requires a supported lifetime breakdown.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache write pricing requires a supported lifetime breakdown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存写入费用需要受支持的缓存时长明细。"
+          }
+        }
+      }
+    },
+    "Cache write tokens": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache write tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存写入 Token"
+          }
+        }
+      }
+    },
+    "Cached input USD per million tokens: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cached input USD per million tokens: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存输入价格（美元／百万 Token）：%@"
+          }
+        }
+      }
+    },
+    "Catalog USD per million tokens · Input: %@ · Output: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog USD per million tokens · Input: %@ · Output: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录价格（美元／百万 Token）· 输入：%@ · 输出：%@"
+          }
+        }
+      }
+    },
+    "Catalog pricing does not apply to this endpoint.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog pricing does not apply to this endpoint."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录价格不适用于此接口地址。"
+          }
+        }
+      }
+    },
+    "Estimated cost (USD)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated cost (USD)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "费用估算（美元）"
+          }
+        }
+      }
+    },
+    "Estimates use the catalog frozen for each call. They are not the provider's bill.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimates use the catalog frozen for each call. They are not the provider's bill."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "估算使用每次调用时冻结的价格目录，不代表服务商最终账单。"
+          }
+        }
+      }
+    },
+    "Foreground estimated cost (USD)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foreground estimated cost (USD)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前台费用估算（美元）"
+          }
+        }
+      }
+    },
+    "Known subtotal: %@ · Calls with unknown cost: %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Known subtotal: %@ · Calls with unknown cost: %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知部分小计：%@ · 费用未知的调用：%lld 次"
+          }
+        }
+      }
+    },
+    "Less than %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Less than %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小于 %@"
+          }
+        }
+      }
+    },
+    "Model call usage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model call usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型调用用量"
+          }
+        }
+      }
+    },
+    "No recorded calls": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No recorded calls"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无调用记录"
+          }
+        }
+      }
+    },
+    "No supported text pricing is saved for this model.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No supported text pricing is saved for this model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此模型未保存可用于估算的文本价格。"
+          }
+        }
+      }
+    },
+    "The model pricing metadata is invalid.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model pricing metadata is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型价格元数据无效。"
+          }
+        }
+      }
+    },
+    "The service did not report all usage needed for an estimate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The service did not report all usage needed for an estimate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商未报告估算所需的完整用量。"
+          }
+        }
+      }
+    },
+    "The service returned inconsistent usage.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The service returned inconsistent usage."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商返回的用量数据不一致。"
+          }
+        }
+      }
+    },
+    "Thinking tokens (included in output)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking tokens (included in output)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考 Token（包含在输出中）"
+          }
+        }
+      }
+    },
+    "This call exceeds the catalog pricing range.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This call exceeds the catalog pricing range."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此次调用超出了目录价格适用范围。"
+          }
+        }
+      }
+    },
+    "Uncached input tokens": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uncached input tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未缓存输入 Token"
+          }
+        }
+      }
+    },
+    "This call has no confirmed final usage; partial counters are shown.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This call has no confirmed final usage; partial counters are shown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此次调用没有确认的最终用量；当前显示的是部分计数。"
           }
         }
       }
