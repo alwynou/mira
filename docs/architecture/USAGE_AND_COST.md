@@ -22,7 +22,7 @@ For inclusive input, cost is `(input - cacheRead) × inputRate + cacheRead × ca
 
 ## Persistence, settlement, and presentation
 
-Fresh schema **11** stores the full value as `usage_json` in executions, foreground attempts, and memory extraction attempts. Typed reads and backup validation check the counters and historical pricing metadata. There is no migration from earlier development schemas; old libraries are rejected intact, and development uses a separate new directory.
+Schema **11** stores the full value as `usage_json` in executions, foreground attempts, and memory extraction attempts. Typed reads and backup validation check the counters and historical pricing metadata. There is no migration from earlier development schemas. The loader rejects unsupported versions; the authorized development procedure deletes obsolete runtime libraries without backup and reuses the current path.
 
 Foreground estimates are calculated per actual model attempt from the frozen execution route. Background job details expose dispatched attempts, their own route snapshots, dispatch times, finality, and usage. Retries remain distinct calls. A combined total is shown only when every recorded call is known; otherwise the UI shows unknown, a known subtotal, and the number of unpriced calls. The execution inspector and extraction status distinguish foreground and background costs. No-call states are displayed separately from a zero charge.
 

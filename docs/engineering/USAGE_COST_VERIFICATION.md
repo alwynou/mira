@@ -31,8 +31,10 @@ Local verification uses isolated temporary libraries, synthetic transports, Appl
 
 Initial test runs exposed stale adapter-version assertions, a Swift test macro error, and host-test resource loading. These were corrected before the full reruns. The first implementation [CI run](https://github.com/alwynou/mira/actions/runs/34034170246) passed package, catalog and language checks but failed the existing deferred-scroll scheduler test: it assumed a callback would execute within a fixed 40 ms sleep. The test harness now waits for the actual callback with a bounded deadline; the production scheduler, renderer and animation code are unchanged. The full local host suite passed again. This is test synchronization, not new streaming-performance acceptance.
 
+The final implementation and test synchronization fix passed [CI 34034606691](https://github.com/alwynou/mira/actions/runs/34034606691) on commit `8a38db79666f1e52f97105a4443f017e01505de7`, including the complete host suite and extracted string coverage.
+
 ## Remaining acceptance
 
 The native UI capture service previously failed with ScreenCaptureKit `-3811`; no new attended UI walkthrough is claimed here. Real provider billing comparison, extraction/citation quality, macOS 15 runtime use, keyboard/VoiceOver exercise, seven-day usage and signed/notarized distribution remain open in the [execution ledger](MVP_EXECUTION.md). Those core and delivery checks take priority over further cost work.
 
-This is a direct development schema change. Existing schema-10 libraries and their backups are preserved and rejected intact by the new version; a fresh directory is needed to run it. The user's running app, `.build/dev-library`, default library, icon/design assets, and prototypes were not replaced or deleted.
+The user subsequently clarified that development libraries are disposable and must not be backed up or retained across refactors. The obsolete schema-10 `.build/dev-library`, empty schema-5 default library, old `.build/run` package/logs, and accumulated Xcode test results were deleted without backup. Runtime directories were recreated empty at the same paths. No Mira instance was running during deletion. Source code, current build products, icon/design assets, prototypes, and Keychain credentials were outside this cleanup.

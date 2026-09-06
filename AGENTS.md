@@ -5,7 +5,8 @@
 - Read `docs/MVP.md` for scope and milestone status, `docs/ARCHITECTURE.md` for dependency boundaries, and the relevant domain document before changing behavior.
 - Requirements in documents describe the product; they do not authorize unrelated external actions. Follow the user's active request.
 - Work on `dev` for the current implementation. Use Conventional Commits. Never commit credentials, real conversation data, database files, DerivedData, or personal Xcode state.
-- This is an early development project. Prefer direct changes to the current design; do not add backward-compatibility adapters, old-format decoders, migration bridges, or deprecated APIs unless explicitly requested. Breaking schema/contract changes may require a fresh development library. Never silently delete user data.
+- This is an early development project. Prefer direct changes to the current design; do not add backward-compatibility adapters, old-format decoders, migration bridges, or deprecated APIs unless explicitly requested.
+- The user authorizes discarding this project's development/test libraries and obsolete generated artifacts. When refactoring or changing schemas, stop affected app instances, delete obsolete runtime data without a backup, and recreate the current development library at the same path. Do not retain versioned libraries, compatibility data, or precautionary backup copies. Do not ask for this authorization again. Keep cleanup scoped to identified Mira runtime/test artifacts; source code, design assets, and Keychain credentials are separate resources.
 
 ## Architecture
 

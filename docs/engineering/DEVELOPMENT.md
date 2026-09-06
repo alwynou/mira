@@ -153,7 +153,9 @@ CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](htt
 
 Settings → Data → Export Library Backup creates a new `.mirabackup` directory containing `Mira.sqlite`, `manifest.json`, and the exact referenced `Blobs`. The database snapshot uses SQLite Backup API; the exporter does not copy a live WAL main file or overwrite an existing destination. Keep the entire directory together.
 
-Settings → Data → Restore to New Directory selects a backup bundle and a parent directory. Restore verifies bounded file reads and hashes before opening an owned staged database, then checks exact schema/constraints, integrity, foreign keys, typed values, and immutable chunk/blob relationships. It installs a new directory only after validation and leaves both the original backup and current library intact. Only fresh schema v11 libraries and current-format bundles are supported; older development data is rejected intact. Use a separate development directory instead of converting old data.
+Settings → Data → Restore to New Directory selects a backup bundle and a parent directory. Restore verifies bounded file reads and hashes before opening an owned staged database, then checks exact schema/constraints, integrity, foreign keys, typed values, and immutable chunk/blob relationships. It installs a new directory only after validation and leaves both the original backup and current library intact. Only schema v11 libraries and current-format bundles are supported.
+
+During development refactors, runtime data is disposable under the user's standing authorization. Stop affected Mira instances, remove obsolete development/test libraries and generated artifacts without making backups, and reuse the current development path. Do not accumulate schema-versioned directories or add migration/compatibility code. The app's explicit export/restore feature is a separate product behavior; it is not a required step in the development workflow.
 
 验证恢复后的目录可以先在隔离环境打开：
 
