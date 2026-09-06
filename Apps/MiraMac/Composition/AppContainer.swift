@@ -39,7 +39,7 @@ final class AppContainer {
         }
         credentialCleanup = CredentialCleanup(directory: directory)
         #if DEBUG
-        provider = isDemo ? DemoProvider() : HTTPModelProvider(credentials: credentials)
+        provider = isDemo ? DemoProvider(stress: arguments.contains("--demo-stress")) : HTTPModelProvider(credentials: credentials)
         #else
         provider = HTTPModelProvider(credentials: credentials)
         #endif
@@ -141,11 +141,12 @@ final class AppContainer {
 #if DEBUG
 /// Explicit --demo only, with a separate temporary library. Never a network failure fallback.
 private struct DemoProvider: ModelProviderPort {
+    var stress = false
     func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let answer = """
+                    let answer = stress ? Self.stressAnswer : """
                     # Mira Local Demo
 
                     Hello, I am Mira. This reply is generated locally to verify streaming Markdown, cancellation, and recovery after restarting.
@@ -174,9 +175,19 @@ private struct DemoProvider: ModelProviderPort {
 
                     Connect your own model to start a real conversation. Memory and source retrieval will follow in later milestones.
                     """
-                    for character in answer {
-                        try await Task.sleep(for: .milliseconds(18))
-                        continuation.yield(.textDelta(String(character)))
+                    if stress {
+                        let thinking = "Reviewing the synthetic rendering fixture, its tables, lists, code, and final marker. "
+                        for count in 1...20 {
+                            try await Task.sleep(for: .milliseconds(25))
+                            continuation.yield(.reasoning(.init(format: .openAIContent, text: String(repeating: thinking, count: count))))
+                        }
+                        continuation.yield(.reasoning(.init(format: .openAIContent, text: String(repeating: thinking, count: 20), isComplete: true)))
+                    }
+                    let characters = Array(answer)
+                    let chunkSize = stress ? 24 : 1
+                    for start in stride(from: 0, to: characters.count, by: chunkSize) {
+                        try await Task.sleep(for: .milliseconds(stress ? 12 : 18))
+                        continuation.yield(.textDelta(String(characters[start..<min(start + chunkSize, characters.count)])))
                     }
                     continuation.yield(.finished(.stop)); continuation.finish()
                 } catch { continuation.finish(throwing: CancellationError()) }
@@ -184,5 +195,39 @@ private struct DemoProvider: ModelProviderPort {
             continuation.onTermination = { _ in task.cancel() }
         }
     }
+
+    /// Deterministic, network-free stress content enabled only by --demo --demo-stress.
+    private static let stressAnswer: String = {
+        var result = "# Rendering stress fixture\n\n"
+        for index in 1...24 {
+            result += """
+            ## Section \(index)
+
+            This synthetic paragraph verifies stable Markdown measurement during streaming, resizing, selection, and rapid scrolling. **Emphasis**, `inline code`, and [a link](https://www.swift.org) remain available.
+
+            - First item with a longer explanation that wraps over several lines in a narrow window.
+                - Nested item with **strong text** and a detail to read.
+            - Second item with a short explanation.
+
+            > A block quote with sufficient text to wrap onto another line and exercise the paragraph layout cache.
+
+            ```swift
+            let section = \(index)
+            let values = (0..<8).map { $0 * section }
+            print(values)
+            ```
+
+            | Column A | Column B | Column C | Column D |
+            | --- | --- | --- | --- |
+            | A long wrapping value for section \(index) | Another wrapping value | Small | Complete |
+            | One | Two | Three | Four |
+
+            Inline math: $a^2 + b^2 = c^2$.
+
+            """ + "\n\n"
+        }
+        return result + "## End of rendering fixture\n\nThe final stream marker is visible.\n"
+    }()
+
 }
 #endif

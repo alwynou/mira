@@ -359,3 +359,9 @@ KnowledgeSearchResult
 - Current / Superseded；
 - 本次为何召回；
 - 编辑、撤销、归档和遗忘。
+
+### Conversation presentation updates
+
+`ConversationStreamBuffer` owns only transient presentation snapshots on the main actor. Cumulative runtime text and thinking events are coalesced at 100 ms before Observation publication; persistence and provider execution continue independently. An authoritative conversation load, terminal result, selection change, or privacy clear cancels pending presentation emissions and replaces them immediately. Late timers cannot revive discarded content.
+
+Composer input is observed in a separate view from transcript snapshots. Assistant rows use execution identity across draft and terminal states, retain their Markdown renderer, and render thinking only when expanded. Scroll intent is independent of content growth; measured size changes may follow only when the user is following the latest output, and already-visible content never causes a redundant scroll. Renderer patch details and native evidence are in [streaming performance](../engineering/STREAMING_PERFORMANCE.md).

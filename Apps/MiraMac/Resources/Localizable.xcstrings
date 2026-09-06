@@ -18739,6 +18739,22 @@
           }
         }
       }
+    },
+    "Jump to latest": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jump to latest"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回到最新内容"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

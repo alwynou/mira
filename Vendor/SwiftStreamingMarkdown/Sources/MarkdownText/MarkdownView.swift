@@ -60,8 +60,11 @@ final class MarkdownViewController: ObservableObject {
   }
 
   func parse(text: String) async {
+    guard !Task.isCancelled else { return }
     let renderable = await parser.parse(text: text, config: config)
+    guard !Task.isCancelled else { return }
     await MainActor.run {
+      guard !Task.isCancelled else { return }
       self.renderable = renderable
     }
   }

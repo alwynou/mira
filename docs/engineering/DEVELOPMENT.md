@@ -166,8 +166,10 @@ Opening a restored directory does not send requests, reauthorize external files,
 
 ## 流式 Markdown 依赖
 
-MiraMac uses the vendored Microsoft SwiftStreamingMarkdown v0.7.0 source from commit `5f7c04e0558df6146f90d482edb62cb456986bda`. The local package carries a minimal locale patch; provenance and changed files are recorded in `Vendor/SwiftStreamingMarkdown/UPSTREAM.md`. Runtime transitive dependencies stay pinned in the Xcode lock file. MiraKit does not import this UI dependency.
+MiraMac uses the vendored Microsoft SwiftStreamingMarkdown v0.7.0 source from commit `5f7c04e0558df6146f90d482edb62cb456986bda`. The local package carries locale and measured-layout fixes; provenance and changed files are recorded in `Vendor/SwiftStreamingMarkdown/UPSTREAM.md`. Runtime transitive dependencies stay pinned in the Xcode lock file. MiraKit does not import this UI dependency.
 
 库带 Equatable 编译宏。已审阅、锁定的依赖在 CLI / CI 使用 `-skipMacroValidation`；不修改机器全局信任设置。依赖升级必须重新审阅并验证。该选项不会绕过应用签名或公证。详见 [第三方说明](THIRD_PARTY.md)。
 
-独立演示验证标题、中文、列表、代码块、表格、取消与重开。助手采用相同 Markdown renderer 接收每 70 ms 合并的完整快照，结束立即 flush；用户消息保持原文。滚动回收不依赖一次性的 AsyncStream 订阅。
+Conversation presentation coalesces runtime text and thinking snapshots at 100 ms before publishing observable state. Authoritative reloads, terminal messages, selection changes, and privacy clears replace pending presentation state immediately. Stable transcript rows retain their renderer; text entrance animations are disabled. The composer observes its own input independently from transcript content. Native scroll-follow behavior and verification are documented in [streaming performance](STREAMING_PERFORMANCE.md).
+
+For a deterministic long-response check, launch Debug with `--demo --demo-stress --data-directory /absolute/path/to/isolated-fixture-library` and send any synthetic message. This exercises thinking and mixed Markdown through the normal runtime without a network call. Quit the fixture app before returning to the current development library; delete only the explicitly created fixture directory after the check.

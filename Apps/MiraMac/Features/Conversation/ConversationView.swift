@@ -167,7 +167,6 @@ private struct ConversationDetail: View {
     let isDemo: Bool
     let onOpenMemory: (MemoryID) -> Void
     @Environment(\.locale) private var locale
-    @FocusState private var composerFocused: Bool
     @State private var rememberedMessage: Message?
     @State private var showsExtractionStatus = false
     @State private var revealedMessageID: MessageID?
@@ -175,7 +174,10 @@ private struct ConversationDetail: View {
     var body: some View {
         VStack(spacing: 0) {
             if model.messages.isEmpty && model.activeExecution == nil { welcome.frame(maxHeight: .infinity) }
-            else { transcript }
+            else {
+                ConversationTranscript(model: model, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
+                    .id(model.selectedConversationID)
+            }
             if let execution = model.executions.last, execution.status.isTerminal, execution.status != .completed {
                 HStack(alignment: .top) {
                     Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
@@ -200,7 +202,7 @@ private struct ConversationDetail: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
             }
-            if model.currentConversation?.isArchived != true { composer }
+            if model.currentConversation?.isArchived != true { ConversationComposer(model: model, isDemo: isDemo) }
         }
         .background(Color(nsColor: .textBackgroundColor))
         .sheet(item: $rememberedMessage) { message in
@@ -225,81 +227,26 @@ private struct ConversationDetail: View {
             if isDemo { Label("Demo replies generated locally", systemImage: "desktopcomputer").font(.caption).foregroundStyle(.secondary) }
         }.padding(40).frame(maxWidth: .infinity)
     }
-    private var transcript: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 28) {
-                    ForEach(transcriptItems) { item in
-                        if item.bodyPurgedAt != nil {
-                            Label("Reply content cleared after forgetting a memory", systemImage: "eye.slash")
-                                .font(.callout).foregroundStyle(.secondary)
-                        } else if item.role == .assistant {
-                            VStack(alignment: .leading, spacing: 10) {
-                                AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming, trace: item.trace)
-                                if let executionID = item.executionID, let conversationID = model.selectedConversationID {
-                                    MemoryCitationList(references: MemoryCitationReference.references(in: item.text), executionID: executionID,
-                                                       conversationID: conversationID, application: model.application) { sourceID in
-                                        Task { await model.selectConversation(sourceID) }
-                                    }.padding(.leading, 40)
-                                    KnowledgeCitationList(references: SourceCitationReference.references(in: item.text), executionID: executionID,
-                                                          conversationID: conversationID, application: model.application)
-                                        .padding(.leading, 40)
-                                }
-                            }
-                        } else {
-                            MessageRow(role: item.role, text: item.text, status: item.status)
-                                .contextMenu {
-                                    if let message = item.message, message.role == .user, message.status == .committed {
-                                        Button("Remember this message…", systemImage: "brain") { rememberedMessage = message }
-                                    }
-                                }
-                        }
-                    }
-                    Color.clear.frame(height: 1).id("transcript-end")
-                }.padding(28).frame(maxWidth: 860).frame(maxWidth: .infinity)
-            }
-            .defaultScrollAnchor(.bottom)
-            .onChange(of: revealedMessageID) { _, messageID in
-                guard let messageID,
-                      model.messages.contains(where: { $0.id == messageID && $0.role == .user && $0.status == .committed }) else { return }
-                proxy.scrollTo("message:\(messageID.rawValue.uuidString)", anchor: .center)
-                revealedMessageID = nil
-            }
-            .onChange(of: model.messages.count) { _, _ in proxy.scrollTo("transcript-end", anchor: .bottom) }
-        }
-    }
-
     private func revealMessage(_ messageID: MessageID) {
         guard model.messages.contains(where: { $0.id == messageID && $0.role == .user && $0.status == .committed }) else { return }
         revealedMessageID = messageID
     }
 
-    private var transcriptItems: [TranscriptItem] {
-        var items = model.messages.map { message in
-            TranscriptItem(
-                id: message.role == .assistant ? (message.executionID.map { "execution:\($0.rawValue.uuidString)" } ?? "message:\(message.id.rawValue.uuidString)") : "message:\(message.id.rawValue.uuidString)",
-                role: message.role,
-                text: message.text,
-                status: message.status,
-                isStreaming: false,
-                message: message,
-                bodyPurgedAt: message.bodyPurgedAt,
-                executionID: message.executionID, trace: message.trace
-            )
+    private var welcomeMessage: String {
+        if model.routes.isEmpty {
+            return L10n.string("Connect your own model service first.\nConversations are stored on this Mac, and only the connection you choose is used when sending.", locale: locale)
         }
-        if let execution = model.executions.last,
-           !items.contains(where: { $0.id == "execution:\(execution.id.rawValue.uuidString)" }),
-           let draft = model.drafts[execution.id] {
-            items.append(.init(
-                id: "execution:\(execution.id.rawValue.uuidString)", role: .assistant, text: draft,
-                status: execution.status.isTerminal ? .interrupted : nil,
-                isStreaming: !execution.status.isTerminal,
-                executionID: execution.id, trace: model.thinkingTraces[execution.id] ?? []
-            ))
-        }
-        return items
+        return L10n.string("Organize your thoughts, discuss a project, or ask a question.\nChoose a model, then write your first message.", locale: locale)
     }
-    private var composer: some View {
+}
+
+private struct ConversationComposer: View {
+    @Bindable var model: ConversationModel
+    let isDemo: Bool
+    @Environment(\.locale) private var locale
+    @FocusState private var composerFocused: Bool
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Picker("Conversation model", selection: $model.selectedRouteID) {
@@ -338,10 +285,4 @@ private struct ConversationDetail: View {
         .frame(maxWidth: 910).frame(maxWidth: .infinity)
     }
 
-    private var welcomeMessage: String {
-        if model.routes.isEmpty {
-            return L10n.string("Connect your own model service first.\nConversations are stored on this Mac, and only the connection you choose is used when sending.", locale: locale)
-        }
-        return L10n.string("Organize your thoughts, discuss a project, or ask a question.\nChoose a model, then write your first message.", locale: locale)
-    }
 }

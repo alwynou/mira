@@ -23,8 +23,7 @@ final class ConversationModel {
     var configuration = ModelConfiguration(connections: [], models: [], routes: [], bindings: [])
     var messages: [Message] = []
     var executions: [Execution] = []
-    var drafts: [ExecutionID: String] = [:]
-    var thinkingTraces: [ExecutionID: [CanonicalMessage]] = [:]
+    let streamBuffer = ConversationStreamBuffer()
     var pendingSaveIDs: Set<ExecutionID> = []
     var selectedWorkspaceID: WorkspaceID?
     var selectedConversationID: ConversationID?
@@ -56,9 +55,10 @@ final class ConversationModel {
             if Task.isCancelled { return }
             switch event {
             case .changed: await reload()
-            case .draft(let id, let value): if executions.contains(where: { $0.id == id }) { drafts[id] = value }
+            case .draft(let id, let value):
+                if executions.contains(where: { $0.id == id && !$0.status.isTerminal }) { streamBuffer.receiveDraft(value, for: id) }
             case .thinking(let id, let trace):
-                if executions.contains(where: { $0.id == id }) { thinkingTraces[id] = trace; if drafts[id] == nil { drafts[id] = "" } }
+                if executions.contains(where: { $0.id == id && !$0.status.isTerminal }) { streamBuffer.receiveThinking(trace, for: id) }
             case .failure(let failure): error = failure
             }
         }
@@ -78,7 +78,7 @@ final class ConversationModel {
     }
     func selectConversation(_ id: ConversationID?) async {
         selectionGeneration += 1; selectedConversationID = id
-        messages = []; executions = []; drafts = [:]; thinkingTraces = [:]; pendingSaveIDs = []; composer = ""; selectedRouteID = nil
+        messages = []; executions = []; streamBuffer.replace(drafts: [:], thinkingTraces: [:]); pendingSaveIDs = []; composer = ""; selectedRouteID = nil
         guard let id else { return }
         if let conversation = conversations.first(where: { $0.id == id }) {
             selectedWorkspaceID = conversation.workspaceID
@@ -91,8 +91,10 @@ final class ConversationModel {
         let state = try await application.conversation(id)
         guard generation == selectionGeneration, selectedConversationID == id else { return }
         messages = state.messages; executions = state.executions
-        drafts = Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.text) })
-        thinkingTraces = Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.trace) })
+        streamBuffer.replace(
+            drafts: Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.text) }),
+            thinkingTraces: Dictionary(uniqueKeysWithValues: state.drafts.map { ($0.executionID, $0.trace) })
+        )
         pendingSaveIDs = state.pendingSaveIDs
         inspectionRevision += 1
     }

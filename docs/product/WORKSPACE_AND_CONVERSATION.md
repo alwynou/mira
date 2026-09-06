@@ -319,3 +319,7 @@ Thinking is a core conversation capability. A supported model can use its native
 Provider-returned visible thinking appears in a collapsible section before the answer and remains available after reopening the conversation. A stopped response may contain thinking without an answer; it remains visibly incomplete. Signatures and encrypted/redacted provider state are never presented as readable thought text. Thinking is not automatically saved as a user fact or a memory.
 
 Changing settings applies to a new execution. A running assistant/tool turn retains its frozen settings and continuation state. Model capability, enabled settings and a successful connection test are separate facts; an error is surfaced without silently switching models or disabling thinking.
+
+## Streaming and reading position
+
+While the reader is at the latest response, the transcript follows the rendered output as it grows, including asynchronous Markdown layout. Starting a manual scroll pauses following. Returning to the bottom or selecting “Jump to latest” resumes it. Opening a cited historical message preserves the reading position. Sending a new user message returns to the latest turn. Completed replies do not replay text entrance animations when revisited.

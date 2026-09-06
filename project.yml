@@ -64,6 +64,8 @@ targets:
       - Tests/MiraLocalizationTests
       - Tests/MiraPlatformTests
       - Apps/MiraMac/Platform/Keychain
+      - Apps/MiraMac/Presentation/ConversationStreamBuffer.swift
+      - Apps/MiraMac/Presentation/TranscriptScrollState.swift
       - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests
     settings:
       base:

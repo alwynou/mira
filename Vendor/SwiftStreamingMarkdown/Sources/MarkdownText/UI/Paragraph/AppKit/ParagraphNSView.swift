@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 private struct CachedParagraphNSViewSize {
   let size: CGSize
   let targetWidth: CGFloat
+  let contentRevision: Int
 }
 
 class ParagraphNSView: NSTextView {
@@ -23,7 +24,12 @@ class ParagraphNSView: NSTextView {
   private(set) var lineSpacing: CGFloat?
   private var activeAnimations: [FadeAnimationData] = []
   private var fadeAnimationDisplayLink: CADisplayLink?
-  private var cachedSize: CachedParagraphNSViewSize?
+  private var lastLayoutWidth: CGFloat?
+  private var sizeCache: [CachedParagraphNSViewSize] = []
+  private var contentRevision = 0
+  #if DEBUG
+  private(set) var debugMeasurementCount = 0
+  #endif
 
   var textContextMenu: TextContextMenu?
   var markdownController: MarkdownController?
@@ -66,17 +72,16 @@ class ParagraphNSView: NSTextView {
   // MARK: - Intrinsic Content Size
 
   override var intrinsicContentSize: NSSize {
-    if let cachedSize {
-      return cachedSize.size
-    }
-    var targetWidth = bounds.width
-    if targetWidth <= 0 || targetWidth.isInfinite {
-      targetWidth = NSScreen.main?.frame.width ?? 800
-    }
+    let targetWidth = measurementWidth
+    return measureSize(fittingWidth: targetWidth)
+  }
 
-    let measuredSize = measureSize(fittingWidth: targetWidth)
-    cachedSize = CachedParagraphNSViewSize(size: measuredSize, targetWidth: targetWidth)
-    return measuredSize
+  private var measurementWidth: CGFloat {
+    var width = bounds.width
+    if width <= 0 || !width.isFinite {
+      width = NSScreen.main?.frame.width ?? 800
+    }
+    return width
   }
 
   /// Measures the size required to lay out the current content within `width`.
@@ -88,8 +93,18 @@ class ParagraphNSView: NSTextView {
   /// tracked width is `0`, which yields a zero height and collapses the paragraph. A
   /// standalone container whose width we set directly always measures correctly.
   func measureSize(fittingWidth width: CGFloat) -> CGSize {
+    if width.isFinite,
+       let cachedSize = sizeCache.first(where: {
+         $0.targetWidth == width && $0.contentRevision == contentRevision
+       }) {
+      return cachedSize.size
+    }
+
+    #if DEBUG
+    debugMeasurementCount += 1
+    #endif
     guard let textStorage, textStorage.length > 0, width > 0, width.isFinite else {
-      return .zero
+      return cacheMeasurement(.zero, for: width)
     }
     let measuringTextStorage = NSTextStorage(attributedString: textStorage)
     let measuringLayoutManager = NSLayoutManager()
@@ -101,15 +116,38 @@ class ParagraphNSView: NSTextView {
     measuringTextStorage.addLayoutManager(measuringLayoutManager)
     measuringLayoutManager.ensureLayout(for: measuringContainer)
     let usedRect = measuringLayoutManager.usedRect(for: measuringContainer)
-    return CGSize(width: usedRect.width.rounded(.up), height: usedRect.height.rounded(.up))
+    return cacheMeasurement(
+      CGSize(width: usedRect.width.rounded(.up), height: usedRect.height.rounded(.up)),
+      for: width
+    )
+  }
+
+  private func cacheMeasurement(_ size: CGSize, for width: CGFloat) -> CGSize {
+    guard width.isFinite else { return size }
+    let measurement = CachedParagraphNSViewSize(
+      size: size,
+      targetWidth: width,
+      contentRevision: contentRevision
+    )
+    sizeCache.removeAll {
+      $0.targetWidth == width && $0.contentRevision == contentRevision
+    }
+    sizeCache.insert(measurement, at: 0)
+    if sizeCache.count > 4 {
+      sizeCache.removeLast()
+    }
+    return size
   }
 
   override func layout() {
     super.layout()
-    if bounds.width != cachedSize?.targetWidth {
-      invalidateCachedSize()
+    let width = measurementWidth
+    if lastLayoutWidth != width {
+      // Measurement proposals may differ from the final frame. Comparing against the
+      // last proposal would invalidate forever even when the actual frame is stable.
+      lastLayoutWidth = width
+      invalidateIntrinsicContentSize()
     }
-    invalidateIntrinsicContentSize()
   }
 
   // MARK: - Content Update
@@ -122,6 +160,8 @@ class ParagraphNSView: NSTextView {
     }
     self.paragraphContents = newContents
     self.lineSpacing = lineSpacing
+    contentRevision += 1
+    sizeCache.removeAll(keepingCapacity: true)
 
     let oldLength = textStorage?.length ?? 0
     let finalString: NSMutableAttributedString
@@ -132,7 +172,6 @@ class ParagraphNSView: NSTextView {
     }
 
     tearDownDisplayLink()
-    invalidateCachedSize()
     textStorage?.setAttributedString(finalString)
 
     configureAccessibility(for: finalString)
@@ -306,9 +345,6 @@ class ParagraphNSView: NSTextView {
     fadeAnimationDisplayLink = nil
   }
 
-  private func invalidateCachedSize() {
-    cachedSize = nil
-  }
 
   func setTextContextMenu(_ menu: TextContextMenu?) {
     textContextMenu = menu
