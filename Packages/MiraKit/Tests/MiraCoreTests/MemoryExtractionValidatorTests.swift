@@ -38,6 +38,42 @@ struct MemoryExtractionValidatorTests {
     }
 
     @Test(arguments: [
+        "I usually prefer compact interfaces",
+        "I generally like quiet rooms",
+        "I tend to avoid crowded venues",
+        "我平时喜欢安静的房间", // i18n-fixture: Verify a natural Chinese routine context; extracted content remains user-authored text.
+        "我每天早上早餐喜欢吃粉", // i18n-fixture: Verify a routine context with a short meal description; extracted content remains user-authored text.
+        "我早餐喜欢吃粉" // i18n-fixture: Verify a single routine cue before a preference predicate; extracted content remains user-authored text.
+    ])
+    func naturalFirstPersonPreferencePhrasingCanBeActive(_ text: String) throws {
+        let result = try validate(item: item(content: text, quote: text, kind: "preference"), source: source(text), mode: .automaticWithUndo)
+
+        #expect(result.count == 1)
+        #expect(result[0].triage == .active)
+    }
+
+    @Test(arguments: [
+        "I usually prefer which editor",
+        "I said I usually prefer compact interfaces",
+        "My partner prefers compact interfaces",
+        "I usually prefer compact interfaces; please remember this",
+        "I don't usually prefer compact interfaces",
+        "我每天早上早餐喜欢吃什么", // i18n-fixture: Questions without punctuation remain candidates.
+        "我说我每天早上早餐喜欢吃粉", // i18n-fixture: Reported phrasing remains a candidate.
+        "他每天喜欢吃粉", // i18n-fixture: A third-person preference remains a candidate.
+        "我同学每天早餐喜欢吃粉", // i18n-fixture: Another person's routine preference remains a candidate.
+        "我每天听朋友说喜欢吃粉", // i18n-fixture: Reported preference remains a candidate.
+        "我每天早上早餐喜欢" // i18n-fixture: A preference without an object remains a candidate.
+    ])
+    func naturalPreferenceSafetyVetoesRemainCandidates(_ text: String) throws {
+        let result = try validate(item: item(content: text, quote: text, kind: "preference"), source: source(text), mode: .automaticWithUndo)
+
+        #expect(result.count == 1)
+        #expect(result[0].triage == .candidate)
+        #expect(result[0].reviewReason != nil)
+    }
+
+    @Test(arguments: [
         "What editor do I prefer?",
         "I prefer \"minimal\" interfaces",
         "Maybe I prefer minimal interfaces",
@@ -52,11 +88,16 @@ struct MemoryExtractionValidatorTests {
         #expect(result[0].reviewReason != nil)
     }
 
-    @Test func paraphrasedContentRemainsCandidateEvenWhenQuoteIsExact() throws {
+    @Test func fullDirectEvidenceReplacesModelParaphraseWithExactUserStatement() throws {
         let sourceText = "I prefer compact interfaces"
         let result = try validate(item: item(content: "I prefer concise interfaces", quote: sourceText, kind: "preference"), source: source(sourceText), mode: .automaticWithUndo)
         #expect(result.count == 1)
-        #expect(result[0].triage == .candidate)
+        #expect(result[0].triage == .active)
+        #expect(result[0].draft.content == sourceText)
+        #expect(result[0].quote == sourceText)
+        let candidate = try validate(item: item(content: "I prefer concise interfaces", quote: sourceText, kind: "preference"), source: source(sourceText), mode: .candidateOnly)
+        #expect(candidate[0].triage == .candidate)
+        #expect(candidate[0].draft.content == "I prefer concise interfaces")
     }
 
     @Test func inferredSensitiveUncertainAndOrdinaryFactsCannotBecomeActive() throws {

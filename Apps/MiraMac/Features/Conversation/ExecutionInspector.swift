@@ -123,6 +123,17 @@ private struct RequestSnapshotView: View {
     let onOpenConversation: (ConversationID) -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Text("System instructions").font(.caption.weight(.semibold))
+            Text(verbatim: request.system).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            if let tools = request.tools, !tools.isEmpty {
+                DisclosureGroup("Tool definitions") {
+                    Text(verbatim: encoded(tools)).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                }
+            }
+            Text("Request order").font(.caption.weight(.semibold))
+            Text("System instructions are applied first. Message entries below remain in their recorded order. JSON object key order does not represent prompt order.")
+                .font(.caption2).foregroundStyle(.secondary)
+            Text(verbatim: orderedMessages).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
             if let context = request.contextInfo {
                 Text(L10n.format("Route revision %lld · Conservative input estimate %@", locale: locale, Int64(context.routeRevision), context.estimatedInputBytes.map(String.init) ?? L10n.string("Unknown", locale: locale))).font(.caption2).foregroundStyle(.secondary)
                 Text("Estimate is based on UTF-8 and protocol overhead, not the provider's exact token count.").font(.caption2).foregroundStyle(.secondary)
@@ -141,12 +152,26 @@ private struct RequestSnapshotView: View {
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }
-            Text(verbatim: encodedRequest).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            DisclosureGroup("Canonical request JSON") {
+                Text(verbatim: encoded(request)).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            }
         }
     }
-    private var encodedRequest: String {
+    private var orderedMessages: String {
+        request.messages.enumerated().map { index, message in
+            let title: String
+            switch message.role {
+            case .context: title = "Retrieved context"
+            case .user: title = "User message"
+            case .assistant: title = "Assistant message"
+            case .tool: title = "Tool result"
+            }
+            return "\((index + 1).formatted(.number.locale(locale))). \(L10n.string(title, locale: locale))\n\(encoded(message))"
+        }.joined(separator: "\n\n")
+    }
+    private func encoded<T: Encodable>(_ value: T) -> String {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        return (try? String(decoding: encoder.encode(request), as: UTF8.self)) ?? L10n.string("Request unavailable", locale: locale)
+        return (try? String(decoding: encoder.encode(value), as: UTF8.self)) ?? L10n.string("Request unavailable", locale: locale)
     }
 
 

@@ -6,6 +6,30 @@ import Testing
 
 @Suite("SQLite memory store")
 struct MemoryStoreTests {
+    @Test func malformedContextDoesNotPersistAnAttempt() throws {
+        let directory = try testDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let route = try installFixture(in: store)
+        let conversation = Conversation(id: .init(), workspaceID: nil, title: "", createdAt: .now, updatedAt: .now)
+        try store.createConversation(conversation)
+        let execution = try store.enqueue(conversationID: conversation.id, text: "Current question", route: route, executionID: .init(), messageID: .init(), at: .now)
+        let context = CanonicalMessage(role: .context, text: "Untrusted retrieved facts")
+        let user = CanonicalMessage(role: .user, text: "Current question")
+        for messages in [[context, context, user], [user, context]] {
+            let id = UUID()
+            let request = CanonicalModelRequest(executionID: execution.id, system: "Stable instructions", messages: messages, requestID: id)
+            #expect(throws: MiraError.self) {
+                try store.prepareAttempt(.init(id: id, executionID: execution.id, stepID: .init(), stepIndex: 1, request: request, createdAt: .now))
+            }
+            #expect(try store.attempts(for: execution.id).isEmpty)
+        }
+        let id = UUID()
+        let request = CanonicalModelRequest(executionID: execution.id, system: "Stable instructions", messages: [context, user], requestID: id)
+        try store.prepareAttempt(.init(id: id, executionID: execution.id, stepID: .init(), stepIndex: 1, request: request, createdAt: .now))
+        #expect(try store.attempts(for: execution.id).map(\.request) == [request])
+    }
+
     @Test func manualMemoryRoundTripsAndRevisionUsesCAS() throws {
         let directory = try testDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -102,6 +126,51 @@ struct MemoryStoreTests {
 
         let result = try store.recallMemories(query: "Tell me about my editor.", workspaceID: nil, connectionID: route.connectionID, limit: 20, at: now)
         #expect(result.memories.map(\.id) == [allowed.id])
+    }
+
+    @Test func recallUsesNativeCJKWordTokensAndKeepsRecallFiltersBeforeTheCap() throws {
+        let directory = try testDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let route = try installFixture(in: store)
+        let now = Date(timeIntervalSince1970: 1_000)
+
+        let breakfast = "我每天早上早餐喜欢吃粉" // i18n-fixture: Verify native two-character CJK word recall; extracted content remains user-authored text.
+        let allowed = try store.createMemory(
+            draft: .init(content: breakfast, scope: .global),
+            source: .manualEntry(id: UUID(), statement: breakfast), operationID: UUID(), replacing: nil, expectedRevision: nil, at: now).memory
+        let privateMemory = try store.createMemory(
+            draft: .init(content: breakfast, scope: .global, allowsRemoteUse: false),
+            source: .manualEntry(id: UUID(), statement: breakfast), operationID: UUID(), replacing: nil, expectedRevision: nil, at: now).memory
+        let candidate = try store.createMemory(
+            draft: .init(content: breakfast, scope: .global),
+            source: .manualEntry(id: UUID(), statement: breakfast), operationID: UUID(), replacing: nil, expectedRevision: nil, at: now).memory
+        _ = try store.changeMemoryState(candidate.id, workspaceID: nil, state: .candidate, expectedRevision: candidate.revision, at: now)
+        let forgotten = try store.createMemory(
+            draft: .init(content: breakfast, scope: .global),
+            source: .manualEntry(id: UUID(), statement: breakfast), operationID: UUID(), replacing: nil, expectedRevision: nil, at: now).memory
+        _ = try store.forgetMemory(forgotten.id, workspaceID: nil, expectedRevision: forgotten.revision, at: now)
+
+        let wrongWorkspaceID = WorkspaceID()
+        try store.saveWorkspace(.init(id: wrongWorkspaceID, name: "Other", allowsRemoteSend: true), expectedRevision: nil)
+        let wrongWorkspace = try store.createMemory(
+            draft: .init(content: breakfast, scope: .workspace(wrongWorkspaceID), subject: .workspace),
+            source: .manualEntry(id: UUID(), statement: breakfast), operationID: UUID(), replacing: nil, expectedRevision: nil, at: now).memory
+
+        let breakfastResult = try store.recallMemories(query: "帮我安排明天早餐", workspaceID: nil, connectionID: route.connectionID, limit: 20, at: now) // i18n-fixture: Verify natural Chinese query tokenization and policy filtering.
+        #expect(breakfastResult.memories.map(\.id) == [allowed.id])
+        #expect(!breakfastResult.memories.contains { $0.id == privateMemory.id })
+        #expect(!breakfastResult.memories.contains { $0.id == candidate.id })
+        #expect(!breakfastResult.memories.contains { $0.id == forgotten.id })
+        #expect(!breakfastResult.memories.contains { $0.id == wrongWorkspace.id })
+
+        let lunchResult = try store.recallMemories(query: "帮我安排明天午餐", workspaceID: nil, connectionID: route.connectionID, limit: 20, at: now) // i18n-fixture: Verify natural Chinese query tokenization and policy filtering.
+        #expect(lunchResult.memories.isEmpty)
+
+        let mixedResult = try store.recallMemories(query: "please 早餐", workspaceID: nil, connectionID: route.connectionID, limit: 20, at: now) // i18n-fixture: Verify natural Chinese query tokenization and policy filtering.
+        #expect(mixedResult.memories.map(\.id) == [allowed.id])
+        let shortQuery = "粉" // i18n-fixture: Preserve explicit one-character keyword search.
+        #expect(try store.recallMemories(query: shortQuery, workspaceID: nil, connectionID: route.connectionID, limit: 20, at: now).memories.map(\.id) == [allowed.id])
     }
 
     @Test func globalMemoryInheritsSourceWorkspaceOutboundPolicy() throws {

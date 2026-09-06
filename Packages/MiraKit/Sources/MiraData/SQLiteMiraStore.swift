@@ -1007,10 +1007,11 @@ extension SQLiteMiraStore {
     }
 
     static func validateRequestReasoning(_ request: CanonicalModelRequest) throws {
-        guard request.messages.allSatisfy({ $0.role != .user || $0.reasoning == nil }) else {
-            throw MiraError(.malformedStream, "A replay request cannot contain reasoning on a user message.")
+        try request.validateContextMessages()
+        guard request.messages.allSatisfy({ $0.role == .assistant || $0.reasoning == nil }) else {
+            throw MiraError(.malformedStream, "A replay request can contain reasoning only on an assistant message.")
         }
-        try AssistantTrace.validate(request.messages.filter { $0.role != .user }, complete: true)
+        try AssistantTrace.validate(request.messages.filter { $0.role == .assistant || $0.role == .tool }, complete: true)
     }
 
     static func validateModelOutput(_ output: ModelOutput) throws {

@@ -68,7 +68,7 @@ struct MemoryRememberApplicationTests {
         try await eventually { try fixture.store.execution(secondExecutionID)?.status.isTerminal == true }
         #expect(provider.requests.count == 3)
         #expect(!(provider.requests[2].contextInfo?.references ?? []).contains { $0.id == memory.id.rawValue.uuidString })
-        #expect(!provider.requests[2].system.contains(content))
+        #expect(!(provider.requests[2].system + provider.requests[2].messages.map(\.text).joined()).contains(content))
         await app.shutdown()
     }
 
@@ -76,6 +76,8 @@ struct MemoryRememberApplicationTests {
         let fixture = try RememberApplicationFixture()
         defer { fixture.cleanup() }
         let approvals = MemoryApprovalCoordinator()
+        let enabledAt = Date()
+        try fixture.store.saveMemoryCapturePolicy(.init(revision: 2, mode: .automaticWithUndo, dailyTokenLimit: 100_000, enabledAt: enabledAt), expectedRevision: 1, at: enabledAt)
         let call = try rememberCall(content: "I prefer concise answers", quote: "I prefer short answers")
         let provider = ScriptedRememberProvider(store: fixture.store, replies: [
             [.toolCalls([call]), .finished(.toolCalls)],
@@ -101,6 +103,39 @@ struct MemoryRememberApplicationTests {
         let invocation = try #require(try await app.audit(for: executionID).invocations.first)
         #expect(invocation.result?.status == .denied)
         #expect(invocation.result?.text.contains("memory_id") == false)
+        await app.shutdown()
+    }
+
+    @Test(arguments: [MemoryCaptureMode.candidateOnly, MemoryCaptureMode.automaticWithUndo])
+    func ordinaryRememberCallIsDeniedWhenAutomaticCaptureHandlesIt(_ mode: MemoryCaptureMode) async throws {
+        let fixture = try RememberApplicationFixture()
+        defer { fixture.cleanup() }
+        let approvals = MemoryApprovalCoordinator()
+        let enabledAt = Date()
+        try fixture.store.saveMemoryCapturePolicy(.init(revision: 2, mode: mode, dailyTokenLimit: 100_000, enabledAt: enabledAt), expectedRevision: 1, at: enabledAt)
+        let content = "I prefer short answers"
+        let call = try rememberCall(content: content, quote: content)
+        let provider = ScriptedRememberProvider(store: fixture.store, replies: [
+            [.toolCalls([call]), .finished(.toolCalls)],
+            [.textDelta("No manual save."), .finished(.stop)]
+        ])
+        let app = try MiraApplication(
+            store: fixture.store,
+            provider: provider,
+            tools: ToolRegistry([MemoryRememberTool(store: fixture.store, approvals: approvals)]),
+            memoryApprovals: approvals
+        )
+
+        let conversationID = try await app.createConversation(workspaceID: nil)
+        let executionID = try await app.send(conversationID: conversationID, text: content, routeID: fixture.route.id)
+        try await eventually { try fixture.store.execution(executionID)?.status.isTerminal == true }
+
+        #expect(await approvals.pending().isEmpty)
+        #expect(try fixture.store.memoryList(workspaceID: nil, states: Set(MemoryState.allCases), query: "", limit: 20).memories.isEmpty)
+        let invocation = try #require(try await app.audit(for: executionID).invocations.first)
+        #expect(invocation.result?.status == .denied)
+        #expect(invocation.result?.text.contains("memory_id") == false)
+        #expect(provider.requests.count == 2)
         await app.shutdown()
     }
 }

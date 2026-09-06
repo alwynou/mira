@@ -237,6 +237,13 @@ buildContext(input)
 
 真实出现第三方可插拔来源后再抽象 Contributor。
 
+Current v0.1 rendering uses `CanonicalModelRequest.system` for stable app instructions and pinned workspace background. Its message sequence is eligible durable history, one optional `CanonicalRole.context` message containing retrieved memory data, the current user message exactly once, then complete same-turn tool exchanges. Retrieved content is JSON-escaped, explicitly untrusted, and carries exact revision citations; it is never appended to the system header. Context remains frozen during a tool continuation and is rebuilt at the next user turn, without becoming durable history.
+
+Provider adapters map `context` to user-level content: OpenAI-compatible requests prepend the system/developer message at index zero; Anthropic sends the system value in its dedicated top-level field. At persistence and dispatch boundaries, context must be unique, data-only, and immediately before the last user message; it cannot carry reasoning, tool calls, or tool results or interrupt a pending tool exchange. The inspector displays system instructions first and messages in sequence; alphabetically sorted canonical JSON is a separate diagnostic disclosure and its object-key order has no prompt-order meaning.
+
+The optional memory budget includes the serialized context-message envelope and JSON escaping, with a maximum of six whole entries and 1,200 bytes / 8% of available input. The final conservative request estimate also includes reference metadata and protocol overhead; history and the current input are never silently trimmed. Tool-schema overhead is checked again when extending the frozen request. Prefix stability describes request construction, not a guaranteed provider cache hit; changing tools, model, workspace background, or eligible history still changes the effective prefix.
+
+
 <a id="s16-06"></a>
 
 ### 2.6 ContextItem

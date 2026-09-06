@@ -24,10 +24,10 @@ struct MemoryApplicationTests {
         let request = try #require(provider.requests.first)
         let memoryReferences = request.contextInfo?.references.filter { $0.kind == "memory" } ?? []
         #expect(Set(memoryReferences.map(\.id)) == Set([global.id, own.id].map { $0.rawValue.uuidString }))
-        #expect(request.system.contains("Aurora"))
-        #expect(!request.system.contains("NeverLeak"))
-        #expect(!request.system.contains("PrivateOnly"))
-        #expect(!request.system.contains("NotConfirmed"))
+        #expect((request.system + request.messages.map(\.text).joined()).contains("Aurora"))
+        #expect(!(request.system + request.messages.map(\.text).joined()).contains("NeverLeak"))
+        #expect(!(request.system + request.messages.map(\.text).joined()).contains("PrivateOnly"))
+        #expect(!(request.system + request.messages.map(\.text).joined()).contains("NotConfirmed"))
         #expect(try fixture.store.execution(executionID)?.status == .completed)
         _ = await app.shutdown()
     }
@@ -41,7 +41,7 @@ struct MemoryApplicationTests {
         let conversation = try await app.createConversation(workspaceID: nil)
         let executionID = try await app.send(conversationID: conversation, text: "Tell me about my editor.", routeID: fixture.route.id)
         try await memoryEventually { provider.requests.count == 1 }
-        #expect(provider.requests[0].system.contains("AuroraPrivate"))
+        #expect((provider.requests[0].system + provider.requests[0].messages.map(\.text).joined()).contains("AuroraPrivate"))
         let receipt = try await app.forgetMemory(memory.id, workspaceID: nil, expectedRevision: memory.revision)
         #expect(receipt.redactedExecutionIDs.contains(executionID))
         _ = await app.shutdown()
@@ -61,7 +61,7 @@ struct MemoryApplicationTests {
         let secondExecution = try await reopened.send(conversationID: secondConversation, text: "Tell me about my editor.", routeID: fixture.route.id)
         try await memoryEventually { try fixture.store.execution(secondExecution)?.status.isTerminal == true }
         #expect(secondProvider.requests.count == 1)
-        #expect(!secondProvider.requests[0].system.contains("AuroraPrivate"))
+        #expect(!(secondProvider.requests[0].system + secondProvider.requests[0].messages.map(\.text).joined()).contains("AuroraPrivate"))
         _ = await reopened.shutdown()
     }
 }

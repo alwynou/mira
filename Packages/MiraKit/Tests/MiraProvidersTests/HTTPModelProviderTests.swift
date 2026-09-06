@@ -615,6 +615,76 @@ func toolRequestShapes() async throws {
     #expect(resultBlocks.first?["tool_use_id"] as? String == "call-1")
 }
 
+@Test("System instructions precede stable history and turn-scoped context on both wires")
+func systemPrefixAndTurnContextWireOrder() async throws {
+    let canonical = CanonicalModelRequest(executionID: ExecutionID(), system: "Stable instructions", messages: [
+        .init(role: .user, text: "Earlier question"),
+        .init(role: .assistant, text: "Earlier answer"),
+        .init(role: .context, text: "Untrusted retrieved facts"),
+        .init(role: .user, text: "Current question")
+    ])
+    for mode in [ModelProtocolMode.standard, .openAI] {
+        var snapshot = route()
+        snapshot.protocolMode = mode
+        let transport = FixtureTransport(events: openAIEvents([Data(sse([
+            ("", #"{"choices":[{"delta":{},"finish_reason":"stop"}]}"#), ("", "[DONE]")
+        ]))]))
+        for try await _ in HTTPModelProvider(credentials: FixtureCredentials(), transport: transport).stream(request: canonical, route: snapshot) {}
+        let body = try #require(transport.requests.first?.httpBody)
+        let object = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let messages = try #require(object["messages"] as? [[String: Any]])
+        #expect(messages.map { $0["role"] as? String } == [mode == .openAI ? "developer" : "system", "user", "assistant", "user", "user"])
+        #expect(messages.map { $0["content"] as? String } == [canonical.system] + canonical.messages.map(\.text))
+    }
+    let transport = FixtureTransport(events: anthropicEvents([Data(sse([
+        ("message_start", #"{"type":"message_start","message":{"usage":{}}}"#),
+        ("message_delta", #"{"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#),
+        ("message_stop", #"{"type":"message_stop"}"#)
+    ]))]))
+    for try await _ in HTTPModelProvider(credentials: FixtureCredentials(), transport: transport).stream(request: canonical, route: route(.anthropic)) {}
+    let body = try #require(transport.requests.first?.httpBody)
+    let object = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect(object["system"] as? String == canonical.system)
+    let messages = try #require(object["messages"] as? [[String: Any]])
+    #expect(messages.map { $0["role"] as? String } == ["user", "assistant", "user", "user"])
+    #expect(messages.map { $0["content"] as? String } == canonical.messages.map(\.text))
+}
+
+@Test("Application context is data-only, unique, and immediately before the current user")
+func rejectsInvalidApplicationContextBeforeCredentialAccess() async throws {
+    let context = CanonicalMessage(role: .context, text: "Retrieved facts")
+    let user = CanonicalMessage(role: .user, text: "Current question")
+    for messages: [CanonicalMessage] in [
+        [.init(role: .context, text: "Invalid", reasoning: .init(format: .openAIContent, text: "Invalid", isComplete: true)), user],
+        [.init(role: .context, text: "Invalid", toolCalls: [.init(id: "invalid", name: "echo", arguments: "{}")]), user],
+        [.init(role: .context, text: "Invalid", toolCallID: "invalid"), user],
+        [context, context, user],
+        [user, context],
+        [context],
+        [context, .init(role: .user, text: "Earlier question"), .init(role: .assistant, text: "Earlier answer"), user]
+    ] {
+        for kind in [ProviderKind.openAICompatible, .anthropic] {
+            let credentials = FixtureCredentials()
+            let transport = FixtureTransport(events: [])
+            let canonical = CanonicalModelRequest(executionID: ExecutionID(), system: "Instructions", messages: messages)
+            await #expect(throws: MiraError.self) {
+                for try await _ in HTTPModelProvider(credentials: credentials, transport: transport).stream(request: canonical, route: route(kind)) {}
+            }
+            #expect(credentials.reads == 0)
+            #expect(transport.requests.isEmpty)
+        }
+    }
+    var canonical = toolRequest()
+    canonical.messages.insert(.init(role: .context, text: "Invalid placement"), at: 2)
+    let credentials = FixtureCredentials()
+    let transport = FixtureTransport(events: [])
+    await #expect(throws: MiraError.self) {
+        for try await _ in HTTPModelProvider(credentials: credentials, transport: transport).stream(request: canonical, route: toolRoute()) {}
+    }
+    #expect(credentials.reads == 0)
+    #expect(transport.requests.isEmpty)
+}
+
 @Test("OpenAI interleaved tool arguments are emitted once in model order")
 func openAIInterleavedToolCalls() async throws {
     let bytes = sse([

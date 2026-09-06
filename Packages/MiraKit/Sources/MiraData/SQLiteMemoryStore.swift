@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import GRDB
 import MiraCore
+import NaturalLanguage
 
 func memoryTimestampMatches(_ date: Date, _ stored: Double?) -> Bool {
     guard let stored else { return false }
@@ -487,12 +488,35 @@ extension SQLiteMiraStore {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         var from = "memories m"
         var rank = "0.0"
-        let terms = memorySearchTerms(trimmed)
+        let shortCJKTerms = memorySearchShortCJKTerms(trimmed, maximum: 12)
+        let terms = Array(memorySearchTerms(trimmed).prefix(24 - shortCJKTerms.count))
         if !trimmed.isEmpty && enforcePolicy {
-            if terms.isEmpty {
+            if trimmed.count < 3 && trimmed.unicodeScalars.allSatisfy(isCJKScalar) {
+                // Preserve explicit short-keyword search without expanding long
+                // natural-language requests into single-character matches.
+                conditions.append("lower(COALESCE(json_extract(m.draft_json, '$.content'), '')) LIKE lower(?) ESCAPE '\\'")
+                _ = arguments.append(contentsOf: StatementArguments([escapedMemoryLikePattern(trimmed)]))
+            } else if terms.isEmpty && shortCJKTerms.isEmpty {
                 // A stop-word-only recall query must not turn into a broad
                 // metadata/content scan.
                 conditions.append("0 = 1")
+            } else if !shortCJKTerms.isEmpty {
+                let shortTermConditions = shortCJKTerms.map { _ in
+                    "lower(COALESCE(json_extract(m.draft_json, '$.content'), '')) LIKE lower(?) ESCAPE '\\'"
+                }.joined(separator: " OR ")
+                if !terms.isEmpty {
+                    let ftsQuery = terms.map { "\"\($0)\"" }.joined(separator: " OR ")
+                    // FTS5 MATCH cannot safely participate in a top-level OR
+                    // expression. Keep the indexed branch in a subquery and
+                    // supplement it with escaped LIKE for bounded two-scalar
+                    // CJK words that the trigram tokenizer cannot match.
+                    conditions.append("(m.id IN (SELECT memory_id FROM memory_search WHERE memory_search MATCH ?) OR (\(shortTermConditions)))")
+                    _ = arguments.append(contentsOf: StatementArguments([ftsQuery]))
+                    rank = "0.0"
+                } else {
+                    conditions.append("(\(shortTermConditions))")
+                }
+                _ = arguments.append(contentsOf: StatementArguments(shortCJKTerms.map { escapedMemoryLikePattern($0) }))
             } else if trimmed.count >= 3 {
                 from += " JOIN memory_search ON memory_search.memory_id = m.id"
                 let ftsQuery = terms.map { "\"\($0)\"" }.joined(separator: " OR ")
@@ -524,7 +548,8 @@ extension SQLiteMiraStore {
 
     /// Produces terms compatible with the trigram index while treating
     /// punctuation as a separator. CJK runs are emitted as bounded overlapping
-    /// three-scalar grams; short CJK queries use the LIKE path above.
+    /// three-scalar grams; short CJK words are handled by
+    /// `memorySearchShortCJKTerms` because the trigram index cannot match them.
     func memorySearchTerms(_ query: String) -> [String] {
         let stopWords: Set<String> = ["a", "an", "and", "are", "for", "in", "is", "it", "my", "of", "on", "or", "the", "to"]
         var terms: [String] = []
@@ -539,9 +564,7 @@ extension SQLiteMiraStore {
         }
         func flushCJK() {
             guard !cjkRun.isEmpty else { return }
-            if cjkRun.count < 3 {
-                terms.append(String(cjkRun))
-            } else {
+            if cjkRun.count >= 3 {
                 for index in 0...(cjkRun.count - 3) {
                     terms.append(String(cjkRun[index..<(index + 3)]))
                     if terms.count >= 24 { break }
@@ -572,6 +595,42 @@ extension SQLiteMiraStore {
         }
         flushLatin(); flushCJK()
         return Array(terms.prefix(24))
+    }
+
+    /// Returns only native Natural Language word tokens that are exactly two
+    /// CJK scalars. Single-character terms are intentionally discarded, and
+    /// arbitrary overlapping bigrams are never synthesized.
+    func memorySearchShortCJKTerms(_ query: String, maximum: Int = 24) -> [String] {
+        guard maximum > 0, query.unicodeScalars.contains(where: isCJKScalar) else { return [] }
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.setLanguage(.simplifiedChinese)
+        tokenizer.string = query
+        let range = query.startIndex..<query.endIndex
+        var terms: [String] = []
+        var seen = Set<String>()
+        for tokenRange in tokenizer.tokens(for: range) {
+            let token = String(query[tokenRange])
+            guard token.unicodeScalars.count == 2,
+                  token.unicodeScalars.allSatisfy(isCJKScalar), seen.insert(token).inserted else { continue }
+            terms.append(token)
+            if terms.count == maximum { break }
+        }
+        return terms
+    }
+
+    private func isCJKScalar(_ scalar: Unicode.Scalar) -> Bool {
+        (0x3400...0x4DBF).contains(scalar.value) ||
+            (0x4E00...0x9FFF).contains(scalar.value) ||
+            (0xF900...0xFAFF).contains(scalar.value) ||
+            (0x20000...0x2FA1F).contains(scalar.value)
+    }
+
+    private func escapedMemoryLikePattern(_ term: String) -> String {
+        let escaped = term
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+        return "%\(escaped)%"
     }
 
     func resolveMemorySource(_ source: MemorySourceInput, draft: MemoryDraft, in db: Database) throws -> MemorySourceInfo {

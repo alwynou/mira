@@ -30,8 +30,8 @@ struct NaturalMemoryRecallTests {
         #expect(request.contextInfo?.references.contains {
             $0.kind == "memory" && $0.id == preference.id.rawValue.uuidString && $0.revision == preference.revision
         } == true)
-        #expect(request.system.contains(preference.citation))
-        #expect(request.system.contains("I prefer concise reading notes"))
+        #expect((request.system + request.messages.map(\.text).joined()).contains(preference.citation))
+        #expect((request.system + request.messages.map(\.text).joined()).contains("I prefer concise reading notes"))
         #expect(request.messages.contains { $0.text.localizedCaseInsensitiveContains("search memory") } == false)
         await app.shutdown()
     }
@@ -57,8 +57,8 @@ struct NaturalMemoryRecallTests {
         let request = try #require(provider.requests.first)
         #expect(request.messages.last?.text == "Help plan my weekly meals")
         #expect(request.contextInfo?.references.contains { $0.kind == "memory" } != true)
-        #expect(request.system.contains(preference.citation) == false)
-        #expect(request.system.contains(preference.draft?.content ?? "") == false)
+        #expect((request.system + request.messages.map(\.text).joined()).contains(preference.citation) == false)
+        #expect((request.system + request.messages.map(\.text).joined()).contains(preference.draft?.content ?? "") == false)
         await app.shutdown()
     }
 }

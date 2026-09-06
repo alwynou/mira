@@ -1,6 +1,23 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Ordinary statements use automatic memory capture after the reply. No manual memory was saved.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordinary statements use automatic memory capture after the reply. No manual memory was saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通陈述会在回复结束后由自动记忆处理。本次未手动保存记忆。"
+          }
+        }
+      }
+    },
     "%@ · %@": {
       "extractionState": "manual",
       "localizations": {
@@ -19430,6 +19447,380 @@
           "stringUnit": {
             "state": "translated",
             "value": "关联记忆的历史执行不可用。"
+          }
+        }
+      }
+    },
+    "Automatic memory is off": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic memory is off"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动记忆已关闭"
+          }
+        }
+      }
+    },
+    "Ordinary statements are not saved automatically. Enable automatic memory and choose a dedicated extraction route in Settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordinary statements are not saved automatically. Enable automatic memory and choose a dedicated extraction route in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通陈述不会自动保存。请在“设置”中启用自动记忆，并选择专用的提取路由。"
+          }
+        }
+      }
+    },
+    "No candidate extraction yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No candidate extraction yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未进行候选提取"
+          }
+        }
+      }
+    },
+    "After your next completed conversation, eligible memories will be extracted as candidates for your review. They will not enter recall automatically.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After your next completed conversation, eligible memories will be extracted as candidates for your review. They will not enter recall automatically."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成下一次对话后，符合条件的记忆会被提取为候选内容供您审核。它们不会自动进入召回。"
+          }
+        }
+      }
+    },
+    "No automatic capture yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No automatic capture yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未进行自动捕获"
+          }
+        }
+      }
+    },
+    "After your next completed conversation, eligible memories may be saved automatically. You can undo, edit, archive, or forget them.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After your next completed conversation, eligible memories may be saved automatically. You can undo, edit, archive, or forget them."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成下一次对话后，符合条件的记忆可能会自动保存。您可以撤销、编辑、归档或遗忘这些记忆。"
+          }
+        }
+      }
+    },
+    "Open memory settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open memory settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开记忆设置"
+          }
+        }
+      }
+    },
+    "Capture mode: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture mode: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "捕获模式：%@"
+          }
+        }
+      }
+    },
+    "Automatic capture is off. Existing extraction jobs remain available below; ordinary statements are not saved automatically.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic capture is off. Existing extraction jobs remain available below; ordinary statements are not saved automatically."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动捕获已关闭。现有提取任务仍会显示在下方；普通陈述不会自动保存。"
+          }
+        }
+      }
+    },
+    "Candidate capture is enabled. New eligible memories will wait for your review.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Candidate capture is enabled. New eligible memories will wait for your review."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候选捕获已启用。新的符合条件的记忆会等待您审核。"
+          }
+        }
+      }
+    },
+    "Automatic capture is enabled. Eligible memories may be saved with undo controls.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic capture is enabled. Eligible memories may be saved with undo controls."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动捕获已启用。符合条件的记忆可能会保存，并提供撤销控制。"
+          }
+        }
+      }
+    },
+    "System instructions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System instructions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统指令"
+          }
+        }
+      }
+    },
+    "Request order": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request order"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求顺序"
+          }
+        }
+      }
+    },
+    "System instructions are applied first. Message entries below remain in their recorded order. JSON object key order does not represent prompt order.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System instructions are applied first. Message entries below remain in their recorded order. JSON object key order does not represent prompt order."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统指令最先应用。下方消息按记录中的顺序显示。JSON 对象字段顺序不代表提示词顺序。"
+          }
+        }
+      }
+    },
+    "Canonical request JSON": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canonical request JSON"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规范请求 JSON"
+          }
+        }
+      }
+    },
+    "Retrieved context": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retrieved context"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检索到的上下文"
+          }
+        }
+      }
+    },
+    "User message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User message"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户消息"
+          }
+        }
+      }
+    },
+    "Assistant message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistant message"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "助手消息"
+          }
+        }
+      }
+    },
+    "Tool result": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tool result"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具结果"
+          }
+        }
+      }
+    },
+    "Tool definitions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tool definitions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具定义"
+          }
+        }
+      }
+    },
+    "A replay request can contain reasoning only on an assistant message.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A replay request can contain reasoning only on an assistant message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重放请求只能在助手消息中包含推理内容。"
+          }
+        }
+      }
+    },
+    "Retrieved context must be one data-only message immediately before the current user message.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retrieved context must be one data-only message immediately before the current user message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检索上下文只能有一条纯数据消息，且必须紧接在当前用户消息之前。"
           }
         }
       }

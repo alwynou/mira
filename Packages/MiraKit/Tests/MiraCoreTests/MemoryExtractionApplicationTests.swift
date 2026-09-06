@@ -75,7 +75,40 @@ struct MemoryExtractionApplicationTests {
         #expect(provider.requests.count == 3)
         let laterRequest = try #require(provider.requests.last)
         #expect(laterRequest.contextInfo?.references.contains { $0.id == memoryID.rawValue.uuidString } == true)
-        #expect(laterRequest.system.contains("I prefer tea"))
+        #expect((laterRequest.system + laterRequest.messages.map(\.text).joined()).contains("I prefer tea"))
+        #expect(await app.shutdown())
+    }
+
+    @Test func ordinaryRoutinePreferenceBecomesActiveAndIsRecalledWithoutMemoryInstruction() async throws {
+        let fixture = try ExtractionApplicationFixture()
+        defer { fixture.cleanup() }
+        let provider = ExtractionApplicationProvider(suspendAfterFirstExtraction: true, paraphraseExtraction: true)
+        let app = try MiraApplication(store: fixture.store, provider: provider)
+        await app.startBackgroundWork()
+        try await app.saveMemoryCapturePolicy(mode: .automaticWithUndo, dailyTokenLimit: 100_000, expectedRevision: 1)
+        let source = "我每天早上早餐喜欢吃粉" // i18n-fixture: Exercise ordinary Chinese habit capture through the real application pipeline.
+        let conversationID = try await app.createConversation(workspaceID: nil)
+        _ = try await app.send(conversationID: conversationID, text: source, routeID: fixture.route.id)
+        try await eventually(named: "ordinary preference extraction") {
+            try fixture.store.memoryExtractionJobs(conversationID: conversationID, limit: 10).first?.state == .completed
+        }
+        let job = try #require(try fixture.store.memoryExtractionJobs(conversationID: conversationID, limit: 10).first)
+        let memoryID = try #require(job.memoryIDs.first)
+        let memory = try fixture.store.memoryDetail(memoryID, workspaceID: nil).memory
+        #expect(memory.state == .active)
+        #expect(memory.draft?.content == source)
+        #expect(job.candidateMemoryIDs.isEmpty)
+
+        let later = try await app.createConversation(workspaceID: nil)
+        let prompt = "帮我安排明天早餐" // i18n-fixture: Natural recall must not require an explicit memory-search instruction.
+        let execution = try await app.send(conversationID: later, text: prompt, routeID: fixture.route.id)
+        try await eventually(named: "ordinary breakfast request") { try fixture.store.execution(execution)?.status == .completed }
+        let request = try #require(provider.requests.first { $0.executionID == execution && $0.tools == nil && $0.contextInfo != nil })
+        #expect(request.messages.map(\.role) == [.context, .user])
+        #expect(request.messages.first?.text.contains(source) == true)
+        #expect(request.messages.last?.text == prompt)
+        #expect(!request.system.contains(source))
+        #expect(request.contextInfo?.references.contains { $0.id == memoryID.rawValue.uuidString } == true)
         #expect(await app.shutdown())
     }
 
@@ -188,8 +221,10 @@ private final class ExtractionApplicationProvider: ModelProviderPort, @unchecked
     private var suspended: [(AsyncThrowingStream<CanonicalStreamEvent, any Error>.Continuation, String)] = []
     private let suspendAfterFirstExtraction: Bool
     private let suspendExtraction: Bool
+    private let paraphraseExtraction: Bool
 
-    init(suspendAfterFirstExtraction: Bool = false, suspendExtraction: Bool = false) {
+    init(suspendAfterFirstExtraction: Bool = false, suspendExtraction: Bool = false, paraphraseExtraction: Bool = false) {
+        self.paraphraseExtraction = paraphraseExtraction
         self.suspendAfterFirstExtraction = suspendAfterFirstExtraction
         self.suspendExtraction = suspendExtraction
     }
@@ -211,7 +246,7 @@ private final class ExtractionApplicationProvider: ModelProviderPort, @unchecked
         }
         return AsyncThrowingStream { continuation in
             if route.purpose == .memoryExtraction {
-                continuation.yield(.textDelta(Self.extractionJSON(content: Self.sourceContent(from: request))))
+                continuation.yield(.textDelta(Self.extractionJSON(content: Self.sourceContent(from: request), paraphrase: paraphraseExtraction)))
                 continuation.yield(.usage(.init(inputTokens: 7, outputTokens: 5)))
             } else {
                 continuation.yield(.textDelta("Synthetic foreground answer."))
@@ -240,8 +275,9 @@ private final class ExtractionApplicationProvider: ModelProviderPort, @unchecked
         return content
     }
 
-    private static func extractionJSON(content: String) -> String {
-        "{\"version\":1,\"items\":[{\"content\":\"\(content)\",\"quote\":\"\(content)\",\"kind\":\"preference\",\"subject\":\"user\",\"sensitivity\":\"standard\",\"inferred\":false,\"stable\":true,\"confidence\":\"high\",\"validFrom\":null,\"validUntil\":null}]}"
+    private static func extractionJSON(content: String, paraphrase: Bool = false) -> String {
+        let proposedContent = paraphrase ? "Model rewrite that must not replace direct evidence" : content
+        return "{\"version\":1,\"items\":[{\"content\":\"\(proposedContent)\",\"quote\":\"\(content)\",\"kind\":\"preference\",\"subject\":\"user\",\"sensitivity\":\"standard\",\"inferred\":false,\"stable\":true,\"confidence\":\"high\",\"validFrom\":null,\"validUntil\":null}]}"
     }
 }
 

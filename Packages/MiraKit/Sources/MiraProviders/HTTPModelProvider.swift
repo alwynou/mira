@@ -170,6 +170,7 @@ private func validateToolArguments(_ raw: String) throws {
 /// request is dispatched. Tool results are one contiguous batch following the
 /// assistant call that produced their IDs.
 private func validateToolHistory(_ request: CanonicalModelRequest) throws -> Bool {
+    try request.validateContextMessages()
     let definitions = request.tools ?? []
     var wireNames = Set<String>()
     for definition in definitions {
@@ -208,7 +209,7 @@ private func validateToolHistory(_ request: CanonicalModelRequest) throws -> Boo
                   pending.remove(id) != nil else {
                 throw ProviderProtocolError.malformed
             }
-        case .user:
+        case .user, .context:
             guard pending.isEmpty else { throw ProviderProtocolError.malformed }
             guard message.toolCalls == nil, message.toolCallID == nil else { throw ProviderProtocolError.malformed }
         }
@@ -924,7 +925,7 @@ private struct OpenAIRequest: Encodable {
             }
             let role: String
             switch $0.role {
-            case .user: role = "user"
+            case .user, .context: role = "user"
             case .assistant: role = "assistant"
             case .tool: role = "tool"
             }

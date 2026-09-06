@@ -15,6 +15,8 @@ Further streaming-performance work is paused at the user's request. The [core wo
 
 A user-authorized [live DeepSeek memory walkthrough](engineering/CORE_WORKFLOW_VERIFICATION.md#authorized-native-memory-follow-up) passed save, explicit remote-use review, new-conversation recall, semantic replacement, historical citations, and forgetting without reviving the old preference. The subsequent [natural association and retained-history fix](engineering/NATURAL_MEMORY_VERIFICATION.md) corrects lifecycle labels and local-only acknowledgments, verifies an ordinary template request, and preserves forgotten-memory replies with tags while excluding them from future model context. This single-model smoke test does not close automatic-memory quality, other-provider, restart, or platform acceptance.
 
+The [ordinary capture and stable-prefix fix](engineering/AUTOMATIC_CAPTURE_PREFIX_VERIFICATION.md) extends automatic-active recognition to bounded routine preferences, adds native Chinese short-word recall, separates dynamic memory from system instructions, and makes capture-off status explicit. It retains opt-in configuration, dedicated extraction routing, and conservative review gates; it does not establish general semantic-memory quality.
+
 The [usage and cost increment](engineering/USAGE_COST_VERIFICATION.md) adds provider cache/thinking counters and frozen per-call estimates, with separate foreground/background presentation. Unsupported or incomplete billing dimensions remain explicitly unknown. This does not close attended acceptance or introduce a monetary hard limit.
 
 

@@ -98,7 +98,8 @@ public enum AssistantTrace {
             throw MiraError(.outputLimit, "The assistant transcript exceeded the local safety limit.")
         }
         for message in messages {
-            guard message.role != .user, message.role == .assistant || message.reasoning == nil,
+            guard message.role == .assistant || message.role == .tool,
+                  message.role == .assistant || message.reasoning == nil,
                   !complete || message.reasoning?.isComplete != false else {
                 throw MiraError(.malformedStream, "The assistant transcript contains invalid thinking content.")
             }

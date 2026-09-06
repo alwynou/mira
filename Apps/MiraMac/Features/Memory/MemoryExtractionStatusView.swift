@@ -23,12 +23,15 @@ struct MemoryExtractionStatusView: View {
                 ProgressView("Loading extraction status")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if jobs.isEmpty {
-                ContentUnavailableView("No extraction jobs", systemImage: "sparkles", description: Text("Persisted memory extraction activity will appear here."))
+                emptyState
             } else {
-                List(jobs) { job in
-                    jobRow(job)
+                VStack(spacing: 0) {
+                    captureModeStatus
+                    List(jobs) { job in
+                        jobRow(job)
+                    }
+                    .listStyle(.inset)
                 }
-                .listStyle(.inset)
             }
         }
         .overlay(alignment: .bottom) {
@@ -49,6 +52,109 @@ struct MemoryExtractionStatusView: View {
         .onDisappear {
             retryTasks.values.forEach { $0.cancel() }
             retryTasks.removeAll()
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: emptyStateSystemImage)
+                .font(.system(size: 32))
+                .foregroundStyle(.secondary)
+            Text(L10n.string(emptyStateTitleKey, locale: locale))
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            Text(L10n.string(emptyStateDescriptionKey, locale: locale))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 440)
+            if captureMode == .manualOnly {
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .buttonStyle(.bordered)
+                .padding(.top, 4)
+            }
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var captureModeStatus: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: captureModeSystemImage)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.format("Capture mode: %@", locale: locale, L10n.string(captureModeKey, locale: locale)))
+                    .font(.callout)
+                Text(L10n.string(captureModeStatusDescriptionKey, locale: locale))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+            if captureMode == .manualOnly {
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.quaternary)
+    }
+
+    private var emptyStateSystemImage: String {
+        switch captureMode {
+        case .manualOnly: "brain" // i18n-verbatim: SF Symbol identifier, not display copy.
+        case .candidateOnly: "checkmark.circle" // i18n-verbatim: SF Symbol identifier, not display copy.
+        case .automaticWithUndo: "sparkles" // i18n-verbatim: SF Symbol identifier, not display copy.
+        }
+    }
+
+    private var emptyStateTitleKey: String {
+        switch captureMode {
+        case .manualOnly: "Automatic memory is off"
+        case .candidateOnly: "No candidate extraction yet"
+        case .automaticWithUndo: "No automatic capture yet"
+        }
+    }
+
+    private var emptyStateDescriptionKey: String {
+        switch captureMode {
+        case .manualOnly:
+            "Ordinary statements are not saved automatically. Enable automatic memory and choose a dedicated extraction route in Settings."
+        case .candidateOnly:
+            "After your next completed conversation, eligible memories will be extracted as candidates for your review. They will not enter recall automatically."
+        case .automaticWithUndo:
+            "After your next completed conversation, eligible memories may be saved automatically. You can undo, edit, archive, or forget them."
+        }
+    }
+
+    private var captureModeKey: String {
+        switch captureMode {
+        case .manualOnly: "Manual only"
+        case .candidateOnly: "Candidate review"
+        case .automaticWithUndo: "Automatic with undo"
+        }
+    }
+
+    private var captureModeSystemImage: String {
+        switch captureMode {
+        case .manualOnly: "pause.circle" // i18n-verbatim: SF Symbol identifier, not display copy.
+        case .candidateOnly: "checkmark.circle" // i18n-verbatim: SF Symbol identifier, not display copy.
+        case .automaticWithUndo: "sparkles" // i18n-verbatim: SF Symbol identifier, not display copy.
+        }
+    }
+
+    private var captureModeStatusDescriptionKey: String {
+        switch captureMode {
+        case .manualOnly:
+            "Automatic capture is off. Existing extraction jobs remain available below; ordinary statements are not saved automatically."
+        case .candidateOnly:
+            "Candidate capture is enabled. New eligible memories will wait for your review."
+        case .automaticWithUndo:
+            "Automatic capture is enabled. Eligible memories may be saved with undo controls."
         }
     }
 

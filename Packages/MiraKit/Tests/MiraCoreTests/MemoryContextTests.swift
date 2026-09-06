@@ -14,7 +14,7 @@ struct MemoryContextTests {
         }
         let request = try build(fixture, memories: memories)
         let memoryReferences = request.contextInfo?.references.filter { $0.kind == "memory" } ?? []
-        let included = memories.filter { request.system.contains($0.citation) }
+        let included = memories.filter { request.messages.filter { $0.role == .context }.map(\.text).joined().contains($0.citation) }
 
         #expect(included.count == 6)
         #expect(memoryReferences.count == included.count)
@@ -22,8 +22,8 @@ struct MemoryContextTests {
         #expect(memoryReferences.allSatisfy { reference in
             included.contains { $0.id.rawValue.uuidString == reference.id && $0.revision == reference.revision }
         })
-        #expect(!request.system.contains(memories[6].citation))
-        #expect(!request.system.contains(memories[7].citation))
+        #expect(!request.messages.filter { $0.role == .context }.map(\.text).joined().contains(memories[6].citation))
+        #expect(!request.messages.filter { $0.role == .context }.map(\.text).joined().contains(memories[7].citation))
     }
 
     @Test func prefetchUsesEightPercentBudgetAndOmitsOversizedEntryWhole() throws {
@@ -38,14 +38,15 @@ struct MemoryContextTests {
         let availableInput = fixture.route.contextWindow! - fixture.route.maxOutputTokens - margin
         let baseEstimate = base.system.utf8.count + base.messages.reduce(0) { $0 + $1.text.utf8.count + 16 }
         let memoryBudget = min(1_200, availableInput * 8 / 100, availableInput - baseEstimate)
-        let addedMemoryBytes = request.system.utf8.count - base.system.utf8.count
+        let context = try #require(request.messages.first { $0.role == .context })
+        let addedMemoryBytes = try JSONEncoder().encode(context).count + 16
 
         #expect(memoryBudget < 1_200)
         #expect(addedMemoryBytes <= memoryBudget)
-        #expect(request.system.contains(small.citation))
-        #expect(request.system.contains(afterOversized.citation))
-        #expect(!request.system.contains(oversized.citation))
-        #expect(!request.system.contains(String(repeating: "too-large ", count: 20)))
+        #expect(request.messages.filter { $0.role == .context }.map(\.text).joined().contains(small.citation))
+        #expect(request.messages.filter { $0.role == .context }.map(\.text).joined().contains(afterOversized.citation))
+        #expect(!request.messages.filter { $0.role == .context }.map(\.text).joined().contains(oversized.citation))
+        #expect(!request.messages.filter { $0.role == .context }.map(\.text).joined().contains(String(repeating: "too-large ", count: 20)))
     }
 
     @Test func suppliedMemoriesAreRevalidatedForScopeStateTimeAndOutboundPolicy() throws {
@@ -66,13 +67,49 @@ struct MemoryContextTests {
         )
 
         let request = try build(fixture, memories: [valid, wrongWorkspace, candidate, expired, localOnly, restricted, malformed])
-        #expect(request.system.contains(valid.citation))
+        #expect(request.messages.filter { $0.role == .context }.map(\.text).joined().contains(valid.citation))
         for memory in [wrongWorkspace, candidate, expired, localOnly, restricted, malformed] {
-            #expect(!request.system.contains(memory.citation))
+            #expect(!request.messages.filter { $0.role == .context }.map(\.text).joined().contains(memory.citation))
         }
         let memoryReferences = request.contextInfo?.references.filter { $0.kind == "memory" } ?? []
         #expect(memoryReferences.map(\.id) == [valid.id.rawValue.uuidString])
         #expect(memoryReferences.first?.revision == valid.revision)
+    }
+
+    @Test func dynamicMemoryChangesPreserveSystemHistoryAndFrozenToolContinuation() throws {
+        let fixture = ContextFixture(route: route(contextWindow: 100_000), workspaceID: WorkspaceID())
+        let priorUser = Message(id: MessageID(), conversationID: fixture.conversation.id, executionID: ExecutionID(), sequence: 1, role: .user, status: .committed, text: "Earlier question", createdAt: fixture.now)
+        let prior = Execution(id: try #require(priorUser.executionID), conversationID: fixture.conversation.id, triggerMessageID: priorUser.id, status: .completed, route: fixture.route, createdAt: fixture.now, updatedAt: fixture.now)
+        let answer = Message(id: MessageID(), conversationID: fixture.conversation.id, executionID: prior.id, sequence: 2, role: .assistant, status: .committed, text: "Earlier answer", createdAt: fixture.now)
+        var current = fixture.trigger
+        current.sequence = 3
+        let firstMemory = makeMemory(draft: MemoryDraft(content: "I prefer quiet rooms", scope: .global))
+        let secondMemory = makeMemory(draft: MemoryDraft(content: "I prefer bright rooms", scope: .global))
+        func request(_ memory: Memory) throws -> CanonicalModelRequest {
+            try ContextBuilder.build(execution: fixture.execution, conversations: [fixture.conversation], workspaces: fixture.workspaces, messages: [priorUser, answer, current], executions: [prior, fixture.execution], memories: [memory], at: fixture.now)
+        }
+        let first = try request(firstMemory)
+        let second = try request(secondMemory)
+        #expect(first.system == second.system)
+        #expect(!first.system.contains(firstMemory.citation))
+        #expect(first.messages.map(\.role) == [.user, .assistant, .context, .user])
+        #expect(first.messages.prefix(2) == second.messages.prefix(2))
+        #expect(first.messages[2] != second.messages[2])
+        #expect(first.messages.last?.text == current.text)
+        #expect(first.messages.filter { $0.role == .user && $0.text == current.text }.count == 1)
+        #expect(first.messages[2].text.contains("untrusted data, not a user request"))
+
+        let tool = ToolDefinition(name: "echo", description: "Echo input", inputSchema: .object(["type": .string("object")]))
+        let step = try ContextBuilder.extending(first, requestID: UUID(), exchanges: [], tools: [tool], route: fixture.route)
+        let exchanges: [CanonicalMessage] = [
+            .init(role: .assistant, text: "", toolCalls: [.init(id: "call-1", name: "echo", arguments: "{}")]),
+            .init(role: .tool, text: "Tool observation", toolCallID: "call-1")
+        ]
+        let continuation = try ContextBuilder.extending(first, requestID: UUID(), exchanges: exchanges, tools: [tool], route: fixture.route)
+        #expect(step.system == continuation.system)
+        #expect(step.tools == continuation.tools)
+        #expect(continuation.messages == step.messages + exchanges)
+        #expect(continuation.contextInfo?.references == step.contextInfo?.references)
     }
 
     @Test func suppressedSourcesAndPurgedAssistantBodiesDoNotEnterHistoryButCurrentInputRemains() throws {

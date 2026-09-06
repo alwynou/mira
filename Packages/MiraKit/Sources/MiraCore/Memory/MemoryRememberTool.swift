@@ -13,7 +13,7 @@ public struct MemoryRememberTool: ToolPort {
         .init(
             definition: .init(
                 name: "memory.remember",
-                description: "Save an explicitly authorized user memory. Provide the exact quoted text from the current user message; content is untrusted until the user approves it. Tool-created memories are local-only by default. After success, acknowledge the receipt's committed allows_remote_use policy exactly: for local-only memories, say they are saved locally and never promise that future model requests will recall or use them; for remote-allowed memories, say remote use is allowed. A reused memory keeps its existing committed policy.",
+                description: "Save an explicitly authorized user memory. Call this tool only when the user explicitly asks to save or remember it; ordinary statements are handled by separate post-reply automatic extraction when capture is enabled. Provide the exact quoted text from the current user message; content is untrusted until the user approves it. Tool-created memories are local-only by default. After success, acknowledge the receipt's committed allows_remote_use policy exactly: for local-only memories, say they are saved locally and never promise that future model requests will recall or use them; for remote-allowed memories, say remote use is allowed. A reused memory keeps its existing committed policy.",
                 inputSchema: .object([
                     "type": .string("object"),
                     "properties": .object([
@@ -38,6 +38,10 @@ public struct MemoryRememberTool: ToolPort {
         try Task.checkCancellation()
         let arguments = try normalizedArguments(arguments)
         let live = try liveProposal(context: context, arguments: arguments, requireDispatched: false)
+        if try store.memoryCapturePolicy().mode != .manualOnly,
+           Self.explicitIntentSuffix(in: live.trigger.text) == nil {
+            throw MiraError(.unauthorized, "Ordinary statements use automatic memory capture after the reply. No manual memory was saved.")
+        }
         let parsed = try parse(arguments: arguments, conversation: live.conversation, trigger: live.trigger)
         guard live.trigger.text.range(of: parsed.quote) != nil else {
             throw MiraError(.invalidInput, "The quote must be an exact substring of the current user message.")

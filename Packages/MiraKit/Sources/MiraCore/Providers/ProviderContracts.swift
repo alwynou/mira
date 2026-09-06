@@ -152,7 +152,12 @@ public struct ResolvedModelRouteSnapshot: Identifiable, Codable, Sendable, Equat
     }
 }
 
-public enum CanonicalRole: String, Codable, Sendable { case user, assistant, tool }
+public enum CanonicalRole: String, Codable, Sendable {
+    case user, assistant, tool
+    /// Turn-scoped application data. Adapters send it as untrusted user-level
+    /// context, never as system instructions or a persisted user message.
+    case context
+}
 public struct CanonicalMessage: Codable, Sendable, Equatable {
     public var role: CanonicalRole
     public var text: String
@@ -175,6 +180,21 @@ public struct CanonicalModelRequest: Codable, Sendable, Equatable {
     public init(executionID: ExecutionID, system: String, messages: [CanonicalMessage], requestID: UUID? = nil, tools: [ToolDefinition]? = nil) {
         self.executionID = executionID; self.system = system; self.messages = messages
         self.requestID = requestID; self.tools = tools
+    }
+
+    public func validateContextMessages() throws {
+        let indices = messages.indices.filter { messages[$0].role == .context }
+        guard indices.count <= 1 else { throw invalidContext() }
+        guard let index = indices.first else { return }
+        let context = messages[index]
+        guard messages.lastIndex(where: { $0.role == .user }) == index + 1,
+              context.reasoning == nil, context.toolCalls == nil, context.toolCallID == nil else {
+            throw invalidContext()
+        }
+    }
+
+    private func invalidContext() -> MiraError {
+        MiraError(.malformedStream, "Retrieved context must be one data-only message immediately before the current user message.")
     }
 }
 public enum StreamFinishReason: String, Codable, Sendable { case stop, outputLimit, toolCalls }
