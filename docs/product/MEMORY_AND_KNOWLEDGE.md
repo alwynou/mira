@@ -241,6 +241,8 @@ Agent 主动深度检索
 - 当前状态；
 - 是否被用户明确确认。
 
+Opening a memory from its processing result shows that specific memory, including an older item beyond the initial management list. Existing search text is cleared for this direct navigation; workspace access boundaries still apply.
+
 <a id="s09-09"></a>
 
 ### 1.9 自动记忆设置与处理反馈
@@ -348,6 +350,8 @@ Working Memory 是可重建投影，不是新的事实源。
 - Conversation 或 Tool Result 的可引用内容。
 
 Source 可以被解析成可检索片段，但原文件和来源身份仍被保留。
+
+In v0.1, selecting a Markdown search result opens the matching source fragment with its original text and line range. Reply citations open the version used by that reply. If the source is deleted or its model-use permission is revoked, reopening a citation shows that it is unavailable, and an already open citation clears the unavailable content.
 
 <a id="s11-02"></a>
 

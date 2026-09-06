@@ -41,6 +41,7 @@ final class MemoryModel {
     var listWasTruncated = false
     private var reloadGeneration = 0
     private var detailGeneration = 0
+    private var preservesSelectedMemoryOutsideList = false
 
     init(application: MiraApplication, workspaceID: WorkspaceID?) {
         self.application = application
@@ -62,6 +63,7 @@ final class MemoryModel {
         memories = []
         selectedID = nil
         selectedDetail = nil
+        preservesSelectedMemoryOutsideList = false
         listWasTruncated = false
         error = nil
         isLoading = false
@@ -72,12 +74,14 @@ final class MemoryModel {
     /// The existing workspace scope remains authoritative for both list and detail loads.
     func selectInitialMemory(_ id: MemoryID?) {
         guard let id else { return }
-        guard selectedID != id || filter != .all || selectedDetail?.memory.id != id else { return }
+        guard selectedID != id || filter != .all || !query.isEmpty || selectedDetail?.memory.id != id else { return }
         filter = .all
+        query = ""
         reloadGeneration += 1
         detailGeneration += 1
         selectedID = id
         selectedDetail = nil
+        preservesSelectedMemoryOutsideList = true
         error = nil
     }
 
@@ -102,13 +106,18 @@ final class MemoryModel {
             guard generation == reloadGeneration else { return }
             memories = result.memories
             listWasTruncated = result.isTruncated
-            if let selectedID, !memories.contains(where: { $0.id == selectedID }) {
+            let hasQuery = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if let selectedID,
+               !memories.contains(where: { $0.id == selectedID }),
+               (!preservesSelectedMemoryOutsideList || filter != .all || hasQuery) {
                 self.selectedID = nil
                 selectedDetail = nil
+                preservesSelectedMemoryOutsideList = false
             }
-            if self.selectedID != nil { await loadSelectedDetail() }
+            let detailWasRequested = self.selectedID != nil
+            if detailWasRequested { await loadSelectedDetail() }
             guard generation == reloadGeneration else { return }
-            error = nil
+            if !detailWasRequested || self.selectedID != nil { error = nil }
         } catch {
             guard generation == reloadGeneration else { return }
             self.error = MiraError.safe(error)
@@ -128,6 +137,8 @@ final class MemoryModel {
         } catch {
             guard generation == detailGeneration, !Task.isCancelled else { return }
             selectedDetail = nil
+            self.selectedID = nil
+            preservesSelectedMemoryOutsideList = false
             self.error = MiraError.safe(error)
         }
     }

@@ -70,6 +70,9 @@ struct KnowledgeRootView: View {
         }
         .task(id: model.selectedID) { await model.loadSelectedDetailIfNeeded() }
         .task(id: model.searchIdentity) { await model.search() }
+        .sheet(item: $model.selectedChunk) { chunk in
+            SourceChunkView(chunk: chunk).environment(\.locale, locale)
+        }
         .onChange(of: workspaceID) { _, _ in
             pendingDelete = nil
             showingDeleteConfirmation = false

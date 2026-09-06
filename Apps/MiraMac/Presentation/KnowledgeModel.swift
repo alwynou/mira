@@ -34,10 +34,13 @@ final class KnowledgeModel {
     private var chunkGeneration = 0
     private var requestedVersionID: SourceVersionID?
     private var detailLoadInFlight = false
+    private let readChunk: @Sendable (SourceChunkID, WorkspaceID?) async throws -> SourceChunk
 
-    init(application: MiraApplication, workspaceID: WorkspaceID?) {
+    init(application: MiraApplication, workspaceID: WorkspaceID?,
+         readChunk: (@Sendable (SourceChunkID, WorkspaceID?) async throws -> SourceChunk)? = nil) {
         self.application = application
         self.workspaceID = workspaceID
+        self.readChunk = readChunk ?? { id, scope in try await application.sourceChunk(id, workspaceID: scope) }
     }
 
     var searchIdentity: String {
@@ -142,28 +145,29 @@ final class KnowledgeModel {
 
     func openSearchHit(_ hit: KnowledgeSearchHit) async {
         guard hit.source.workspaceID == nil || hit.source.workspaceID == workspaceID else { return }
-        if selectedID != hit.source.id {
-            selectSource(hit.source.id)
-        } else {
-            selectedDetail = nil
-            selectedChunk = nil
-            requestedVersionID = hit.chunk.sourceVersionID
-            detailGeneration += 1
-            chunkGeneration += 1
-        }
+        selectSource(hit.source.id)
+        selectedDetail = nil
+        selectedChunk = nil
         requestedVersionID = hit.chunk.sourceVersionID
-        await loadSelectedDetail()
-        guard !Task.isCancelled, selectedDetail?.selectedVersion?.id == hit.chunk.sourceVersionID else { return }
+        let generation = detailGeneration + 1
+        // An explicit hit supersedes any pending load, even within the same source.
+        await loadDetail(hit.source.id, versionID: hit.chunk.sourceVersionID)
+        guard generation == detailGeneration, !Task.isCancelled,
+              selectedDetail?.selectedVersion?.id == hit.chunk.sourceVersionID else { return }
+        requestedVersionID = nil
         await loadChunk(hit.chunk)
     }
 
     func loadChunk(_ summary: SourceChunkSummary) async {
-        guard selectedID == summary.sourceID else { return }
+        guard selectedID == summary.sourceID,
+              selectedDetail?.selectedVersion?.id == summary.sourceVersionID else { return }
         let generation = chunkGeneration + 1
         chunkGeneration = generation
+        selectedChunk = nil
         do {
-            let chunk = try await application.sourceChunk(summary.id, workspaceID: workspaceID)
-            guard generation == chunkGeneration, !Task.isCancelled else { return }
+            let chunk = try await readChunk(summary.id, workspaceID)
+            guard generation == chunkGeneration, selectedID == summary.sourceID,
+                  selectedDetail?.selectedVersion?.id == summary.sourceVersionID, !Task.isCancelled else { return }
             selectedChunk = chunk
             error = nil
         } catch {
@@ -174,6 +178,7 @@ final class KnowledgeModel {
     }
 
     func search() async {
+        searchGeneration += 1
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             searchHits = []
@@ -182,7 +187,6 @@ final class KnowledgeModel {
             isSearching = false
             return
         }
-        searchGeneration += 1
         let generation = searchGeneration
         isSearching = true
         searchHits = []
@@ -276,9 +280,7 @@ final class KnowledgeModel {
             try await application.deleteKnowledgeSource(source.id, workspaceID: source.workspaceID, expectedRevision: source.revision)
             guard !Task.isCancelled else { return }
             if selectedID == source.id {
-                selectedID = nil
-                selectedDetail = nil
-                selectedChunk = nil
+                selectSource(nil)
             }
             await reload()
         } catch {

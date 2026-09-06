@@ -77,7 +77,7 @@ public struct MemoryRememberTool: ToolPort {
             "revision": .number(Double(receipt.memory.revision)),
             "reference": .string(receipt.memory.citation),
             "state": .string(receipt.memory.state.rawValue),
-            "allows_remote_use": .bool(false)
+            "allows_remote_use": .bool(receipt.memory.draft?.allowsRemoteUse ?? false)
         ]).jsonString()
     }
 

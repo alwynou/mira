@@ -20,6 +20,8 @@ Manual creation is an explicit reviewed operation. Its durable `operationID` mak
 
 The `memory.remember` tool is a bounded write path for this increment. Every tool-created draft sets `allowsRemoteUse` to `false`, including drafts whose sensitivity flag is `standard`; the model cannot turn a missing or false sensitivity flag into permission to disclose the memory remotely. The user may make a separate, visible disclosure choice in the Memory editor. Direct authorization is limited to an anchored, complete explicit remember prefix with current scope, an exact quote, and no sensitive capture; all other proposals use host approval. The broader remote-reuse confirmation policy remains deferred pending a user decision.
 
+When source/assertion deduplication reuses an existing memory, it preserves that memory's reviewed disclosure policy. The tool's `allows_remote_use` receipt reports the committed memory's actual policy; it must not describe a reused, remote-enabled memory as local-only.
+
 Automatic extraction is a later increment. When enabled, it requires explicit settings, a selected extraction route, a budget, source and scope validation, and the documented triage rules. Clear stable user statements may become active with undo feedback; inferred, sensitive, conflicting, ambiguous, or low-confidence results remain candidates or are rejected. No background extraction runs while the setting is disabled, and no model response claims a Memory exists before the committed receipt.
 
 ## Revisions and replacement
@@ -31,6 +33,8 @@ Competing replacement review displays the proposed body and the actual current s
 ## Store and recall boundary
 
 The Core `MemoryStore` owns bounded atomic operations for listing, detail, explicit creation, revision, state changes, forgetting, recall, usage recording, and usage validation. The application actor is the UI entry point; views do not access persistence directly. The same recall port is used by prefetch and Memory tools.
+
+Opening a memory from an extraction result clears the management search and selects all states. The requested detail is authorized independently of the first 100 list results, and a selected memory outside that page receives a supplementary row. A workspace change invalidates both list and detail loads; deep links never expand the caller's scope.
 
 Every recall path applies the same hard filters: authorized user and workspace scope, matching subject, `active` state, current projection, non-deleted and non-forgotten status, valid time interval, remote-use permission, and the selected provider connection restriction. Candidate, rejected, removed, archived, superseded, and expired records never enter ordinary context. Direct detail and history access enforce authorization and redaction as well as search. Results are bounded and deterministically ordered; a truncation indicator is retained when the limit is reached.
 

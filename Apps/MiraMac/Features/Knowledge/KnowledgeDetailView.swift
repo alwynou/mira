@@ -11,7 +11,6 @@ struct KnowledgeDetailView: View {
     @State private var allowsRemoteUse = false
     @State private var remoteUseDirty = false
     @State private var isSavingRemoteUse = false
-    @State private var showingChunk = false
 
     var body: some View {
         ScrollView {
@@ -50,11 +49,6 @@ struct KnowledgeDetailView: View {
         .onChange(of: detail.source.revision) { _, _ in
             if !remoteUseDirty && !isSavingRemoteUse {
                 allowsRemoteUse = detail.source.allowsRemoteUse
-            }
-        }
-        .sheet(isPresented: $showingChunk) {
-            if let chunk = model.selectedChunk {
-                SourceChunkView(chunk: chunk).environment(\.locale, locale)
             }
         }
     }
@@ -139,7 +133,6 @@ struct KnowledgeDetailView: View {
                         Button {
                             Task {
                                 await model.loadChunk(chunk)
-                                if model.selectedChunk?.id == chunk.id { showingChunk = true }
                             }
                         } label: {
                             HStack(alignment: .firstTextBaseline) {
@@ -175,7 +168,7 @@ struct KnowledgeDetailView: View {
     }
 }
 
-private struct SourceChunkView: View {
+struct SourceChunkView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
     let chunk: SourceChunk

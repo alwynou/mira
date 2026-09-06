@@ -62,6 +62,20 @@ struct KnowledgeApplicationTests {
         #expect(await app.shutdown())
     }
 
+    @Test func knowledgeFlowSurvivesApplicationReopenAndBackupRestore() async throws {
+        let backup = FileManager.default.temporaryDirectory.appendingPathComponent("MiraKnowledgeReopen-\(UUID())", isDirectory: true)
+        let restoredDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("MiraKnowledgeRestored-\(UUID())", isDirectory: true)
+        defer {
+            try? FileManager.default.removeItem(at: backup)
+            try? FileManager.default.removeItem(at: restoredDirectory)
+        }
+
+        let seed = try await makeKnowledgeFlowSeed()
+        defer { try? FileManager.default.removeItem(at: seed.directory) }
+        try await runReopenedKnowledgeFlow(seed, exportingTo: backup)
+        try await runRestoredKnowledgeFlow(seed, backup: backup, directory: restoredDirectory)
+    }
+
     @Test func sourceUpdateKeepsOldCitationAndSearchesOnlyCurrentVersion() async throws {
         let fixture = try KnowledgeApplicationFixture(sourceText: "# Guide\nlegacy marker\n", allowsRemoteUse: true)
         defer { fixture.cleanup() }
@@ -260,6 +274,111 @@ private struct KnowledgeApplicationFixture {
     }
 
     func cleanup() { try? FileManager.default.removeItem(at: directory) }
+}
+
+private struct KnowledgeFlowSeed {
+    let directory: URL
+    let sourceID: KnowledgeSourceID
+    let versionID: SourceVersionID
+    let chunkID: SourceChunkID
+    let routeID: RouteID
+    let executionID: ExecutionID
+    let conversationID: ConversationID
+    let citation: String
+}
+
+private func makeKnowledgeFlowSeed() async throws -> KnowledgeFlowSeed {
+    let fixture = try KnowledgeApplicationFixture(sourceText: "# Guide\nreopen marker\n", allowsRemoteUse: true)
+    let provider = KnowledgeApplicationProvider(sourceID: fixture.source.id, chunkID: fixture.chunk.id,
+                                                steps: [.search, .open, .read, .final("First answer \(fixture.chunk.summary.citation)")])
+    let app: MiraApplication
+    do {
+        app = try fixture.application(provider: provider)
+    } catch {
+        fixture.cleanup()
+        throw error
+    }
+    do {
+        let conversationID = try await app.createConversation(workspaceID: nil)
+        let executionID = try await app.send(conversationID: conversationID, text: "Find the reopen marker", routeID: fixture.route.id)
+        try await knowledgeEventually(named: "initial source execution") { try fixture.store.execution(executionID).map { $0.status == .completed } ?? false }
+        #expect(provider.requests.count == 4)
+        guard await app.shutdown() else { throw MiraError(.storage, "The initial knowledge application did not shut down.") }
+        return .init(directory: fixture.directory, sourceID: fixture.source.id, versionID: fixture.version.id,
+                     chunkID: fixture.chunk.id, routeID: fixture.route.id, executionID: executionID,
+                     conversationID: conversationID, citation: fixture.chunk.summary.citation)
+    } catch {
+        _ = await app.shutdown()
+        fixture.cleanup()
+        throw error
+    }
+}
+
+private func runReopenedKnowledgeFlow(_ seed: KnowledgeFlowSeed, exportingTo backup: URL) async throws {
+    let store = try SQLiteMiraStore(directory: seed.directory)
+    let provider = KnowledgeApplicationProvider(sourceID: seed.sourceID, chunkID: seed.chunkID,
+                                                steps: [.search, .final("Reopened answer \(seed.citation)")])
+    let app = try MiraApplication(store: store, provider: provider,
+                                  tools: ToolRegistry(KnowledgeTools.readOnly(store: store)))
+    do {
+        let priorCitation = try await app.sourceCitation(.init(versionID: seed.versionID, chunkID: seed.chunkID),
+                                                          executionID: seed.executionID, conversationID: seed.conversationID)
+        #expect(priorCitation.chunk.text.contains("reopen marker"))
+
+        let followUpID = try await app.send(conversationID: seed.conversationID, text: "Use the reopened source", routeID: seed.routeID)
+        try await knowledgeEventually(named: "reopened source execution") { try store.execution(followUpID).map { $0.status == .completed } ?? false }
+        #expect(provider.requests.count == 2)
+        let finalRequest = try #require(provider.requests.last)
+        #expect(finalRequest.messages.contains { $0.role == .tool && $0.text.contains("reopen marker") })
+        let audit = try await app.audit(for: followUpID)
+        #expect(audit.invocations.first?.result?.status == .succeeded)
+        #expect(audit.attempts.count == 2)
+        #expect(audit.attempts.last?.request?.contextInfo?.references.contains { $0.kind == "sourceChunk" || $0.kind == "sourceVersion" } == true)
+        let followUpCitation = try await app.sourceCitation(.init(versionID: seed.versionID, chunkID: seed.chunkID),
+                                                              executionID: followUpID, conversationID: seed.conversationID)
+        #expect(followUpCitation.chunk.text.contains("reopen marker"))
+        try await app.exportBackup(to: backup)
+    } catch {
+        _ = await app.shutdown()
+        throw error
+    }
+    guard await app.shutdown() else { throw MiraError(.storage, "The reopened knowledge application did not shut down.") }
+}
+
+private func restoreKnowledgeBackup(_ backup: URL, from sourceDirectory: URL, to destination: URL) throws {
+    let sourceStore = try SQLiteMiraStore(directory: sourceDirectory)
+    try sourceStore.restoreBackup(from: backup, to: destination)
+}
+
+private func runRestoredKnowledgeFlow(_ seed: KnowledgeFlowSeed, backup: URL, directory: URL) async throws {
+    try restoreKnowledgeBackup(backup, from: seed.directory, to: directory)
+    let store = try SQLiteMiraStore(directory: directory)
+    let provider = KnowledgeApplicationProvider(sourceID: seed.sourceID, chunkID: seed.chunkID,
+                                                steps: [.search, .final("Restored answer \(seed.citation)")])
+    let app = try MiraApplication(store: store, provider: provider,
+                                  tools: ToolRegistry(KnowledgeTools.readOnly(store: store)))
+    do {
+        let restoredCitation = try await app.sourceCitation(.init(versionID: seed.versionID, chunkID: seed.chunkID),
+                                                             executionID: seed.executionID, conversationID: seed.conversationID)
+        #expect(restoredCitation.chunk.text.contains("reopen marker"))
+
+        let followUpID = try await app.send(conversationID: seed.conversationID, text: "Use the restored source", routeID: seed.routeID)
+        try await knowledgeEventually(named: "restored source execution") { try store.execution(followUpID).map { $0.status == .completed } ?? false }
+        #expect(provider.requests.count == 2)
+        let finalRequest = try #require(provider.requests.last)
+        #expect(finalRequest.messages.contains { $0.role == .tool && $0.text.contains("reopen marker") })
+        let audit = try await app.audit(for: followUpID)
+        #expect(audit.invocations.first?.result?.status == .succeeded)
+        #expect(audit.attempts.count == 2)
+        #expect(audit.attempts.last?.request?.contextInfo?.references.contains { $0.kind == "sourceChunk" || $0.kind == "sourceVersion" } == true)
+        let followUpCitation = try await app.sourceCitation(.init(versionID: seed.versionID, chunkID: seed.chunkID),
+                                                              executionID: followUpID, conversationID: seed.conversationID)
+        #expect(followUpCitation.chunk.text.contains("reopen marker"))
+    } catch {
+        _ = await app.shutdown()
+        throw error
+    }
+    guard await app.shutdown() else { throw MiraError(.storage, "The restored knowledge application did not shut down.") }
 }
 
 private func knowledgeEventually(named label: String, _ predicate: @escaping @Sendable () throws -> Bool) async throws {

@@ -68,6 +68,9 @@ targets:
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
       - Apps/MiraMac/Presentation/TranscriptFollowScheduler.swift
       - Apps/MiraMac/Presentation/TranscriptScrollAnimation.swift
+      - Apps/MiraMac/Presentation/MemoryModel.swift
+      - Apps/MiraMac/Presentation/KnowledgeModel.swift
+      - Apps/MiraMac/Presentation/SourceCitationModel.swift
       - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests
     settings:
       base:
@@ -76,6 +79,8 @@ targets:
     dependencies:
       - package: MiraKit
         product: MiraCore
+      - package: MiraKit
+        product: MiraData
       - package: SwiftStreamingMarkdown
         product: SwiftStreamingMarkdown
 schemes:

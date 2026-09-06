@@ -32,9 +32,14 @@ struct MemoryRootView: View {
                         MemoryListRow(memory: memory, workspaces: workspaces)
                             .tag(memory.id)
                     }
+                    if let selected = model.selectedDetail?.memory,
+                       !model.memories.contains(where: { $0.id == selected.id }) {
+                        MemoryListRow(memory: selected, workspaces: workspaces)
+                            .tag(selected.id)
+                    }
                 }
                 .overlay {
-                    if model.memories.isEmpty && !model.isLoading {
+                    if model.memories.isEmpty && model.selectedDetail == nil && !model.isLoading {
                         ContentUnavailableView("No memories", systemImage: "brain", description: Text("Create a memory from a committed user message or add one manually."))
                     }
                 }
@@ -56,6 +61,7 @@ struct MemoryRootView: View {
                                  onReplace: { editorRequest = MemoryEditorRequest(scope: $0.scope, replacing: $0) },
                                  onOpenConversation: onOpenConversation,
                                  onChanged: { await model.refreshAfterMutation() })
+                    .id(detail.memory.id)
             } else if model.selectedID != nil {
                 ProgressView("Loading memory")
             } else {

@@ -2,6 +2,12 @@
 
 Started: 2026-09-05. Branch: `dev`. This ledger tracks the active implementation goal; the MVP document owns scope and milestone gates.
 
+## Current priority
+
+On 2026-09-06, the user paused further streaming-rendering performance work. Keep the remaining latency and manual scrolling checks in [long-conversation verification](LONG_CONVERSATION_PERFORMANCE.md) open; this deferral does not waive the release gate. Resume other v0.1 completion work before returning to rendering optimization. M6 tasks/reminders remain outside v0.1.
+
+The next independent increment closes memory deep-link and reused-receipt defects, exact knowledge search-hit presentation, and stale citation/chunk bodies after revocation or deletion. It adds application-reopen and current-format backup continuity coverage. Evidence and remaining attended/model-dependent checks are recorded in [core workflow verification](CORE_WORKFLOW_VERIFICATION.md).
+
 ## Delivery sequence
 
 1. Model configuration: separate connections, descriptors, route presets, purpose bindings, and frozen execution snapshots. Verify scope precedence, capability checks, revocation, and backup round trips.

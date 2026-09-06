@@ -4,6 +4,45 @@ import MiraCore
 import MiraData
 
 struct MemoryToolTests {
+    @Test func reusedMemoryReceiptReportsCommittedRemoteUsePolicyWithoutChangingIt() async throws {
+        let fixture = try MemoryToolFixture()
+        defer { fixture.cleanup() }
+        let conversation = Conversation(id: .init(), workspaceID: nil, title: "Receipt fixture", createdAt: .now, updatedAt: .now)
+        try fixture.store.createConversation(conversation)
+        let resolved = try fixture.store.modelConfiguration().resolve(purpose: .conversation, explicitRouteID: fixture.route.id, conversation: conversation)
+        let execution = try fixture.store.enqueue(conversationID: conversation.id, text: "Remember that I prefer short answers",
+                                                  route: resolved, executionID: .init(), messageID: .init(), at: .now)
+        let message = try #require(try fixture.store.messages(in: conversation.id).first)
+        let content = "I prefer short answers"
+        let existing = try fixture.store.createMemory(
+            draft: .init(content: content, scope: .global, kind: .preference, allowsRemoteUse: true),
+            source: .message(id: message.id, excerpt: content), operationID: .init(), replacing: nil,
+            expectedRevision: nil, at: .now).memory
+        let call = try rememberCall(content: content, quote: content)
+        let attemptID = UUID()
+        let request = CanonicalModelRequest(executionID: execution.id, system: "", messages: [], requestID: attemptID)
+        try fixture.store.prepareAttempt(.init(id: attemptID, executionID: execution.id, stepID: UUID(), stepIndex: 1,
+                                               request: request, createdAt: .now))
+        let invocation = ToolInvocation(id: UUID(), attemptID: attemptID, modelOrder: 0, call: call)
+        try fixture.store.finishAttempt(attemptID, output: .init(text: "", toolCalls: [call], finishReason: .toolCalls),
+                                        invocations: [invocation], usage: .init(), error: nil, at: .now)
+        try fixture.store.markToolDispatched(invocation.id, at: .now)
+
+        let tool = MemoryRememberTool(store: fixture.store, approvals: MemoryApprovalCoordinator())
+        let arguments = try JSONDecoder().decode(JSONValue.self, from: Data(call.arguments.utf8))
+        let context = ToolContext(executionID: execution.id, invocationID: invocation.id, workspaceID: nil,
+                                  userMessageID: message.id, userText: message.text)
+        try await tool.authorize(arguments: arguments, context: context)
+        let receiptJSON = try await tool.execute(arguments: arguments, context: context)
+        let receipt = try JSONDecoder().decode(JSONValue.self, from: Data(receiptJSON.utf8))
+
+        #expect(receipt["memory_id"]?.stringValue == existing.id.rawValue.uuidString.lowercased())
+        #expect(receipt["allows_remote_use"]?.boolValue == true)
+        let committed = try #require(try fixture.store.memoryDetail(existing.id, workspaceID: nil).memory.draft)
+        #expect(committed.allowsRemoteUse)
+        #expect(try fixture.store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 20).memories.count == 1)
+    }
+
     @Test func directAnchoredRememberSavesOnceAfterDurableDispatchAndStaysLocal() async throws {
         let fixture = try MemoryToolFixture()
         defer { fixture.cleanup() }
@@ -188,6 +227,10 @@ struct MemoryToolTests {
         #expect(try await app.audit(for: executionID).invocations.count == 3)
         await app.shutdown()
     }
+}
+
+private extension JSONValue {
+    var boolValue: Bool? { if case .bool(let value) = self { value } else { nil } }
 }
 
 private func rememberCall(content: String, quote: String, scope: String = "current", sensitive: Bool = false) throws -> CanonicalToolCall {
