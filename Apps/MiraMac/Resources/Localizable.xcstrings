@@ -18755,6 +18755,38 @@
           }
         }
       }
+    },
+    "The performance fixture requires explicit demo arguments. No library was opened.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The performance fixture requires explicit demo arguments. No library was opened."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "性能测试实例需要明确的演示参数。未打开任何资料库。"
+          }
+        }
+      }
+    },
+    "The rendering benchmark requires demo mode, absolute paths, and a new fixture directory. No library was opened.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The rendering benchmark requires demo mode, absolute paths, and a new fixture directory. No library was opened."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "渲染基准测试需要演示模式、绝对路径和新的测试目录。未打开任何资料库。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

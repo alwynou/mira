@@ -59,7 +59,15 @@ struct ConversationRoot: View {
             }
         }
         .frame(minWidth: 850, minHeight: 580)
-        .task { await model.observe() }
+        .task {
+            #if DEBUG
+            if NativePerformanceBenchmark.isRequested {
+                await NativePerformanceBenchmark.run(model: model)
+                return
+            }
+            #endif
+            await model.observe()
+        }
         .task { await model.observeMemoryApprovals() }
         .onChange(of: showsMemories) { _, isShowing in
             if !isShowing { initialMemoryID = nil }

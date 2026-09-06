@@ -66,6 +66,8 @@ targets:
       - Apps/MiraMac/Platform/Keychain
       - Apps/MiraMac/Presentation/ConversationStreamBuffer.swift
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
+      - Apps/MiraMac/Presentation/TranscriptFollowScheduler.swift
+      - Apps/MiraMac/Presentation/TranscriptScrollAnimation.swift
       - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests
     settings:
       base:

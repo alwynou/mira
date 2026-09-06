@@ -39,6 +39,13 @@ final class AppContainer {
         }
         credentialCleanup = CredentialCleanup(directory: directory)
         #if DEBUG
+        if Bundle.main.bundleIdentifier?.hasPrefix("com.alwynou.mira.performance-check") == true, !isDemo {
+            argumentError = .init(.configuration, "The performance fixture requires explicit demo arguments. No library was opened.")
+        }
+        if arguments.contains("--native-rendering-benchmark"),
+           !NativePerformanceBenchmark.isRequested || FileManager.default.fileExists(atPath: directory.path) {
+            argumentError = .init(.configuration, "The rendering benchmark requires demo mode, absolute paths, and a new fixture directory. No library was opened.")
+        }
         provider = isDemo ? DemoProvider(stress: arguments.contains("--demo-stress")) : HTTPModelProvider(credentials: credentials)
         #else
         provider = HTTPModelProvider(credentials: credentials)

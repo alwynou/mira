@@ -39,6 +39,6 @@ Local evidence:
 
 ## Limits
 
-Interactive native verification used macOS 26.6.2. macOS 15 coverage is CI hostless testing, not a manual scrolling session. Paid model endpoints were not exercised. Automated timing/frame-hitch budgets, hundreds of retained messages, and multi-megabyte Markdown still need separate scale profiling. The stable eager transcript trades lazy row eviction for retained views; do not claim unbounded history performance. The exact reported interaction should also be checked with the user's normal trackpad usage.
+Interactive native verification used macOS 26.6.2. macOS 15 coverage is CI hostless testing, not a manual scrolling session. Paid model endpoints were not exercised. A 100-message native scale fixture, its final smooth-follow measurements, and remaining gates are recorded in [long-conversation performance](LONG_CONVERSATION_PERFORMANCE.md). Frame-hitch budgets, larger histories, and multi-megabyte individual messages still need separate profiling. The stable eager transcript trades lazy row eviction for retained views; do not claim unbounded history performance. The exact reported interaction should also be checked with the user's normal trackpad usage.
 
 Reproduction and launch flags are in [Development](DEVELOPMENT.md). User-visible behavior belongs to [Workspace and conversation](../product/WORKSPACE_AND_CONVERSATION.md).

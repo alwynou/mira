@@ -88,6 +88,15 @@ private struct ThinkingDisclosure: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
 
+    init(trace: [CanonicalMessage], isStreaming: Bool) {
+        self.trace = trace
+        self.isStreaming = isStreaming
+        #if DEBUG
+        _isExpanded = State(initialValue: NativePerformanceBenchmark.isRequested
+                            && ProcessInfo.processInfo.arguments.contains("--benchmark-expand-thinking"))
+        #endif
+    }
+
     private var isThinking: Bool { isStreaming && trace.last?.reasoning?.isComplete == false }
 
     var body: some View {
