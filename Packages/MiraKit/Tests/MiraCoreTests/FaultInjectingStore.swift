@@ -57,6 +57,7 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) throws { try base.saveConnection(connection, expectedRevision: expectedRevision) }
     func removeConnection(_ id: ConnectionID) throws { try base.removeConnection(id) }
     func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) throws { try base.saveModel(model, expectedRevision: expectedRevision) }
+    func savePoolModel(_ model: ModelDescriptor, route: ModelRoute, expectedModelRevision: Int?, expectedRouteRevision: Int?) throws { try base.savePoolModel(model, route: route, expectedModelRevision: expectedModelRevision, expectedRouteRevision: expectedRouteRevision) }
     func removeModel(_ id: ModelDescriptorID) throws { try base.removeModel(id) }
     func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws { try base.saveRoute(route, expectedRevision: expectedRevision) }
     func removeRoute(_ id: RouteID) throws { try base.removeRoute(id) }

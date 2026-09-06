@@ -193,7 +193,7 @@ Chat Completions 兼容不等于 OpenAI Responses 兼容；需要另一协议的
 
 能力分别记录 `unknown / declared / verified / failed` 与验证时间：普通文本、流式、工具、结构化提取、上下文窗口和 Usage。聊天能力通过不自动启用 Agent 或自动记忆。无法确定窗口时要求用户填写有效上限；手工 Model ID 可保存，但受影响的执行用途在能力满足前不可启动。
 
-The current `ModelDescriptor.toolCapability` is a required state initialized to `unknown`. Capability declarations and probe observations are tagged with the connection revision. Editing that connection makes prior capabilities unknown for sending until reconfirmed or probed again; cancelled or stale probes do not overwrite current configuration.
+The current `ModelDescriptor.toolCapability` is a required state initialized to `unknown`. Capability declarations and probe observations are tagged with the connection revision. Editing the endpoint, protocol, credential, or local-HTTP permission makes prior capabilities unknown for sending until reconfirmed or probed again; cancelled or stale probes do not overwrite current configuration.
 
 首版提取采用有限 JSON Schema 子集和确定性本地校验。支持 strict schema 的端点可使用该能力；其他端点可请求 JSON 文本，最多进行一次修复调用并计费，仍无效则保留失败记录，不写 Memory。模型自报置信度不替代发言归属、范围和来源校验。
 
@@ -230,3 +230,17 @@ The current purposes are conversation and memory extraction. Other purposes are 
 The execution stores a self-contained `ResolvedModelRouteSnapshot`, including connection/model/route revisions, credential reference/version, capability snapshot, protocol adapter version, and selection source. Later edits never rewrite historical snapshots. Configuration edits or revocation stop affected live executions; each dispatch also revalidates the frozen configuration and current workspace policy. Binding edits affect subsequent executions, not a running turn.
 
 Connection deletion removes its live models, presets, and bindings. Execution snapshots remain readable. Credential cleanup retains references from live connections, so a shared connection is not removed merely because one route preset is deleted. Probe results commit through the application actor and compare frozen revisions before writing.
+
+## 3. Provider activation and the model pool
+
+`ProviderConnection.isEnabled` and `ModelDescriptor.isEnabled` are independent, required stored fields with checked SQLite mirrors. Schema v8 directly replaces the development schema; earlier libraries and backup formats are rejected intact. Host-created connections start inactive. Enabling a provider never enables its model descriptors or assigns purpose bindings.
+
+`ModelDescriptor.poolRouteID` uses the descriptor UUID in the route ID domain. `savePoolModel` saves the descriptor and its canonical `ModelRoute` in one transaction with revision checks for both records. A conflicting route update rolls back the descriptor update. Model IDs are unique within a connection. Model pool queries require an enabled descriptor, enabled parent, and an actually persisted matching canonical route; they never invent missing routes. Other internal route APIs retain explicit snapshot and binding semantics.
+
+The application cancels affected foreground work and invalidates background extraction after configuration mutations. Resolution rejects disabled components, including explicit or inherited stale selections, without trying another candidate. Saved bindings remain until explicitly changed or removed. No-op saves and display-name/activation-only provider edits advance matching model attestations transactionally without upgrading already-stale observations; endpoint/protocol/credential changes still require reconfirmation. Old frozen snapshots cannot acquire new authority through the activation update.
+
+`ProviderModelDiscoveryPort` returns transient model IDs and optional display names; `HTTPModelDiscovery` implements explicit GET requests for the configured OpenAI-compatible or Anthropic model endpoint. Discovery reads no conversation or memory and does not persist results, infer verified capabilities, or make a generation request. The host verifies the connection again after the request and discards results when selection/configuration changes. Cancellation is owned by the presentation model and propagated to the transport.
+
+Limits are 2 MiB per page, 8 MiB total, 2,000 distinct models, 10 Anthropic pages, and a 30-second operation deadline. Exceeding a bound fails the operation without presenting a partial list. Endpoints retain their configured base prefix; Anthropic pagination stays on the same model endpoint. Transport redirects are rejected, credentials remain headers, and remote error bodies never become user-visible diagnostics. Failed discovery leaves manual entry and existing models available.
+
+The interaction reference is LobeHub's [provider enable switch](https://github.com/lobehub/lobehub/blob/main/src/features/Settings/provider/features/ProviderConfig/EnableSwitch.tsx), [per-provider model list](https://github.com/lobehub/lobehub/blob/main/src/features/Settings/provider/features/ModelList/index.tsx), and [model selector](https://github.com/lobehub/lobehub/blob/main/src/features/ModelSelect/index.tsx). Mira implements its own native flow and preserves its explicit background authorization and fail-closed route semantics.

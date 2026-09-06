@@ -96,6 +96,7 @@ struct MiraApplicationTests {
         let app = try MiraApplication(store: fixture.store, provider: fixture.provider)
         var unknownModel = fixture.configuration.model
         unknownModel.id = .init()
+        unknownModel.modelID = "fixture-incomplete"
         unknownModel.contextWindow = nil
         unknownModel.revision = 1
         try fixture.store.saveModel(unknownModel, expectedRevision: nil)

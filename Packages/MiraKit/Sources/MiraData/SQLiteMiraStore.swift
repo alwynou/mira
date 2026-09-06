@@ -12,7 +12,7 @@ private struct PreparedMemoryContext {
 /// The store deliberately exposes synchronous operations.  Its owning application
 /// actor is responsible for keeping these bounded operations off view tasks.
 public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
-    static let currentSchemaVersion = 7
+    static let currentSchemaVersion = 8
     private static let baseMigrationName = "m0_core"
     private static let auditMigrationName = "m2_execution_audit"
     let pool: DatabasePool
@@ -156,8 +156,8 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
 
     public func modelConfiguration() throws -> ModelConfiguration {
         try safely { try pool.read { db in
-            let connections = try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, connection_json FROM provider_connections ORDER BY name COLLATE NOCASE, id").map { try Self.providerConnection($0) }
-            let models = try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, model_json FROM model_descriptors ORDER BY model_id COLLATE NOCASE, id").map { try Self.modelDescriptor($0) }
+            let connections = try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, is_enabled, connection_json FROM provider_connections ORDER BY name COLLATE NOCASE, id").map { try Self.providerConnection($0) }
+            let models = try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, model_json FROM model_descriptors ORDER BY model_id COLLATE NOCASE, id").map { try Self.modelDescriptor($0) }
             let routes = try Row.fetchAll(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes ORDER BY name COLLATE NOCASE, id").map { try Self.modelRoute($0) }
             let bindings = try Row.fetchAll(db, sql: "SELECT id, scope_key, purpose, route_id, revision, binding_json FROM route_bindings ORDER BY scope_key, purpose, id").map { try Self.routeBinding($0) }
             let connectionIDs = Set(connections.map(\.id))
@@ -180,10 +180,23 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
             try pool.write { db in
                 if let current = try Int.fetchOne(db, sql: "SELECT revision FROM provider_connections WHERE id = ?", arguments: [id(connection.id)]) {
                     guard expectedRevision == current, connection.revision == current + 1 else { throw MiraError(.conflict, "The provider connection revision is out of date.") }
-                    try db.execute(sql: "UPDATE provider_connections SET revision = ?, name = ?, provider_kind = ?, base_url = ?, credential_reference = ?, credential_version = ?, allows_loopback_http = ?, connection_json = ? WHERE id = ?", arguments: [connection.revision, connection.name, connection.providerKind.rawValue, connection.baseURL, connection.credentialReference, connection.credentialVersion, connection.allowsLoopbackHTTP ? 1 : 0, encoded, id(connection.id)])
+                    guard let previousJSON = try String.fetchOne(db, sql: "SELECT connection_json FROM provider_connections WHERE id = ?", arguments: [id(connection.id)]) else { throw MiraError(.storage, "The provider connection contents are invalid.") }
+                    let previous: ProviderConnection = try Self.decode(previousJSON)
+                    try db.execute(sql: "UPDATE provider_connections SET revision = ?, name = ?, provider_kind = ?, base_url = ?, credential_reference = ?, credential_version = ?, allows_loopback_http = ?, is_enabled = ?, connection_json = ? WHERE id = ?", arguments: [connection.revision, connection.name, connection.providerKind.rawValue, connection.baseURL, connection.credentialReference, connection.credentialVersion, connection.allowsLoopbackHTTP ? 1 : 0, connection.isEnabled ? 1 : 0, encoded, id(connection.id)])
+                    if Self.preservesConnectionCapabilities(from: previous, to: connection) {
+                        let rows = try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, model_json FROM model_descriptors WHERE connection_id = ?", arguments: [id(connection.id)])
+                        for row in rows {
+                            let model = try Self.modelDescriptor(row)
+                            guard model.connectionRevision == current, model.revision < Int.max else { continue }
+                            var updated = model
+                            updated.connectionRevision = connection.revision
+                            updated.revision += 1
+                            try db.execute(sql: "UPDATE model_descriptors SET revision = ?, connection_revision = ?, model_json = ? WHERE id = ?", arguments: [updated.revision, updated.connectionRevision, try Self.encode(updated), id(updated.id)])
+                        }
+                    }
                 } else {
                     guard expectedRevision == nil, connection.revision == 1 else { throw MiraError(.conflict, "The provider connection no longer exists.") }
-                    try db.execute(sql: "INSERT INTO provider_connections (id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, connection_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", arguments: [id(connection.id), connection.revision, connection.name, connection.providerKind.rawValue, connection.baseURL, connection.credentialReference, connection.credentialVersion, connection.allowsLoopbackHTTP ? 1 : 0, encoded])
+                    try db.execute(sql: "INSERT INTO provider_connections (id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, is_enabled, connection_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", arguments: [id(connection.id), connection.revision, connection.name, connection.providerKind.rawValue, connection.baseURL, connection.credentialReference, connection.credentialVersion, connection.allowsLoopbackHTTP ? 1 : 0, connection.isEnabled ? 1 : 0, encoded])
                 }
             }
         }
@@ -212,12 +225,44 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
             try pool.write { db in
                 guard let connectionRevision = try Int.fetchOne(db, sql: "SELECT revision FROM provider_connections WHERE id = ?", arguments: [id(model.connectionID)]) else { throw MiraError(.notFound, "The provider connection does not exist.") }
                 guard model.connectionRevision == connectionRevision else { throw MiraError(.conflict, "The model descriptor is based on an outdated provider connection.") }
+                try Self.validateModelIdentity(model, in: db)
                 if let current = try Int.fetchOne(db, sql: "SELECT revision FROM model_descriptors WHERE id = ?", arguments: [id(model.id)]) {
                     guard expectedRevision == current, model.revision == current + 1 else { throw MiraError(.conflict, "The model descriptor revision is out of date.") }
-                    try db.execute(sql: "UPDATE model_descriptors SET revision = ?, connection_id = ?, connection_revision = ?, model_id = ?, context_window = ?, text_capability = ?, tool_capability = ?, probe_observation_json = ?, model_json = ? WHERE id = ?", arguments: [model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), encoded, id(model.id)])
+                    try db.execute(sql: "UPDATE model_descriptors SET revision = ?, connection_id = ?, connection_revision = ?, model_id = ?, context_window = ?, text_capability = ?, tool_capability = ?, probe_observation_json = ?, is_enabled = ?, model_json = ? WHERE id = ?", arguments: [model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), model.isEnabled ? 1 : 0, encoded, id(model.id)])
                 } else {
                     guard expectedRevision == nil, model.revision == 1 else { throw MiraError(.conflict, "The model descriptor no longer exists.") }
-                    try db.execute(sql: "INSERT INTO model_descriptors (id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, model_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", arguments: [id(model.id), model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), encoded])
+                    try db.execute(sql: "INSERT INTO model_descriptors (id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, model_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", arguments: [id(model.id), model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), model.isEnabled ? 1 : 0, encoded])
+                }
+            }
+        }
+    }
+
+    public func savePoolModel(_ model: ModelDescriptor, route: ModelRoute, expectedModelRevision: Int?, expectedRouteRevision: Int?) throws {
+        try safely {
+            try model.validate(); try route.validate()
+            guard route.id == model.poolRouteID, route.modelDescriptorID == model.id else {
+                throw MiraError(.configuration, "The model pool route must be the model's canonical route.")
+            }
+            let modelEncoded = try encode(model)
+            let routeEncoded = try encode(route)
+            try pool.write { db in
+                guard let connectionRevision = try Int.fetchOne(db, sql: "SELECT revision FROM provider_connections WHERE id = ?", arguments: [id(model.connectionID)]) else { throw MiraError(.notFound, "The provider connection does not exist.") }
+                guard model.connectionRevision == connectionRevision else { throw MiraError(.conflict, "The model descriptor is based on an outdated provider connection.") }
+                try Self.validateModelIdentity(model, in: db)
+                if let current = try Int.fetchOne(db, sql: "SELECT revision FROM model_descriptors WHERE id = ?", arguments: [id(model.id)]) {
+                    guard expectedModelRevision == current, model.revision == current + 1 else { throw MiraError(.conflict, "The model descriptor revision is out of date.") }
+                    try db.execute(sql: "UPDATE model_descriptors SET revision = ?, connection_id = ?, connection_revision = ?, model_id = ?, context_window = ?, text_capability = ?, tool_capability = ?, probe_observation_json = ?, is_enabled = ?, model_json = ? WHERE id = ?", arguments: [model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), model.isEnabled ? 1 : 0, modelEncoded, id(model.id)])
+                } else {
+                    guard expectedModelRevision == nil, model.revision == 1 else { throw MiraError(.conflict, "The model descriptor no longer exists.") }
+                    try db.execute(sql: "INSERT INTO model_descriptors (id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, model_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", arguments: [id(model.id), model.revision, id(model.connectionID), model.connectionRevision, model.modelID, model.contextWindow, model.textCapability.rawValue, model.toolCapability.rawValue, try model.probeObservation.map(encode), model.isEnabled ? 1 : 0, modelEncoded])
+                }
+                if let current = try Int.fetchOne(db, sql: "SELECT revision FROM model_routes WHERE id = ?", arguments: [id(route.id)]) {
+                    guard try String.fetchOne(db, sql: "SELECT model_descriptor_id FROM model_routes WHERE id = ?", arguments: [id(route.id)]) == id(model.id) else { throw MiraError(.conflict, "The canonical model pool route belongs to another model.") }
+                    guard expectedRouteRevision == current, route.revision == current + 1 else { throw MiraError(.conflict, "The model route revision is out of date.") }
+                    try db.execute(sql: "UPDATE model_routes SET revision = ?, name = ?, model_descriptor_id = ?, max_output_tokens = ?, requests_usage = ?, route_json = ? WHERE id = ?", arguments: [route.revision, route.name, id(route.modelDescriptorID), route.maxOutputTokens, route.requestsUsage ? 1 : 0, routeEncoded, id(route.id)])
+                } else {
+                    guard expectedRouteRevision == nil, route.revision == 1 else { throw MiraError(.conflict, "The model route no longer exists.") }
+                    try db.execute(sql: "INSERT INTO model_routes (id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json) VALUES (?, ?, ?, ?, ?, ?, ?)", arguments: [id(route.id), route.revision, route.name, id(route.modelDescriptorID), route.maxOutputTokens, route.requestsUsage ? 1 : 0, routeEncoded])
                 }
             }
         }
@@ -620,7 +665,7 @@ extension SQLiteMiraStore {
             try createMemorySchema(in: db)
             try createMemoryExtractionSchema(in: db)
             try createKnowledgeSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 7")
+            try db.execute(sql: "PRAGMA user_version = 8")
         }
         return migrator
     }
@@ -629,7 +674,7 @@ extension SQLiteMiraStore {
         var migrator = DatabaseMigrator()
         migrator.registerMigration(baseMigrationName) { db in
             try createSchema(in: db)
-            try db.execute(sql: "PRAGMA user_version = 7")
+            try db.execute(sql: "PRAGMA user_version = 8")
         }
         return migrator
     }
@@ -670,6 +715,7 @@ extension SQLiteMiraStore {
           credential_reference TEXT NOT NULL CHECK(length(trim(credential_reference)) > 0),
           credential_version INTEGER NOT NULL CHECK(credential_version > 0),
           allows_loopback_http INTEGER NOT NULL CHECK(allows_loopback_http IN (0, 1)),
+          is_enabled INTEGER NOT NULL CHECK(is_enabled IN (0, 1)),
           connection_json TEXT NOT NULL
         );
         CREATE TABLE model_descriptors (
@@ -682,6 +728,7 @@ extension SQLiteMiraStore {
           text_capability TEXT NOT NULL CHECK(text_capability IN ('unknown', 'declared', 'verified', 'failed')),
           tool_capability TEXT NOT NULL CHECK(tool_capability IN ('unknown', 'declared', 'verified', 'failed')),
           probe_observation_json TEXT,
+          is_enabled INTEGER NOT NULL CHECK(is_enabled IN (0, 1)),
           model_json TEXT NOT NULL
         );
         CREATE TABLE model_routes (
@@ -743,7 +790,7 @@ extension SQLiteMiraStore {
         CREATE INDEX conversations_workspace_updated ON conversations(workspace_id, updated_at, id);
         CREATE INDEX messages_conversation_sequence ON messages(conversation_id, sequence);
         CREATE INDEX executions_conversation_created ON executions(conversation_id, created_at, id);
-        CREATE INDEX model_descriptors_connection ON model_descriptors(connection_id, model_id, id);
+        CREATE UNIQUE INDEX model_descriptors_connection ON model_descriptors(connection_id, model_id);
         CREATE INDEX model_routes_descriptor ON model_routes(model_descriptor_id, name, id);
         CREATE INDEX route_bindings_scope_purpose ON route_bindings(scope_key, purpose, id);
         """)
@@ -936,6 +983,21 @@ extension SQLiteMiraStore {
         return String(decoding: try encoder.encode(value), as: UTF8.self)
     }
 
+    static func preservesConnectionCapabilities(from old: ProviderConnection, to new: ProviderConnection) -> Bool {
+        old.providerKind == new.providerKind
+            && old.baseURL == new.baseURL
+            && old.credentialReference == new.credentialReference
+            && old.credentialVersion == new.credentialVersion
+            && old.allowsLoopbackHTTP == new.allowsLoopbackHTTP
+
+    }
+
+    static func validateModelIdentity(_ model: ModelDescriptor, in db: Database) throws {
+        guard try Int.fetchOne(db, sql: "SELECT 1 FROM model_descriptors WHERE connection_id = ? AND model_id = ? AND id != ? LIMIT 1", arguments: [id(model.connectionID), model.modelID, id(model.id)]) == nil else {
+            throw MiraError(.conflict, "A model with this ID is already configured for the provider connection.")
+        }
+    }
+
     static func decodeRoute(_ value: String) throws -> ResolvedModelRouteSnapshot {
         let route: ResolvedModelRouteSnapshot = try decode(value)
         try validateHistoricalRoute(route)
@@ -1040,7 +1102,8 @@ extension SQLiteMiraStore {
         guard id(connection.id) == (row["id"] as String), connection.revision == row["revision"] as Int,
               connection.name == (row["name"] as String), connection.providerKind.rawValue == (row["provider_kind"] as String),
               connection.baseURL == (row["base_url"] as String), connection.credentialReference == (row["credential_reference"] as String),
-              connection.credentialVersion == row["credential_version"] as Int, connection.allowsLoopbackHTTP == ((row["allows_loopback_http"] as Int) != 0) else {
+              connection.credentialVersion == row["credential_version"] as Int, connection.allowsLoopbackHTTP == ((row["allows_loopback_http"] as Int) != 0),
+              connection.isEnabled == ((row["is_enabled"] as Int) != 0) else {
             throw MiraError(.storage, "The provider connection contents are inconsistent.")
         }
         try connection.validate()
@@ -1054,6 +1117,7 @@ extension SQLiteMiraStore {
               id(model.connectionID) == (row["connection_id"] as String), model.connectionRevision == row["connection_revision"] as Int,
               model.modelID == (row["model_id"] as String), model.contextWindow == (row["context_window"] as Int?),
               model.textCapability.rawValue == (row["text_capability"] as String), model.toolCapability.rawValue == (row["tool_capability"] as String),
+              model.isEnabled == ((row["is_enabled"] as Int) != 0),
               model.probeObservation == observation else {
             throw MiraError(.storage, "The model descriptor contents are inconsistent.")
         }
@@ -1246,8 +1310,8 @@ extension SQLiteMiraStore {
     static func validateContents(in db: Database) throws {
         for row in try Row.fetchAll(db, sql: "SELECT id, name, background, allows_remote_send, allowed_connection_ids_json, revision FROM workspaces") { _ = try workspace(row) }
         for row in try Row.fetchAll(db, sql: "SELECT id, workspace_id, title, is_archived, created_at, updated_at, revision FROM conversations") { _ = try conversation(row) }
-        for row in try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, connection_json FROM provider_connections") { _ = try providerConnection(row) }
-        for row in try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, model_json FROM model_descriptors") { _ = try modelDescriptor(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, revision, name, provider_kind, base_url, credential_reference, credential_version, allows_loopback_http, is_enabled, connection_json FROM provider_connections") { _ = try providerConnection(row) }
+        for row in try Row.fetchAll(db, sql: "SELECT id, revision, connection_id, connection_revision, model_id, context_window, text_capability, tool_capability, probe_observation_json, is_enabled, model_json FROM model_descriptors") { _ = try modelDescriptor(row) }
         for row in try Row.fetchAll(db, sql: "SELECT id, revision, name, model_descriptor_id, max_output_tokens, requests_usage, route_json FROM model_routes") { _ = try modelRoute(row) }
         for row in try Row.fetchAll(db, sql: "SELECT id, scope_key, purpose, route_id, revision, binding_json FROM route_bindings") {
             let binding = try routeBinding(row)

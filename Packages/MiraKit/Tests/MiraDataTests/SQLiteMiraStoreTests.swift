@@ -96,6 +96,112 @@ struct SQLiteMiraStoreTests {
         #expect(throws: MiraError.self) { try store.saveRoute(route, expectedRevision: 1) }
     }
 
+    @Test func activationOnlyConnectionEditsPreserveFreshAttestationsButEndpointEditsStaleThem() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let connection = ProviderConnection(name: "Original", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
+        var model = ModelDescriptor(connectionID: connection.id, connectionRevision: connection.revision, modelID: "fixture", contextWindow: 4096, textCapability: .verified, toolCapability: .verified, probeObservation: .init(type: .text, state: .verified))
+        let route = ModelRoute(id: model.poolRouteID, name: "fixture", modelDescriptorID: model.id)
+        try store.saveConnection(connection, expectedRevision: nil)
+        try store.savePoolModel(model, route: route, expectedModelRevision: nil, expectedRouteRevision: nil)
+
+        var renamed = connection
+        renamed.revision = 2; renamed.name = "Renamed"; renamed.isEnabled = false
+        try store.saveConnection(renamed, expectedRevision: 1)
+        var configuration = try store.modelConfiguration()
+        model = try #require(configuration.models.first)
+        #expect(model.connectionRevision == 2)
+        #expect(model.revision == 2)
+        #expect(model.textCapability == .verified)
+        #expect(configuration.modelPool.isEmpty)
+
+        var endpointChanged = renamed
+        endpointChanged.revision = 3; endpointChanged.baseURL = "https://changed.example/v1"; endpointChanged.isEnabled = true
+        try store.saveConnection(endpointChanged, expectedRevision: 2)
+        configuration = try store.modelConfiguration()
+        model = try #require(configuration.models.first)
+        #expect(model.connectionRevision == 2)
+        #expect(try configuration.snapshot(routeID: route.id).textCapability == .unknown)
+        var toggled = endpointChanged
+        toggled.revision = 4; toggled.isEnabled = false
+        try store.saveConnection(toggled, expectedRevision: 3)
+        #expect(try store.modelConfiguration().models.first?.connectionRevision == 2)
+        toggled.revision = 5; toggled.isEnabled = true
+        try store.saveConnection(toggled, expectedRevision: 4)
+        #expect(try store.modelConfiguration().snapshot(routeID: route.id).textCapability == .unknown)
+    }
+
+    @Test func unchangedConnectionSavePreservesCapabilitiesButKeyRotationDoesNot() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        var connection = ProviderConnection(name: "Provider", providerKind: .anthropic, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
+        let model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 8192, textCapability: .verified)
+        let route = ModelRoute(id: model.poolRouteID, name: "fixture", modelDescriptorID: model.id)
+        try store.saveConnection(connection, expectedRevision: nil)
+        try store.savePoolModel(model, route: route, expectedModelRevision: nil, expectedRouteRevision: nil)
+        connection.revision = 2
+        try store.saveConnection(connection, expectedRevision: 1)
+        #expect(try store.modelConfiguration().snapshot(routeID: route.id).textCapability == .verified)
+        connection.revision = 3; connection.credentialVersion = 2
+        try store.saveConnection(connection, expectedRevision: 2)
+        #expect(try store.modelConfiguration().snapshot(routeID: route.id).textCapability == .unknown)
+    }
+
+    @Test func savePoolModelIsAtomicAndUsesIndependentModelAndRouteCAS() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let connection = ProviderConnection(name: "Provider", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
+        let model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 4096, textCapability: .declared)
+        let route = ModelRoute(id: model.poolRouteID, name: "fixture", modelDescriptorID: model.id)
+        try store.saveConnection(connection, expectedRevision: nil)
+        try store.savePoolModel(model, route: route, expectedModelRevision: nil, expectedRouteRevision: nil)
+
+        var changedModel = model
+        changedModel.revision = 2; changedModel.isEnabled = false
+        var changedRoute = route
+        changedRoute.revision = 2; changedRoute.name = "Changed"
+        #expect(throws: MiraError.self) {
+            try store.savePoolModel(changedModel, route: changedRoute, expectedModelRevision: 1, expectedRouteRevision: 99)
+        }
+        let afterRollback = try store.modelConfiguration()
+        #expect(afterRollback.models.first?.revision == 1)
+        #expect(afterRollback.models.first?.isEnabled == true)
+        #expect(afterRollback.routes.first?.revision == 1)
+
+        try store.savePoolModel(changedModel, route: changedRoute, expectedModelRevision: 1, expectedRouteRevision: 1)
+        let saved = try store.modelConfiguration()
+        #expect(saved.models.first?.isEnabled == false)
+        #expect(saved.routes.first?.name == "Changed")
+    }
+
+    @Test func disabledProviderAndModelRoundTripThroughBackup() throws {
+        let directory = try temporaryDirectory()
+        let backup = directory.deletingLastPathComponent().appendingPathComponent("mira-disabled-\(UUID().uuidString).sqlite")
+        let restoredDirectory = directory.deletingLastPathComponent().appendingPathComponent("mira-disabled-restored-\(UUID().uuidString)")
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: backup)
+            try? FileManager.default.removeItem(at: restoredDirectory)
+        }
+        let store = try SQLiteMiraStore(directory: directory)
+        let connection = ProviderConnection(name: "Provider", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
+        let model = ModelDescriptor(connectionID: connection.id, modelID: "fixture", contextWindow: 4096, textCapability: .declared)
+        try store.saveConnection(connection, expectedRevision: nil)
+        try store.savePoolModel(model, route: .init(id: model.poolRouteID, name: "fixture", modelDescriptorID: model.id), expectedModelRevision: nil, expectedRouteRevision: nil)
+        var disabled = connection
+        disabled.revision = 2; disabled.isEnabled = false
+        try store.saveConnection(disabled, expectedRevision: 1)
+        try store.exportBackup(to: backup)
+        try store.restoreBackup(from: backup, to: restoredDirectory)
+        let restored = try SQLiteMiraStore(directory: restoredDirectory)
+        let configuration = try restored.modelConfiguration()
+        #expect(configuration.connections.first?.isEnabled == false)
+        #expect(configuration.models.first?.isEnabled == true)
+    }
+
     @Test func deletingConnectionCascadesConfigurationButPreservesExecutionSnapshotAndPolicy() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -363,7 +469,7 @@ struct SQLiteMiraStoreTests {
         }
         try resealTestBackupManifest(backup)
         let sourceBytes = try Data(contentsOf: testBackupDatabaseURL(backup))
-        #expect(SQLiteMiraStore.currentSchemaVersion == 7)
+        #expect(SQLiteMiraStore.currentSchemaVersion == 8)
         #expect(throws: MiraError.self) { try store.restoreBackup(from: backup, to: restore) }
         #expect(try store.conversations(includeArchived: true).map(\.id) == [conversation.id])
         #expect(!FileManager.default.fileExists(atPath: restore.path))

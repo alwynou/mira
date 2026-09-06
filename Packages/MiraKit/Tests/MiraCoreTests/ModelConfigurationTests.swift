@@ -174,6 +174,37 @@ struct ModelConfigurationTests {
         #expect(snapshot.modelID == fixture.model.modelID)
         #expect(snapshot.maxOutputTokens == route.maxOutputTokens)
     }
+
+    @Test func modelPoolShowsOnlyEnabledModelsWithCanonicalRoutesIncludingUnknownCapabilities() throws {
+        let connection = ProviderConnection(name: "Provider", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture")
+        let model = ModelDescriptor(connectionID: connection.id, modelID: "manual", contextWindow: nil, textCapability: .unknown)
+        let disabledModel = ModelDescriptor(connectionID: connection.id, modelID: "disabled", isEnabled: false)
+        let canonical = ModelRoute(id: model.poolRouteID, name: "manual", modelDescriptorID: model.id)
+        let missingRouteModel = ModelDescriptor(connectionID: connection.id, modelID: "missing")
+        let configuration = ModelConfiguration(connections: [connection], models: [model, disabledModel, missingRouteModel], routes: [canonical, ModelRoute(id: disabledModel.poolRouteID, name: "disabled", modelDescriptorID: disabledModel.id)], bindings: [])
+
+        #expect(configuration.modelPool.map(\.id) == [model.id])
+        #expect(configuration.modelPool[0].route.id == model.poolRouteID)
+        expectError(.configuration) { _ = try configuration.resolve(purpose: .conversation, explicitRouteID: canonical.id) }
+    }
+
+    @Test func disabledConnectionAndModelRejectExplicitResolutionWithoutFallback() throws {
+        var connection = ProviderConnection(name: "Provider", providerKind: .openAICompatible, baseURL: "https://example.invalid/v1", credentialReference: "fixture", isEnabled: false)
+        var model = ModelDescriptor(connectionID: connection.id, modelID: "manual", contextWindow: 8192, textCapability: .declared)
+        let route = ModelRoute(id: model.poolRouteID, name: "manual", modelDescriptorID: model.id)
+        let alternative = ProviderConnection(name: "Other", providerKind: .openAICompatible, baseURL: "https://other.invalid/v1", credentialReference: "other")
+        let otherModel = ModelDescriptor(connectionID: alternative.id, modelID: "other", contextWindow: 8192, textCapability: .declared)
+        let otherRoute = ModelRoute(id: otherModel.poolRouteID, name: "other", modelDescriptorID: otherModel.id)
+        let binding = RouteBinding(scope: .global, purpose: .conversation, routeID: otherRoute.id)
+        var configuration = ModelConfiguration(connections: [connection, alternative], models: [model, otherModel], routes: [route, otherRoute], bindings: [binding])
+        expectError(.configuration) { _ = try configuration.resolve(purpose: .conversation, explicitRouteID: route.id) }
+        #expect(try configuration.resolve(purpose: .conversation).id == otherRoute.id)
+        #expect(configuration.modelPool.map(\.id) == [otherModel.id])
+        connection.isEnabled = true; model.isEnabled = false
+        configuration.connections = [connection, alternative]; configuration.models = [model, otherModel]
+        expectError(.configuration) { _ = try configuration.resolve(purpose: .conversation, explicitRouteID: route.id) }
+        #expect(configuration.modelPool.map(\.id) == [otherModel.id])
+    }
 }
 
 private struct RoutingFixture {

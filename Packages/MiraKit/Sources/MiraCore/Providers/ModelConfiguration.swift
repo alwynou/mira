@@ -17,10 +17,11 @@ public struct ProviderConnection: Identifiable, Codable, Sendable, Equatable {
     public var credentialReference: String
     public var credentialVersion: Int
     public var allowsLoopbackHTTP: Bool
-    public init(id: ConnectionID = .init(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, credentialReference: String, credentialVersion: Int = 1, allowsLoopbackHTTP: Bool = false) {
+    public var isEnabled: Bool
+    public init(id: ConnectionID = .init(), revision: Int = 1, name: String, providerKind: ProviderKind, baseURL: String, credentialReference: String, credentialVersion: Int = 1, allowsLoopbackHTTP: Bool = false, isEnabled: Bool = true) {
         self.id = id; self.revision = revision; self.name = name; self.providerKind = providerKind
         self.baseURL = baseURL; self.credentialReference = credentialReference
-        self.credentialVersion = credentialVersion; self.allowsLoopbackHTTP = allowsLoopbackHTTP
+        self.credentialVersion = credentialVersion; self.allowsLoopbackHTTP = allowsLoopbackHTTP; self.isEnabled = isEnabled
     }
     public func validate() throws {
         guard revision > 0, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -45,17 +46,30 @@ public struct ModelDescriptor: Identifiable, Codable, Sendable, Equatable {
     public var textCapability: CapabilityState
     public var toolCapability: CapabilityState
     public var probeObservation: ProbeObservation?
-    public init(id: ModelDescriptorID = .init(), revision: Int = 1, connectionID: ConnectionID, connectionRevision: Int = 1, modelID: String, contextWindow: Int? = nil, textCapability: CapabilityState = .unknown, toolCapability: CapabilityState = .unknown, probeObservation: ProbeObservation? = nil) {
+    public var isEnabled: Bool
+    public var poolRouteID: RouteID { RouteID(id.rawValue) }
+    public init(id: ModelDescriptorID = .init(), revision: Int = 1, connectionID: ConnectionID, connectionRevision: Int = 1, modelID: String, contextWindow: Int? = nil, textCapability: CapabilityState = .unknown, toolCapability: CapabilityState = .unknown, probeObservation: ProbeObservation? = nil, isEnabled: Bool = true) {
         self.id = id; self.revision = revision; self.connectionID = connectionID; self.modelID = modelID
         self.connectionRevision = connectionRevision
         self.contextWindow = contextWindow; self.textCapability = textCapability
-        self.toolCapability = toolCapability; self.probeObservation = probeObservation
+        self.toolCapability = toolCapability; self.probeObservation = probeObservation; self.isEnabled = isEnabled
     }
     public func validate() throws {
         guard revision > 0, connectionRevision > 0, !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, modelID.count <= 300,
               contextWindow.map({ $0 > 0 && $0 <= 10_000_000 }) ?? true else {
             throw MiraError(.configuration, "Enter a model ID and a valid context window, or leave the window unknown.")
         }
+    }
+}
+
+public struct ModelPoolEntry: Identifiable, Sendable {
+    public let model: ModelDescriptor
+    public let connection: ProviderConnection
+    public let route: ModelRoute
+    public var id: ModelDescriptorID { model.id }
+
+    public init(model: ModelDescriptor, connection: ProviderConnection, route: ModelRoute) {
+        self.model = model; self.connection = connection; self.route = route
     }
 }
 
@@ -112,6 +126,25 @@ public struct ModelConfiguration: Sendable, Equatable {
         self.connections = connections; self.models = models; self.routes = routes; self.bindings = bindings
     }
 
+    /// Every active model has one stable route for the normal model picker. The
+    /// pool intentionally includes models with unknown capabilities; sending
+    /// remains gated by route resolution and capability validation.
+    public var modelPool: [ModelPoolEntry] {
+        let connectionsByID = Dictionary(uniqueKeysWithValues: connections.map { ($0.id, $0) })
+        let routesByID = Dictionary(uniqueKeysWithValues: routes.map { ($0.id, $0) })
+        return models.compactMap { model in
+            guard model.isEnabled, let connection = connectionsByID[model.connectionID], connection.isEnabled,
+                  let route = routesByID[model.poolRouteID], route.modelDescriptorID == model.id else { return nil }
+            return ModelPoolEntry(model: model, connection: connection, route: route)
+        }.sorted {
+            let lhsProvider = $0.connection.name.lowercased(), rhsProvider = $1.connection.name.lowercased()
+            if lhsProvider != rhsProvider { return lhsProvider < rhsProvider }
+            let lhsModel = $0.model.modelID.lowercased(), rhsModel = $1.model.modelID.lowercased()
+            if lhsModel != rhsModel { return lhsModel < rhsModel }
+            return $0.model.id.rawValue.uuidString.lowercased() < $1.model.id.rawValue.uuidString.lowercased()
+        }
+    }
+
     public func resolve(purpose: ModelPurpose, explicitRouteID: RouteID? = nil, conversation: Conversation? = nil, workspace: Workspace? = nil) throws -> ResolvedModelRouteSnapshot {
         if let workspace, !workspace.allowsRemoteSend {
             throw MiraError(.unauthorized, "This workspace does not allow sending to model services. Change this in workspace settings.")
@@ -143,6 +176,8 @@ public struct ModelConfiguration: Sendable, Equatable {
             throw MiraError(.configuration, "The route, model, or provider connection no longer exists.")
         }
         try route.validate(); try model.validate(); try connection.validate()
+        guard connection.isEnabled else { throw MiraError(.configuration, "The provider connection is disabled.") }
+        guard model.isEnabled else { throw MiraError(.configuration, "The provider model is disabled.") }
         return ResolvedModelRouteSnapshot(route: route, model: model, connection: connection, purpose: purpose, selection: selection)
     }
 }

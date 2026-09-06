@@ -15995,6 +15995,1158 @@
           }
         }
       }
+    },
+    "Activate a provider and enable its models. Disabled providers keep their selections but are hidden from this pool.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate a provider and enable its models. Disabled providers keep their selections but are hidden from this pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "激活服务商并启用其模型。停用服务商会保留模型选择，但会将其从模型池中隐藏。"
+          }
+        }
+      }
+    },
+    "Activate the current provider configuration before fetching models.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate the current provider configuration before fetching models."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先激活当前服务商配置，再获取模型列表。"
+          }
+        }
+      }
+    },
+    "Activate this provider to fetch or add models.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate this provider to fetch or add models."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "激活此服务商后即可获取或添加模型。"
+          }
+        }
+      }
+    },
+    "Activation allows explicit model requests. It does not verify connectivity or enable any models automatically.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activation allows explicit model requests. It does not verify connectivity or enable any models automatically."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "激活后可主动发起模型请求。激活本身不会验证连接，也不会自动启用任何模型。"
+          }
+        }
+      }
+    },
+    "Add Manually": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Manually"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手工添加"
+          }
+        }
+      }
+    },
+    "Add Provider": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加服务商"
+          }
+        }
+      }
+    },
+    "Add a provider to get started.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a provider to get started."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加一个服务商以开始使用。"
+          }
+        }
+      }
+    },
+    "Add to Pool": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Pool"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入模型池"
+          }
+        }
+      }
+    },
+    "Adding a model to the pool does not select it for any purpose. Removing a local selection uses the workspace or global default when configured.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adding a model to the pool does not select it for any purpose. Removing a local selection uses the workspace or global default when configured."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入模型池不会自动为任何用途选用该模型。移除当前范围的选择后，将使用已配置的工作空间或全局默认模型。"
+          }
+        }
+      }
+    },
+    "Anthropic": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anthropic"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anthropic"
+          }
+        }
+      }
+    },
+    "Capability tests send a fixed synthetic prompt without conversation history. Your provider may charge for the request.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capability tests send a fixed synthetic prompt without conversation history. Your provider may charge for the request."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "能力测试仅发送固定的合成提示词，不包含对话历史。服务商可能对此请求收费。"
+          }
+        }
+      }
+    },
+    "Choose Default Models": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Default Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择默认模型"
+          }
+        }
+      }
+    },
+    "Choose a model from your pool for each purpose and scope. Background extraction requires its own explicit selection.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a model from your pool for each purpose and scope. Background extraction requires its own explicit selection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为每个用途和范围从模型池选择模型。后台记忆提取需要单独明确选择。"
+          }
+        }
+      }
+    },
+    "Configure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
+          }
+        }
+      }
+    },
+    "Configure and activate a provider, select its models, then choose a model from your pool.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure and activate a provider, select its models, then choose a model from your pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置并激活服务商，启用其模型，然后从模型池中选择要使用的模型。"
+          }
+        }
+      }
+    },
+    "Connect a Provider": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect a Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接入服务商"
+          }
+        }
+      }
+    },
+    "Custom Provider": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义服务商"
+          }
+        }
+      }
+    },
+    "Declare capabilities only when you have verified them. Capability observations reset when the connection, model ID, or context window changes. Adding a model does not verify its capabilities. Use Test Text and Test Tools from the model pool.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Declare capabilities only when you have verified them. Capability observations reset when the connection, model ID, or context window changes. Adding a model does not verify its capabilities. Use Test Text and Test Tools from the model pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅声明你已确认的能力。连接、模型 ID 或上下文窗口变化后，能力测试记录会重置。添加模型不会验证其能力；可在模型池中执行文本和工具测试。"
+          }
+        }
+      }
+    },
+    "Default Models": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认模型"
+          }
+        }
+      }
+    },
+    "Disable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停用"
+          }
+        }
+      }
+    },
+    "Edit Provider": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑服务商"
+          }
+        }
+      }
+    },
+    "Fetch Models": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取模型"
+          }
+        }
+      }
+    },
+    "Fetch the model list or add a Model ID manually, then configure the models you want to use.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch the model list or add a Model ID manually, then configure the models you want to use."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取模型列表或手工添加模型 ID，然后配置要使用的模型。"
+          }
+        }
+      }
+    },
+    "Fetching reads only this provider’s model catalog. You can add a private deployment ID manually if discovery is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetching reads only this provider’s model catalog. You can add a private deployment ID manually if discovery is unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取操作仅查询此服务商的模型目录。如果无法发现模型，可以手工添加私有部署 ID。"
+          }
+        }
+      }
+    },
+    "In Model Pool": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Model Pool"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已加入模型池"
+          }
+        }
+      }
+    },
+    "Include in Model Pool": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include in Model Pool"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入模型池"
+          }
+        }
+      }
+    },
+    "Include %@ in Model Pool": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include %@ in Model Pool"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 %@ 加入模型池"
+          }
+        }
+      }
+    },
+    "Manage Providers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Providers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理服务商"
+          }
+        }
+      }
+    },
+    "Maximum output tokens must be positive and smaller than the model context window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum output tokens must be positive and smaller than the model context window."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大输出 Token 数必须为正数，且小于模型上下文窗口。"
+          }
+        }
+      }
+    },
+    "Model Pool": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model Pool"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型池"
+          }
+        }
+      }
+    },
+    "Model discovery is unavailable in demo mode or without an open library.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model discovery is unavailable in demo mode or without an open library."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "演示模式下或未打开资料库时无法获取模型列表。"
+          }
+        }
+      }
+    },
+    "Models enabled under active providers appear here and in model selectors. Configure limits and verify capabilities before sending.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Models enabled under active providers appear here and in model selectors. Configure limits and verify capabilities before sending."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已激活服务商下启用的模型会显示在此处及模型选择器中。发送前请配置用量上限并确认能力。"
+          }
+        }
+      }
+    },
+    "New providers start inactive. After saving, activate the provider and select its models.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New providers start inactive. After saving, activate the provider and select its models."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新添加的服务商默认未激活。保存后请激活服务商并选择其模型。"
+          }
+        }
+      }
+    },
+    "No Models Selected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Models Selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未选择模型"
+          }
+        }
+      }
+    },
+    "No Models in Pool": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Models in Pool"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型池为空"
+          }
+        }
+      }
+    },
+    "OpenAI": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenAI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenAI"
+          }
+        }
+      }
+    },
+    "Provider": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商"
+          }
+        }
+      }
+    },
+    "Provider Models": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商模型"
+          }
+        }
+      }
+    },
+    "Provider Template": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider Template"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商模板"
+          }
+        }
+      }
+    },
+    "Removal also deletes the related model presets and default selections. Disable the item to keep its configuration.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removal also deletes the related model presets and default selections. Disable the item to keep its configuration."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除还会删除关联的模型预设和默认选择。如果希望保留配置，请改为停用。"
+          }
+        }
+      }
+    },
+    "Remove configuration?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove configuration?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除配置？"
+          }
+        }
+      }
+    },
+    "Request usage reporting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request usage reporting"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求用量统计"
+          }
+        }
+      }
+    },
+    "Save Selection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Selection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存选择"
+          }
+        }
+      }
+    },
+    "Search models or providers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search models or providers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索模型或服务商"
+          }
+        }
+      }
+    },
+    "The provider changed while fetching models. Fetch the list again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider changed while fetching models. Fetch the list again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取模型期间服务商配置发生了变化。请重新获取列表。"
+          }
+        }
+      }
+    },
+    "The provider returned no models. You can add a model manually.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider returned no models. You can add a model manually."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商未返回模型。你可以手工添加模型。"
+          }
+        }
+      }
+    },
+    "Model list loaded. Select models to add to your pool.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model list loaded. Select models to add to your pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型列表已加载。请选择要加入模型池的模型。"
+          }
+        }
+      }
+    },
+    "This provider already has that model. Edit or enable the existing entry.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This provider already has that model. Edit or enable the existing entry."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务商已配置该模型。请编辑或启用现有条目。"
+          }
+        }
+      }
+    },
+    "Unavailable model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型不可用"
+          }
+        }
+      }
+    },
+    "Use Inherited Model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Inherited Model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用继承的模型"
+          }
+        }
+      }
+    },
+    "Use default model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use default model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用默认模型"
+          }
+        }
+      }
+    },
+    "Saved Models": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved Models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存的模型"
+          }
+        }
+      }
+    },
+    "Available from Provider": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available from Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商提供的模型"
+          }
+        }
+      }
+    },
+    "Inactive": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inactive"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未激活"
+          }
+        }
+      }
+    },
+    "The provider connection is disabled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider connection is disabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商连接已停用。"
+          }
+        }
+      }
+    },
+    "The provider model is disabled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider model is disabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商模型已停用。"
+          }
+        }
+      }
+    },
+    "This provider connection is disabled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This provider connection is disabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务商连接已停用。"
+          }
+        }
+      }
+    },
+    "Model discovery was stopped.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model discovery was stopped."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型列表获取已停止。"
+          }
+        }
+      }
+    },
+    "The provider returned an unparseable model list.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider returned an unparseable model list."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商返回的模型列表无法解析。"
+          }
+        }
+      }
+    },
+    "The provider connection ended before model discovery completed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider connection ended before model discovery completed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型列表获取完成前，服务商连接已中断。"
+          }
+        }
+      }
+    },
+    "The provider model list exceeded its safety limits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider model list exceeded its safety limits."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商模型列表超过了安全限制。"
+          }
+        }
+      }
+    },
+    "The provider rejected model discovery.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider rejected model discovery."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商拒绝了模型列表请求。"
+          }
+        }
+      }
+    },
+    "Model discovery timed out.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model discovery timed out."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型列表获取超时。"
+          }
+        }
+      }
+    },
+    "The provider connection contents are invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider connection contents are invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商连接内容无效。"
+          }
+        }
+      }
+    },
+    "The model pool route must be the model's canonical route.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model pool route must be the model's canonical route."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型池必须使用该模型的规范调用配置。"
+          }
+        }
+      }
+    },
+    "The canonical model pool route belongs to another model.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The canonical model pool route belongs to another model."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此规范模型调用配置属于另一个模型。"
+          }
+        }
+      }
+    },
+    "A model with this ID is already configured for the provider connection.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A model with this ID is already configured for the provider connection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务商连接已配置相同 ID 的模型。"
+          }
+        }
+      }
+    },
+    "Choose an available model or use the default model before sending.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an available model or use the default model before sending."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送前请选择可用模型，或改用默认模型。"
+          }
+        }
+      }
+    },
+    "Choose an available model from your pool.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an available model from your pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请从模型池中选择可用模型。"
+          }
+        }
+      }
+    },
+    "Declared": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Declared"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已声明"
+          }
+        }
+      }
+    },
+    "Verified": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已验证"
+          }
+        }
+      }
+    },
+    "Test cancelled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test cancelled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试已取消。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

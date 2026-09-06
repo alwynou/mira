@@ -303,13 +303,16 @@ private struct ConversationDetail: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Picker("Conversation model", selection: $model.selectedRouteID) {
-                    Text("Use purpose route").tag(nil as RouteID?)
-                    if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) { Text("Unavailable route").tag(Optional(selected)) }
-                    ForEach(model.routes) { route in Text(verbatim: route.name).tag(Optional(route.id)) }
+                    Text("Use default model").tag(nil as RouteID?)
+                    if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) { Text("Unavailable model").tag(Optional(selected)) }
+                    ForEach(model.configuration.modelPool) { entry in Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id)) }
                 }.labelsHidden().frame(maxWidth: 320).disabled(model.activeExecution != nil)
                 Spacer()
                 if model.needsPersistenceRetry { Label("Reply pending save", systemImage: "externaldrive.badge.exclamationmark").font(.caption).foregroundStyle(.orange) }
                 else if model.activeExecution != nil { ProgressView().controlSize(.small); Text("Generating").font(.caption).foregroundStyle(.secondary) }
+            }
+            if model.selectedModelUnavailable {
+                Text("Choose an available model or use the default model before sending.").font(.caption).foregroundStyle(.orange)
             }
             TextField("Send a message…", text: $model.composer, axis: .vertical)
                 .textFieldStyle(.plain).lineLimit(3...8).font(.body).focused($composerFocused)
@@ -325,7 +328,7 @@ private struct ConversationDetail: View {
                 } else {
                     Button("Send", systemImage: "arrow.up") { Task { await model.send(); composerFocused = true } }
                         .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
-                        .disabled(model.isSending || model.routes.isEmpty || model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(model.isSending || model.selectedModelUnavailable || model.routes.isEmpty || model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }

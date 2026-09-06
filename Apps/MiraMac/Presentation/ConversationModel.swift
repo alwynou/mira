@@ -38,6 +38,7 @@ final class ConversationModel {
     @ObservationIgnored private var selectionGeneration = 0
 
     init(application: MiraApplication) { self.application = application }
+    var selectedModelUnavailable: Bool { selectedRouteID.map { selected in !routes.contains { $0.id == selected } } ?? false }
     var currentConversation: Conversation? { conversations.first { $0.id == selectedConversationID } }
     var activeExecution: Execution? { executions.last { !$0.status.isTerminal } }
     var needsPersistenceRetry: Bool { activeExecution.map { pendingSaveIDs.contains($0.id) } ?? false }
@@ -68,7 +69,7 @@ final class ConversationModel {
     func reload() async {
         do {
             let library = try await application.library(includeArchived: true)
-            workspaces = library.workspaces; conversations = library.conversations; routes = library.routes; configuration = library.configuration
+            workspaces = library.workspaces; conversations = library.conversations; routes = library.configuration.modelPool.map(\.route); configuration = library.configuration
             if let id = selectedConversationID { try await loadConversation(id) }
         } catch { self.error = MiraError.safe(error) }
     }
@@ -99,6 +100,10 @@ final class ConversationModel {
     }
     func send() async {
         guard !isSending else { return }
+        guard !selectedModelUnavailable else {
+            error = MiraError(.configuration, "Choose an available model or use the default model before sending.")
+            return
+        }
         let routeID = selectedRouteID
         let input = composer
         let originalSelection = selectedConversationID

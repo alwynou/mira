@@ -26,9 +26,9 @@ Build a ZIP from an exact committed revision with [the local packaging procedure
 
 ## Automatic memory
 
-Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Purpose Routing**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
+Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Default Models**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
 
-The current development library uses fresh schema v7. Previous development libraries are rejected intact; use a separate disposable `--data-directory` when testing. Actual model quality and native walkthrough gates remain pending.
+The current development library uses fresh schema v8. Previous development libraries are rejected intact; use a separate disposable `--data-directory` when testing. Actual model quality and native walkthrough gates remain pending.
 
 ## Markdown knowledge
 
@@ -42,7 +42,9 @@ Choose **Settings → General → Display Language** to switch between English (
 
 Implementation code, comments, and built-in prompts use English. Translations live in the string catalog; see [localization conventions](docs/engineering/LOCALIZATION.md). Run `python3 scripts/check_language_policy.py` and the `MiraHostTests` target when changing UI copy.
 
-首次启动在设置中添加 OpenAI Chat Completions 兼容连接或 Anthropic Messages 连接，填写 Model ID、API Key、上下文窗口与输出上限。未知窗口可以保存，但发送前须补齐；保存配置不会自动调用模型。API Key 仅保存在本机 Keychain。设置中的能力检测由用户主动触发，只发送固定合成提示，可能产生少量 API 费用。
+在 **设置 → 服务商** 中添加 OpenAI、Anthropic 或自定义兼容服务商，填写端点和 API Key，保存后显式激活。随后获取该服务商的模型列表或手工填写私有 Model ID，选择要加入模型池的模型，并配置上下文窗口、输出上限与能力。最后从对话模型选择器或 **默认模型** 中选择模型池条目。添加模型会一并保存调用配置，无需另建路由；后台记忆提取仍须单独选择模型并开启。
+
+API Key 仅保存在本机 Keychain。获取模型仅查询所选服务商的模型目录，不自动启用模型，也不发送对话。文本和工具测试由用户主动触发，发送固定合成提示，可能产生 API 费用。停用服务商会保留其模型选择并从模型池隐藏，已有失效选择会报错，不自动换用其他模型。
 
 无密钥演示仅在 Debug 构建中显式启用，使用隔离目录，不发送网络请求：
 

@@ -62,6 +62,21 @@ final class AppContainer {
         }
     }
 
+    func discoverModels(for connection: ProviderConnection) async throws -> [DiscoveredModel] {
+        guard !isDemo, let application else { throw MiraError(.configuration, "Model discovery is unavailable in demo mode or without an open library.") }
+        let before = try await application.library().configuration
+        guard before.connections.first(where: { $0.id == connection.id }) == connection, connection.isEnabled else {
+            throw MiraError(.configuration, "Activate the current provider configuration before fetching models.")
+        }
+        let models = try await HTTPModelDiscovery(credentials: credentials).models(for: connection)
+        try Task.checkCancellation()
+        let after = try await application.library().configuration
+        guard after.connections.first(where: { $0.id == connection.id }) == connection else {
+            throw MiraError(.conflict, "The provider changed while fetching models. Fetch the list again.")
+        }
+        return models
+    }
+
     func probe(_ route: ResolvedModelRouteSnapshot, kind: CapabilityProbeKind) async -> ProbeObservation {
         await ProviderCapabilityProbe(provider: provider).run(route: route, kind: kind)
     }
@@ -78,10 +93,9 @@ final class AppContainer {
         if library.configuration.connections.isEmpty {
             let connection = ProviderConnection(name: "Local Demo", providerKind: .openAICompatible, baseURL: "https://demo.invalid/v1", credentialReference: "demo")
             let model = ModelDescriptor(connectionID: connection.id, modelID: "mira-demo", contextWindow: 32_768, textCapability: .declared)
-            let route = ModelRoute(name: "Local Demo", modelDescriptorID: model.id)
+            let route = ModelRoute(id: model.poolRouteID, name: "Local Demo", modelDescriptorID: model.id)
             try await application.saveConnection(connection, expectedRevision: nil)
-            try await application.saveModel(model, expectedRevision: nil)
-            try await application.saveRoute(route, expectedRevision: nil)
+            try await application.savePoolModel(model, route: route, expectedModelRevision: nil, expectedRouteRevision: nil)
             try await application.saveRouteBinding(.init(scope: .global, purpose: .conversation, routeID: route.id), expectedRevision: nil)
         }
     }

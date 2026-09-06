@@ -259,6 +259,12 @@ public actor MiraApplication {
         for execution in active.values where execution.route.modelDescriptorID == model.id { tasks[execution.id]?.cancel() }
         await invalidateMemoryExtraction(); emit(.changed)
     }
+    public func savePoolModel(_ model: ModelDescriptor, route: ModelRoute, expectedModelRevision: Int?, expectedRouteRevision: Int?) async throws {
+        try model.validate(); try route.validate()
+        try store.savePoolModel(model, route: route, expectedModelRevision: expectedModelRevision, expectedRouteRevision: expectedRouteRevision)
+        for execution in active.values where execution.route.modelDescriptorID == model.id || execution.route.id == route.id { tasks[execution.id]?.cancel() }
+        await invalidateMemoryExtraction(); emit(.changed)
+    }
     public func removeModel(_ id: ModelDescriptorID) async throws {
         try store.removeModel(id)
         for execution in active.values where execution.route.modelDescriptorID == id { tasks[execution.id]?.cancel() }

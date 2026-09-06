@@ -24,6 +24,8 @@ public protocol MiraStore: MemoryStore, MemoryExtractionStore, KnowledgeStore {
     func saveConnection(_ connection: ProviderConnection, expectedRevision: Int?) throws
     func removeConnection(_ id: ConnectionID) throws
     func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) throws
+    /// Atomically saves a model descriptor and its canonical model-pool route.
+    func savePoolModel(_ model: ModelDescriptor, route: ModelRoute, expectedModelRevision: Int?, expectedRouteRevision: Int?) throws
     func removeModel(_ id: ModelDescriptorID) throws
     func saveRoute(_ route: ModelRoute, expectedRevision: Int?) throws
     func removeRoute(_ id: RouteID) throws
