@@ -53,3 +53,5 @@ The independent implementation goal is complete through M5 local development del
 ## Provider onboarding follow-up
 
 The user requested provider activation → per-provider model selection → model pool → final selection, referencing LobeHub. The native setup flow, enabled-state persistence, bounded model discovery, canonical model presets, and pool-based selectors are implemented on fresh schema v8. Current evidence is in [Provider pool verification](PROVIDER_POOL_VERIFICATION.md). This follow-up does not change the deferred real-model or release gates, and M6 remains unstarted.
+
+Provider onboarding implementation commit `c5d9706864ec096aadaba60ac66052b8befa9ea4` passed [CI 34011674174](https://github.com/alwynou/mira/actions/runs/34011674174). Its clean Release ZIP passed checksum/resource checks and schema-v8 startup/reopen/isolation smoke checks. The final evidence commit is documentation only; the local ZIP is a development artifact without Developer ID signing or notarization.

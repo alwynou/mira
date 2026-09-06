@@ -14,12 +14,14 @@ Model discovery uses explicit, bounded GET requests with injected transport, per
 
 - Full package acceptance passed **271 executed tests**, plus one deliberately skipped opt-in M5 scale test (**272 registered / 33 suites**): `/private/tmp/mira-provider-pool-tests-accepted.log`.
 - Host acceptance passed **16 tests** (five localization XCTest cases and eleven renderer/Keychain Swift Testing cases): `/private/tmp/mira-provider-pool-host-accepted.log`.
-- English source policy and **1,035 bilingual catalog entries** passed. Compiler-extracted coverage is checked against the final Host build.
+- English source policy and **1,035 bilingual catalog entries** passed. Compiler-extracted coverage passed against the final Host build.
 - Debug app build and host tests passed with pinned package versions. The local worktree build includes concurrent icon work; exact-commit CI and packaging use only committed inputs.
 
 The parent corrected an adapter path bug for Anthropic versus OpenAI, missing Anthropic pagination metadata, incomplete transport cancellation, a synthesized missing canonical route, and a now-invalid duplicate-ID fixture. Additional regressions make disabled-model/provider checks non-vacuous with an available alternative and prove that no-op saves preserve attestations while key rotation and stale activation do not restore them. UI review addressed unavailable selections, stale probe tasks, disabled-model removal, and capability accessibility values.
 
-Exact revision, CI, and local package evidence will be recorded after completion.
+The implementation revision is `c5d9706864ec096aadaba60ac66052b8befa9ea4`. Regenerating its isolated Git archive produces an identical Xcode project. Its clean Release package is `Mira-0.1.0-c5d9706864ec-unsigned.zip` (11,631,572 bytes; SHA-256 `c9247c48b9a6a372fd2997a9ad7fbb02ad1e0d74326bf04197163dbb5a44131a`). The ZIP includes arm64/x86_64 slices, minimum macOS 15, both language resources, and third-party notices, and extracts to an identical bundle. It is ad hoc linker-signed without Developer ID signing or notarization.
+
+The packaged app passed direct startup with a fresh schema-v8 library, SIGTERM/reopen preserving a synthetic workspace, and a separate empty library. Each check passed SQLite integrity and foreign-key validation with zero configured provider connections. This is process/persistence evidence, not native UI acceptance. [Delivery evidence](evidence/provider-pool-v1/delivery.json) records the package and host; local output is `.build/local-delivery-provider-pool-c5d9706/`. That exact revision passed package tests, Host tests, language policy, and compiler-extracted coverage in [CI 34011674174](https://github.com/alwynou/mira/actions/runs/34011674174). The final evidence commit changes documentation only.
 
 ## Remaining evidence
 
