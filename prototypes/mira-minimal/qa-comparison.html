@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mira 原型视觉对照</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-width: 1504px; background: #eceff2; color: #202124; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+      main { display: grid; grid-template-columns: 720px 720px; gap: 16px; padding: 24px 24px 34px; }
+      figure { margin: 0; }
+      figcaption { height: 28px; color: #686d73; font-size: 13px; letter-spacing: .01em; }
+      .frame { width: 720px; height: 512px; overflow: hidden; background: white; border: 1px solid #dfe2e5; box-shadow: 0 8px 28px rgba(20, 22, 25, .08); }
+      img { display: block; width: 720px; height: 512px; object-fit: fill; }
+      iframe { width: 1440px; height: 1024px; display: block; border: 0; transform: scale(.5); transform-origin: 0 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <figure>
+        <figcaption>视觉目标 · 方案 2</figcaption>
+        <div class="frame"><img src="/qa/selected-option-2.png" alt="方案 2 视觉目标" /></div>
+      </figure>
+      <figure>
+        <figcaption>浏览器实现 · 1440 × 1024</figcaption>
+        <div class="frame"><iframe src="/" title="Mira 浏览器实现"></iframe></div>
+      </figure>
+    </main>
+  </body>
+</html>
