@@ -31,6 +31,8 @@ Local verification on Apple M1 Pro, macOS 26.6.2, Xcode 26.6:
 - Release build passed. The staged Xcode project was regenerated from an isolated export of the staged sources and reproduced identically; unrelated local icon/design work was excluded.
 - Eight Python script tests passed. Language policy and compiler-extracted UI coverage passed for 1,132 bilingual entries. No new translation keys were needed.
 
+Final implementation `7a80585cb5a6542cda334b170a7eac8faf07f2eb` passed the repository's unchanged default commands in [CI 34032186367](https://github.com/alwynou/mira/actions/runs/34032186367), including the complete host suite on the macOS 15 runner. The evidence-only follow-up commit does not change executable code. CI does not substitute for the full native walkthroughs below.
+
 The first complete host run failed the existing `TranscriptScrollAnimationTests.changingTargetsProducesIntermediateOffsetsWithoutReversing` monotonic-offset assertion. The subsequent complete host command with `-parallel-testing-enabled NO` passed. The cause of that intermittent native animation result was not established, and no renderer or scrolling implementation was changed. Keep it associated with the already deferred [rendering acceptance](LONG_CONVERSATION_PERFORMANCE.md), rather than treating this rerun as closing that gate.
 
 ## Remaining evidence
