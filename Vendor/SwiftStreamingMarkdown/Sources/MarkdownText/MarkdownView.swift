@@ -14,6 +14,7 @@ public struct MarkdownView: View {
 
   private let text: String
   private let config: MarkdownRenderConfig
+  private let animatesTextUpdates: Bool
   @StateObject var controller: MarkdownViewController
 
   /// Create a `MarkdownView`.
@@ -21,12 +22,16 @@ public struct MarkdownView: View {
   ///   - text: The raw Markdown source to parse and render.
   ///   - config: Render configuration. Defaults to `.default`.
   ///   - listener: Optional listener that receives render and interaction events.
+  ///   - animatesTextUpdates: Fade appended macOS paragraph text after the initial snapshot.
+  ///     Switching this off immediately finishes any active text fades.
   public init(
     text: String,
     config: MarkdownRenderConfig = .default,
-    listener: MarkdownListener? = nil
+    listener: MarkdownListener? = nil,
+    animatesTextUpdates: Bool = false
   ) {
     self.text = text
+    self.animatesTextUpdates = animatesTextUpdates
     self.config = config
     _controller = StateObject(wrappedValue: MarkdownViewController(config: config, listener: listener))
   }
@@ -39,15 +44,18 @@ public struct MarkdownView: View {
         DocumentView(renderableDocument: .empty, config: config, listener: controller.listener)
       }
     }
+    .environment(\.markdownAnimatesTextUpdates, animatesTextUpdates && controller.hasParsedUpdate)
     .task(id: text) {
       await controller.parse(text: text)
     }
   }
 }
 
+@MainActor
 final class MarkdownViewController: ObservableObject {
 
   @Published var renderable: RenderableDocument?
+  @Published private(set) var hasParsedUpdate = false
 
   private let config: MarkdownRenderConfig
   private let parser = MarkdownParserImpl()
@@ -63,9 +71,11 @@ final class MarkdownViewController: ObservableObject {
     guard !Task.isCancelled else { return }
     let renderable = await parser.parse(text: text, config: config)
     guard !Task.isCancelled else { return }
-    await MainActor.run {
-      guard !Task.isCancelled else { return }
-      self.renderable = renderable
-    }
+    self.hasParsedUpdate = self.renderable != nil
+    self.renderable = renderable
   }
+}
+
+extension EnvironmentValues {
+  @Entry var markdownAnimatesTextUpdates = false
 }

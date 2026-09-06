@@ -31,6 +31,7 @@
 		5EFF5D7E2C71A6977544417A /* ConversationStreamBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E39516AF4613C11AC41445D5 /* ConversationStreamBuffer.swift */; };
 		60C1C6D4ABC44FC268F10C08 /* MemoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05FBFB2CE9557A6F94C37FF /* MemoryModel.swift */; };
 		614B098EE4F5FEA3B78D2943 /* TranscriptScrollState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB0938E9E9AF55805ABAF088 /* TranscriptScrollState.swift */; };
+		670D27BE6C1B24BE619F3933 /* StreamingFadeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C99D3F6190EF281D753A45 /* StreamingFadeTests.swift */; };
 		6AFA95AB244E4407486ECE4E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 380EE6141EC3FD69746566C8 /* Localizable.xcstrings */; };
 		6DFF932F49A461A438CEDDCE /* AssistantMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3509ADD8C6FBF3620F4D53 /* AssistantMarkdownView.swift */; };
 		7115754E493BEBE18D9281FE /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */; };
@@ -81,6 +82,7 @@
 		4739BCC21E72088E4A69A33A /* MemoryRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRootView.swift; sourceTree = "<group>"; };
 		4B33B878F8A325859FD21031 /* CredentialCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialCleanup.swift; sourceTree = "<group>"; };
 		4B5440A255E4D10B7D41D151 /* SwiftStreamingMarkdown */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftStreamingMarkdown; path = Vendor/SwiftStreamingMarkdown; sourceTree = SOURCE_ROOT; };
+		66C99D3F6190EF281D753A45 /* StreamingFadeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingFadeTests.swift; sourceTree = "<group>"; };
 		6CF930788F8A3480525C1F98 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		6F6C0280EF68017B5D62B312 /* ExecutionInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecutionInspector.swift; sourceTree = "<group>"; };
 		6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentials.swift; sourceTree = "<group>"; };
@@ -327,6 +329,7 @@
 			children = (
 				06CAFE9E633B8F3A9E5D690E /* ParagraphMeasurementTests.swift */,
 				3956BF44C0D854336513A509 /* RendererLocalizationTests.swift */,
+				66C99D3F6190EF281D753A45 /* StreamingFadeTests.swift */,
 			);
 			path = SwiftStreamingMarkdownLocaleTests;
 			sourceTree = "<group>";
@@ -554,6 +557,7 @@
 				85EF30561973EC65CEE71927 /* LocalizationTests.swift in Sources */,
 				B608BC71E080343BDE2E0BC1 /* ParagraphMeasurementTests.swift in Sources */,
 				1D36C6B028A05C1FC1A93603 /* RendererLocalizationTests.swift in Sources */,
+				670D27BE6C1B24BE619F3933 /* StreamingFadeTests.swift in Sources */,
 				614B098EE4F5FEA3B78D2943 /* TranscriptScrollState.swift in Sources */,
 				A940B6B88AC68E3D86BBB880 /* TranscriptScrollStateTests.swift in Sources */,
 			);

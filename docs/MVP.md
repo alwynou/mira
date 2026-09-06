@@ -9,7 +9,7 @@
 
 Thinking is now part of the M1–M2 implementation scope: provider controls, separate streaming display, durable drafts and protocol-correct tool continuation. The contract is [Thinking](architecture/THINKING.md); acceptance and remaining live checks are recorded in [Thinking verification](engineering/THINKING_VERIFICATION.md).
 
-M1 streaming layout and auto-follow fixes have passed local native checks; evidence and remaining scale/platform limits are recorded in [streaming performance](engineering/STREAMING_PERFORMANCE.md).
+M1 streaming layout, auto-follow, and bounded appended-text fades have passed local native checks; evidence and remaining scale/platform limits are recorded in [streaming performance](engineering/STREAMING_PERFORMANCE.md).
 
 本文只决定做什么、按什么依赖顺序做、完成到什么程度可以进入下一阶段。产品行为由 [PRD 与领域产品规范](PRD.md) 定义，技术契约由 [架构总览及领域设计](ARCHITECTURE.md) 定义，测试数值门槛由 [质量标准](engineering/QUALITY.md#quality-gates) 统一维护。
 

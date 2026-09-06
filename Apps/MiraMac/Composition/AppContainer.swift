@@ -184,9 +184,9 @@ private struct DemoProvider: ModelProviderPort {
                         continuation.yield(.reasoning(.init(format: .openAIContent, text: String(repeating: thinking, count: 20), isComplete: true)))
                     }
                     let characters = Array(answer)
-                    let chunkSize = stress ? 24 : 1
+                    let chunkSize = stress ? 12 : 1
                     for start in stride(from: 0, to: characters.count, by: chunkSize) {
-                        try await Task.sleep(for: .milliseconds(stress ? 12 : 18))
+                        try await Task.sleep(for: .milliseconds(stress ? 24 : 18))
                         continuation.yield(.textDelta(String(characters[start..<min(start + chunkSize, characters.count)])))
                     }
                     continuation.yield(.finished(.stop)); continuation.finish()

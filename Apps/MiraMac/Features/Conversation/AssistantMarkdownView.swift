@@ -41,6 +41,11 @@ struct AssistantMarkdownRow: View, Equatable {
     let status: MessageStatus?
     let isStreaming: Bool
     var trace: [CanonicalMessage] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.text == rhs.text && lhs.status == rhs.status && lhs.isStreaming == rhs.isStreaming && lhs.trace == rhs.trace
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -59,7 +64,7 @@ struct AssistantMarkdownRow: View, Equatable {
                 } else {
                     // Snapshots are coalesced before Observation invalidates the transcript.
                     // Stable rows retain the renderer and never replay entrance animations.
-                    MarkdownView(text: text, config: Self.markdownConfig)
+                    MarkdownView(text: text, config: Self.markdownConfig, animatesTextUpdates: isStreaming && !reduceMotion)
                         .equatable()
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -80,6 +85,7 @@ private struct ThinkingDisclosure: View {
     let trace: [CanonicalMessage]
     let isStreaming: Bool
     @State private var isExpanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
 
     private var isThinking: Bool { isStreaming && trace.last?.reasoning?.isComplete == false }
@@ -92,7 +98,8 @@ private struct ThinkingDisclosure: View {
                 if text.isEmpty {
                     Text("The model did not provide visible thinking text.").font(.caption).foregroundStyle(.secondary)
                 } else {
-                    MarkdownView(text: text, config: .init(shouldAnimateText: false, imageConfig: .disabled))
+                    MarkdownView(text: text, config: .init(shouldAnimateText: false, imageConfig: .disabled),
+                                 animatesTextUpdates: isThinking && !reduceMotion)
                         .equatable()
                         .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 }

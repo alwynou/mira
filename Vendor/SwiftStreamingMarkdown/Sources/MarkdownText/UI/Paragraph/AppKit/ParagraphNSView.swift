@@ -18,12 +18,11 @@ private struct CachedParagraphNSViewSize {
 
 class ParagraphNSView: NSTextView {
   private static let jsonEncoder = JSONEncoder()
-  static let animationDuration: CFTimeInterval = ParagraphAnimationConstants.fadeInDuration
 
   private(set) var paragraphContents: NSMutableAttributedString = NSMutableAttributedString()
   private(set) var lineSpacing: CGFloat?
-  private var activeAnimations: [FadeAnimationData] = []
   private var fadeAnimationDisplayLink: CADisplayLink?
+  private var fadeManager: StreamingFadeLayoutManager? { layoutManager as? StreamingFadeLayoutManager }
   private var lastLayoutWidth: CGFloat?
   private var sizeCache: [CachedParagraphNSViewSize] = []
   private var contentRevision = 0
@@ -38,7 +37,7 @@ class ParagraphNSView: NSTextView {
 
   convenience init() {
     let textStorage = NSTextStorage()
-    let layoutManager = NSLayoutManager()
+    let layoutManager = StreamingFadeLayoutManager()
     textStorage.addLayoutManager(layoutManager)
     let textContainer = NSTextContainer(containerSize: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
     textContainer.widthTracksTextView = true
@@ -59,7 +58,6 @@ class ParagraphNSView: NSTextView {
 
   deinit {
     tearDownDisplayLink()
-    activeAnimations.removeAll()
   }
 
   // MARK: - Appearance
@@ -148,6 +146,7 @@ class ParagraphNSView: NSTextView {
       lastLayoutWidth = width
       invalidateIntrinsicContentSize()
     }
+    startStreamingFadeIfVisible()
   }
 
   // MARK: - Content Update
@@ -155,15 +154,14 @@ class ParagraphNSView: NSTextView {
   func setParagraphContents(_ newContents: NSMutableAttributedString, lineSpacing: CGFloat? = nil, animatedByWord: Bool) {
     AppAppearance.update(appearance: effectiveAppearance)
 
-    guard paragraphContents != newContents || self.lineSpacing != lineSpacing else {
-      return
-    }
+    if !animatedByWord { finishStreamingFade() }
+    guard paragraphContents != newContents || self.lineSpacing != lineSpacing else { return }
+    let previousText = paragraphContents.string
     self.paragraphContents = newContents
     self.lineSpacing = lineSpacing
     contentRevision += 1
     sizeCache.removeAll(keepingCapacity: true)
 
-    let oldLength = textStorage?.length ?? 0
     let finalString: NSMutableAttributedString
     if lineSpacing != nil {
       finalString = applyLineSpacing(to: newContents, lineSpacing: lineSpacing)
@@ -171,38 +169,19 @@ class ParagraphNSView: NSTextView {
       finalString = newContents
     }
 
-    tearDownDisplayLink()
     textStorage?.setAttributedString(finalString)
 
     configureAccessibility(for: finalString)
 
     invalidateIntrinsicContentSize()
 
-    let newContentLength = (textStorage?.length ?? 0) - oldLength
-
-    if animatedByWord, newContentLength > 0 {
-      let newContentRange = NSRange(location: oldLength, length: newContentLength)
-      let wordRanges = finalString.splitIntoWords(withIn: newContentRange)
-      let wordCount = wordRanges.count
-      let delayBetweenWords: Double = ParagraphAnimationConstants.delayBetweenWordsRatio / Double(max(wordCount, 1))
-      let baseStartTime = CACurrentMediaTime()
-      for (index, wordRange) in wordRanges.enumerated() {
-        let animationData = FadeAnimationData(
-          startTime: baseStartTime + Double(index) * delayBetweenWords,
-          duration: Self.animationDuration,
-          range: wordRange
-        )
-        activeAnimations.append(animationData)
-      }
-
-      updateTextViewWithCurrentAnimations()
-
-      if fadeAnimationDisplayLink == nil {
-        setUpDisplayLink()
-      }
-    } else {
-      activeAnimations.removeAll()
-    }
+    let time = CACurrentMediaTime()
+    fadeManager?.frameTime = time
+    fadeManager?.fade.append(previous: previousText, current: finalString.string, enabled: animatedByWord, at: time)
+    fadeManager?.prepareDrawingSpans()
+    // Evicted batches must be fully visible even if the provider sends a burst.
+    needsDisplay = true
+    startStreamingFadeIfVisible()
   }
 
   // MARK: - Line Spacing
@@ -278,73 +257,54 @@ class ParagraphNSView: NSTextView {
     }
   }
 
-  // MARK: - Fade Animation
+  // MARK: - Display-only Streaming Animation
 
-  @objc private func updateFadeAnimation() {
-    let currentTime = CACurrentMediaTime()
-    var completedAnimations: [UUID] = []
-
-    updateTextViewWithCurrentAnimations()
-
-    for animation in activeAnimations {
-      let elapsed = currentTime - animation.startTime
-      let progress = elapsed / animation.duration
-      if progress >= 1.0 {
-        completedAnimations.append(animation.id)
-      }
-    }
-    activeAnimations.removeAll { completedAnimations.contains($0.id) }
-
-    if activeAnimations.isEmpty {
-      tearDownDisplayLink()
-    }
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if window == nil { finishStreamingFade() }
+    else { startStreamingFadeIfVisible() }
   }
 
-  private func updateTextViewWithCurrentAnimations() {
-    guard let textStorage else { return }
-    let currentTime = CACurrentMediaTime()
-
-    textStorage.beginEditing()
-    defer { textStorage.endEditing() }
-
-    for animation in activeAnimations {
-      guard animation.range.location + animation.range.length <= textStorage.length else {
-        continue
-      }
-      let elapsed = currentTime - animation.startTime
-      let animatedAlpha: CGFloat
-
-      if elapsed < 0 {
-        animatedAlpha = 0.0
-      } else {
-        let progress = min(max(elapsed / animation.duration, 0.0), 1.0)
-        let easedProgress = paragraphEaseOut(progress)
-        animatedAlpha = easedProgress
-      }
-
-      let defaultColor = NSColor(Color.Theme.Foreground.Primary.Primary750)
-      textStorage.enumerateAttribute(.foregroundColor, in: animation.range, options: []) { value, range, _ in
-        let baseColor = (value as? NSColor) ?? defaultColor
-        textStorage.addAttribute(.foregroundColor, value: baseColor.withAlphaComponent(animatedAlpha), range: range)
-      }
+  private func startStreamingFadeIfVisible() {
+    guard let manager = fadeManager, !manager.fade.batches.isEmpty, window != nil else { return }
+    guard !isHiddenOrHasHiddenAncestor, !hasTextSelection else {
+      finishStreamingFade()
+      return
     }
-  }
-
-  private func setUpDisplayLink() {
-    let link = displayLink(
-      target: self,
-      selector: #selector(updateFadeAnimation)
-    )
+    // Window attachment can precede the first layout. Wait for visible geometry;
+    // the next layout expires stale batches before creating a display link.
+    guard !visibleRect.isEmpty, fadeAnimationDisplayLink == nil else { return }
+    manager.advance(at: CACurrentMediaTime())
+    guard !manager.fade.batches.isEmpty else { return }
+    let link = displayLink(target: StreamingFadeDisplayTarget(view: self), selector: #selector(StreamingFadeDisplayTarget.tick))
     link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
     link.add(to: .main, forMode: .common)
     fadeAnimationDisplayLink = link
+  }
+
+  func advanceStreamingFade(at time: TimeInterval) {
+    guard let manager = fadeManager else { return }
+    // Redraw the old ranges once at full opacity before retiring them.
+    manager.advance(at: time)
+    if manager.fade.batches.isEmpty { tearDownDisplayLink() }
+    if window == nil || visibleRect.isEmpty || isHiddenOrHasHiddenAncestor || hasTextSelection {
+      finishStreamingFade()
+    }
+  }
+
+  func finishStreamingFade() {
+    tearDownDisplayLink()
+    fadeManager?.finish()
+  }
+
+  private var hasTextSelection: Bool {
+    selectedRanges.contains { $0.rangeValue.length > 0 }
   }
 
   private func tearDownDisplayLink() {
     fadeAnimationDisplayLink?.invalidate()
     fadeAnimationDisplayLink = nil
   }
-
 
   func setTextContextMenu(_ menu: TextContextMenu?) {
     textContextMenu = menu
