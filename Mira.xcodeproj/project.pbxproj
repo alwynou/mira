@@ -54,6 +54,7 @@
 		85EF30561973EC65CEE71927 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */; };
 		877A78FA00188ECFD8CBFD4F /* MiraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A0B282D1687FAC585A18E1 /* MiraApp.swift */; };
 		95E735EAFEDFB6BBA66FE294 /* ExecutionInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6C0280EF68017B5D62B312 /* ExecutionInspector.swift */; };
+		9F4C98661DFC27D22435C675 /* MiraAppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 871F05910B616F2E21619592 /* MiraAppIcon.icon */; };
 		9F7B48FD7D835B7CD383E8D4 /* KnowledgeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900D6888628C03E3B2A360B8 /* KnowledgeDetailView.swift */; };
 		9FE81D95B7B72B1598BDCBA5 /* CredentialCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33B878F8A325859FD21031 /* CredentialCleanup.swift */; };
 		A50A75A75A8FE176662D1527 /* SourceCitationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40C5301E85C5DA9801E56E32 /* SourceCitationModel.swift */; };
@@ -111,6 +112,7 @@
 		7414ED665B7697D8DE9FC89A /* ConversationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationModel.swift; sourceTree = "<group>"; };
 		7DE69AEDD07D2B256A116D45 /* CostPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostPresentationTests.swift; sourceTree = "<group>"; };
 		85EA3748455364D356BD274D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		871F05910B616F2E21619592 /* MiraAppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = MiraAppIcon.icon; sourceTree = "<group>"; };
 		896C33BFC18AA2225A79BA30 /* KnowledgeCitationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeCitationView.swift; sourceTree = "<group>"; };
 		8E3D702C61C5B91AA3209DB3 /* ConversationStreamBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStreamBufferTests.swift; sourceTree = "<group>"; };
 		900D6888628C03E3B2A360B8 /* KnowledgeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeDetailView.swift; sourceTree = "<group>"; };
@@ -417,6 +419,7 @@
 			isa = PBXGroup;
 			children = (
 				380EE6141EC3FD69746566C8 /* Localizable.xcstrings */,
+				871F05910B616F2E21619592 /* MiraAppIcon.icon */,
 				46B54F5A9D2A1543C991E57D /* ThirdPartyLicenses.txt */,
 			);
 			path = Resources;
@@ -546,6 +549,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E8A9BB49BF83A8FB2B18870F /* Localizable.xcstrings in Resources */,
+				9F4C98661DFC27D22435C675 /* MiraAppIcon.icon in Resources */,
 				428F1D24B591079FFFA63E38 /* ThirdPartyLicenses.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -714,7 +718,7 @@
 		40B1443C261072C4A005B21A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = MiraAppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = Apps/MiraMac/App/Info.plist;
@@ -732,7 +736,7 @@
 		684AB6C3D72D73B8BBACC028 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = MiraAppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = Apps/MiraMac/App/Info.plist;

@@ -1,0 +1,40 @@
+{
+  "fill" : {
+    "solid" : "extended-srgb:0.04706,0.04706,0.05490,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "01-back-loop.svg",
+          "name" : "Secondary Loop"
+        },
+        {
+          "hidden" : false,
+          "image-name" : "03-ribbon-underside.svg",
+          "name" : "Ribbon Underside"
+        },
+        {
+          "glass" : true,
+          "image-name" : "02-main-ribbon.svg",
+          "name" : "Primary Ribbon"
+        }
+      ],
+      "name" : "Mira Ribbon",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.25
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

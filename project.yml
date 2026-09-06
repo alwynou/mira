@@ -42,6 +42,7 @@ targets:
           NSAllowsLocalNetworking: true
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: MiraAppIcon
         PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira
         PRODUCT_NAME: Mira
         MARKETING_VERSION: 0.1.0

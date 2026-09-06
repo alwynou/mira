@@ -84,8 +84,9 @@ the attempt. A failed build must be investigated from its preserved log
 before any output directory is reused; choose a new directory for the next
 run.
 
-The current development project may contain untracked design or icon files.
-They are intentionally absent from a revision archive. If a custom app icon is
-required for a deliverable, commit the asset catalog and regenerated project
-before running this procedure; a worktree-only icon must not be counted as
-part of the ZIP.
+The canonical editable app icon is the Icon Composer package at
+`Apps/MiraMac/Resources/MiraAppIcon.icon`. Keep its layer assets inside that
+package rather than maintaining duplicate exported copies elsewhere in the
+repository. If the icon changes, commit the package, `project.yml`, and the
+regenerated Xcode project before running this procedure; a worktree-only icon
+must not be counted as part of the ZIP.
