@@ -1,0 +1,18 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "Mira · macOS 26 UI": {
+      "versions": [
+        {
+          "path": "Mira.html",
+          "createdAt": "2026-09-07T03:48:37.897Z",
+          "status": "needs-review"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-07T03:48:37.901Z",
+  "updatedAt": "2026-09-07T06:23:26.105Z"
+}
