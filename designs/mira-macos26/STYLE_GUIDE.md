@@ -45,3 +45,37 @@ Source audit across the entry document, component CSS, and presentation JSX (exc
 | Ordinary layout spacing | Many near-duplicate pixel values | 7 shared steps |
 
 Component CSS and presentation JSX contain no literal font sizes/weights or raw text/background colors. Colors and elevations are centralized in `tokens.css`. Runtime review covers light conversation/settings/provider/purpose/model-edit screens and dark settings/memory/knowledge/tasks/inspector screens. Browser measurements confirm the rendered text sizes belong to the shared scale. These are HTML prototype checks, not native SwiftUI acceptance.
+
+## SwiftUI mapping — spec vs prototype-only
+
+The prototype is a **visual reference, not a pixel contract**. SwiftUI has its own feel; match the *roles* (layout, color intent, hierarchy, spacing rhythm), not the exact values. Two groups of tokens:
+
+**Portable (reproduce the intent).** These carry the design decisions:
+
+| Prototype token | SwiftUI intent |
+| --- | --- |
+| `--text` / `--text-2` / `--text-3` | `.primary` / `.secondary` / `.tertiary` foreground styles |
+| `--hairline` / `--hairline-strong` | `Divider`, `.separator`, or `.quaternary` strokes |
+| `--fill-hover` / `--fill-active` | hover/selection states — list selection, `.quaternary` fill; don't hand-roll if the control gives it |
+| `--accent` (ink) / `--accent-text` | monochrome primary action (label `.primary` on filled black/white) — **not** the system blue accent; keep blue for focus only |
+| `--tint-blue/green/amber/red` | status roles: info / success / pending / error (one per status per theme) |
+| `--content-bg` | window/content base — `Color(nsColor: .textBackgroundColor)` |
+| `--content-bg-2` | raised/subtle cards & solid rail — `Color(nsColor: .controlBackgroundColor)` |
+| `--group-bg` + white cards | **`Form { }.formStyle(.grouped)`** gives this grouped backdrop + inset cards for free |
+| `--sidebar-bg` (glass) | `NavigationSplitView` sidebar vibrancy (automatic) — do not paint a solid color |
+| `--font-caption…title` (5 sizes) | `.caption` / `.footnote` / `.body` / `.headline` / `.title3` (or explicit `Font.system(size:)`) |
+| `--weight-normal/medium/strong` | `.regular` / `.medium` / `.semibold` |
+| `--line-tight/ui/reading` | default / default / larger `lineSpacing` (reading & CJK) |
+| `--space-1…7` (2·4·8·12·16·24·32) | one `CGFloat` spacing enum reused for padding/`spacing:` |
+| `--r-sm/md/lg` (6·10·14), `--r-composer` 22, pill | `RoundedRectangle(cornerRadius:)`; pill = `Capsule()` |
+| `--control-compact/regular` (28·32), `--icon-*` | `controlSize` / SF Symbol `imageScale`; sizes are guidance, not exact |
+
+**Prototype-only (let SwiftUI/system provide it — do not port values).** `--wallpaper` (desktop shows through window vibrancy), `--glass-*` alphas (→ `.ultraThinMaterial` sidebar, `.thinMaterial`/`.regularMaterial` composer & popovers), all `--sh-*` shadows (→ material elevation + system window/sheet shadows), `--scrim`, `--scroll-thumb`, `--thumb`, `--dur*`/`--ease` (→ `.snappy`/`.easeOut`), `--traffic-*` (real `NSWindow` buttons).
+
+**Layout the framework gives you for free:**
+- Two columns + on-demand third pane → `NavigationSplitView` (sidebar + detail) plus the `.inspector { }` modifier (macOS 14+) for the right pane.
+- Floating glass composer that content scrolls behind **without hiding the last message** → `.safeAreaInset(edge: .bottom) { composer }` — it reserves the space natively, replacing the prototype's measured `padBottom`.
+- Grouped settings look (`--group-bg` + cards) → `Form` + `.formStyle(.grouped)`.
+- Settings as a separate smaller window → the `Settings { }` scene (⌘,).
+
+So `tokens.css` stays the prototype's source of truth for *this* HTML; for Swift, treat the "Portable" table as the brief and ignore the "Prototype-only" values.

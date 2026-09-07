@@ -1,4 +1,6 @@
-/* Mira foundations: edit shared visual values here. See STYLE_GUIDE.md. */
+/* Mira foundations: edit shared visual values here. See STYLE_GUIDE.md.
+   For native work, STYLE_GUIDE.md "SwiftUI mapping" marks which of these are
+   portable design decisions vs prototype-only rendering details. */
   :root {
     color-scheme: light;
 
@@ -25,7 +27,7 @@
     --content-bg-2: #f4f4f6;
     --group-bg: #eeeef2; /* grouped-settings backdrop; panels sit on top as cards */
 
-    /* glass material (popovers / inspector / sheets / composer) */
+    /* glass material — prototype-only; SwiftUI uses .thin/.regular/.ultraThinMaterial */
     --glass-strong: rgba(255, 255, 255, 0.82);
     --glass-border: rgba(255, 255, 255, 0.55);
 
@@ -86,7 +88,7 @@
     --glass-composer: rgba(255, 255, 255, .58);
     --sh-control: 0 .5px 2px rgba(0, 0, 0, .16);
 
-    /* elevation */
+    /* elevation — prototype-only; SwiftUI relies on material + system window/sheet shadows */
     --sh-pop: 0 1px 1px rgba(0, 0, 0, 0.04), 0 12px 34px rgba(0, 0, 0, 0.18),
       0 0 0 0.5px rgba(0, 0, 0, 0.12);
     --sh-sheet: 0 30px 80px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(0, 0, 0, 0.14);
