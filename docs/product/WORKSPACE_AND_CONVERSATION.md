@@ -318,6 +318,8 @@ Thinking is a core conversation capability. A supported model can use its native
 
 Provider-returned visible thinking appears in a collapsible section before the answer and remains available after reopening the conversation. A stopped response may contain thinking without an answer; it remains visibly incomplete. Signatures and encrypted/redacted provider state are never presented as readable thought text. Thinking is not automatically saved as a user fact or a memory.
 
+The native conversation surface follows the [prototype's portable mapping](../../designs/mira-macos26/STYLE_GUIDE.md#swiftui-mapping--spec-vs-prototype-only): one process disclosure per assistant turn, followed by the final answer. The process contains ordered thinking, intermediate text, and grouped tool calls with returned content; final answers are not repeated inside it. Active sections open as the existing execution snapshots arrive and collapse when they finish or stop; completed sections can be reopened. Context, request arguments, and usage remain in the execution inspector. This is a display projection and does not rewrite the stored message or provider continuation trace.
+
 Changing settings applies to a new execution. A running assistant/tool turn retains its frozen settings and continuation state. Model capability, enabled settings and a successful connection test are separate facts; an error is surfaced without silently switching models or disabling thinking.
 
 ## Streaming and reading position

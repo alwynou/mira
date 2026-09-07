@@ -21184,6 +21184,176 @@
           }
         }
       }
+    },
+    "Collapsed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapsed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已折叠"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "Completed · %lld s": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed · %lld s"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已完成 · 用时 %lld 秒"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "Expanded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expanded"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已展开"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "No process details were recorded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No process details were recorded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未记录过程详情。"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "No result was recorded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No result was recorded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未记录返回结果。"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "Preparing…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备中…"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "Tool calls · %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tool calls · %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具调用 · %lld"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "Waiting for result…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for result…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待结果…"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "Using %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在调用 %@"
+          }
+        }
+      }
+    },
+    "Tasks & Reminders": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tasks & Reminders"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任务与提醒"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

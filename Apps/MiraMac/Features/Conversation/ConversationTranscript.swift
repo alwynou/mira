@@ -23,7 +23,7 @@ struct ConversationTranscript: View {
         ScrollView {
             // Long Markdown messages change height asynchronously after parsing. Keep
             // their measured layouts alive; lazy row eviction caused placement loops.
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: MiraLayout.gutter) {
                 ForEach(transcriptItems) { item in
                     TranscriptRow(item: item, model: model, conversationID: model.selectedConversationID,
                                   rememberedMessage: $rememberedMessage)
@@ -32,7 +32,7 @@ struct ConversationTranscript: View {
                 }
             }
             .scrollTargetLayout()
-            .padding(28).frame(maxWidth: 860).frame(maxWidth: .infinity)
+            .padding(MiraLayout.section).frame(maxWidth: MiraLayout.readingWidth).frame(maxWidth: .infinity)
         }
         .scrollPosition($position)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
@@ -81,7 +81,7 @@ struct ConversationTranscript: View {
         .overlay(alignment: .bottomTrailing) {
             if !scrollState.followsLatest && !scrollState.isUserScrolling {
                 Button("Jump to latest", systemImage: "arrow.down") { jumpToLatest() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered).tint(.primary)
                     .padding(16)
             }
         }
@@ -108,17 +108,19 @@ struct ConversationTranscript: View {
                 role: message.role, text: message.text, status: message.status, isStreaming: false,
                 message: message, bodyPurgedAt: message.bodyPurgedAt,
                 executionID: message.executionID, trace: message.trace,
-                memoryNotices: message.executionID.flatMap { model.memoryNotices[$0] } ?? []
+                memoryNotices: message.executionID.flatMap { model.memoryNotices[$0] } ?? [],
+                execution: message.executionID.flatMap { id in model.executions.first { $0.id == id } }
             )
         }
         if let execution = model.executions.last,
            !items.contains(where: { $0.id == "execution:\(execution.id.rawValue.uuidString)" }),
-           let draft = model.streamBuffer.drafts[execution.id] {
+           !execution.status.isTerminal || model.streamBuffer.drafts[execution.id] != nil {
+            let draft = model.streamBuffer.drafts[execution.id] ?? ""
             items.append(.init(
                 id: "execution:\(execution.id.rawValue.uuidString)", role: .assistant, text: draft,
                 status: execution.status.isTerminal ? .interrupted : nil,
                 isStreaming: !execution.status.isTerminal,
-                executionID: execution.id, trace: model.streamBuffer.thinkingTraces[execution.id] ?? []
+                executionID: execution.id, trace: model.streamBuffer.thinkingTraces[execution.id] ?? [], execution: execution
             ))
         }
         return items
@@ -145,13 +147,12 @@ private struct TranscriptRow: View, Equatable {
                     .font(.callout).foregroundStyle(.secondary)
             } else if item.role == .assistant {
                 VStack(alignment: .leading, spacing: 10) {
-                    AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming, trace: item.trace)
+                    AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming, trace: item.trace, execution: item.execution)
                         .equatable()
-                    MemoryHistoryTags(notices: item.memoryNotices).padding(.leading, 40)
+                    MemoryHistoryTags(notices: item.memoryNotices)
                     if let executionID = item.executionID, let conversationID {
                         TranscriptCitations(text: item.text, executionID: executionID, conversationID: conversationID, model: model, memoryNotices: item.memoryNotices)
                             .equatable()
-                            .padding(.leading, 40)
                     }
                 }
             } else {

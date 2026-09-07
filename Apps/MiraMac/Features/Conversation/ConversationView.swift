@@ -1,6 +1,5 @@
 import SwiftUI
 import MiraCore
-import SwiftStreamingMarkdown
 import AppKit
 
 struct ConversationRoot: View {
@@ -12,6 +11,7 @@ struct ConversationRoot: View {
     @State private var showsMemories = false
     @State private var showsKnowledge = false
     @State private var showsTasks = false
+    @State private var expandedWorkspaceIDs: Set<WorkspaceID> = []
     @Environment(\.scenePhase) private var scenePhase
     @State private var initialMemoryID: MemoryID?
     let isDemo: Bool
@@ -55,14 +55,20 @@ struct ConversationRoot: View {
                             .disabled(model.executions.isEmpty)
                             .accessibilityIdentifier("conversation.inspector")
                     }
-                    ToolbarItem {
-                        Button("Knowledge", systemImage: "book.closed") { showsKnowledge = true }
-                    }
                 }
-                .inspector(isPresented: $showsInspector) { ExecutionInspector(model: model).environment(\.locale, locale).inspectorColumnWidth(min: 280, ideal: 340, max: 480) }
+                .inspector(isPresented: $showsInspector) {
+                    ExecutionInspector(model: model)
+                        .environment(\.locale, locale)
+                        .background(MiraSurface.content)
+                        .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
+                }
             }
         }
+        .toolbarBackground(MiraSurface.content, for: .windowToolbar)
         .frame(minWidth: 850, minHeight: 580)
+        .onChange(of: model.selectedWorkspaceID) { _, id in
+            if let id { expandedWorkspaceIDs.insert(id) }
+        }
         .task {
             #if DEBUG
             if NativePerformanceBenchmark.isRequested {
@@ -106,83 +112,191 @@ struct ConversationRoot: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkle").font(.title).foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Mira").font(.title2.weight(.semibold))
-                    Text(L10n.string(isDemo ? "Local demo · no network requests" : "Your personal workspace", locale: locale)).font(.caption).foregroundStyle(.secondary)
+            Text("Mira")
+                .font(.title3.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, MiraLayout.medium)
+                .padding(.top, MiraLayout.large)
+                .padding(.bottom, MiraLayout.medium)
+            VStack(spacing: 0) {
+                sidebarDestination("Memories", systemImage: "brain", isSelected: showsMemories) {
+                    showsMemories = true
+                    showsKnowledge = false
+                    showsTasks = false
                 }
-                Spacer()
-            }.padding(20)
+                .accessibilityIdentifier("sidebar.memories")
+                sidebarDestination("Knowledge", systemImage: "book.closed", isSelected: showsKnowledge) {
+                    showsMemories = false
+                    showsKnowledge = true
+                    showsTasks = false
+                }
+                .accessibilityIdentifier("sidebar.knowledge")
+                sidebarDestination("Tasks & Reminders", systemImage: "checklist", isSelected: showsTasks) {
+                    showsMemories = false
+                    showsKnowledge = false
+                    showsTasks = true
+                }
+                .accessibilityIdentifier("sidebar.tasks")
+            }
+            .padding(.horizontal, MiraLayout.small)
+            Divider()
             List {
                 Section {
-                    Button { showsMemories = true } label: {
-                        Label("Memories", systemImage: "brain")
-                            .foregroundStyle(showsMemories ? Color.accentColor : Color.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(.rect)
-                    }.buttonStyle(.plain).accessibilityIdentifier("sidebar.memories")
-                    Button { showsTasks = true } label: {
-                        Label("Tasks", systemImage: "checklist")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(.rect)
-                    }.buttonStyle(.plain).accessibilityIdentifier("sidebar.tasks")
-                }
-                Section("Workspace") {
-                    Button {
-                        model.selectedWorkspaceID = nil; Task { await model.selectConversation(nil) }
-                    } label: {
-                        Label("Inbox", systemImage: "tray").foregroundStyle(model.selectedWorkspaceID == nil ? Color.accentColor : Color.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading).contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
                     ForEach(model.workspaces) { workspace in
-                        Button {
-                            model.selectedWorkspaceID = workspace.id; Task { await model.selectConversation(nil) }
+                        DisclosureGroup(isExpanded: workspaceExpansionBinding(for: workspace.id)) {
+                            let workspaceConversations = conversations(for: workspace.id)
+                            if workspaceConversations.isEmpty {
+                                Text(L10n.string(model.showArchived ? "No archived conversations" : "No conversations yet", locale: locale))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(workspaceConversations) { conversation in
+                                    conversationRow(conversation)
+                                }
+                            }
                         } label: {
-                            Label(workspace.name, systemImage: workspace.allowsRemoteSend ? "folder" : "lock.folder")
-                                .foregroundStyle(model.selectedWorkspaceID == workspace.id ? Color.accentColor : Color.primary)
-                                .frame(maxWidth: .infinity, alignment: .leading).contentShape(.rect)
-                        }.buttonStyle(.plain)
-                            .contextMenu { Button("Edit workspace") { editingWorkspace = workspace; showsWorkspaceSheet = true } }
+                            Button {
+                                selectWorkspace(workspace.id)
+                            } label: {
+                                HStack(spacing: MiraLayout.small) {
+                                    Image(systemName: workspace.allowsRemoteSend ? "folder" : "lock.folder")
+                                    Text(workspace.name).font(.body)
+                                }
+                                    .foregroundStyle(.primary)
+                                    .padding(.vertical, MiraLayout.small)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(.rect)
+                                    .background(model.selectedWorkspaceID == workspace.id ? Color(nsColor: .quaternaryLabelColor) : Color.clear,
+                                                in: .rect(cornerRadius: 6))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .contextMenu { Button("Edit workspace") { editingWorkspace = workspace; showsWorkspaceSheet = true } }
                     }
-                    Button { editingWorkspace = nil; showsWorkspaceSheet = true } label: {
-                        Label("Create workspace", systemImage: "plus").frame(maxWidth: .infinity, alignment: .leading).contentShape(.rect)
-                    }.buttonStyle(.plain)
+                } header: {
+                    sidebarSectionHeader("Workspaces", systemImage: "plus") {
+                        editingWorkspace = nil
+                        showsWorkspaceSheet = true
+                    }
                 }
                 Section {
-                    ForEach(model.filteredConversations) { conversation in
-                        Button { showsMemories = false; Task { await model.selectConversation(conversation.id) } } label: {
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "bubble.left").foregroundStyle(.secondary)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(conversation.title).lineLimit(2)
-                                    Text(conversation.updatedAt, format: .dateTime.month(.abbreviated).day()).font(.caption2).foregroundStyle(.tertiary)
-                                }
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.vertical, 5)
-                            .foregroundStyle(model.selectedConversationID == conversation.id ? Color.accentColor : Color.primary)
-                            .contentShape(.rect)
-                        }.buttonStyle(.plain)
-                            .accessibilityIdentifier("conversation.row.\(conversation.id.rawValue.uuidString)")
-                            .contextMenu {
-                                if !conversation.isArchived { Button("Archive conversation", systemImage: "archivebox") { Task { await model.archive(conversation.id) } } }
-                            }
+                    let temporaryConversations = conversations(for: nil)
+                    if temporaryConversations.isEmpty {
+                        Text(L10n.string(model.showArchived ? "No archived conversations" : "No conversations yet", locale: locale))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(temporaryConversations) { conversation in
+                            conversationRow(conversation)
+                        }
                     }
-                    if model.filteredConversations.isEmpty { Text(L10n.string(model.showArchived ? "No archived conversations" : "No conversations yet", locale: locale)).font(.caption).foregroundStyle(.secondary) }
                 } header: {
-                    HStack {
+                    HStack(spacing: MiraLayout.small) {
                         Text(L10n.string(model.showArchived ? "Archived" : "Conversations", locale: locale))
-                        Spacer()
-                        Button { model.showArchived.toggle(); Task { await model.selectConversation(nil) } } label: { Image(systemName: model.showArchived ? "bubble.left.and.bubble.right" : "archivebox") }
-                            .buttonStyle(.plain).help(L10n.string(model.showArchived ? "Show active conversations" : "Show archived conversations", locale: locale))
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                        Button {
+                            model.showArchived.toggle()
+                            Task { await model.selectConversation(nil) }
+                        } label: {
+                            Image(systemName: model.showArchived ? "bubble.left.and.bubble.right" : "archivebox")
+                        }
+                        .buttonStyle(.plain)
+                        .help(L10n.string(model.showArchived ? "Show active conversations" : "Show archived conversations", locale: locale))
+                        Button {
+                            showsMemories = false
+                            model.selectedWorkspaceID = nil
+                            Task { await model.newConversation() }
+                        } label: { Image(systemName: "plus") }
+                            .buttonStyle(.plain)
+                            .help(L10n.string("New conversation", locale: locale))
                     }
                 }
             }.listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
             Divider()
-            SettingsLink { Label("Settings", systemImage: "gearshape").frame(maxWidth: .infinity, alignment: .leading) }
-                .buttonStyle(.plain).padding(18)
+            SettingsLink { Label("Settings", systemImage: "gearshape").font(.body).frame(maxWidth: .infinity, alignment: .leading) }
+                .buttonStyle(MiraSettingsButtonStyle())
+                .padding(.horizontal, MiraLayout.medium)
+                .padding(.vertical, MiraLayout.large)
+        }
+    }
+
+    private func sidebarDestination(_ title: LocalizedStringKey, systemImage: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: MiraLayout.medium) {
+                Image(systemName: systemImage).font(.title3).frame(width: 24)
+                Text(title).font(.body)
+            }
+                .foregroundStyle(.primary)
+                .padding(.vertical, MiraLayout.small)
+                .padding(.horizontal, MiraLayout.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
+                .background(isSelected ? Color(nsColor: .quaternaryLabelColor) : Color.clear, in: .rect(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sidebarSectionHeader(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
+        HStack(spacing: MiraLayout.small) {
+            Text(title)
+            Spacer(minLength: 0)
+            Button(action: action) { Image(systemName: systemImage) }
+                .buttonStyle(.plain)
+                .help(L10n.string("Create workspace", locale: locale))
+        }
+    }
+
+    private func workspaceExpansionBinding(for id: WorkspaceID) -> Binding<Bool> {
+        Binding(
+            get: { expandedWorkspaceIDs.contains(id) },
+            set: { isExpanded in
+                if isExpanded { expandedWorkspaceIDs.insert(id) }
+                else { expandedWorkspaceIDs.remove(id) }
+            }
+        )
+    }
+
+    private func conversations(for workspaceID: WorkspaceID?) -> [Conversation] {
+        model.conversations.filter { $0.workspaceID == workspaceID && $0.isArchived == model.showArchived }
+    }
+
+    private func selectWorkspace(_ id: WorkspaceID) {
+        expandedWorkspaceIDs.insert(id)
+        model.selectedWorkspaceID = id
+        Task { await model.selectConversation(nil) }
+    }
+
+    private func conversationRow(_ conversation: Conversation) -> some View {
+        Button {
+            showsMemories = false
+            showsKnowledge = false
+            showsTasks = false
+            Task { await model.selectConversation(conversation.id) }
+        } label: {
+            HStack(alignment: .top, spacing: MiraLayout.small) {
+                Image(systemName: "bubble.left").foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: MiraLayout.micro) {
+                    Text(conversation.title).lineLimit(2)
+                    Text(conversation.updatedAt, format: .dateTime.month(.abbreviated).day())
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, MiraLayout.micro)
+            .foregroundStyle(.primary)
+            .contentShape(.rect)
+            .background(model.selectedConversationID == conversation.id ? Color(nsColor: .quaternaryLabelColor) : Color.clear,
+                        in: .rect(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("conversation.row.\(conversation.id.rawValue.uuidString)")
+        .contextMenu {
+            if !conversation.isArchived {
+                Button("Archive conversation", systemImage: "archivebox") { Task { await model.archive(conversation.id) } }
+            }
         }
     }
 }
@@ -209,27 +323,37 @@ private struct ConversationDetail: View {
                     Text(execution.error.map { L10n.error($0, locale: locale) } ?? L10n.string("The reply was interrupted.", locale: locale)).font(.callout).foregroundStyle(.secondary)
                     Spacer()
                     if model.retryableExecution != nil { Button("Retry last turn") { Task { await model.retry() } } }
-                }.padding(.horizontal, 28).padding(.vertical, 12)
+                }.padding(.horizontal, MiraLayout.section).padding(.vertical, MiraLayout.medium)
             }
             if model.currentConversation?.isArchived == true {
-                Label("This conversation is archived", systemImage: "archivebox").foregroundStyle(.secondary).padding(20)
+                Label("This conversation is archived", systemImage: "archivebox")
+                    .foregroundStyle(.secondary)
+                    .padding(MiraLayout.large)
             }
-            if let conversationID = model.selectedConversationID {
-                DisclosureGroup(isExpanded: $showsExtractionStatus) {
-                    MemoryExtractionStatusView(application: model.application, conversationID: conversationID,
-                                               onOpenMemory: onOpenMemory, onOpenSource: revealMessage)
-                        .frame(minHeight: 72, maxHeight: 220)
-                        .environment(\.locale, locale)
-                } label: {
-                    Label("Memory extraction", systemImage: "sparkles")
-                        .font(.callout.weight(.semibold))
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 8)
-            }
-            if model.currentConversation?.isArchived != true { ConversationComposer(model: model, isDemo: isDemo) }
         }
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(MiraSurface.content)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                if let conversationID = model.selectedConversationID {
+                    DisclosureGroup(isExpanded: $showsExtractionStatus) {
+                        MemoryExtractionStatusView(application: model.application, conversationID: conversationID,
+                                                   onOpenMemory: onOpenMemory, onOpenSource: revealMessage)
+                            .frame(minHeight: 72, maxHeight: 220)
+                            .environment(\.locale, locale)
+                    } label: {
+                        Label("Memory extraction", systemImage: "sparkles")
+                            .font(.callout.weight(.semibold))
+                    }
+                    .padding(.horizontal, MiraLayout.large)
+                    .padding(.vertical, MiraLayout.small)
+                    .frame(maxWidth: MiraLayout.readingWidth)
+                    .frame(maxWidth: .infinity)
+                }
+                if model.currentConversation?.isArchived != true {
+                    ConversationComposer(model: model, isDemo: isDemo)
+                }
+            }
+        }
         .sheet(item: $rememberedMessage) { message in
             MemoryEditorView(application: model.application, workspaces: model.workspaces,
                              initialScope: model.currentConversation?.workspaceID.map(MemoryScope.workspace) ?? .global,
@@ -244,11 +368,11 @@ private struct ConversationDetail: View {
     }
     private var welcome: some View {
         VStack(spacing: 20) {
-            Image(systemName: "sparkle").font(.system(size: 44, weight: .light)).foregroundStyle(.tint)
+            Image(systemName: "sparkle").font(.system(size: 44, weight: .light)).foregroundStyle(.primary)
             Text("Start with an idea").font(.largeTitle.weight(.semibold))
             Text(welcomeMessage)
                 .font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center).lineSpacing(5)
-            if model.routes.isEmpty { SettingsLink { Label("Connect model service", systemImage: "key").padding(.horizontal, 12) }.buttonStyle(.borderedProminent).controlSize(.large) }
+            if model.routes.isEmpty { SettingsLink { Label("Connect model service", systemImage: "key").padding(.horizontal, 12) }.buttonStyle(.borderedProminent).tint(.primary).controlSize(.large) }
             if isDemo { Label("Demo replies generated locally", systemImage: "desktopcomputer").font(.caption).foregroundStyle(.secondary) }
         }.padding(40).frame(maxWidth: .infinity)
     }
@@ -272,45 +396,113 @@ private struct ConversationComposer: View {
     @FocusState private var composerFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Picker("Conversation model", selection: $model.selectedRouteID) {
-                    Text("Use default model").tag(nil as RouteID?)
-                    if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) { Text("Unavailable model").tag(Optional(selected)) }
-                    ForEach(model.configuration.models(for: .conversation)) { entry in Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id)) }
-                }.labelsHidden().frame(maxWidth: 320).disabled(model.activeExecution != nil)
-                Spacer()
-                if model.needsPersistenceRetry { Label("Reply pending save", systemImage: "externaldrive.badge.exclamationmark").font(.caption).foregroundStyle(.orange) }
-                else if model.activeExecution != nil { ProgressView().controlSize(.small); Text("Generating").font(.caption).foregroundStyle(.secondary) }
-            }
-            if model.selectedModelUnavailable {
-                Text("Choose an available model or use the default model before sending.").font(.caption).foregroundStyle(.orange)
-            }
+        VStack(alignment: .leading, spacing: MiraLayout.small) {
             TextField("Send a message…", text: $model.composer, axis: .vertical)
-                .textFieldStyle(.plain).lineLimit(3...8).font(.body).focused($composerFocused)
+                .textFieldStyle(.plain)
+                .lineLimit(3...8)
+                .font(.body)
+                .focused($composerFocused)
                 .accessibilityLabel("Message input")
                 .accessibilityIdentifier("conversation.composer")
-            HStack {
-                Text(L10n.string(isDemo ? "Local demo" : "Send to selected model service · ⌘ Return to send", locale: locale))
-                    .font(.caption).foregroundStyle(.tertiary)
+            if model.selectedModelUnavailable {
+                Text("Choose an available model or use the default model before sending.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            HStack(spacing: MiraLayout.small) {
+                Picker("Conversation model", selection: $model.selectedRouteID) {
+                    Text("Use default model").tag(nil as RouteID?)
+                    if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) {
+                        Text("Unavailable model").tag(Optional(selected))
+                    }
+                    ForEach(model.configuration.models(for: .conversation)) { entry in
+                        Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id))
+                    }
+                }
+                .labelsHidden()
+                .frame(maxWidth: 320)
+                .disabled(model.activeExecution != nil)
+                ViewThatFits(in: .horizontal) {
+                    Text(L10n.string(isDemo ? "Local demo" : "Send to selected model service · ⌘ Return to send", locale: locale))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    EmptyView()
+                }
                 Spacer()
                 if model.needsPersistenceRetry {
-                    Button("Retry save", systemImage: "externaldrive") { Task { await model.retrySaving() } }.buttonStyle(.borderedProminent)
+                    Label("Reply pending save", systemImage: "externaldrive.badge.exclamationmark")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 } else if model.activeExecution != nil {
-                    Button("Stop", systemImage: "stop.fill") { Task { await model.cancel() } }.keyboardShortcut(".", modifiers: .command)
-                        .accessibilityIdentifier("conversation.stop")
+                    ProgressView().controlSize(.small)
+                    Text("Generating").font(.caption).foregroundStyle(.secondary)
+                }
+                if model.needsPersistenceRetry {
+                    Button("Retry save", systemImage: "externaldrive") { Task { await model.retrySaving() } }
+                        .buttonStyle(.borderedProminent).tint(.primary)
+                } else if model.activeExecution != nil {
+                    composerActionButton("Stop", systemImage: "stop.fill") {
+                        Task { await model.cancel() }
+                    }
+                    .keyboardShortcut(".", modifiers: .command)
+                    .accessibilityIdentifier("conversation.stop")
                 } else {
-                    Button("Send", systemImage: "arrow.up") { Task { await model.send(); composerFocused = true } }
-                        .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
+                    composerActionButton("Send", systemImage: "arrow.up") {
+                        Task { await model.send(); composerFocused = true }
+                    }
+                        .keyboardShortcut(.return, modifiers: .command)
                         .disabled(model.isSending || model.selectedModelUnavailable || model.routes.isEmpty || model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .accessibilityIdentifier("conversation.send")
                 }
             }
         }
-        .padding(16).background(.quaternary.opacity(0.35), in: .rect(cornerRadius: 16))
-        .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary) }
-        .padding(.horizontal, 24).padding(.bottom, 20).padding(.top, 12)
-        .frame(maxWidth: 910).frame(maxWidth: .infinity)
+        .padding(.horizontal, MiraLayout.large)
+        .padding(.top, MiraLayout.medium)
+        .padding(.bottom, MiraLayout.medium)
+        .frame(maxWidth: MiraLayout.readingWidth)
+        .conversationGlassSurface()
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, MiraLayout.large)
+        .padding(.bottom, MiraLayout.medium)
     }
 
+    private func composerActionButton(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .frame(width: 32, height: 32)
+                .foregroundStyle(Color(nsColor: .textBackgroundColor))
+                .background(Color(nsColor: .labelColor), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+}
+
+private extension View {
+    @ViewBuilder
+    func conversationGlassSurface() -> some View {
+        if #available(macOS 26.0, *) {
+            glassEffect(.regular, in: .rect(cornerRadius: 22))
+        } else {
+            background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
+                .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(.quaternary) }
+        }
+    }
+}
+
+private struct MiraSettingsButtonStyle: ButtonStyle {
+    @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isHovered || configuration.isPressed ? Color.primary : Color.secondary)
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.98 : (isHovered ? 1.02 : 1)))
+            .onHover { isHovered = $0 }
+            .animation(reduceMotion ? nil : .snappy, value: isHovered)
+            .animation(reduceMotion ? nil : .snappy, value: configuration.isPressed)
+    }
 }
