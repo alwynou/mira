@@ -28,6 +28,7 @@ function Inspector({ kind, item, onClose, onAction, onToggleRemote }) {
 
 function ChatInspector({ m }) {
   const c = m.context;
+  const tools = m.rounds.flatMap(r => r.tools);
   return (
     <>
       <div className="insp-sec">
@@ -51,12 +52,12 @@ function ChatInspector({ m }) {
         <div className="kv"><span className="k">路由</span><span className="v">对话默认</span></div>
         <div className="kv"><span className="k">首字延迟</span><span className="v mono">0.82s</span></div>
         <div className="kv"><span className="k">总耗时</span><span className="v mono">4.13s</span></div>
-        <div className="kv"><span className="k">工具调用</span><span className="v">{m.tools.length} 次</span></div>
+        <div className="kv"><span className="k">工具调用</span><span className="v">{tools.length} 次</span></div>
         <div className="kv"><span className="k">估算成本</span><span className="v mono">$0.021</span></div>
       </div>
       <div className="insp-sec">
         <div className="lbl">工具时间线</div>
-        {m.tools.map((t, i) => (
+        {tools.map((t, i) => (
           <div className="src-item" key={i}>
             <I.wrench size="var(--icon-sm)" className="k" />
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-small)" }}>{t.name}</span>

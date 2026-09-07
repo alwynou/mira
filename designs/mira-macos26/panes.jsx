@@ -97,76 +97,110 @@ function Sidebar({ nav, selConv, onNav, onSelConv, onNewChat, onSettings, onTogg
 }
 
 /* ============================ CHAT ============================ */
-function ContextRow({ ctx, live }) {
-  return (
-    <div className="stage-row">
-      <div className="lead">
-        {live ? <I.refresh size="var(--icon-md)" className="spin" /> : <I.check size="var(--icon-md)" style={{ color: "var(--tint-green)" }} />}
-        <span>{live ? "准备上下文…" : "上下文已冻结"}</span>
-        <span className="muted">· {ctx.sources.length} 个来源 · {ctx.tokens}</span>
-      </div>
-    </div>
-  );
+function executionStages(m) {
+  const stages = [{ kind: "prepare", label: "准备中" }];
+  m.rounds.forEach((round, index) => {
+    if (round.thinking) stages.push({ kind: "thinking", round: index, label: "思考中" });
+    round.tools.forEach((tool, toolIndex) => stages.push({ kind: "tool", round: index, tool: toolIndex, label: `正在调用 ${tool.name}` }));
+    if (round.blocks.length) stages.push({ kind: "answer", round: index, label: index === m.rounds.length - 1 ? "正在生成回答" : "正在整理结果" });
+  });
+  return stages;
 }
 
-function Disclosure({ label, icon: Icon, defaultOpen, spinning, children }) {
-  const [o, setO] = uS(!!defaultOpen);
-  return (
-    <div className={"disclosure" + (o ? " open" : "")}>
-      <button type="button" className="stage-row click" aria-expanded={o} onClick={() => setO(!o)}>
-        <span className="lead">
-          <span className={spinning ? "spin" : undefined}><Icon size="var(--icon-md)" /></span>
-          <span>{label}</span>
-        </span>
-        <span className="twist"><I.caret size="var(--icon-sm)" /></span>
-      </button>
-      {o && <div className="disclosure-body cjk">{children}</div>}
+function ReplyBlocks({ blocks }) {
+  return blocks.map((b, i) => b.type === "p"
+    ? <p key={i} dangerouslySetInnerHTML={{ __html: renderInline(b.text) }} />
+    : <ul key={i}>{b.items.map((text, j) => <li key={j} dangerouslySetInnerHTML={{ __html: renderInline(text) }} />)}</ul>);
+}
+
+function ProcessStep({ label, icon: Icon, active = false, children }) {
+  const [disclosure, setDisclosure] = uS(null);
+  const open = disclosure?.active === active ? disclosure.open : active;
+  const setOpen = value => setDisclosure({ active, open: value });
+  return <div className={"process-step" + (open ? " open" : "")}>
+    <button type="button" className="process-step-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <Icon size="var(--icon-sm)" /><span>{label}</span>
+      {active && <span className="process-step-status">处理中</span>}
+      <I.caret size="var(--icon-sm)" className="twist" />
+    </button>
+    {open && <div className="process-step-body cjk">{children}</div>}
+  </div>;
+}
+
+function toolLabel(tool) {
+  return { search_knowledge: "检索知识", read_memory: "读取记忆" }[tool.name] || tool.name;
+}
+
+function ToolSequence({ tools, stages, current, done, stopped }) {
+  const visible = tools.map((tool, index) => ({ tool, stage: stages.find(s => s.kind === "tool" && s.tool === index) }))
+    .filter(({ stage }) => done || stage.index <= current);
+  if (!visible.length) return null;
+  const active = !done && !stopped && visible.some(({ stage }) => stage.index === current);
+  const label = [...new Set(visible.map(({ tool }) => toolLabel(tool)))].join("、");
+  return <ProcessStep label={label} icon={I.wrench} active={active}>
+    <div className="process-tool-list">
+      {visible.map(({ tool, stage }) => <ProcessStep key={stage.index} label={tool.name} icon={I.wrench}
+        active={!done && !stopped && current === stage.index}>
+        <div className="process-output">{done || current > stage.index ? tool.result : stopped ? "调用已停止" : "等待工具返回…"}</div>
+      </ProcessStep>)}
     </div>
-  );
+  </ProcessStep>;
+}
+
+function processDuration(ms) {
+  const seconds = Math.max(1, Math.round(ms / 1000));
+  return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
+}
+
+function AgentProcess({ m, phase }) {
+  const stopped = m.stoppedAt != null;
+  const running = phase != null && !stopped;
+  const [disclosure, setDisclosure] = uS(null);
+  const open = disclosure?.running === running ? disclosure.open : running;
+  const setOpen = value => setDisclosure({ running, open: value });
+  const done = phase == null && !stopped;
+  const current = stopped ? m.stoppedAt : phase;
+  const stages = executionStages(m);
+  const active = stages[current];
+  const arrived = index => done || index <= current;
+  const label = done ? `已完成 · 用时 ${processDuration(m.elapsedMs)}`
+    : stopped ? `已停止 · 用时 ${processDuration(m.elapsedMs)}`
+    : current === 0 ? "准备中" : active.label;
+  return <div className={"agent-process" + (open ? " open" : "")}>
+    <button type="button" className="process-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+      {running && <I.refresh size="var(--icon-sm)" className="spin" />}
+      <span aria-live="polite">{label}</span><I.caret size="var(--icon-sm)" className="twist" />
+    </button>
+    {open && (done || current > 0) && <div className="process-body">
+      {m.rounds.map((round, r) => {
+        const roundStages = stages.map((stage, index) => ({ ...stage, index })).filter(stage => stage.round === r);
+        if (!roundStages.some(stage => arrived(stage.index))) return null;
+        const thinking = roundStages.find(stage => stage.kind === "thinking");
+        const answer = roundStages.find(stage => stage.kind === "answer");
+        return <section className="process-round" key={r}>
+          {thinking && arrived(thinking.index) && <ProcessStep label="思考" icon={I.sparkle} active={!done && !stopped && current === thinking.index}><div className="process-output">{round.thinking}</div></ProcessStep>}
+          <ToolSequence tools={round.tools} stages={roundStages} current={current} done={done} stopped={stopped} />
+          {answer && arrived(answer.index) && r < m.rounds.length - 1 &&
+            <div className="process-answer cjk"><ReplyBlocks blocks={round.blocks} /></div>}
+        </section>;
+      })}
+    </div>}
+  </div>;
 }
 
 function AssistantMessage({ m, phase, onOpenInspector, onOpenMemory, onCite }) {
-  const done = phase == null || phase >= 4;
-  const showTools = phase == null || phase >= 2;
-  const showAnswer = phase == null || phase >= 3;
+  const done = phase == null && m.stoppedAt == null;
+  const current = m.stoppedAt ?? phase;
+  const stages = executionStages(m);
+  const finalIndex = stages.findIndex(stage => stage.kind === "answer" && stage.round === m.rounds.length - 1);
+  const showAnswer = done || (finalIndex >= 0 && current >= finalIndex);
   return (
     <div className="msg assistant">
-      <Disclosure label={phase === 0 ? "执行中…" : phase === 1 ? "思考中…" : "思考"}
-                  icon={I.sparkle} spinning={phase === 0 || phase === 1}>
-        {phase === 0 ? "准备上下文…" : m.thinking}
-      </Disclosure>
-
-      <ContextRow ctx={m.context} live={phase === 0} />
-
-      {showTools && (
-        <Disclosure label={`工具执行 · ${m.tools.length} 次`} icon={I.wrench} spinning={phase === 2} defaultOpen={phase === 2}>
-          {m.tools.map((t, i) => (
-            <div className="tool-line" key={i}>
-              <I.wrench size="var(--icon-sm)" style={{ color: "var(--text-3)" }} />
-              <span className="name">{t.name}</span>
-              <span className="arg">{t.arg}</span>
-              <span className="ok"><I.check size="var(--icon-md)" /></span>
-            </div>
-          ))}
-        </Disclosure>
-      )}
-
-      {showAnswer && (
-        <div className="answer cjk" style={{ animation: "fade .3s var(--ease)" }}>
-          {m.blocks.map((b, i) =>
-            b.type === "p" ? (
-              <p key={i} dangerouslySetInnerHTML={{ __html: renderInline(b.text, onCite) }} />
-            ) : (
-              <ul key={i}>
-                {b.items.map((it, j) => (
-                  <li key={j} dangerouslySetInnerHTML={{ __html: renderInline(it) }} />
-                ))}
-              </ul>
-            )
-          )}
-          {phase === 3 && <span className="caret" style={{ borderRight: "2px solid var(--text)", marginLeft: "var(--space-1)", animation: "blink 1s step-end infinite" }}>&nbsp;</span>}
-        </div>
-      )}
+      <AgentProcess m={m} phase={phase} />
+      {showAnswer && <div className="answer cjk">
+        <ReplyBlocks blocks={m.rounds[m.rounds.length - 1].blocks} />
+        {!done && m.stoppedAt == null && <span className="answer-caret" />}
+      </div>}
 
       {done && m.citations && (
         <div className="citations">
@@ -205,7 +239,7 @@ function renderInline(text, onCite) {
   return html;
 }
 
-function ChatView({ conv, messages, livePhase, model, modelEffort, onSend, onModelClick, onOpenInspector, onOpenMemory, inspectorOpen }) {
+function ChatView({ conv, messages, livePhase, model, modelEffort, onSend, onStop, onModelClick, onOpenInspector, onOpenMemory, inspectorOpen }) {
   const scrollRef = uR(null);
   const fieldRef = uR(null);
   const wrapRef = uR(null);
@@ -301,11 +335,11 @@ function ChatView({ conv, messages, livePhase, model, modelEffort, onSend, onMod
               </button>
               <button className="cicon" title="语音输入"><I.mic size="var(--icon-lg)" /></button>
               <button
-                className={"send" + (livePhase != null && livePhase < 4 ? " stop" : "")}
-                title={livePhase != null && livePhase < 4 ? "停止 ⌘." : "发送 ⌘⏎"}
-                onClick={livePhase != null && livePhase < 4 ? null : submit}
+                className={"send" + (livePhase != null ? " stop" : "")}
+                title={livePhase != null ? "停止 ⌘." : "发送 ⌘⏎"}
+                onClick={livePhase != null ? onStop : submit}
               >
-                {livePhase != null && livePhase < 4 ? <I.stop size="var(--icon-md)" /> : <I.arrowUp size="var(--icon-md)" />}
+                {livePhase != null ? <I.stop size="var(--icon-md)" /> : <I.arrowUp size="var(--icon-md)" />}
               </button>
             </div>
           </div>
@@ -492,5 +526,5 @@ function reminderLabel(s) {
 
 Object.assign(window, {
   Sidebar, ChatView, MemoryView, KnowledgeView, TasksView,
-  AssistantMessage, findConv, statusLabel,
+  AssistantMessage, executionStages, findConv, statusLabel,
 });

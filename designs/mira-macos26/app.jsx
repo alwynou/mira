@@ -4,6 +4,7 @@ const { useState: aU, useEffect: aE, useRef: aR, useCallback: aC } = React;
 function makeReply(userText, model) {
   return {
     role: "assistant",
+    startedAt: Date.now(),
     time: "现在",
     context: {
       sources: [
@@ -14,9 +15,18 @@ function makeReply(userText, model) {
       tokens: "2,480 / 32k",
       model,
     },
-    thinking:
-      "先确认用户意图，从冻结的上下文里取相关记忆与知识片段，再组织一个结构清晰、可追溯的回答，并在结尾判断是否值得记为候选记忆。",
-    tools: [{ name: "search_knowledge", arg: userText.slice(0, 18), result: "命中 2 个片段", state: "done" }],
+    rounds: [
+      {
+        thinking: "先确认用户意图，检索当前工作区的相关知识。",
+        tools: [
+          { name: "search_knowledge", label: "检索相关知识片段", arg: userText.slice(0, 18), result: "命中 2 个片段" },
+          { name: "read_memory", label: "核对工作区已有记忆", arg: "scope:Mira 开发", result: "找到 1 条相关记忆" },
+        ],
+        blocks: [{ type: "p", text: "已找到相关知识片段，接下来结合工作区上下文整理回答。" }],
+      },
+      {
+        thinking: "结合检索结果组织可追溯的回答，并判断是否形成值得确认的候选记忆。",
+        tools: [],
     blocks: [
       { type: "p", text: "明白了。基于当前工作区已冻结的上下文，我的建议如下：" },
       {
@@ -29,6 +39,8 @@ function makeReply(userText, model) {
       },
       { type: "p", text: "需要的话，我可以把结论整理成一条任务并设置本地提醒。" },
     ],
+      },
+    ],
     citations: [{ n: 1, source: "ARCHITECTURE.md · 派生关系", quote: "检索、摘要与索引对原始记录具有明确的派生关系。" }],
     memory: { kind: "偏好", title: "回答需引用冻结上下文并保持可追溯", scope: "Mira 开发", state: "candidate" },
   };
@@ -37,6 +49,7 @@ function makeReply(userText, model) {
 function App() {
   const winRef = aR(null);
   const timers = aR([]);
+  const executionConv = aR(null);
 
   const [theme, setTheme] = aU("auto");
   const [collapsed, setCollapsed] = aU(false);
@@ -80,20 +93,32 @@ function App() {
 
   /* send + simulate pipeline */
   const send = (text) => {
-    if (livePhase != null && livePhase < 4) return false;
+    if (livePhase != null) return false;
     if (!modelReady(selectedModel, modelConfig)) { flashToast("当前模型不可用，请重新选择"); return false; }
+    executionConv.current = selConv;
     const reply = makeReply(text, model);
     const userMsg = { role: "user", text, time: "现在" };
     setThreads((th) => ({ ...th, [selConv]: [...(th[selConv] || []), userMsg, reply] }));
     setLivePhase(0);
-    const steps = [[700, 1], [1400, 2], [2200, 3], [3600, 4]];
-    steps.forEach(([ms, p]) => timers.current.push(setTimeout(() => {
-      setLivePhase(p);
-      if (p === 4) { clearTimers(); flashToast("已记为候选记忆"); }
-    }, ms)));
+    const stages = executionStages(reply);
+    let elapsed = 1000;
+    stages.slice(1).forEach((stage, i) => {
+      timers.current.push(setTimeout(() => setLivePhase(i + 1), elapsed));
+      elapsed += stage.kind === "tool" ? 1800 : 1400;
+    });
+    timers.current.push(setTimeout(() => {
+      setThreads(th => ({ ...th, [selConv]: th[selConv].map(m => m === reply ? { ...m, elapsedMs: Date.now() - reply.startedAt } : m) }));
+      setLivePhase(null); clearTimers(); flashToast("已记为候选记忆");
+    }, elapsed));
     return true;
   };
-  const stop = () => { clearTimers(); setLivePhase(4); };
+  const stop = () => {
+    clearTimers();
+    const conv = executionConv.current;
+    setThreads(th => ({ ...th, [conv]: th[conv].map((m, i) =>
+      i === th[conv].length - 1 ? { ...m, stoppedAt: livePhase, elapsedMs: Date.now() - m.startedAt } : m) }));
+    setLivePhase(null);
+  };
 
   const openChatInspector = () => {
     const list = threads[selConv] || [];
@@ -162,7 +187,7 @@ function App() {
       if (meta && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((v) => !v); }
       else if (meta && e.key.toLowerCase() === "n") { e.preventDefault(); newChat(); }
       else if (meta && e.key === ",") { e.preventDefault(); setSettings(true); }
-      else if (meta && e.key === ".") { if (livePhase != null && livePhase < 4) { e.preventDefault(); stop(); } }
+      else if (meta && e.key === ".") { if (livePhase != null) { e.preventDefault(); stop(); } }
       else if (e.key === "Escape") { setPalette(false); setSettings(false); setPop(null); setInsp((s) => ({ ...s, open: false })); }
     };
     window.addEventListener("keydown", onKey);
@@ -192,8 +217,8 @@ function App() {
 
             {nav === "chat" && (
               <ChatView
-                conv={selConv} messages={messages} livePhase={livePhase} model={model} modelEffort={modelEffort}
-                onSend={send} onModelClick={openModelPop}
+                conv={selConv} messages={messages} livePhase={selConv === executionConv.current ? livePhase : null} model={model} modelEffort={modelEffort}
+                onSend={send} onStop={stop} onModelClick={openModelPop}
                 onOpenInspector={() => insp.open && insp.kind === "chat" ? setInsp({ open: false }) : openChatInspector()}
                 onOpenMemory={() => { navTo("memory"); setMemFilter("candidate"); }}
                 inspectorOpen={insp.open && insp.kind === "chat"}

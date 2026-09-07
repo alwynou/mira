@@ -45,6 +45,7 @@ const THREAD = [
   },
   {
     role: "assistant",
+    elapsedMs: 4130,
     time: "14:31",
     context: {
       sources: [
@@ -55,12 +56,23 @@ const THREAD = [
       tokens: "3,120 / 32k",
       model: "Claude Sonnet 5",
     },
-    thinking:
-      "先区分 UI 呈现状态与长时执行。呈现模型应在 MainActor；执行（provider 请求、工具循环、流式解析）属于应用运行时，不应绑定视图生命周期。需要强调一个对话至多一个活跃执行，并在 SQLite 层用终态唯一性约束保证原子性。",
-    tools: [
-      { name: "search_knowledge", arg: "并发 所有权 runtime", result: "命中 RUNTIME.md 的 3 个片段", state: "done" },
-      { name: "read_memory", arg: "scope:Mira 开发", result: "1 条相关决策", state: "done" },
-    ],
+    rounds: [
+      {
+        thinking: "先检索运行时所有权的约定，区分 UI 呈现状态和长时执行。",
+        tools: [
+          { name: "search_knowledge", label: "查找运行时所有权约定", arg: "并发 所有权 runtime", result: "命中 RUNTIME.md 的 3 个片段" },
+          { name: "search_knowledge", label: "核对持久化与并发约束", arg: "SQLite 单个对话 活跃执行", result: "命中单个对话至多一个活跃执行的约束" },
+        ],
+        blocks: [{ type: "p", text: "已找到运行时所有权的说明。我会再核对工作区已有决策，确认持久化和并发约束。" }],
+      },
+      {
+        thinking: "核对已有决策是否与文档一致，重点检查单个对话的执行约束。",
+        tools: [{ name: "read_memory", arg: "scope:Mira 开发", result: "1 条相关决策：一个对话至多一个活跃执行。" }],
+        blocks: [{ type: "p", text: "文档与已有决策一致：执行由运行时持有，SQLite 负责保证单个对话只有一个活跃执行。" }],
+      },
+      {
+        thinking: "证据已齐备，将结论按呈现层、应用运行时和持久化边界组织，并附上来源。",
+        tools: [],
     blocks: [
       { type: "p", text: "可以用一条边界来记：**呈现归 MainActor，执行归运行时**。" },
       {
@@ -72,6 +84,8 @@ const THREAD = [
         ],
       },
       { type: "p", text: "换句话说，视图被销毁不能中断一次执行；执行只把结果发布回 MainActor 的呈现模型。相关依据见 RUNTIME.md 的所有权小节 [1] 与并发约束 [2]。" },
+    ],
+      },
     ],
     citations: [
       { n: 1, source: "RUNTIME.md · 所有权", quote: "长时执行属于应用运行时，不属于视图 task。" },
