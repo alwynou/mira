@@ -46,11 +46,6 @@ struct ConversationRoot: View {
                 .navigationTitle(displayedConversationTitle)
                 .toolbar {
                     ToolbarItem {
-                        Button("New conversation", systemImage: "square.and.pencil") { Task { await model.newConversation() } }
-                            .keyboardShortcut("n", modifiers: .command)
-                            .accessibilityIdentifier("conversation.new")
-                    }
-                    ToolbarItem {
                         Button("Execution details", systemImage: "sidebar.right") { showsInspector.toggle() }
                             .disabled(model.executions.isEmpty)
                             .accessibilityIdentifier("conversation.inspector")
@@ -62,6 +57,18 @@ struct ConversationRoot: View {
                 .inspector(isPresented: $showsInspector) { ExecutionInspector(model: model).environment(\.locale, locale).inspectorColumnWidth(min: 280, ideal: 340, max: 480) }
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("New conversation", systemImage: "square.and.pencil") {
+                    showsMemories = false
+                    Task { await model.newConversation() }
+                }
+                .keyboardShortcut("n", modifiers: .command)
+                .accessibilityIdentifier("conversation.new")
+            }
+        }
+        .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)
+        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .frame(minWidth: 850, minHeight: 580)
         .task {
             #if DEBUG

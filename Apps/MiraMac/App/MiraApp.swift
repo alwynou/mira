@@ -26,6 +26,7 @@ struct MiraApp: App {
             .environment(\.locale, language.locale)
         }
         .defaultSize(width: 1100, height: 760)
+        .windowToolbarStyle(.unified)
         .commands { CommandGroup(replacing: .help) { Link(L10n.string("Mira Documentation", locale: language.locale), destination: URL(string: "https://github.com/alwynou/mira/tree/dev/docs")!) } }
         Settings { SettingsView(container: container).environment(\.locale, language.locale) }
     }

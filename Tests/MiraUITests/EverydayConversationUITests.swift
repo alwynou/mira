@@ -13,6 +13,32 @@ final class EverydayConversationUITests: XCTestCase {
         try exerciseConversation(language: "zh-CN", sendLabel: "发送") // i18n-fixture: Assert the supported Chinese UI label using the same stable identifiers.
     }
 
+    func testNewConversationIsAvailableFromMemories() throws {
+        try withApplication(language: "en") { app in
+            app.buttons["sidebar.memories"].click()
+            try require(app.buttons["New memory"].waitForExistence(timeout: 10), "The memories screen did not open.")
+            XCTAssertFalse(app.descendants(matching: .any)["conversation.composer"].exists)
+
+            let newConversation = app.buttons["conversation.new"]
+            try require(newConversation.waitForExistence(timeout: 5), "The memories screen lost the new conversation action.")
+            XCTAssertTrue(newConversation.isEnabled)
+            newConversation.click()
+            try require(app.descendants(matching: .any)["conversation.composer"].waitForExistence(timeout: 10), "New conversation did not return to the composer.")
+            let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "conversation.row."))
+            try require(rows.firstMatch.waitForExistence(timeout: 10), "New conversation did not appear in the sidebar.")
+            XCTAssertEqual(rows.count, 1)
+
+            app.buttons["sidebar.memories"].click()
+            try require(app.buttons["New memory"].waitForExistence(timeout: 10), "The memories screen did not reopen.")
+            app.typeKey("n", modifierFlags: .command)
+            try require(app.descendants(matching: .any)["conversation.composer"].waitForExistence(timeout: 10), "The new conversation keyboard shortcut did not return to the composer.")
+            XCTAssertFalse(app.buttons["New memory"].exists)
+            XCTAssertEqual(app.windows.count, 1)
+            let created = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == 2"), object: rows)
+            try require(XCTWaiter.wait(for: [created], timeout: 10) == .completed, "The keyboard shortcut did not create a second conversation.")
+        }
+    }
+
     func testCancelLeavesComposerUsable() throws {
         try withApplication(language: "en") { app in
             let scenario = try scenario(language: "en")
