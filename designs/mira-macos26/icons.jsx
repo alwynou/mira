@@ -1,6 +1,7 @@
 /* SF-Symbols-style monoline UI icons. Functional, not decorative. */
-const Ico = ({ d, size = 16, sw = 1.6, fill = "none", children, style }) => (
+const Ico = ({ d, size = "var(--icon-md)", sw = 1.6, fill = "none", children, style, className }) => (
   <svg
+    className={className}
     width={size}
     height={size}
     viewBox="0 0 24 24"
@@ -69,8 +70,9 @@ const I = {
       <path d="M8.4 12.2l2.4 2.4 4.8-5" />
     </Ico>
   ),
-  gear: ({ size = 16, style } = {}) => (
+  gear: ({ size = "var(--icon-md)", style, className } = {}) => (
     <svg
+      className={className}
       width={size}
       height={size}
       viewBox="0 0 24 24"

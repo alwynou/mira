@@ -1,0 +1,142 @@
+/* Mira foundations: edit shared visual values here. See STYLE_GUIDE.md. */
+  :root {
+    color-scheme: light;
+
+    /* type */
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+      "PingFang SC", "Helvetica Neue", "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", monospace;
+
+    /* neutral ink scale (light) */
+    --text: #1d1d1f;
+    --text-2: rgba(0, 0, 0, 0.56);
+    --text-3: rgba(0, 0, 0, 0.4);
+
+    --hairline: rgba(0, 0, 0, 0.09);
+    --hairline-strong: rgba(0, 0, 0, 0.15);
+
+    --fill-hover: rgba(0, 0, 0, 0.045);
+    --fill-active: rgba(0, 0, 0, 0.075);
+
+    /* window / surfaces */
+    --wallpaper: radial-gradient(95% 85% at 16% 6%, #f0eff4 0%, #e0dfe6 38%, #cccdd6 72%, #bcbec9 100%);
+    --sidebar-bg: rgba(244, 245, 249, 0.55);
+    --content-bg: #ffffff;
+    --content-bg-2: #f4f4f6;
+    --group-bg: #eeeef2; /* grouped-settings backdrop; panels sit on top as cards */
+
+    /* glass material (popovers / inspector / sheets / composer) */
+    --glass-strong: rgba(255, 255, 255, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.55);
+
+    /* the single restrained accent = ink; blue only for focus rings */
+    --accent: var(--text);
+    --accent-text: #ffffff;
+    --focus-ring: rgba(10, 132, 255, 0.5);
+
+    /* semantic tints (very muted, used tiny) */
+    --tint-blue: #2f6bd6;
+    --tint-green: #268a52;
+    --tint-amber: #a9791d;
+    --tint-red: #c0392f;
+
+    /* Five text sizes, three weights, three line-height roles. */
+    --font-caption: 11px;
+    --font-small: 12px;
+    --font-body: 14px;
+    --font-heading: 16px;
+    --font-title: 20px;
+    --weight-normal: 400;
+    --weight-medium: 500;
+    --weight-strong: 600;
+    --tracking-tight: -.02em;
+    --line-tight: 1.25;
+    --line-ui: 1.5;
+    --line-reading: 1.75;
+
+    /* Seven spacing steps. Geometry is not a spacing scale. */
+    --space-1: 2px;
+    --space-2: 4px;
+    --space-3: 8px;
+    --space-4: 12px;
+    --space-5: 16px;
+    --space-6: 24px;
+    --space-7: 32px;
+
+    /* Controls, cards/windows, composer; pill/circle is a shape. */
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --r-composer: 22px;
+    --r-pill: 999px;
+    --control-compact: 28px;
+    --control-regular: 32px;
+    --icon-sm: 12px;
+    --icon-md: 16px;
+    --icon-lg: 20px;
+    --icon-display: 24px;
+
+    /* Native window chrome is distinct from semantic status colors. */
+    --traffic-red: #ff5f57;
+    --traffic-amber: #febc2e;
+    --traffic-green: #28c840;
+    --thumb: #fff;
+    --scrim: rgba(0, 0, 0, .28);
+    --scroll-thumb: rgba(128, 128, 128, .4);
+    --glass-composer: rgba(255, 255, 255, .58);
+    --sh-control: 0 .5px 2px rgba(0, 0, 0, .16);
+
+    /* elevation */
+    --sh-pop: 0 1px 1px rgba(0, 0, 0, 0.04), 0 12px 34px rgba(0, 0, 0, 0.18),
+      0 0 0 0.5px rgba(0, 0, 0, 0.12);
+    --sh-sheet: 0 30px 80px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(0, 0, 0, 0.14);
+    --sh-window: 0 0 0 0.5px rgba(0, 0, 0, 0.28), 0 24px 70px rgba(0, 0, 0, 0.4),
+      0 60px 130px rgba(0, 0, 0, 0.28);
+    --sh-composer: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.1),
+      0 0 0 0.5px rgba(0, 0, 0, 0.1);
+
+    --dur-fast: .16s;
+    --dur: .22s;
+    --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --glass-composer: rgba(42, 42, 46, .55);
+    --thumb: var(--content-bg);
+    --sh-control: 0 .5px 2px rgba(0, 0, 0, .4);
+    /* softened so bright white text isn't harsh on the dark ground */
+    --text: #dedee3;
+    --text-2: rgba(235, 235, 240, 0.62);
+    --text-3: rgba(235, 235, 240, 0.42);
+
+    --hairline: rgba(255, 255, 255, 0.1);
+    --hairline-strong: rgba(255, 255, 255, 0.18);
+
+    --fill-hover: rgba(255, 255, 255, 0.06);
+    --fill-active: rgba(255, 255, 255, 0.1);
+
+    --wallpaper: radial-gradient(95% 85% at 16% 6%, #34353d 0%, #262730 38%, #191a20 72%, #0e0f13 100%);
+    --sidebar-bg: rgba(32, 32, 37, 0.5);
+    --content-bg: #1d1d20;
+    --content-bg-2: #262629;
+    --group-bg: #16161a; /* darker backdrop so panels read as raised cards */
+
+    --glass-strong: rgba(50, 50, 54, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.1);
+
+    --accent: var(--text);
+    --accent-text: #1d1d1f;
+
+    --tint-blue: #7aa7f0;
+    --tint-green: #5fc98d;
+    --tint-amber: #e0b45a;
+    --tint-red: #f0817a;
+
+    --sh-pop: 0 1px 1px rgba(0, 0, 0, 0.3), 0 12px 34px rgba(0, 0, 0, 0.5),
+      0 0 0 0.5px rgba(255, 255, 255, 0.09);
+    --sh-sheet: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+    --sh-window: 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 24px 70px rgba(0, 0, 0, 0.6),
+      0 60px 140px rgba(0, 0, 0, 0.5);
+    --sh-composer: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  }

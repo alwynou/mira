@@ -1,7 +1,7 @@
 /* App shell: window chrome, two-column layout, on-demand third pane, state. */
 const { useState: aU, useEffect: aE, useRef: aR, useCallback: aC } = React;
 
-function makeReply(userText) {
+function makeReply(userText, model) {
   return {
     role: "assistant",
     time: "现在",
@@ -12,7 +12,7 @@ function makeReply(userText) {
         { label: "当前对话 · 全部轮次", kind: "conversation" },
       ],
       tokens: "2,480 / 32k",
-      model: "Claude Sonnet 5",
+      model,
     },
     thinking:
       "先确认用户意图，从冻结的上下文里取相关记忆与知识片段，再组织一个结构清晰、可追溯的回答，并在结尾判断是否值得记为候选记忆。",
@@ -44,7 +44,14 @@ function App() {
   const [selConv, setSelConv] = aU("c-arch");
   const [threads, setThreads] = aU({ "c-arch": THREAD });
   const [livePhase, setLivePhase] = aU(null);
-  const [model, setModel] = aU("Claude Sonnet 5");
+  const [modelID, setModelID] = aU("sonnet5");
+  const [modelConfig, setModelConfig] = aU(initialModelSettings);
+  const [settingsTab, setSettingsTab] = aU("providers");
+  const selectedModel = modelConfig.models.find(m => m.id === modelID);
+  const model = selectedModel?.name || "请选择模型";
+  const modelEffort = selectedModel?.thinking ? (selectedModel.effort === "default" ? "服务商默认" : "思考 · " + ({ low: "低", medium: "中", high: "高" }[selectedModel.effort])) : "";
+  const availableModels = modelConfig.models.filter(m => modelReady(m, modelConfig)).map(m => ({ ...m,
+    provider: modelConfig.providers.find(p => p.id === m.providerId)?.name, ctx: (m.context / 1000) + "k" }));
 
   const [insp, setInsp] = aU({ open: false, kind: null, item: null });
   const [memories, setMemories] = aU(MEMORIES);
@@ -73,8 +80,9 @@ function App() {
 
   /* send + simulate pipeline */
   const send = (text) => {
-    if (livePhase != null) return;
-    const reply = makeReply(text);
+    if (livePhase != null && livePhase < 4) return false;
+    if (!modelReady(selectedModel, modelConfig)) { flashToast("当前模型不可用，请重新选择"); return false; }
+    const reply = makeReply(text, model);
     const userMsg = { role: "user", text, time: "现在" };
     setThreads((th) => ({ ...th, [selConv]: [...(th[selConv] || []), userMsg, reply] }));
     setLivePhase(0);
@@ -83,6 +91,7 @@ function App() {
       setLivePhase(p);
       if (p === 4) { clearTimers(); flashToast("已记为候选记忆"); }
     }, ms)));
+    return true;
   };
   const stop = () => { clearTimers(); setLivePhase(4); };
 
@@ -96,15 +105,11 @@ function App() {
   const selectConv = (id) => { setNav("chat"); setSelConv(id); setInsp({ open: false }); };
 
   const newChat = () => {
+    const preferred = modelConfig.models.find(m => m.id === modelConfig.defaults.chat);
+    setModelID(preferred?.id || "");
     setNav("chat"); setSelConv("draft");
     setThreads((th) => ({ ...th, draft: [] }));
     setInsp({ open: false });
-  };
-
-  const toggleTheme = () => {
-    const eff = theme === "dark" ? "dark" : theme === "light" ? "light"
-      : (matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setTheme(eff === "dark" ? "light" : "dark");
   };
 
   /* memory actions */
@@ -162,7 +167,7 @@ function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [livePhase]);
+  }, [livePhase, modelConfig]);
 
   return (
     <div className="stage">
@@ -175,20 +180,19 @@ function App() {
               onNewChat={newChat}
               onSettings={() => setSettings(true)}
               onToggleSidebar={() => setCollapsed(true)}
-              theme={theme} onToggleTheme={toggleTheme}
             />
           )}
 
-          <div className="content">
+          <div className={"content" + (collapsed ? " sidebar-hidden" : "")}>
             {collapsed && (
-              <div style={{ position: "absolute", top: 12, left: 14, zIndex: 20 }}>
+              <div className="sidebar-restore">
                 <IconBtn icon={I.sidebar} title="展开侧栏" onClick={() => setCollapsed(false)} />
               </div>
             )}
 
             {nav === "chat" && (
               <ChatView
-                conv={selConv} messages={messages} livePhase={livePhase} model={model}
+                conv={selConv} messages={messages} livePhase={livePhase} model={model} modelEffort={modelEffort}
                 onSend={send} onModelClick={openModelPop}
                 onOpenInspector={() => insp.open && insp.kind === "chat" ? setInsp({ open: false }) : openChatInspector()}
                 onOpenMemory={() => { navTo("memory"); setMemFilter("candidate"); }}
@@ -232,12 +236,13 @@ function App() {
         </div>
 
         {pop && (
-          <ModelPopover x={pop.x} y={pop.y} current={model}
-                        onPick={(name) => { setModel(name); flashToast("已切换模型：" + name); }}
+          <ModelPopover x={pop.x} y={pop.y} current={modelID} models={availableModels}
+                        onManage={() => { setSettingsTab("models"); setSettings(true); }}
+                        onPick={(id) => { setModelID(id); flashToast("已切换模型：" + modelConfig.models.find(m => m.id === id).name); }}
                         onClose={() => setPop(null)} />
         )}
         {palette && <CommandPalette onClose={() => setPalette(false)} onPick={palettePick} />}
-        {settings && <SettingsSheet onClose={() => setSettings(false)} theme={theme} onTheme={setTheme} />}
+        {settings && <SettingsSheet onClose={() => setSettings(false)} theme={theme} onTheme={setTheme} config={modelConfig} onConfig={setModelConfig} initialTab={settingsTab} />}
         {toast && <Toast text={toast} />}
       </div>
     </div>

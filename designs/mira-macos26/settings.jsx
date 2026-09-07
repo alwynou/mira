@@ -14,7 +14,7 @@ function Inspector({ kind, item, onClose, onAction, onToggleRemote }) {
       <div className="insp-head">
         <span className="h">{title}</span>
         <div className="grow" />
-        <IconBtn icon={I.x} title="关闭" size={16} onClick={onClose} />
+        <IconBtn icon={I.x} title="关闭" size="var(--icon-md)" onClick={onClose} />
       </div>
       <div className="insp-scroll scroll">
         {kind === "chat" && <ChatInspector m={item} />}
@@ -34,8 +34,8 @@ function ChatInspector({ m }) {
         <div className="lbl">冻结的上下文来源</div>
         {c.sources.map((s, i) => (
           <div className="src-item" key={i}>
-            {s.kind === "knowledge" ? <I.doc size={14} className="k" /> :
-             s.kind === "memory" ? <I.memory size={14} className="k" /> : <I.chat size={14} className="k" />}
+            {s.kind === "knowledge" ? <I.doc size="var(--icon-md)" className="k" /> :
+             s.kind === "memory" ? <I.memory size="var(--icon-md)" className="k" /> : <I.chat size="var(--icon-md)" className="k" />}
             <span>{s.label}</span>
           </div>
         ))}
@@ -58,9 +58,9 @@ function ChatInspector({ m }) {
         <div className="lbl">工具时间线</div>
         {m.tools.map((t, i) => (
           <div className="src-item" key={i}>
-            <I.wrench size={13} className="k" />
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{t.name}</span>
-            <span className="grow" /><I.check size={14} style={{ color: "var(--tint-green)" }} />
+            <I.wrench size="var(--icon-sm)" className="k" />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-small)" }}>{t.name}</span>
+            <span className="grow" /><I.check size="var(--icon-md)" style={{ color: "var(--tint-green)" }} />
           </div>
         ))}
       </div>
@@ -72,38 +72,38 @@ function MemoryInspector({ m, onAction }) {
   return (
     <>
       <div className="insp-sec">
-        <div className="hstack" style={{ marginBottom: 8 }}>
+        <div className="hstack" style={{ marginBottom: "var(--space-3)" }}>
           <span className="tag">{m.kind}</span>
           <span className={"tag " + m.status}>{statusLabel(m.status)}</span>
         </div>
-        <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>{m.title}</div>
-        <div className="cjk" style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.7 }}>{m.body}</div>
+        <div style={{ fontSize: "var(--font-body)", fontWeight: "var(--weight-strong)", color: "var(--text)", marginBottom: "var(--space-3)" }}>{m.title}</div>
+        <div className="cjk" style={{ fontSize: "var(--font-body)", color: "var(--text-2)", lineHeight: "var(--line-reading)" }}>{m.body}</div>
       </div>
       <div className="insp-sec">
         <div className="lbl">来源证据</div>
         <div className="evidence cjk">“{m.evidence}”</div>
-        <div className="src-item" style={{ marginTop: 6 }}><I.chat size={14} className="k" /><span>{m.origin}</span></div>
+        <div className="src-item" style={{ marginTop: "var(--space-2)" }}><I.chat size="var(--icon-md)" className="k" /><span>{m.origin}</span></div>
       </div>
       <div className="insp-sec">
         <div className="kv"><span className="k">范围</span><span className="v">{m.scope}</span></div>
         <div className="kv"><span className="k">更新</span><span className="v">{m.updated}</span></div>
         <div className="kv"><span className="k">修订次数</span><span className="v">{m.revisions}</span></div>
-        <div className="field-row" style={{ borderBottom: "none", padding: "10px 0 0" }}>
+        <div className="field-row" style={{ borderBottom: "none", padding: "var(--space-3) 0 0" }}>
           <div className="fl"><div className="t">允许模型使用</div><div className="d">关闭时该记忆仅保存在本机</div></div>
           <Switch on={m.allowRemote} onChange={() => onAction("remote", m)} />
         </div>
       </div>
       <div className="insp-sec hstack">
         {m.status === "candidate" && <>
-          <button className="btn primary" style={{ flex: 1 }} onClick={() => onAction("approve", m)}><I.check size={14} />确认记住</button>
+          <button className="btn primary" style={{ flex: 1 }} onClick={() => onAction("approve", m)}><I.check size="var(--icon-md)" />确认记住</button>
           <button className="btn ghost" onClick={() => onAction("ignore", m)}>忽略</button>
         </>}
         {m.status === "active" && <>
-          <button className="btn" style={{ flex: 1 }} onClick={() => onAction("edit", m)}><I.pencil size={14} />编辑</button>
-          <button className="btn ghost" onClick={() => onAction("archive", m)}><I.archive size={14} />归档</button>
+          <button className="btn" style={{ flex: 1 }} onClick={() => onAction("edit", m)}><I.pencil size="var(--icon-md)" />编辑</button>
+          <button className="btn ghost" onClick={() => onAction("archive", m)}><I.archive size="var(--icon-md)" />归档</button>
         </>}
         {m.status === "archived" &&
-          <button className="btn" style={{ flex: 1 }} onClick={() => onAction("restore", m)}><I.restore size={14} />恢复</button>}
+          <button className="btn" style={{ flex: 1 }} onClick={() => onAction("restore", m)}><I.restore size="var(--icon-md)" />恢复</button>}
       </div>
     </>
   );
@@ -113,10 +113,10 @@ function KnowledgeInspector({ k, onToggleRemote }) {
   return (
     <>
       <div className="insp-sec">
-        <div className="hstack" style={{ marginBottom: 8 }}>
-          <span className="avatar" style={{ width: 26, height: 26 }}><I.doc size={15} /></span>
-          <div><div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{k.title}</div>
-            <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>{k.kind}</div></div>
+        <div className="hstack" style={{ marginBottom: "var(--space-3)" }}>
+          <span className="avatar" style={{ width: 26, height: 26 }}><I.doc size="var(--icon-md)" /></span>
+          <div><div style={{ fontSize: "var(--font-body)", fontWeight: "var(--weight-strong)", color: "var(--text)" }}>{k.title}</div>
+            <div style={{ fontSize: "var(--font-small)", color: "var(--text-3)" }}>{k.kind}</div></div>
         </div>
       </div>
       <div className="insp-sec">
@@ -124,7 +124,7 @@ function KnowledgeInspector({ k, onToggleRemote }) {
         <div className="kv"><span className="k">片段</span><span className="v">{k.chunks} 个</span></div>
         <div className="kv"><span className="k">大小</span><span className="v mono">{k.size}</span></div>
         <div className="kv"><span className="k">更新</span><span className="v">{k.updated}</span></div>
-        <div className="field-row" style={{ borderBottom: "none", padding: "10px 0 0" }}>
+        <div className="field-row" style={{ borderBottom: "none", padding: "var(--space-3) 0 0" }}>
           <div className="fl"><div className="t">允许模型使用</div><div className="d">开启后其片段可供所配置的服务商检索</div></div>
           <Switch on={k.allowRemote} onChange={() => onToggleRemote(k)} />
         </div>
@@ -132,12 +132,12 @@ function KnowledgeInspector({ k, onToggleRemote }) {
       <div className="insp-sec">
         <div className="lbl">来源预览</div>
         <div className="evidence cjk">{k.preview}</div>
-        <button className="btn tiny" style={{ marginTop: 10 }}><I.eye size={13} />打开完整来源</button>
+        <button className="btn tiny" style={{ marginTop: "var(--space-3)" }}><I.eye size="var(--icon-sm)" />打开完整来源</button>
       </div>
       <div className="insp-sec">
         <div className="lbl">片段（前 3）</div>
         {[1, 2, 3].map((n) => (
-          <div className="src-item" key={n}><I.doc size={13} className="k" /><span>片段 #{n} · 命中于最近回复</span></div>
+          <div className="src-item" key={n}><I.doc size="var(--icon-sm)" className="k" /><span>片段 #{n} · 命中于最近回复</span></div>
         ))}
       </div>
     </>
@@ -148,8 +148,8 @@ function TaskInspector({ t }) {
   return (
     <>
       <div className="insp-sec">
-        <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>{t.title}</div>
-        <div className="cjk" style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.7 }}>{t.note}</div>
+        <div style={{ fontSize: "var(--font-body)", fontWeight: "var(--weight-strong)", color: "var(--text)", marginBottom: "var(--space-2)" }}>{t.title}</div>
+        <div className="cjk" style={{ fontSize: "var(--font-body)", color: "var(--text-2)", lineHeight: "var(--line-reading)" }}>{t.note}</div>
       </div>
       <div className="insp-sec">
         <div className="lbl">提醒</div>
@@ -157,11 +157,11 @@ function TaskInspector({ t }) {
           <>
             <div className="kv"><span className="k">时间</span><span className="v">{t.reminder.at}</span></div>
             <div className="kv"><span className="k">状态</span><span className="v">{reminderLabel(t.reminder.state)}</span></div>
-            <div className="hstack" style={{ marginTop: 4, fontSize: 11.5, color: "var(--text-3)" }}>
-              <I.bell size={13} /><span>由 Mira 本地通知调度器管理，不发布到系统日历</span>
+            <div className="hstack" style={{ marginTop: "var(--space-2)", fontSize: "var(--font-small)", color: "var(--text-3)" }}>
+              <I.bell size="var(--icon-sm)" /><span>由 Mira 本地通知调度器管理，不发布到系统日历</span>
             </div>
           </>
-        ) : <div className="muted" style={{ fontSize: 12.5 }}>尚未设置提醒时间</div>}
+        ) : <div className="muted" style={{ fontSize: "var(--font-small)" }}>尚未设置提醒时间</div>}
       </div>
       <div className="insp-sec">
         <div className="kv"><span className="k">工作区</span><span className="v">{t.workspace}</span></div>
@@ -169,8 +169,8 @@ function TaskInspector({ t }) {
       </div>
       <div className="insp-sec">
         <div className="lbl">修订历史</div>
-        <div className="src-item"><I.clock size={13} className="k" /><span>创建 · 保留来源证据</span></div>
-        <div className="src-item"><I.pencil size={13} className="k" /><span>设置提醒时间</span></div>
+        <div className="src-item"><I.clock size="var(--icon-sm)" className="k" /><span>创建 · 保留来源证据</span></div>
+        <div className="src-item"><I.pencil size="var(--icon-sm)" className="k" /><span>设置提醒时间</span></div>
       </div>
     </>
   );
@@ -180,13 +180,24 @@ function TaskInspector({ t }) {
 const SETTINGS_TABS = [
   { id: "general", label: "通用", icon: I.gear },
   { id: "providers", label: "服务商", icon: I.cloud },
-  { id: "models", label: "默认模型", icon: I.sparkle },
+  { id: "models", label: "模型", icon: I.sparkle },
   { id: "memory", label: "记忆", icon: I.memory },
   { id: "data", label: "数据与隐私", icon: I.shield },
 ];
 
-function SettingsSheet({ onClose, theme, onTheme }) {
-  const [tab, setTab] = sU("providers");
+function SettingsSheet({ onClose, theme, onTheme, config, onConfig, initialTab = "providers" }) {
+  const [history, setHistory] = sU({ entries: [{ tab: initialTab, detail: null, modelTab: "defaults" }], index: 0 });
+  const route = history.entries[history.index];
+  const { tab, detail } = route;
+  const pushRoute = next => setHistory(h => {
+    if (JSON.stringify(h.entries[h.index]) === JSON.stringify(next)) return h;
+    return { entries: [...h.entries.slice(0, h.index + 1), next], index: h.index + 1 };
+  });
+  const navigate = destination => pushRoute({ tab: destination, detail: null, modelTab: "defaults" });
+  const openDetail = detail => pushRoute({ ...route, detail });
+  const stepHistory = offset => setHistory(h => ({ ...h, index: Math.max(0, Math.min(h.entries.length - 1, h.index + offset)) }));
+  const detailItem = detail?.kind === "provider" ? config.providers.find(p => p.id === detail.id)
+    : detail?.kind === "model" ? config.models.find(m => m.id === detail.id) : null;
   const [lang, setLang] = sU("zh");
   const [capture, setCapture] = sU("off");
   const active = SETTINGS_TABS.find((t) => t.id === tab);
@@ -204,19 +215,21 @@ function SettingsSheet({ onClose, theme, onTheme }) {
         <div className="settings-rail-title">设置</div>
         <div className="settings-rail-nav scroll">
           {SETTINGS_TABS.map((t) => (
-            <div key={t.id} className={"sb-item" + (tab === t.id ? " sel" : "")} onClick={() => setTab(t.id)}>
-              <t.icon size={16} className="ico" /><span className="label">{t.label}</span>
-            </div>
+            <button type="button" key={t.id} className={"sb-item" + (tab === t.id ? " sel" : "")} onClick={() => navigate(t.id)}>
+              <t.icon size="var(--icon-lg)" className="ico" /><span className="label">{t.label}</span>
+            </button>
           ))}
         </div>
       </div>
       <div className="settings-content">
         <div className="settings-topbar" style={{ WebkitAppRegion: "drag" }}>
-          <span className="h">{active.label}</span>
-          <div className="grow" />
-          <div style={{ WebkitAppRegion: "no-drag" }}><button className="btn" onClick={onClose}>完成</button></div>
+          <div className="settings-history" style={{ WebkitAppRegion: "no-drag" }}>
+            <button className="icon-btn" aria-label="后退" title="后退" disabled={history.index === 0} onClick={() => stepHistory(-1)}><span className="back-icon"><I.chevRight size="var(--icon-md)" /></span></button>
+            <button className="icon-btn" aria-label="前进" title="前进" disabled={history.index === history.entries.length - 1} onClick={() => stepHistory(1)}><I.chevRight size="var(--icon-md)" /></button>
+          </div>
+          <span className="h">{detailItem?.name || active.label}</span>
         </div>
-        <div className="settings-scroll scroll">
+        <div className="settings-scroll scroll" key={tab + (detail?.id || "")}>
             {tab === "general" && (
               <>
                 <div className="sec-title">外观</div>
@@ -240,60 +253,12 @@ function SettingsSheet({ onClose, theme, onTheme }) {
               </>
             )}
 
-            {tab === "providers" && (
-              <>
-                <div className="sec-title">已配置的服务商</div>
-                <div className="panel">
-                  {PROVIDERS.map((p) => (
-                    <div className="prov-row" key={p.id}>
-                      <div className="prov-logo">{p.name[0]}</div>
-                      <div className="prov-info">
-                        <div className="n">{p.name}</div>
-                        <div className="e">{p.endpoint}</div>
-                      </div>
-                      <span className="hstack" style={{ fontSize: 11.5, color: "var(--text-3)", gap: 6 }}>
-                        {p.key ? <><I.key size={13} />已保存密钥</> : <span className="muted">未配置密钥</span>}
-                      </span>
-                      <span className="tag" style={{ marginLeft: 4 }}>{p.models} 个模型</span>
-                      <Switch on={p.active} onChange={() => {}} />
-                    </div>
-                  ))}
-                </div>
-                <button className="btn"><I.plus size={14} />添加服务商</button>
-                <div className="hstack cjk" style={{ marginTop: 14, fontSize: 12, color: "var(--text-3)", gap: 7 }}>
-                  <I.shield size={14} /><span>API Key 仅保存在本机 Keychain；获取模型只查询目录，不发送对话。</span>
-                </div>
-              </>
-            )}
-
-            {tab === "models" && (
-              <>
-                <div className="sec-title">用途级默认模型</div>
-                <div className="panel">
-                  {PURPOSES.map((p) => (
-                    <FieldRow key={p.id} title={p.label} desc={p.id === "memory" ? "后台记忆提取须单独选择模型并显式开启" : null}>
-                      <button className="select">
-                        {p.warn && <span className="status-dot warn" />}
-                        <span style={{ color: p.warn ? "var(--tint-amber)" : "var(--text)" }}>{p.model}</span>
-                        <I.chevDown size={13} />
-                      </button>
-                    </FieldRow>
-                  ))}
-                </div>
-                <div className="sec-title">模型池</div>
-                <div className="panel">
-                  {MODEL_POOL.map((m) => (
-                    <div className="field-row" key={m.id}>
-                      <div className="fl">
-                        <div className="t">{m.name}</div>
-                        <div className="d">{m.provider} · {m.ctx} 上下文 · {m.caps.join(" / ")}</div>
-                      </div>
-                      <Switch on={m.on} onChange={() => {}} />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            {tab === "providers" && (detailItem && detail?.kind === "provider"
+              ? <ProviderEditor provider={detailItem} config={config} onChange={onConfig} />
+              : <ProviderSettings config={config} onSelect={id => openDetail({kind:"provider",id})} />)}
+            {tab === "models" && (detailItem && detail?.kind === "model"
+              ? <ModelEditor model={detailItem} config={config} onChange={onConfig} />
+              : <ModelSettings tab={route.modelTab} onTabChange={modelTab => pushRoute({...route, modelTab})} config={config} onChange={onConfig} onProviders={() => navigate("providers")} onEdit={id => openDetail({kind:"model",id})} />)}
 
             {tab === "memory" && (
               <>
@@ -311,9 +276,10 @@ function SettingsSheet({ onClose, theme, onTheme }) {
                     <Switch on={true} onChange={() => {}} />
                   </FieldRow>
                 </div>
-                <div className="hstack cjk" style={{ fontSize: 12, color: "var(--tint-amber)", gap: 7 }}>
-                  <I.info size={14} /><span>记忆提取用途尚未绑定模型，请先在「默认模型」中设置。</span>
-                </div>
+                {!modelReady(config.models.find(m => m.id === config.defaults.memory), config, "memory") &&
+                  <div className="hstack cjk" style={{ fontSize: "var(--font-small)", color: "var(--tint-amber)", gap: "var(--space-3)" }}>
+                    <I.info size="var(--icon-md)" /><span>记忆提取尚未选择可用模型，请先在「模型」中设置。</span>
+                  </div>}
               </>
             )}
 
@@ -326,10 +292,10 @@ function SettingsSheet({ onClose, theme, onTheme }) {
                   </FieldRow>
                   <FieldRow title="Schema 版本"><span className="kbd">v12</span></FieldRow>
                   <FieldRow title="完整备份" desc="导出数据库、引用文件与校验清单的目录 bundle">
-                    <button className="btn tiny"><I.upload size={13} />立即备份</button>
+                    <button className="btn tiny"><I.upload size="var(--icon-sm)" />立即备份</button>
                   </FieldRow>
                   <FieldRow title="清理未引用文件" desc="七天宽限期后回收文件副本；引用的历史版本保留">
-                    <button className="btn tiny"><I.trash size={13} />清理</button>
+                    <button className="btn tiny"><I.trash size="var(--icon-sm)" />清理</button>
                   </FieldRow>
                 </div>
                 <div className="sec-title">隐私</div>
@@ -344,6 +310,7 @@ function SettingsSheet({ onClose, theme, onTheme }) {
               </>
             )}
           </div>
+          {["providers", "models"].includes(tab) && <div className="config-preview-note">交互预览 · 示例数据，不发起真实请求</div>}
         </div>
       </div>
     </div>
@@ -385,7 +352,7 @@ function CommandPalette({ onClose, onPick }) {
     <div className="scrim top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="palette" role="dialog" aria-label="全局搜索">
         <div className="palette-input">
-          <I.search size={18} style={{ color: "var(--text-3)" }} />
+          <I.search size="var(--icon-lg)" style={{ color: "var(--text-3)" }} />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey}
                  placeholder="搜索对话、记忆、知识，或执行动作…" />
           <span className="kbd">Esc</span>
@@ -396,7 +363,7 @@ function CommandPalette({ onClose, onPick }) {
               return (
                 <div key={my} className={"pal-item" + (cur === my ? " cur" : "")}
                      onMouseEnter={() => setCur(my)} onClick={it.go}>
-                  <it.icon size={16} className="ico" /><span>{it.label}</span><span className="meta">{it.meta}</span>
+                  <it.icon size="var(--icon-md)" className="ico" /><span>{it.label}</span><span className="meta">{it.meta}</span>
                 </div>
               );
             }) : <div className="pal-item muted">没有匹配结果</div>
@@ -408,7 +375,7 @@ function CommandPalette({ onClose, onPick }) {
                   return (
                     <div key={my} className={"pal-item" + (cur === my ? " cur" : "")}
                          onMouseEnter={() => setCur(my)} onClick={it.go}>
-                      <it.icon size={16} className="ico" /><span>{it.label}</span><span className="meta">{it.meta}</span>
+                      <it.icon size="var(--icon-md)" className="ico" /><span>{it.label}</span><span className="meta">{it.meta}</span>
                     </div>
                   );
                 })}
@@ -422,31 +389,32 @@ function CommandPalette({ onClose, onPick }) {
 }
 
 /* ===================== MODEL POPOVER ===================== */
-function ModelPopover({ x, y, current, onPick, onClose }) {
+function ModelPopover({ x, y, current, onPick, onClose, models, onManage }) {
   sE(() => {
     const h = () => onClose();
     window.addEventListener("mousedown", h);
     return () => window.removeEventListener("mousedown", h);
   }, []);
-  const on = MODEL_POOL.filter((m) => m.on);
+  const on = models;
   return (
     <div className="popover" style={{ left: x, bottom: y }} onMouseDown={(e) => e.stopPropagation()}>
       {on.map((m) => (
-        <div className="pop-item" key={m.id} onClick={() => { onPick(m.name); onClose(); }}>
-          <I.sparkle size={15} className="ico" />
+        <div className="pop-item" key={m.id} onClick={() => { onPick(m.id); onClose(); }}>
+          <I.sparkle size="var(--icon-md)" className="ico" />
           <div><div>{m.name}</div><div className="sub">{m.provider} · {m.ctx}</div></div>
-          {current === m.name && <span className="chk"><I.check size={15} /></span>}
+          {current === m.id && <span className="chk"><I.check size="var(--icon-md)" /></span>}
         </div>
       ))}
+      {!on.length && <div className="config-note" style={{ padding: "var(--space-3)" }}>暂无可用模型，请先完成配置。</div>}
       <div className="pop-sep" />
-      <div className="pop-item" style={{ color: "var(--text-2)" }}><I.gear size={15} className="ico" /><span>管理模型池…</span></div>
+      <button className="pop-item manage-models" onClick={() => { onClose(); onManage(); }}><I.gear size="var(--icon-md)" className="ico" /><span>管理模型池…</span></button>
     </div>
   );
 }
 
 /* ===================== TOAST ===================== */
 function Toast({ text }) {
-  return <div className="toast"><span className="ok"><I.check size={16} /></span><span className="cjk">{text}</span></div>;
+  return <div className="toast"><span className="ok"><I.check size="var(--icon-md)" /></span><span className="cjk">{text}</span></div>;
 }
 
 Object.assign(window, { Inspector, SettingsSheet, CommandPalette, ModelPopover, Toast, reminderLabel });

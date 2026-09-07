@@ -8,7 +8,7 @@ const PRIMARY_NAV = [
   { id: "tasks", label: "任务与提醒", icon: I.tasks, count: () => TASKS.filter((t) => !t.done).length },
 ];
 
-function Sidebar({ nav, selConv, onNav, onSelConv, onNewChat, onSettings, onToggleSidebar, theme, onToggleTheme }) {
+function Sidebar({ nav, selConv, onNav, onSelConv, onNewChat, onSettings, onToggleSidebar }) {
   const [open, setOpen] = uS({ mira: true, writing: false, life: false });
   return (
     <aside className="sidebar" aria-label="侧栏">
@@ -32,7 +32,7 @@ function Sidebar({ nav, selConv, onNav, onSelConv, onNewChat, onSettings, onTogg
       <div className="sb-upper">
         {PRIMARY_NAV.map((n) => (
           <div key={n.id} className={"sb-item" + (nav === n.id ? " sel" : "")} onClick={() => onNav(n.id)}>
-            <n.icon size={16} className="ico" />
+            <n.icon size="var(--icon-lg)" className="ico" />
             <span className="label">{n.label}</span>
             <span className="count">{n.count()}</span>
           </div>
@@ -46,13 +46,13 @@ function Sidebar({ nav, selConv, onNav, onSelConv, onNewChat, onSettings, onTogg
         <div className="sb-group">
           <div className="sb-group-h">
             <span>工作区</span>
-            <button className="add" title="新建工作区"><I.plus size={13} /></button>
+            <button className="add" title="新建工作区"><I.plus size="var(--icon-sm)" /></button>
           </div>
           {WORKSPACES.map((w) => (
             <div key={w.id}>
               <div className="sb-item" onClick={() => setOpen((o) => ({ ...o, [w.id]: !o[w.id] }))}>
-                <I.caret size={13} className={"twist" + (open[w.id] ? " open" : "")} />
-                <I.folder size={16} className="ico" />
+                <I.caret size="var(--icon-sm)" className={"twist" + (open[w.id] ? " open" : "")} />
+                <I.folder size="var(--icon-md)" className="ico" />
                 <span className="label">{w.name}</span>
                 <span className="count">{w.conversations.length}</span>
               </div>
@@ -73,13 +73,13 @@ function Sidebar({ nav, selConv, onNav, onSelConv, onNewChat, onSettings, onTogg
         <div className="sb-group">
           <div className="sb-group-h">
             <span>对话</span>
-            <button className="add" title="新建对话 ⌘N" onClick={onNewChat}><I.plus size={13} /></button>
+            <button className="add" title="新建对话 ⌘N" onClick={onNewChat}><I.plus size="var(--icon-sm)" /></button>
           </div>
           {INBOX.map((c) => (
             <div key={c.id}
                  className={"sb-conv flat" + (nav === "chat" && selConv === c.id ? " sel" : "")}
                  onClick={() => onSelConv(c.id)}>
-              <I.chat size={14} className="glyph" />
+              <I.chat size="var(--icon-md)" className="glyph" />
               <span className="t">{c.title}</span>
             </div>
           ))}
@@ -88,10 +88,9 @@ function Sidebar({ nav, selConv, onNav, onSelConv, onNewChat, onSettings, onTogg
 
       <div className="sb-foot">
         <div className="sb-item" onClick={onSettings}>
-          <I.gear size={16} className="ico" />
+          <I.gear size="var(--icon-md)" className="ico" />
           <span className="label">设置</span>
         </div>
-        <IconBtn icon={theme === "dark" ? I.sun : I.moon} title="切换外观" onClick={onToggleTheme} />
       </div>
     </aside>
   );
@@ -102,7 +101,7 @@ function ContextRow({ ctx, live }) {
   return (
     <div className="stage-row">
       <div className="lead">
-        {live ? <I.refresh size={15} className="spin" /> : <I.check size={15} style={{ color: "var(--tint-green)" }} />}
+        {live ? <I.refresh size="var(--icon-md)" className="spin" /> : <I.check size="var(--icon-md)" style={{ color: "var(--tint-green)" }} />}
         <span>{live ? "准备上下文…" : "上下文已冻结"}</span>
         <span className="muted">· {ctx.sources.length} 个来源 · {ctx.tokens}</span>
       </div>
@@ -113,14 +112,14 @@ function ContextRow({ ctx, live }) {
 function Disclosure({ label, icon: Icon, defaultOpen, spinning, children }) {
   const [o, setO] = uS(!!defaultOpen);
   return (
-    <div className="disclosure">
-      <div className="stage-row click" onClick={() => setO(!o)}>
-        <div className="lead">
-          {spinning ? <I.sparkle size={15} className="spin" /> : <Icon size={15} />}
+    <div className={"disclosure" + (o ? " open" : "")}>
+      <button type="button" className="stage-row click" aria-expanded={o} onClick={() => setO(!o)}>
+        <span className="lead">
+          <span className={spinning ? "spin" : undefined}><Icon size="var(--icon-md)" /></span>
           <span>{label}</span>
-        </div>
-        <I.caret size={13} className={"twist" + (o ? " open" : "")} style={{ color: "var(--text-3)" }} />
-      </div>
+        </span>
+        <span className="twist"><I.caret size="var(--icon-sm)" /></span>
+      </button>
       {o && <div className="disclosure-body cjk">{children}</div>}
     </div>
   );
@@ -128,36 +127,25 @@ function Disclosure({ label, icon: Icon, defaultOpen, spinning, children }) {
 
 function AssistantMessage({ m, phase, onOpenInspector, onOpenMemory, onCite }) {
   const done = phase == null || phase >= 4;
-  const showCtx = true;
-  const showThinking = phase == null || phase >= 1;
   const showTools = phase == null || phase >= 2;
   const showAnswer = phase == null || phase >= 3;
   return (
     <div className="msg assistant">
-      <div className="assistant-head">
-        <span className="avatar"><I.sparkle size={14} /></span>
-        <span className="who">Mira</span>
-        <span className="model">{m.context.model}</span>
-        <div className="grow" />
-        <IconBtn icon={I.info} title="上下文与执行" size={16} onClick={onOpenInspector} />
-      </div>
+      <Disclosure label={phase === 0 ? "执行中…" : phase === 1 ? "思考中…" : "思考"}
+                  icon={I.sparkle} spinning={phase === 0 || phase === 1}>
+        {phase === 0 ? "准备上下文…" : m.thinking}
+      </Disclosure>
 
-      {showCtx && <ContextRow ctx={m.context} live={phase === 0} />}
-
-      {showThinking && (
-        <Disclosure label="思考" icon={I.sparkle} spinning={phase === 1} defaultOpen={phase === 1}>
-          {m.thinking}
-        </Disclosure>
-      )}
+      <ContextRow ctx={m.context} live={phase === 0} />
 
       {showTools && (
         <Disclosure label={`工具执行 · ${m.tools.length} 次`} icon={I.wrench} spinning={phase === 2} defaultOpen={phase === 2}>
           {m.tools.map((t, i) => (
             <div className="tool-line" key={i}>
-              <I.wrench size={13} style={{ color: "var(--text-3)" }} />
+              <I.wrench size="var(--icon-sm)" style={{ color: "var(--text-3)" }} />
               <span className="name">{t.name}</span>
               <span className="arg">{t.arg}</span>
-              <span className="ok"><I.check size={14} /></span>
+              <span className="ok"><I.check size="var(--icon-md)" /></span>
             </div>
           ))}
         </Disclosure>
@@ -176,7 +164,7 @@ function AssistantMessage({ m, phase, onOpenInspector, onOpenMemory, onCite }) {
               </ul>
             )
           )}
-          {phase === 3 && <span className="caret" style={{ borderRight: "2px solid var(--text)", marginLeft: 1, animation: "blink 1s step-end infinite" }}>&nbsp;</span>}
+          {phase === 3 && <span className="caret" style={{ borderRight: "2px solid var(--text)", marginLeft: "var(--space-1)", animation: "blink 1s step-end infinite" }}>&nbsp;</span>}
         </div>
       )}
 
@@ -196,7 +184,7 @@ function AssistantMessage({ m, phase, onOpenInspector, onOpenMemory, onCite }) {
 
       {done && m.memory && (
         <div className="receipt">
-          <span className="glow"><I.memory size={17} /></span>
+          <span className="glow"><I.memory size="var(--icon-md)" /></span>
           <div className="txt">
             <div><b>已记为候选记忆</b> <span className="tag cand">候选</span></div>
             <div className="sub">{m.memory.title} · 范围 {m.memory.scope}</div>
@@ -217,7 +205,7 @@ function renderInline(text, onCite) {
   return html;
 }
 
-function ChatView({ conv, messages, livePhase, model, onSend, onModelClick, onOpenInspector, onOpenMemory, inspectorOpen }) {
+function ChatView({ conv, messages, livePhase, model, modelEffort, onSend, onModelClick, onOpenInspector, onOpenMemory, inspectorOpen }) {
   const scrollRef = uR(null);
   const fieldRef = uR(null);
   const wrapRef = uR(null);
@@ -236,15 +224,12 @@ function ChatView({ conv, messages, livePhase, model, onSend, onModelClick, onOp
   const isDraft = conv === "draft";
   const found = findConv(conv);
   const title = isDraft ? "新对话" : (found?.title || "对话");
-  const sub = isDraft ? "临时对话 · 未归入工作区"
-    : (found?.workspace === "临时对话" ? "临时对话 · 未归入工作区" : (found?.workspace || "Mira 开发"));
 
   const submit = () => {
     const el = fieldRef.current;
     const text = (el?.innerText || "").trim();
     if (!text) return;
-    el.innerText = "";
-    onSend(text);
+    if (onSend(text)) el.innerText = "";
   };
 
   return (
@@ -252,7 +237,6 @@ function ChatView({ conv, messages, livePhase, model, onSend, onModelClick, onOp
       <div className="toolbar" style={{ WebkitAppRegion: "drag" }}>
         <div className="tb-title">
           <span className="h">{title}</span>
-          <span className="s">{sub} · {model}</span>
         </div>
         <div className="tb-spacer" />
         <div className="tb-actions">
@@ -265,7 +249,7 @@ function ChatView({ conv, messages, livePhase, model, onSend, onModelClick, onOp
         <div className="chat-scroll scroll" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="empty">
-            <span className="mark"><I.chat size={26} /></span>
+            <span className="mark"><I.chat size="var(--icon-display)" /></span>
             <div className="h">{isDraft ? "开始一段新对话" : "临时对话"}</div>
             <div className="p cjk">对话默认是临时的，不归入任何工作区。需要长期整理时，可以把它移动到某个工作区的文件夹中。</div>
           </div>
@@ -305,23 +289,23 @@ function ChatView({ conv, messages, livePhase, model, onSend, onModelClick, onOp
               }}
             />
             <div className="composer-bar">
-              <button className="cicon" title="附加知识 / 文件"><I.plus size={19} /></button>
+              <button className="cicon" title="附加知识 / 文件"><I.plus size="var(--icon-lg)" /></button>
               <button className="caccess" title="Agent 工具访问">
-                <I.wrench size={14} /><span>工具 · 自动</span>
+                <I.wrench size="var(--icon-md)" /><span>工具 · 自动</span>
               </button>
               <div className="grow" />
               <button className="model-pick" onClick={onModelClick} title="选择模型与思考强度">
                 <span className="mname">{model}</span>
-                <span className="meffort">思考 · 高</span>
-                <I.chevDown size={13} />
+                {modelEffort && <span className="meffort">{modelEffort}</span>}
+                <I.chevDown size="var(--icon-sm)" />
               </button>
-              <button className="cicon" title="语音输入"><I.mic size={18} /></button>
+              <button className="cicon" title="语音输入"><I.mic size="var(--icon-lg)" /></button>
               <button
                 className={"send" + (livePhase != null && livePhase < 4 ? " stop" : "")}
                 title={livePhase != null && livePhase < 4 ? "停止 ⌘." : "发送 ⌘⏎"}
                 onClick={livePhase != null && livePhase < 4 ? null : submit}
               >
-                {livePhase != null && livePhase < 4 ? <I.stop size={16} /> : <I.arrowUp size={17} />}
+                {livePhase != null && livePhase < 4 ? <I.stop size="var(--icon-md)" /> : <I.arrowUp size="var(--icon-md)" />}
               </button>
             </div>
           </div>
@@ -345,7 +329,7 @@ function MemoryView({ memories, filter, onFilter, onSelect, selId, onAction, onN
         <div className="tb-title"><span className="h">记忆</span><span className="s">可纠正的长期记忆 · 自动提取默认关闭</span></div>
         <div className="tb-spacer" />
         <div className="tb-actions" style={{ WebkitAppRegion: "no-drag" }}>
-          <button className="btn tiny" onClick={onNew}><I.plus size={13} />新建</button>
+          <button className="btn tiny" onClick={onNew}><I.plus size="var(--icon-sm)" />新建</button>
         </div>
       </div>
       <div className="list-scroll scroll">
@@ -357,7 +341,7 @@ function MemoryView({ memories, filter, onFilter, onSelect, selId, onAction, onN
               { value: "archived", label: "已归档", count: counts.archived },
             ]} />
             <div className="grow" />
-            <div className="search-field" style={{ width: 200 }}><I.search size={14} /><span>搜索记忆</span></div>
+            <div className="search-field" style={{ width: 200 }}><I.search size="var(--icon-md)" /><span>搜索记忆</span></div>
           </div>
 
           {list.map((m) => (
@@ -369,26 +353,26 @@ function MemoryView({ memories, filter, onFilter, onSelect, selId, onAction, onN
               </div>
               <div className="card-body cjk">{m.body}</div>
               <div className="card-foot">
-                <span className="mi"><I.scope size={12} />{m.scope}</span>
-                <span className="mi"><I.clock size={12} />{m.updated}</span>
-                <span className="mi">{m.allowRemote ? "允许模型使用" : <><I.shield size={12} />仅本地</>}</span>
+                <span className="mi"><I.scope size="var(--icon-sm)" />{m.scope}</span>
+                <span className="mi"><I.clock size="var(--icon-sm)" />{m.updated}</span>
+                <span className="mi">{m.allowRemote ? "允许模型使用" : <><I.shield size="var(--icon-sm)" />仅本地</>}</span>
                 <div className="card-actions" onClick={(e) => e.stopPropagation()}>
                   {m.status === "candidate" && <>
-                    <button className="btn tiny primary" onClick={() => onAction("approve", m)}><I.check size={13} />确认</button>
+                    <button className="btn tiny primary" onClick={() => onAction("approve", m)}><I.check size="var(--icon-sm)" />确认</button>
                     <button className="btn tiny ghost" onClick={() => onAction("ignore", m)}>忽略</button>
                   </>}
                   {m.status === "active" && <>
-                    <IconBtn icon={I.pencil} title="编辑" size={15} onClick={() => onAction("edit", m)} />
-                    <IconBtn icon={I.archive} title="归档" size={15} onClick={() => onAction("archive", m)} />
+                    <IconBtn icon={I.pencil} title="编辑" size="var(--icon-md)" onClick={() => onAction("edit", m)} />
+                    <IconBtn icon={I.archive} title="归档" size="var(--icon-md)" onClick={() => onAction("archive", m)} />
                   </>}
                   {m.status === "archived" &&
-                    <button className="btn tiny ghost" onClick={() => onAction("restore", m)}><I.restore size={13} />恢复</button>}
+                    <button className="btn tiny ghost" onClick={() => onAction("restore", m)}><I.restore size="var(--icon-sm)" />恢复</button>}
                 </div>
               </div>
             </div>
           ))}
           {list.length === 0 && <div className="empty" style={{ minHeight: 240 }}>
-            <span className="mark"><I.memory size={24} /></span>
+            <span className="mark"><I.memory size="var(--icon-display)" /></span>
             <div className="p cjk">这个分类下暂时没有记忆。</div>
           </div>}
         </div>
@@ -405,7 +389,7 @@ function KnowledgeView({ sources, onSelect, selId, onImport, onToggleRemote }) {
         <div className="tb-title"><span className="h">知识</span><span className="s">Markdown 资料 · 导入即建立不可变版本</span></div>
         <div className="tb-spacer" />
         <div className="tb-actions" style={{ WebkitAppRegion: "no-drag" }}>
-          <button className="btn tiny" onClick={onImport}><I.upload size={13} />导入 Markdown</button>
+          <button className="btn tiny" onClick={onImport}><I.upload size="var(--icon-sm)" />导入 Markdown</button>
         </div>
       </div>
       <div className="list-scroll scroll">
@@ -413,14 +397,14 @@ function KnowledgeView({ sources, onSelect, selId, onImport, onToggleRemote }) {
           {sources.map((k) => (
             <div key={k.id} className={"card" + (selId === k.id ? " sel" : "")} onClick={() => k.importing == null && onSelect(k)}>
               <div className="card-head">
-                <span className="avatar" style={{ width: 26, height: 26 }}><I.doc size={15} /></span>
+                <span className="avatar" style={{ width: 26, height: 26 }}><I.doc size="var(--icon-md)" /></span>
                 <span className="h">{k.title}</span>
                 {k.importing != null
                   ? <span className="tag" style={{ color: "var(--tint-blue)" }}>导入中</span>
                   : <span className="tag local">{k.kind}</span>}
               </div>
               {k.importing != null ? (
-                <div style={{ marginTop: 4 }}>
+                <div style={{ marginTop: "var(--space-2)" }}>
                   <div className="card-body cjk">正在解析与分片 · {Math.round(k.importing * 100)}%</div>
                   <div className="meter"><i style={{ width: (k.importing * 100) + "%" }} /></div>
                 </div>
@@ -428,13 +412,13 @@ function KnowledgeView({ sources, onSelect, selId, onImport, onToggleRemote }) {
                 <div className="card-body cjk">{k.preview}</div>
               )}
               <div className="card-foot">
-                <span className="mi"><I.doc size={12} />{k.chunks} 个片段</span>
+                <span className="mi"><I.doc size="var(--icon-sm)" />{k.chunks} 个片段</span>
                 <span className="mi">v{k.versions}</span>
                 <span className="mi">{k.size}</span>
-                <span className="mi"><I.clock size={12} />{k.updated}</span>
+                <span className="mi"><I.clock size="var(--icon-sm)" />{k.updated}</span>
                 {k.importing == null && (
                   <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-                    <span className="hstack" style={{ fontSize: 11.5, color: "var(--text-3)" }}>
+                    <span className="hstack" style={{ fontSize: "var(--font-small)", color: "var(--text-3)" }}>
                       允许模型使用
                       <Switch on={k.allowRemote} onChange={() => onToggleRemote(k)} />
                     </span>
@@ -458,7 +442,7 @@ function TasksView({ tasks, filter, onFilter, onToggle, onSelect, selId, onNew }
         <div className="tb-title"><span className="h">任务与提醒</span><span className="s">本地一次性提醒 · 由 Mira 的通知调度器管理</span></div>
         <div className="tb-spacer" />
         <div className="tb-actions" style={{ WebkitAppRegion: "no-drag" }}>
-          <button className="btn tiny" onClick={onNew}><I.plus size={13} />新建任务</button>
+          <button className="btn tiny" onClick={onNew}><I.plus size="var(--icon-sm)" />新建任务</button>
         </div>
       </div>
       <div className="list-scroll scroll">
@@ -473,16 +457,16 @@ function TasksView({ tasks, filter, onFilter, onToggle, onSelect, selId, onNew }
           {list.map((t) => (
             <div key={t.id} className={"task" + (t.done ? " checked" : "") + (selId === t.id ? " sel" : "")} onClick={() => onSelect(t)}>
               <div className={"checkbox" + (t.done ? " done" : "")} onClick={(e) => { e.stopPropagation(); onToggle(t); }}>
-                {t.done && <I.check size={13} />}
+                {t.done && <I.check size="var(--icon-sm)" />}
               </div>
               <div className="tmain">
                 <div className="tt">{t.title}</div>
                 <div className="tn cjk">{t.note}</div>
                 <div className="tmeta">
-                  <span className="mi"><I.folder size={12} />{t.workspace}</span>
+                  <span className="mi"><I.folder size="var(--icon-sm)" />{t.workspace}</span>
                   {t.reminder ? (
                     <span className={"reminder-chip " + t.reminder.state}>
-                      <I.bell size={12} />{t.reminder.at} · {reminderLabel(t.reminder.state)}
+                      <I.bell size="var(--icon-sm)" />{t.reminder.at} · {reminderLabel(t.reminder.state)}
                     </span>
                   ) : <span className="mi muted">无提醒</span>}
                 </div>

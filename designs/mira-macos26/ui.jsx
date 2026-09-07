@@ -21,13 +21,13 @@ const Seg = ({ value, options, onChange }) => (
         onClick={() => onChange(o.value)}
       >
         {o.label}
-        {o.count != null && <span style={{ opacity: 0.55, marginLeft: 5 }}>{o.count}</span>}
+        {o.count != null && <span style={{ color: "var(--text-3)", marginLeft: "var(--space-2)" }}>{o.count}</span>}
       </button>
     ))}
   </div>
 );
 
-const IconBtn = ({ icon: Icon, on, title, onClick, size = 17 }) => (
+const IconBtn = ({ icon: Icon, on, title, onClick, size = "var(--icon-md)" }) => (
   <button className={"icon-btn" + (on ? " on" : "")} title={title} aria-label={title} onClick={onClick}>
     <Icon size={size} />
   </button>
