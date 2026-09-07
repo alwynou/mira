@@ -4,7 +4,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 
 项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
 
-> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索、完整备份，以及 M6 的一次性本地 Task / Reminder 已有实现。M5 的规模查询、大资料库恢复与本机开发包验证已通过；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收，任务原生流程已通过自动化，操作系统实际提醒交付仍待验收。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md)、[M5 验收记录](docs/engineering/M5_VERIFICATION.md) 和 [Task / Reminder 验收记录](docs/engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
+> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索、完整备份，以及 M6 的一次性本地 Task / Reminder 已有实现。M5 的规模查询、大资料库恢复与本机开发包验证已通过；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收，任务原生流程已通过自动化，关闭专注模式时的本机授权与退出后通知送达也已通过用户配合验收；专注模式及正式分发暂缓。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md)、[M5 验收记录](docs/engineering/M5_VERIFICATION.md) 和 [Task / Reminder 验收记录](docs/engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 ## 构建与运行
 
@@ -28,7 +28,7 @@ Build a ZIP from an exact committed revision with [the local packaging procedure
 
 Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Default Models**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
 
-The current development library uses schema v12. Development data is disposable: reset obsolete Mira libraries in place after schema changes, without migration or backup. Use isolated temporary directories for tests and delete them after verification. Broader model quality, actual OS notification delivery and other release gates remain pending.
+The current development library uses schema v12. Development data is disposable: reset obsolete Mira libraries in place after schema changes, without migration or backup. Use isolated temporary directories for tests and delete them after verification. Broader model quality, Focus-mode notification behavior and other release gates remain pending. Local notification permission and delivery after app exit passed an attended check with Focus off.
 
 ## Markdown knowledge
 

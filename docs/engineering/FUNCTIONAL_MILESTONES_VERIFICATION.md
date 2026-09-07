@@ -81,10 +81,11 @@ verifies normal reminder round trips. The final package run includes that fix.
 
 ## Deferred acceptance and development reset
 
-The following remain explicitly unverified and were skipped under the user's
-instruction: granting/checking real notification permission, actual alerts after
-quitting Mira and under Focus, macOS 15 runtime behavior, other CPU architectures,
-signing/notarization for public distribution, and the seven-day usage gate.
+At the end of the implementation increment, real notification permission and
+post-exit delivery had been deferred; the attended follow-up below now verifies
+those paths with Focus off. Focus behavior, macOS 15 runtime behavior, other CPU
+architectures, signing/notarization for public distribution and the seven-day
+usage gate remain unverified.
 Human-labeled Q04–Q06 memory evaluation and broader provider qualification remain
 separate release work. Further streaming-performance and detailed billing work
 remain deferred as previously requested.
@@ -97,3 +98,37 @@ retained. The new normal library starts with automatic capture disabled until th
 user explicitly enables its mode and budget.
 
 The final Debug app was ad-hoc signed for local launch and opened against the recreated `.build/dev-library`; the Mira process and one native window were confirmed. This is a development run, not a signed/public distribution package.
+
+## Attended local-notification follow-up
+
+On 2026-09-07 the user resumed the deferred platform checks. The initial Mira
+window had been launched without `--data-directory` and opened an obsolete schema
+11 default library. Relaunching with the explicit current `.build/dev-library`
+opened the existing schema 12 library normally; neither library was reset during
+this follow-up.
+
+A manually authored `Mira notification check` task was created through the Tasks
+UI without a model call. It first persisted as `permissionRequired`. The user
+allowed notifications after Mira requested permission, and the task changed to
+`scheduled`, showing that the macOS adapter accepted and verified its request.
+Computer Use disconnected when reading task details; previously authorized
+AppleScript was used for the remaining UI work. The user edited the native date
+picker because its editable date value was not exposed through System Events.
+
+The user saved revision 2 for 2026-09-07 09:51:04 Asia/Shanghai. The database showed
+`open / scheduled`; Mira was then quit normally and process inspection confirmed
+that no Mira app process remained, before the trigger time. The user confirmed receiving the notification after the app had exited. They also confirmed Focus was off. On relaunch, revision 2 remained open and reconciliation changed delivery to `elapsed`, without claiming that elapsed state alone proves delivery. No other provider test was run and no additional paid
+model request was made.
+
+A read-only signing check found no local Developer ID Application identity.
+The user chose to keep local development and defer public distribution. Developer ID signing/notarization therefore remains intentionally deferred. The minimum-system runtime and seven-day
+usage gates remain separate from this single-machine notification check.
+
+The user explicitly deferred the Focus-mode test after confirming Focus was off
+for the successful delivery. They also deferred Developer ID setup and public
+distribution in favor of local development. The synthetic reminder was completed
+through Mira (revision 3, `completed / cancelled`), which invokes removal of its
+pending/delivered system request. With Mira stopped, only that fixture's task row,
+three revisions and three operation receipts were deleted; foreign-key checks
+passed. The current development library was reopened afterward. There was no
+backup, schema change, provider call or application-code change in this follow-up.
