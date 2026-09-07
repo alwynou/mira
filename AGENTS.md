@@ -19,6 +19,16 @@
 - Thinking is a first-class output. Preserve provider continuation data through streams, drafts, tool calls, persistence and privacy cleanup; never force thinking off to hide an incomplete adapter. Follow `docs/architecture/THINKING.md` for provider-specific replay boundaries.
 - Build only the current milestone. Do not add speculative packages, empty feature screens, shell tools, sync, or a backend.
 
+## Design system
+
+- Before changing UI, read `docs/product/DESIGN_SYSTEM.md` and `docs/product/VISUAL_IDENTITY.md`. Preserve the neutral palette, system typography, generous spacing, and Mira's Contour Silver identity described there.
+- Use `Apps/MiraMac/DesignSystem/MiraTheme.swift` as the token source of truth and reuse the primitives in `MiraComponents.swift` and `MiraBrandMark.swift`. Put shared visual changes in the design system instead of duplicating palettes or control styles in feature views.
+- Keep the `NavigationSplitView` sidebar and conversation window backgrounds clear so the native sidebar material can reveal colors behind the window. Preserve its original translucency and full-height treatment, including the titlebar. Do not override system glass styles, inspect or mutate native glass ancestors, or add custom backdrop layers. Use `MiraSidebarRow` for translucent selection and preserve Reduce Transparency and Increase Contrast treatment.
+- After changing tokens, run `python3 scripts/export_design_tokens.py` and update the owning design document and affected consumers together. `designs/mira-ui/tokens.json` is a generated export; do not maintain it independently or duplicate token values in these contributor instructions.
+- Add or update relevant examples in `Apps/MiraMac/DesignSystem/MiraComponentPreview.swift` when changing shared components. Keep previews self-contained and independent of databases, credentials, and provider requests.
+- Preserve native macOS window controls, menus, keyboard navigation, focus, and accessibility semantics. Visual changes must preserve conversation behavior, including thinking, citations, reading position, cancellation, and recovery.
+- Verify affected screens in the native app with synthetic data. Cover light/dark appearance, the minimum supported window size, English/Chinese layout, and relevant interaction states as applicable to the change. Record evidence and unverified checks in `docs/engineering`; a successful build alone is not visual verification.
+
 ## Verification
 
 - Package: `swift test --package-path Packages/MiraKit`.

@@ -20,7 +20,9 @@ struct SettingsView: View {
             Tab("Providers", systemImage: "network") { ProviderConfigurationView(container: container) }
             Tab("Memory", systemImage: "brain") { MemorySettingsView(container: container) }
             Tab("Data", systemImage: "externaldrive") { dataSettings }
-        }.padding(20).frame(width: 900, height: 700)
+        }.padding(MiraTheme.Spacing.xl).frame(width: 900, height: 700)
+            .background(MiraTheme.Colors.canvas)
+            .tint(MiraTheme.Colors.accent)
             .task {
                 guard let application = container.application else { return }
                 for await _ in await application.events() {

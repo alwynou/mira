@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="650" viewBox="50 205 920 650" role="img" aria-label="Mira">
+  <title>Mira logo - Graphite for light backgrounds</title>
+  <defs>
+    <filter id="mira-black-shadow" x="-.3" y="-.3" width="1.6" height="1.6" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000000" flood-opacity=".18" />
+    </filter>
+    <linearGradient id="mira-black-edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".85" />
+      <stop offset=".4" stop-color="#AAAAAA" stop-opacity=".2" />
+      <stop offset=".7" stop-color="#FFFFFF" stop-opacity=".7" />
+      <stop offset="1" stop-color="#888888" stop-opacity=".15" />
+    </linearGradient>
+    <linearGradient id="mira-black-rear" x1="0" y1=".75" x2=".86" y2=".16">
+      <stop stop-color="#121212" offset="0" />
+      <stop offset=".30" stop-color="#454545" />
+      <stop offset=".50" stop-color="#939393" />
+      <stop offset=".68" stop-color="#4F4F4F" />
+      <stop offset="1" stop-color="#181818" />
+    </linearGradient>
+    <linearGradient id="mira-black-front" x1="260" y1="260" x2="760" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#858585" offset="0" />
+      <stop offset=".17" stop-color="#5A5A5A" />
+      <stop offset=".34" stop-color="#141414" />
+      <stop offset=".46" stop-color="#3A3A3A" />
+      <stop offset=".64" stop-color="#787878" />
+      <stop offset=".82" stop-color="#303030" />
+      <stop offset="1" stop-color="#080808" />
+    </linearGradient>
+  </defs>
+  <g filter="url(#mira-black-shadow)">
+    <g transform="translate(7 -11)">
+      <path d="M583 526C644 431 713 334 775 338C844 343 896 429 905 548C914 643 891 707 851 722C811 737 789 681 762 601C734 516 716 447 682 442C650 437 617 479 583 526Z" fill="url(#mira-black-rear)" />
+      <path d="M583 526C644 431 713 334 775 338C844 343 896 429 905 548C914 643 891 707 851 722C811 737 789 681 762 601C734 516 716 447 682 442C650 437 617 479 583 526Z" fill="none" stroke="url(#mira-black-edge)" stroke-width="1.8" stroke-linejoin="round" />
+    </g>
+    <g transform="translate(7 -11)">
+      <path d="M151 737C105 733 83 701 101 631C130 519 204 393 292 322C319 300 345 278 375 268C454 242 516 281 550 375C583 466 594 562 643 639C693 719 754 754 823 742C831 740.6 833 744 826 749C748 804.7 660 795.5 592 749C516 697 471 619 448 523C432 456.2 420 423 400 420C375 416.25 338 503 243 666C209.75 723.05 176 739 151 737Z" fill="url(#mira-black-front)" />
+      <path d="M151 737C105 733 83 701 101 631C130 519 204 393 292 322C319 300 345 278 375 268C454 242 516 281 550 375C583 466 594 562 643 639C693 719 754 754 823 742C831 740.6 833 744 826 749C748 804.7 660 795.5 592 749C516 697 471 619 448 523C432 456.2 420 423 400 420C375 416.25 338 503 243 666C209.75 723.05 176 739 151 737Z" fill="none" stroke="url(#mira-black-edge)" stroke-width="1.8" stroke-linejoin="round" />
+    </g>
+  </g>
+</svg>

@@ -15,3 +15,7 @@ The canonical source is `Apps/MiraMac/Resources/MiraAppIcon.icon`. [Engineering 
 ## Website logo
 
 Use `designs/mira-app-icon/final/mira-logo-black.svg` (graphite) on light backgrounds and `mira-logo-white.svg` (silver) on dark backgrounds. Each is a self-contained SVG with the selected ribbon geometry, tonal gradients, subtle edge highlights, and a soft shadow on a transparent background. Both share a 920 × 650 artboard with room for the shadow and contain no app enclosure, bitmap, font, script, or external dependency. Preserve their aspect ratio when sizing them. Their definition IDs are prefixed by variant so both can appear inline on the same page.
+
+## Application interface
+
+The macOS interface uses the [Mira design system](DESIGN_SYSTEM.md): a neutral canvas, quiet sidebar selection, generous reading space, and compact monochrome actions inspired by the user-supplied Codex reference. The existing Contour Silver mark remains the application identity.

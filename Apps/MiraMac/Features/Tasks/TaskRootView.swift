@@ -42,6 +42,8 @@ struct TaskRootView: View {
                         Text("Tasks")
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(MiraTheme.Colors.canvas)
                 .overlay {
                     if model.tasks.isEmpty && model.proposals.isEmpty && !model.isLoading {
                         ContentUnavailableView("No tasks", systemImage: "checklist", description: Text("Create a task or review a proposed task."))
@@ -51,11 +53,13 @@ struct TaskRootView: View {
                 Button("New task", systemImage: "plus") {
                     editorRequest = TaskEditorRequest(existing: nil)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(MiraPrimaryButtonStyle())
                 .accessibilityIdentifier("tasks.new")
                 .padding(.bottom, 6)
             }
             .padding(.top, 12)
+            .foregroundStyle(MiraTheme.Colors.text)
+            .background(MiraTheme.Colors.canvas)
             .navigationTitle("Tasks")
         } detail: {
             if let task = model.selectedTask {
@@ -74,6 +78,7 @@ struct TaskRootView: View {
                 ContentUnavailableView("Select a task", systemImage: "checklist", description: Text("Review task details, evidence, and reminder delivery."))
             }
         }
+        .tint(MiraTheme.Colors.accent)
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
         .frame(minWidth: 850, minHeight: 580)
         .task { await model.observe() }
@@ -230,6 +235,7 @@ private struct TaskDetailView: View {
                     Button("Enable notifications", action: {
                         Task { await onEnableNotifications() }
                     })
+                    .buttonStyle(MiraPrimaryButtonStyle())
                     .disabled(notificationsWorking)
                     .accessibilityIdentifier("tasks.notifications.enable")
                 }
@@ -237,6 +243,7 @@ private struct TaskDetailView: View {
                     Button(task.deliveryState == .paused ? "Resume reminder" : "Retry scheduling", action: {
                         Task { await onResumeReminder() }
                     })
+                    .buttonStyle(MiraPrimaryButtonStyle())
                     .disabled(isWorking)
                     .accessibilityIdentifier("tasks.reminder.recover")
                 }
@@ -299,11 +306,13 @@ private struct TaskDetailView: View {
         HStack {
             if task.status == .open || task.status == .inProgress {
                 Button("Complete") { Task { await onStatus(.completed) } }
+                    .buttonStyle(MiraPrimaryButtonStyle())
                     .accessibilityIdentifier("tasks.complete")
                 Button("Cancel", role: .destructive) { Task { await onStatus(.cancelled) } }
                     .accessibilityIdentifier("tasks.cancel")
             } else {
                 Button("Reopen") { Task { await onStatus(.open) } }
+                    .buttonStyle(MiraPrimaryButtonStyle())
                     .accessibilityIdentifier("tasks.reopen")
             }
         }
@@ -367,7 +376,7 @@ private struct TaskEditorView: View {
                                               reminderAt: reminderEnabled ? reminderAt : nil, timeZoneID: timeZoneID)
                         Task { if await onSave(draft) { dismiss() } }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(MiraPrimaryButtonStyle())
                     .keyboardShortcut(.defaultAction)
                     .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("tasks.save")
@@ -436,7 +445,7 @@ private struct TaskProposalReviewView: View {
                     Spacer()
                     Button("Cancel", role: .cancel) { dismiss() }
                     Button("Accept") { Task { if await onResolve(true, draft) { dismiss() } } }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(MiraPrimaryButtonStyle())
                         .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (proposal.requiresTimeClarification && !reminderEnabled))
                         .accessibilityIdentifier("tasks.proposal.accept")
                 }

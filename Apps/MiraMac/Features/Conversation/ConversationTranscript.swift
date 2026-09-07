@@ -17,13 +17,14 @@ struct ConversationTranscript: View {
         GeometryReader { _ in
             transcript.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .clipped()
     }
 
     private var transcript: some View {
         ScrollView {
             // Long Markdown messages change height asynchronously after parsing. Keep
             // their measured layouts alive; lazy row eviction caused placement loops.
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: MiraTheme.Spacing.xxl) {
                 ForEach(transcriptItems) { item in
                     TranscriptRow(item: item, model: model, conversationID: model.selectedConversationID,
                                   rememberedMessage: $rememberedMessage)
@@ -32,7 +33,7 @@ struct ConversationTranscript: View {
                 }
             }
             .scrollTargetLayout()
-            .padding(28).frame(maxWidth: 860).frame(maxWidth: .infinity)
+            .padding(MiraTheme.Spacing.xl).frame(maxWidth: MiraTheme.Layout.contentMax + MiraTheme.Spacing.xl * 2).frame(maxWidth: .infinity)
         }
         .scrollPosition($position)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
@@ -81,7 +82,7 @@ struct ConversationTranscript: View {
         .overlay(alignment: .bottomTrailing) {
             if !scrollState.followsLatest && !scrollState.isUserScrolling {
                 Button("Jump to latest", systemImage: "arrow.down") { jumpToLatest() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(MiraPrimaryButtonStyle())
                     .padding(16)
             }
         }

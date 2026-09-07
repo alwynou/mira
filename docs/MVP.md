@@ -24,6 +24,8 @@ The [usage and cost increment](engineering/USAGE_COST_VERIFICATION.md) adds prov
 
 The user-selected [Contour Silver app icon](product/VISUAL_IDENTITY.md) is integrated; [native rendering and Debug build evidence](engineering/APP_ICON_DESIGN.md) is recorded separately from platform runtime acceptance.
 
+The [Mira design system](product/DESIGN_SYSTEM.md) extracts a screenshot-inspired neutral visual language into SwiftUI tokens, reusable components, and a portable JSON export. Native implementation and verification scope are recorded in [interface verification](engineering/DESIGN_SYSTEM_VERIFICATION.md).
+
 本文只决定做什么、按什么依赖顺序做、完成到什么程度可以进入下一阶段。产品行为由 [PRD 与领域产品规范](PRD.md) 定义，技术契约由 [架构总览及领域设计](ARCHITECTURE.md) 定义，测试数值门槛由 [质量标准](engineering/QUALITY.md#quality-gates) 统一维护。
 
 ## 1. 已确认的范围

@@ -38,6 +38,8 @@ struct MemoryRootView: View {
                             .tag(selected.id)
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(MiraTheme.Colors.canvas)
                 .overlay {
                     if model.memories.isEmpty && model.selectedDetail == nil && !model.isLoading {
                         ContentUnavailableView("No memories", systemImage: "brain", description: Text("Create a memory from a committed user message or add one manually."))
@@ -47,11 +49,13 @@ struct MemoryRootView: View {
                 Button("New memory", systemImage: "plus") {
                     editorRequest = MemoryEditorRequest(scope: model.workspaceID.map(MemoryScope.workspace) ?? .global)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(MiraPrimaryButtonStyle())
                 .keyboardShortcut("m", modifiers: [.command, .shift])
                 .padding(.bottom, 6)
             }
             .padding(.top, 12)
+            .foregroundStyle(MiraTheme.Colors.text)
+            .background(MiraTheme.Colors.canvas)
             .navigationTitle("Memory")
             .searchable(text: $model.query, placement: .sidebar, prompt: "Search memories")
         } detail: {
@@ -68,6 +72,7 @@ struct MemoryRootView: View {
                 ContentUnavailableView("Select a memory", systemImage: "brain", description: Text("Review its content, evidence, and lifecycle here."))
             }
         }
+        .tint(MiraTheme.Colors.accent)
         .frame(minWidth: 850, minHeight: 580)
         .task { await model.observe() }
         .task(id: model.searchIdentity) { await model.reload() }

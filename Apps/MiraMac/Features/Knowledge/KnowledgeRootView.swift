@@ -27,7 +27,7 @@ struct KnowledgeRootView: View {
                 }
                 HStack {
                     Button("Import Markdown…", systemImage: "square.and.arrow.down") { chooseFiles(updating: nil) }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(MiraPrimaryButtonStyle())
                         .keyboardShortcut("i", modifiers: [.command, .shift])
                     Spacer()
                     if model.isSearching { ProgressView().controlSize(.small) }
@@ -40,6 +40,8 @@ struct KnowledgeRootView: View {
                 importResults
             }
             .padding(.top, 10)
+            .foregroundStyle(MiraTheme.Colors.text)
+            .background(MiraTheme.Colors.canvas)
             .navigationTitle("Knowledge")
             .searchable(text: $model.query, placement: .sidebar, prompt: "Search knowledge")
         } detail: {
@@ -55,6 +57,7 @@ struct KnowledgeRootView: View {
                     VStack(spacing: 10) {
                         ContentUnavailableView("Source unavailable", systemImage: "exclamationmark.triangle", description: Text(L10n.error(error, locale: locale)))
                         Button("Reload source") { Task { await model.loadSelectedDetail() } }
+                            .buttonStyle(MiraPrimaryButtonStyle())
                     }
                 } else {
                     ProgressView("Loading source")
@@ -63,6 +66,7 @@ struct KnowledgeRootView: View {
                 ContentUnavailableView("Select a source", systemImage: "book.closed", description: Text("Import a Markdown file or select a source to inspect its versions and chunks."))
             }
         }
+        .tint(MiraTheme.Colors.accent)
         .frame(minWidth: 900, minHeight: 600)
         .task(id: workspaceID) {
             model.updateWorkspace(workspaceID)
@@ -123,6 +127,8 @@ struct KnowledgeRootView: View {
                     .background(.thinMaterial)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(MiraTheme.Colors.canvas)
     }
 
     private var searchList: some View {
@@ -158,6 +164,8 @@ struct KnowledgeRootView: View {
                     .background(.thinMaterial)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(MiraTheme.Colors.canvas)
     }
 
     @ViewBuilder

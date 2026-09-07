@@ -23,17 +23,24 @@ struct MessageRow: View {
     let status: MessageStatus?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "person.crop.circle")
-                .font(.title3).foregroundStyle(Color.secondary).frame(width: 28)
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(spacing: 8) {
-                    Text("You").font(.callout.weight(.semibold))
-                    if let status, status != .committed { Text("Incomplete").font(.caption).foregroundStyle(.orange) }
+        HStack {
+            Spacer(minLength: 48)
+            VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+                if let status, status != .committed {
+                    Text("Incomplete").font(MiraTheme.Typography.caption).foregroundStyle(.orange)
                 }
-                Text(verbatim: text).textSelection(.enabled).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
-            }.frame(maxWidth: .infinity, alignment: .leading)
-        }.accessibilityElement(children: .contain)
+                Text(verbatim: text)
+                    .font(MiraTheme.Typography.body)
+                    .textSelection(.enabled)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, MiraTheme.Spacing.lg)
+            .padding(.vertical, MiraTheme.Spacing.md)
+            .background(MiraTheme.Colors.inset, in: .rect(cornerRadius: MiraTheme.Radius.panel))
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("You")
     }
 }
 
@@ -50,10 +57,10 @@ struct AssistantMarkdownRow: View, Equatable {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "sparkle").font(.title3).foregroundStyle(Color.accentColor).frame(width: 28)
+            MiraBrandMark().frame(width: 28, height: 24)
             VStack(alignment: .leading, spacing: 9) {
                 HStack(spacing: 8) {
-                    Text("Mira").font(.callout.weight(.semibold))
+                    Text("Mira").font(MiraTheme.Typography.body.weight(.semibold))
                     if let status, status != .committed { Text("Incomplete").font(.caption).foregroundStyle(.orange) }
                 }
                 if trace.contains(where: { $0.reasoning != nil }) {
@@ -65,7 +72,7 @@ struct AssistantMarkdownRow: View, Equatable {
                 } else {
                     // Snapshots are coalesced before Observation invalidates the transcript.
                     // Stable rows retain the renderer and never replay entrance animations.
-                    MarkdownView(text: text, config: Self.markdownConfig, animatesTextUpdates: isStreaming && !reduceMotion)
+                    MarkdownView(text: text, config: MiraMarkdownStyle.reply, animatesTextUpdates: isStreaming && !reduceMotion)
                         .equatable()
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -75,11 +82,6 @@ struct AssistantMarkdownRow: View, Equatable {
         .accessibilityElement(children: .contain)
     }
 
-    private static let markdownConfig = MarkdownRenderConfig(
-        shouldAnimateText: false,
-        citationConfig: .init(isEnabled: false, font: .systemFont(ofSize: 12), textColor: .secondary, backgroundColor: .clear),
-        imageConfig: .disabled
-    )
 }
 
 private struct ThinkingDisclosure: View {
@@ -108,7 +110,7 @@ private struct ThinkingDisclosure: View {
                 if text.isEmpty {
                     Text("The model did not provide visible thinking text.").font(.caption).foregroundStyle(.secondary)
                 } else {
-                    MarkdownView(text: text, config: .init(shouldAnimateText: false, imageConfig: .disabled),
+                    MarkdownView(text: text, config: MiraMarkdownStyle.thinking,
                                  animatesTextUpdates: isThinking && !reduceMotion)
                         .equatable()
                         .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
@@ -121,5 +123,41 @@ private struct ThinkingDisclosure: View {
                     .font(.callout).foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+/// Style through the renderer's public configuration; parsing and streaming stay native.
+private enum MiraMarkdownStyle {
+    static let reply = make(citations: .init(isEnabled: false, font: .systemFont(ofSize: 12), textColor: .secondary, backgroundColor: .clear))
+    static let thinking = make(citations: .default)
+
+    private static func make(citations: MarkdownRenderConfig.CitationConfig) -> MarkdownRenderConfig {
+        let heading = MarkdownRenderConfig.defaultHeadingStyle
+        let inline = MarkdownRenderConfig.defaultInlineStyle
+        return MarkdownRenderConfig(
+            shouldAnimateText: false,
+            blockQuoteStyle: .init(textFonts: MarkdownRenderConfig.defaultBlockQuoteStyle.textFonts,
+                                   textColor: MiraTheme.Colors.secondaryText),
+            headingStyle: .init(h1Font: heading.h1Font, h2Font: heading.h2Font, h3Font: heading.h3Font,
+                                h4Font: heading.h4Font, h5Font: heading.h5Font, h6Font: heading.h6Font,
+                                textColor: MiraTheme.Colors.text),
+            orderedListStyle: .init(textFonts: MarkdownRenderConfig.defaultOrderedListStyle.textFonts,
+                                    textColor: MiraTheme.Colors.text),
+            paragraphStyle: .init(textFonts: MarkdownRenderConfig.defaultParagraphStyle.textFonts,
+                                  textColor: MiraTheme.Colors.text),
+            tableStyle: .init(textFonts: MarkdownRenderConfig.defaultTableStyle.textFonts,
+                              headerTextColor: MiraTheme.Colors.text, regularTextColor: MiraTheme.Colors.text,
+                              headerBackgroundColor: MiraTheme.Colors.inset, borderColor: MiraTheme.Colors.border,
+                              actionButtonColor: MiraTheme.Colors.accent),
+            inlineStyle: .init(boldTextColor: MiraTheme.Colors.text, linkTextFont: inline.linkTextFont,
+                               linkTextColor: MiraTheme.Colors.text, linkUnderlineStyle: .single,
+                               codeTextFont: inline.codeTextFont, codeTextColor: MiraTheme.Colors.text,
+                               codeBackgroundColor: MiraTheme.Colors.inset, codeUnderlineColor: .clear),
+            citationConfig: citations,
+            codeBlockConfig: .init(theme: .github, backgroundColor: MiraTheme.Colors.inset,
+                                    foregroundColor: MiraTheme.Colors.secondaryText),
+            thematicBreakColor: MiraTheme.Colors.border,
+            imageConfig: .disabled
+        )
     }
 }

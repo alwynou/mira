@@ -13,6 +13,7 @@ struct MiraApp: App {
             Group {
                 if let application = container.application {
                     ConversationRoot(application: application, isDemo: container.isDemo)
+                        .containerBackground(.clear, for: .window)
                         .task {
                             delegate.container = container
                             do { try await container.seedDemo() }
@@ -24,11 +25,16 @@ struct MiraApp: App {
                 }
             }
             .environment(\.locale, language.locale)
+            .tint(MiraTheme.Colors.accent)
+            #if DEBUG
+            // Scope appearance QA to this process without changing system preferences.
+            .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--design-preview-dark") ? .dark : nil)
+            #endif
         }
         .defaultSize(width: 1100, height: 760)
         .windowToolbarStyle(.unified)
         .commands { CommandGroup(replacing: .help) { Link(L10n.string("Mira Documentation", locale: language.locale), destination: URL(string: "https://github.com/alwynou/mira/tree/dev/docs")!) } }
-        Settings { SettingsView(container: container).environment(\.locale, language.locale) }
+        Settings { SettingsView(container: container).environment(\.locale, language.locale).tint(MiraTheme.Colors.accent) }
     }
 }
 
