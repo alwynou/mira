@@ -1,7 +1,17 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <path
-    fill="#F7F7F8"
-    d="M286 328C309 310 331 296 354 286C442 249 511 282 543 373C573 462 586 566 633 648C678 729 745 773 819 765C741 808 656 798 588 750C513 697 471 621 447 523C431 463 419 421 403 410C383 332 339 306 286 328Z"
-  />
+  <title>Continuous silver ribbon</title>
+  <defs>
+    <linearGradient id="front" x1="260" y1="260" x2="760" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" offset="0" />
+      <stop offset=".17" stop-color="#ECECEC" />
+      <stop offset=".34" stop-color="#8B8B8B" />
+      <stop offset=".46" stop-color="#DCDCDC" />
+      <stop offset=".64" stop-color="#FFFFFF" />
+      <stop offset=".82" stop-color="#AAAAAA" />
+      <stop offset="1" stop-color="#444444" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(7 -11)">
+    <path d="M151 737C105 733 83 701 101 631C130 519 204 393 292 322C319 300 345 278 375 268C454 242 516 281 550 375C583 466 594 562 643 639C693 719 754 754 823 742C831 740.6 833 744 826 749C748 804.7 660 795.5 592 749C516 697 471 619 448 523C432 456.2 420 423 400 420C375 416.25 338 503 243 666C209.75 723.05 176 739 151 737Z" fill="url(#front)" />
+  </g>
 </svg>

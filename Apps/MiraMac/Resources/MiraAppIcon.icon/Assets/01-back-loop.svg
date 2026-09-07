@@ -1,7 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <path
-    fill="#E5E5E7"
-    d="M594 531C642 447 717 359 773 349C847 334 902 419 916 548C931 649 902 711 863 735C821 758 790 701 766 617C738 522 719 459 685 450C652 441 621 482 594 531Z"
-  />
+  <title>Returning loop</title>
+  <defs>
+    <linearGradient id="rear" x1="0" y1=".75" x2=".86" y2=".16">
+      <stop stop-color="#282828" offset="0" />
+      <stop offset=".30" stop-color="#808080" />
+      <stop offset=".50" stop-color="#EEEEEE" />
+      <stop offset=".68" stop-color="#999999" />
+      <stop offset="1" stop-color="#404040" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(7 -11)">
+    <path d="M583 526C644 431 713 334 775 338C844 343 896 429 905 548C914 643 891 707 851 722C811 737 789 681 762 601C734 516 716 447 682 442C650 437 617 479 583 526Z" fill="url(#rear)" />
+  </g>
 </svg>
