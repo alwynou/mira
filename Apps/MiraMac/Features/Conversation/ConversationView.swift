@@ -67,8 +67,7 @@ struct ConversationRoot: View {
                 .accessibilityIdentifier("conversation.new")
             }
         }
-        .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)
-        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .frame(minWidth: 850, minHeight: 580)
         .task {
             #if DEBUG
