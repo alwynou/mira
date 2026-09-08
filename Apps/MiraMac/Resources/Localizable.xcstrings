@@ -18765,6 +18765,91 @@
           }
         }
       }
+    },
+    "Customize Mira's display language.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize Mira's display language."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义 Mira 的显示语言。"
+          }
+        }
+      }
+    },
+    "Manage provider connections and models.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage provider connections and models."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理模型服务连接与可用模型。"
+          }
+        }
+      }
+    },
+    "Choose default models and manage your model pool.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose default models and manage your model pool."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择默认模型并管理模型池。"
+          }
+        }
+      }
+    },
+    "Configure automatic memory and daily extraction limits.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure automatic memory and daily extraction limits."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置自动记忆和每日提取限额。"
+          }
+        }
+      }
+    },
+    "Manage your local library, backups, and file cleanup.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage your local library, backups, and file cleanup."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理本地资料库、备份与文件清理。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -1,5 +1,26 @@
 import SwiftUI
 
+struct MiraSettingsHeader: View {
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+            Text(title)
+                .font(MiraTheme.Typography.title)
+                .foregroundStyle(MiraTheme.Colors.text)
+                .accessibilityAddTraits(.isHeader)
+            Text(subtitle)
+                .font(MiraTheme.Typography.caption)
+                .foregroundStyle(MiraTheme.Colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Add to the page's 24 pt group spacing for a 32 pt content gap.
+        .padding(.bottom, MiraTheme.Spacing.sm)
+    }
+}
+
 /// Shared settings composition; controls retain native keyboard and accessibility behavior.
 struct MiraSettingsPage<Content: View>: View {
     @ViewBuilder let content: () -> Content
@@ -8,10 +29,13 @@ struct MiraSettingsPage<Content: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl, content: content)
                 .frame(maxWidth: MiraTheme.Layout.contentMax, alignment: .leading)
-                .padding(MiraTheme.Spacing.xxl)
+                .padding(.horizontal, MiraTheme.Spacing.xxl)
+                .padding(.bottom, MiraTheme.Spacing.xxl)
                 .frame(maxWidth: .infinity, alignment: .top)
         }
+        .padding(.top, MiraTheme.Layout.settingsPageTopInset)
         .background(MiraTheme.Colors.canvas)
+        .ignoresSafeArea(.container, edges: .top)
     }
 }
 

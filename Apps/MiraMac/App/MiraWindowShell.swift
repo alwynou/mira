@@ -12,7 +12,6 @@ struct MiraWindowShell: NSViewControllerRepresentable {
     var canInspect: Bool
     @Binding var showsInspector: Bool
     var newConversation: () -> Void
-    var returnToConversation: () -> Void
 
     func makeNSViewController(context: Context) -> Controller { Controller(configuration: self) }
     func updateNSViewController(_ controller: Controller, context: Context) { controller.update(self) }
@@ -36,7 +35,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private var initialPositionSet = false
         private var updatingFromSwiftUI = false
         private var inspectorUpdate: Task<Void, Never>?
-        private var sidebarObservation: NSKeyValueObservation?
+        private var conversationSidebarWasCollapsed = false
         private var inspectorObservation: NSKeyValueObservation?
         private let nativeToolbar = NSToolbar(identifier: "mira.window.toolbar")
         private var cachedItems: [NSToolbarItem.Identifier: NSToolbarItem] = [:]
@@ -44,7 +43,6 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private static let newItem = NSToolbarItem.Identifier("conversation.new")
         private static let inspectorID = NSToolbarItem.Identifier("conversation.inspector")
         private static let knowledge = NSToolbarItem.Identifier("conversation.knowledge")
-        private static let returnItem = NSToolbarItem.Identifier("settings.return")
 
         init(configuration: MiraWindowShell) {
             self.configuration = configuration
@@ -57,6 +55,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
             sidebarItem.minimumThickness = MiraTheme.Layout.sidebarMin
             sidebarItem.maximumThickness = MiraTheme.Layout.sidebarMax
+            sidebarItem.canCollapse = !configuration.isSettings
             sidebarItem.canCollapseFromWindowResize = false
             sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
             // Keep pane holding priorities below AppKit's divider-drag priority (490).
@@ -116,9 +115,19 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         func update(_ configuration: MiraWindowShell) {
             updatingFromSwiftUI = true
             defer { updatingFromSwiftUI = false }
+            let settingsChanged = self.configuration.isSettings != configuration.isSettings
+            if settingsChanged && configuration.isSettings {
+                conversationSidebarWasCollapsed = sidebarItem.isCollapsed
+            }
             self.configuration = configuration
             sidebarHost.rootView = Self.fitted(configuration.sidebar)
             detailHost.rootView = Self.fitted(configuration.detail)
+            if settingsChanged {
+                sidebarItem.canCollapse = !configuration.isSettings
+                // Changing canCollapse also resets AppKit's window-resize policy.
+                sidebarItem.canCollapseFromWindowResize = false
+                sidebarItem.isCollapsed = configuration.isSettings ? false : conversationSidebarWasCollapsed
+            }
             let visible = configuration.showsInspector && !configuration.isSettings
             inspectorHost.rootView = visible ? Self.fitted(configuration.inspector) : AnyView(EmptyView())
             inspectorUpdate?.cancel()
@@ -140,9 +149,6 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private func observeCollapsedState() {
-            sidebarObservation = sidebarItem.observe(\.isCollapsed, options: [.new]) { [weak self] _, _ in
-                MainActor.assumeIsolated { self?.updateWindow() }
-            }
             inspectorObservation = inspectorItem.observe(\.isCollapsed, options: [.new]) { [weak self] _, change in
                 MainActor.assumeIsolated {
                     guard let self, !self.updatingFromSwiftUI, !self.configuration.isSettings,
@@ -159,11 +165,10 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private var desiredItems: [NSToolbarItem.Identifier] {
-            let leading: [NSToolbarItem.Identifier] = [.toggleSidebar, Self.separator, .flexibleSpace]
             if configuration.isSettings {
-                return leading + (sidebarItem.isCollapsed ? [Self.returnItem] : [])
+                return [Self.separator, .flexibleSpace]
             }
-            return leading + [Self.newItem, Self.inspectorID, Self.knowledge]
+            return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.inspectorID, Self.knowledge]
         }
 
         private func updateWindow() {
@@ -184,7 +189,6 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 case Self.newItem: label = "New conversation"
                 case Self.inspectorID: label = "Execution details"
                 case Self.knowledge: label = "Knowledge"
-                case Self.returnItem: label = "Back to Mira"
                 default: continue
                 }
                 let text = L10n.string(label, locale: configuration.locale)
@@ -201,7 +205,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
 
         func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { desiredItems }
         func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-            [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.inspectorID, Self.knowledge, Self.returnItem]
+            desiredItems
         }
         func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
             if let cached = cachedItems[id] { return cached }
@@ -213,7 +217,6 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             case Self.newItem: (label, symbol, action) = ("New conversation", "square.and.pencil", #selector(newConversation))
             case Self.inspectorID: (label, symbol, action) = ("Execution details", "sidebar.right", #selector(toggleExecutionInspector))
             case Self.knowledge: (label, symbol, action) = ("Knowledge", "book.closed", #selector(openKnowledge))
-            case Self.returnItem: (label, symbol, action) = ("Back to Mira", "arrow.left", #selector(returnToConversation))
             default: return nil
             }
             let item = NSToolbarItem(itemIdentifier: id)
@@ -237,6 +240,15 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         @objc private func newConversation() { configuration.newConversation() }
         @objc private func toggleExecutionInspector() { configuration.showsInspector.toggle() }
         @objc private func openKnowledge() {}
-        @objc private func returnToConversation() { configuration.returnToConversation() }
+
+        override func toggleSidebar(_ sender: Any?) {
+            guard !configuration.isSettings else { return }
+            super.toggleSidebar(sender)
+        }
+
+        override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+            if configuration.isSettings && item.action == #selector(toggleSidebar(_:)) { return false }
+            return super.validateUserInterfaceItem(item)
+        }
     }
 }

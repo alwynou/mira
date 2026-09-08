@@ -66,18 +66,15 @@ struct SettingsSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button { navigation.returnToConversation() } label: {
-                Label("Back to Mira", systemImage: "arrow.left")
+                MiraSidebarRow {
+                    Label("Back to Mira", systemImage: "arrow.left")
+                        .foregroundStyle(MiraTheme.Colors.secondaryText)
+                }
             }
-            .buttonStyle(.plain)
-            .font(MiraTheme.Typography.body)
-            .foregroundStyle(MiraTheme.Colors.secondaryText)
-            .padding(.horizontal, MiraTheme.Spacing.xl)
-            .padding(.top, MiraTheme.Spacing.lg)
+            .buttonStyle(MiraRowButtonStyle())
+            .padding(.horizontal, MiraTheme.Spacing.sm)
+            .padding(.bottom, MiraTheme.Spacing.lg)
             .accessibilityIdentifier("settings.return")
-            Text("Settings")
-                .font(MiraTheme.Typography.title)
-                .padding(.horizontal, MiraTheme.Spacing.xl)
-                .padding(.vertical, MiraTheme.Spacing.xl)
             ScrollView {
                 VStack(spacing: 2) {
                     ForEach(SettingsCategory.allCases) { category in

@@ -8,6 +8,7 @@ struct DataSettingsView: View {
 
     var body: some View {
         MiraSettingsPage {
+            MiraSettingsHeader(title: "Data & Privacy", subtitle: "Manage your local library, backups, and file cleanup.")
             MiraSettingsSection("Local Library") {
                 MiraSettingsRow("Directory") {
                     Text(verbatim: model.container.directory.path)

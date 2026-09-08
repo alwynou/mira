@@ -13,7 +13,7 @@ final class MiraWindowShellTests: XCTestCase {
             inspector: AnyView(Text(verbatim: String(repeating: "Synthetic audit ", count: 100)).frame(idealWidth: 1_600)),
             title: "Mira", locale: Locale(identifier: "en"), isSettings: false, canInspect: true,
             showsInspector: Binding(get: { state.visible }, set: { state.visible = $0 }),
-            newConversation: {}, returnToConversation: {}
+            newConversation: {}
         )
         let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 850, height: 700),
                               styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
@@ -129,6 +129,11 @@ final class MiraWindowShellTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(600))
         XCTAssertTrue(inspector.isCollapsed)
         XCTAssertTrue(state.visible, "Settings hides the inspector without discarding the conversation preference.")
+        XCTAssertFalse(sidebar.isCollapsed)
+        XCTAssertFalse(sidebar.canCollapse)
+        XCTAssertFalse(try XCTUnwrap(window.toolbar).items.contains { $0.itemIdentifier == .toggleSidebar })
+        controller.toggleSidebar(nil)
+        XCTAssertFalse(sidebar.isCollapsed, "Settings must ignore the sidebar command.")
         shell.isSettings = false
         controller.update(shell)
         try await Task.sleep(for: .milliseconds(600))
@@ -144,6 +149,27 @@ final class MiraWindowShellTests: XCTestCase {
         XCTAssertFalse(inspector.isCollapsed)
         XCTAssertFalse(sidebar.isCollapsed)
         XCTAssertEqual(window.frame.width, 850, accuracy: 1)
+
+        // Opening settings from a collapsed conversation must make navigation reachable.
+        sidebar.isCollapsed = true
+        shell.isSettings = true
+        controller.update(shell)
+        try await Task.sleep(for: .milliseconds(600))
+        XCTAssertFalse(sidebar.isCollapsed)
+        XCTAssertFalse(controller.splitView(controller.splitView, canCollapseSubview: sidebar.viewController.view))
+        let sidebarCommand = NSMenuItem(title: "Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "")
+        XCTAssertFalse(controller.validateUserInterfaceItem(sidebarCommand))
+        controller.update(shell)
+        shell.isSettings = false
+        controller.update(shell)
+        try await Task.sleep(for: .milliseconds(600))
+        XCTAssertTrue(sidebar.isCollapsed, "Returning restores the conversation sidebar preference.")
+        XCTAssertTrue(sidebar.canCollapse)
+        XCTAssertFalse(sidebar.canCollapseFromWindowResize)
+        XCTAssertTrue(try XCTUnwrap(window.toolbar).items.contains { $0.itemIdentifier == .toggleSidebar })
+        controller.toggleSidebar(nil)
+        try await Task.sleep(for: .milliseconds(600))
+        XCTAssertFalse(sidebar.isCollapsed, "Conversation sidebar controls must remain usable.")
     }
 }
 

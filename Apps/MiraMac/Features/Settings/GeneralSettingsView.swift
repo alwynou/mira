@@ -5,6 +5,7 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         MiraSettingsPage {
+            MiraSettingsHeader(title: "General", subtitle: "Customize Mira's display language.")
             MiraSettingsSection("Language") {
                 MiraSettingsRow("Display Language", subtitle: "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed.") {
                     Picker("Display Language", selection: Binding(

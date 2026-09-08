@@ -46,13 +46,14 @@ struct ProviderConfigurationView: View {
                 }
             }
             .id(destination)
-            if model.error != nil || model.statusKey != nil || model.container.isDemo {
+            if model.error != nil || model.statusKey != nil {
                 MiraSettingsDivider()
                 VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) { status }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, MiraTheme.Spacing.xxl)
                     .padding(.vertical, MiraTheme.Spacing.md)
                     .background(MiraTheme.Colors.canvas)
+                    .accessibilityIdentifier("settings.providers.status")
             }
         }
         .onChange(of: destination, initial: true) { _, next in
@@ -92,12 +93,7 @@ struct ProviderConfigurationView: View {
     private var providers: some View {
         VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-                    Text("Providers").font(MiraTheme.Typography.title)
-                    Text("Configure and activate a provider, select its models, then choose a model from your pool.")
-                        .foregroundStyle(MiraTheme.Colors.secondaryText)
-                }
-                Spacer()
+                MiraSettingsHeader(title: "Providers", subtitle: "Manage provider connections and models.")
                 Button("Add Provider", systemImage: "plus") { showingConnectionEditor = true }
                     .disabled(model.isWorking || model.container.isDemo)
             }
@@ -306,8 +302,7 @@ struct ProviderConfigurationView: View {
 
     private var models: some View {
         VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
-            Text("Models").font(MiraTheme.Typography.title)
-            Text("Manage your model pool and choose defaults for each purpose.").foregroundStyle(MiraTheme.Colors.secondaryText)
+            MiraSettingsHeader(title: "Models", subtitle: "Choose default models and manage your model pool.")
             Picker("Configuration section", selection: $section) {
                 Text("Purpose Defaults").tag(ModelPane.defaults)
                 Text("Model Pool").tag(ModelPane.pool)
@@ -427,6 +422,5 @@ struct ProviderConfigurationView: View {
     @ViewBuilder private var status: some View {
         if let error = model.error { Text(L10n.error(error, locale: locale)).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
         else if let key = model.statusKey { Text(L10n.string(key, locale: locale)).font(.callout).foregroundStyle(.secondary) }
-        if model.container.isDemo { Text("Demo mode: configuration changes are disabled.").font(.caption).foregroundStyle(.secondary) }
     }
 }

@@ -81,15 +81,11 @@ final class SettingsLayoutUITests: XCTestCase {
         XCTAssertTrue(zoom.isEnabled)
         XCTAssertEqual(close.frame.minX - window.frame.minX, mainCloseOffset.x, accuracy: 2)
         XCTAssertEqual(close.frame.minY - window.frame.minY, mainCloseOffset.y, accuracy: 2)
-        let sidebarToggle = window.toolbars.buttons.firstMatch
-        XCTAssertEqual(window.toolbars.buttons.count, 1, "Settings must have only the native sidebar toggle in its toolbar.")
-        XCTAssertEqual(sidebarToggle.frame.midY, close.frame.midY, accuracy: 2)
-        XCTAssertGreaterThan(sidebarToggle.frame.minX, zoom.frame.maxX)
-        sidebarToggle.click()
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == false"), object: providers)], timeout: 5), .completed)
-        XCTAssertTrue(window.toolbars.buttons["settings.return"].waitForExistence(timeout: 5), "Collapsed settings must retain a return action.")
-        sidebarToggle.click()
-        XCTAssertTrue(providers.waitForExistence(timeout: 5))
+        XCTAssertEqual(window.toolbars.buttons.count, 0, "Settings keeps its sidebar visible without a toggle or toolbar return action.")
+        let settingsTitle = language == "zh-CN" ? "设置" : "Settings" // i18n-fixture: Removed sidebar heading in the supported locale.
+        XCTAssertFalse(window.staticTexts[settingsTitle].exists)
+        let general = app.buttons["settings.category.general"]
+        XCTAssertLessThanOrEqual(general.frame.minY - app.buttons["settings.return"].frame.maxY, 24)
         if dark {
             let size = window.frame.size
             let rightEdge = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.6)).withOffset(CGVector(dx: -1, dy: 0))
@@ -99,10 +95,13 @@ final class SettingsLayoutUITests: XCTestCase {
             XCTAssertEqual(window.frame.width, 850, accuracy: 2)
             XCTAssertEqual(window.frame.height - window.toolbars.firstMatch.frame.height, 620, accuracy: 2)
         }
+        captureSettings(window, page: "General", language: language)
 
         providers.click()
         let search = app.textFields["settings.providers.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["settings.providers.status"].exists, "Demo mode alone must not show a footer.")
+        captureSettings(window, page: "Providers", language: language)
         search.click()
         search.typeText("OpenAI")
         search.typeKey(.return, modifierFlags: [])
@@ -127,6 +126,7 @@ final class SettingsLayoutUITests: XCTestCase {
         let conversationModel = app.descendants(matching: .any).matching(identifier: "settings.models.default.conversation").firstMatch
         XCTAssertTrue(conversationModel.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["settings.models.default.memoryExtraction"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["settings.providers.status"].exists)
         conversationModel.click()
         app.typeKey(.escape, modifierFlags: [])
         app.buttons["settings.category.models"].click()
@@ -139,6 +139,7 @@ final class SettingsLayoutUITests: XCTestCase {
 
         app.buttons["settings.category.memory"].click()
         XCTAssertTrue(app.popUpButtons["settings.memory.mode"].waitForExistence(timeout: 5))
+        captureSettings(window, page: "Memory", language: language)
         let tokenLimit = app.textFields["settings.memory.tokenLimit"]
         XCTAssertTrue(tokenLimit.exists)
         tokenLimit.click()
@@ -148,6 +149,7 @@ final class SettingsLayoutUITests: XCTestCase {
         app.buttons["settings.category.data"].click()
         XCTAssertTrue(app.buttons["settings.data.export"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["settings.data.restore"].exists)
+        captureSettings(window, page: "Data and Privacy", language: language)
         XCTAssertFalse(tokenLimit.exists, "Inactive preference pages must be unmounted.")
         app.buttons["settings.category.memory"].click()
         XCTAssertEqual(tokenLimit.value as? String, "12000", "Changing categories must retain an unsaved preference draft.")
@@ -165,6 +167,26 @@ final class SettingsLayoutUITests: XCTestCase {
         app.buttons["settings.return"].click()
         app.buttons["sidebar.settings"].click()
         XCTAssertTrue(tokenLimit.waitForExistence(timeout: 5))
+        app.buttons["settings.return"].click()
+        window.toolbars.buttons.firstMatch.click()
+        let settingsLink = app.buttons["sidebar.settings"]
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == false"), object: settingsLink)], timeout: 5), .completed)
+        openSettings(app, language: language)
+        XCTAssertTrue(providers.waitForExistence(timeout: 5))
+        XCTAssertTrue(providers.isHittable)
+        XCTAssertEqual(window.toolbars.buttons.count, 0)
+        app.buttons["settings.return"].click()
+        XCTAssertTrue(composer.waitForExistence(timeout: 5))
+        XCTAssertFalse(settingsLink.isHittable)
+        window.toolbars.buttons.firstMatch.click()
+        XCTAssertTrue(settingsLink.waitForExistence(timeout: 5))
+    }
+
+    private func captureSettings(_ window: XCUIElement, page: String, language: String) {
+        let capture = XCTAttachment(screenshot: window.screenshot())
+        capture.name = "Settings \(page) - \(language)"
+        capture.lifetime = .keepAlways
+        add(capture)
     }
 
     private func exerciseConversationReturn(_ app: XCUIApplication) throws {

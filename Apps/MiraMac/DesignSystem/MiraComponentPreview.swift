@@ -76,10 +76,12 @@ private struct MiraComponentPreview: View {
     MiraComponentPreview().environment(\.locale, Locale(identifier: "en")).preferredColorScheme(.dark)
 }
 
+// Settings previews include the 64 pt top inset and 32 pt header-to-content gap.
 #Preview("Settings · Light") {
     @Previewable @State var search = ""
     @Previewable @State var enabled = true
     MiraSettingsPage {
+        MiraSettingsHeader(title: "Providers", subtitle: "Manage provider connections and models.")
         MiraSettingsSearchField(prompt: "Search providers", text: $search)
         MiraSettingsSection("Providers") {
             MiraSettingsRow("Active") { Toggle("Active", isOn: $enabled).labelsHidden().toggleStyle(.switch) }
@@ -87,14 +89,14 @@ private struct MiraComponentPreview: View {
             MiraSettingsRow("Default Models") { Button("Configure") {} }
         }
     }
-    .frame(width: 650, height: 460)
+    .frame(width: 850 - MiraTheme.Layout.sidebarIdeal, height: 620)
     .preferredColorScheme(.light)
 }
 
 #Preview("Settings · Dark") {
     @Previewable @State var search = ""
     MiraSettingsPage {
-        MiraSettingsSearchField(prompt: "Search providers", text: $search)
+        MiraSettingsHeader(title: "General", subtitle: "Customize Mira's display language.")
         MiraSettingsSection("Language") {
             MiraSettingsRow("Display Language") { Text("English") }
             MiraSettingsDivider()
@@ -102,7 +104,8 @@ private struct MiraComponentPreview: View {
                 .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
         }
     }
-    .frame(width: 650, height: 460)
+    .frame(width: 850 - MiraTheme.Layout.sidebarIdeal, height: 620)
+    .environment(\.locale, Locale(identifier: "zh-CN"))
     .preferredColorScheme(.dark)
 }
 
@@ -121,7 +124,7 @@ private struct MiraComponentPreview: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)),
         title: "Mira", locale: Locale(identifier: "en"), isSettings: false,
         canInspect: true, showsInspector: $showsInspector,
-        newConversation: {}, returnToConversation: {}
+        newConversation: {}
     )
     .frame(width: 850, height: 620)
     .containerBackground(MiraTheme.Colors.canvas, for: .window)

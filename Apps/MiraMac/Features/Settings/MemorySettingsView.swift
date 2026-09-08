@@ -23,6 +23,7 @@ struct MemorySettingsView: View {
 
     var body: some View {
         MiraSettingsPage {
+            MiraSettingsHeader(title: "Memory", subtitle: "Configure automatic memory and daily extraction limits.")
             MiraSettingsSection("Automatic memory") {
                 MiraSettingsRow("Capture mode") {
                     Picker("Capture mode", selection: modeBinding) {

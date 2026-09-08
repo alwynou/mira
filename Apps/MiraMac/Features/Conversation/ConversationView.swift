@@ -70,8 +70,7 @@ struct ConversationRoot: View {
                 .environment(\.locale, locale)),
             title: displayedConversationTitle, locale: locale, isSettings: navigation.showsSettings,
             canInspect: !model.executions.isEmpty, showsInspector: $showsInspector,
-            newConversation: { Task { await model.newConversation() } },
-            returnToConversation: { navigation.returnToConversation() }
+            newConversation: { Task { await model.newConversation() } }
         )
         .ignoresSafeArea()
     }

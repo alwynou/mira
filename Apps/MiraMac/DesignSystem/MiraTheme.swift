@@ -60,6 +60,7 @@ enum MiraTheme {
         static let composerMax: CGFloat = 760
         static let controlHeight: CGFloat = 30
         static let rowHeight: CGFloat = 34
+        static let settingsPageTopInset: CGFloat = 64
     }
 
     enum Typography {
