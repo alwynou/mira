@@ -3,10 +3,10 @@ import MiraCore
 
 struct ConversationTranscript: View {
     let model: ConversationModel
+    let readingState: ConversationReadingState
     @Binding var rememberedMessage: Message?
     @Binding var revealedMessageID: MessageID?
-    @State private var position = ScrollPosition(edge: .bottom)
-    @State private var scrollState = TranscriptScrollState()
+    @State private var position = ScrollPosition()
     @State private var followScheduler = TranscriptFollowScheduler()
     @State private var latestBottomOffset: CGFloat = 0
     @State private var followsByOffset = false
@@ -35,21 +35,33 @@ struct ConversationTranscript: View {
             .scrollTargetLayout()
             .padding(MiraTheme.Spacing.xl).frame(maxWidth: MiraTheme.Layout.contentMax + MiraTheme.Spacing.xl * 2).frame(maxWidth: .infinity)
         }
+        .accessibilityIdentifier("conversation.transcript")
         .scrollPosition($position)
-        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .defaultScrollAnchor(readingState.scrollState.followsLatest ? .bottom : .top, for: .initialOffset)
+        .onAppear { readingState.prepareForDisplay() }
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, offset in
+            readingState.recordOffset(offset)
+        }
         .defaultScrollAnchor(.top, for: .alignment)
         .onScrollGeometryChange(for: TranscriptViewport.self) { geometry in
             TranscriptViewport(contentHeight: ceil(geometry.contentSize.height), containerHeight: ceil(geometry.containerSize.height),
                                visibleBottom: geometry.visibleRect.maxY)
         } action: { _, viewport in
             latestBottomOffset = max(0, viewport.contentHeight - viewport.containerHeight)
+            if let offset = readingState.takeRestorationOffset(maximumOffset: latestBottomOffset) {
+                // The scroll binding belongs to this mounted ScrollView. Restore only
+                // the saved value, outside the geometry transaction.
+                followScheduler.schedule { position.scrollTo(y: offset) }
+            }
             // Follow the rendered height, including asynchronous Markdown and code layout,
             // rather than raw token count. A point target can interpolate as the bottom
             // moves; a permanently pinned edge would jump with every size change.
-            if scrollState.shouldFollowContentChange(),
+            if readingState.scrollState.shouldFollowContentChange(),
                !followsByOffset || viewport.visibleBottom < viewport.contentHeight - 1 {
                 followScheduler.schedule {
-                    guard scrollState.shouldFollowContentChange() else { return }
+                    guard readingState.scrollState.shouldFollowContentChange() else { return }
                     TranscriptScrollAnimation.perform(animated: followsByOffset && !reduceMotion && model.activeExecution != nil) {
                         position.scrollTo(y: latestBottomOffset)
                     }
@@ -59,8 +71,8 @@ struct ConversationTranscript: View {
         }
         .onScrollPhaseChange { _, phase, context in
             let isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
-            if isUserScrolling { followScheduler.cancel() }
-            scrollState.userScrollChanged(
+            if isUserScrolling { followScheduler.cancel(); readingState.userStartedScrolling() }
+            readingState.scrollState.userScrollChanged(
                 isScrolling: isUserScrolling,
                 isNearBottom: TranscriptScrollState.isNearBottom(
                     contentHeight: context.geometry.contentSize.height,
@@ -75,29 +87,31 @@ struct ConversationTranscript: View {
             guard let messageID,
                   model.messages.contains(where: { $0.id == messageID && $0.role == .user && $0.status == .committed }) else { return }
             followScheduler.cancel()
-            scrollState.revealHistory()
+            readingState.userStartedScrolling()
+            readingState.scrollState.revealHistory()
             position.scrollTo(id: "message:\(messageID.rawValue.uuidString)", anchor: .center)
             revealedMessageID = nil
         }
         .overlay(alignment: .bottomTrailing) {
-            if !scrollState.followsLatest && !scrollState.isUserScrolling {
+            if !readingState.scrollState.followsLatest && !readingState.scrollState.isUserScrolling {
                 Button("Jump to latest", systemImage: "arrow.down") { jumpToLatest() }
                     .buttonStyle(MiraPrimaryButtonStyle())
                     .padding(16)
             }
         }
         .onChange(of: reduceMotion) { _, enabled in
-            if enabled, scrollState.shouldFollowContentChange() {
+            if enabled, readingState.scrollState.shouldFollowContentChange() {
                 followScheduler.cancel()
                 TranscriptScrollAnimation.perform(animated: false) { position.scrollTo(y: latestBottomOffset) }
             }
         }
-        .onDisappear { followScheduler.cancel() }
+        .onDisappear { followScheduler.cancel(); readingState.leave() }
     }
 
     private func jumpToLatest() {
         followScheduler.cancel()
-        scrollState.jumpToLatest()
+        readingState.userStartedScrolling()
+        readingState.scrollState.jumpToLatest()
         TranscriptScrollAnimation.perform(animated: false) { position.scrollTo(y: latestBottomOffset) }
         followsByOffset = true
     }

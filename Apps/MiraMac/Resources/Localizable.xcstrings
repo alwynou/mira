@@ -1,6 +1,23 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Not implemented yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not implemented yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待实现"
+          }
+        }
+      }
+    },
     "Ordinary statements use automatic memory capture after the reply. No manual memory was saved.": {
       "extractionState": "manual",
       "localizations": {
@@ -82,22 +99,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "--data-directory 需要绝对路径；未打开默认资料库。"
-          }
-        }
-      }
-    },
-    "A competing replacement is awaiting review. Reject it or review the current successor before approving.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A competing replacement is awaiting review. Reject it or review the current successor before approving."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "竞争性的替代记忆正在等待审核。请先拒绝它，或查看当前后继记忆，再进行批准。"
           }
         }
       }
@@ -491,38 +492,6 @@
         }
       }
     },
-    "Agent inference": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Agent inference"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "助手推断"
-          }
-        }
-      }
-    },
-    "All states": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All states"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "所有状态"
-          }
-        }
-      }
-    },
     "Allow explicitly configured local HTTP services": {
       "localizations": {
         "en": {
@@ -568,22 +537,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "允许用于远程模型请求"
-          }
-        }
-      }
-    },
-    "Allowed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allowed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "允许"
           }
         }
       }
@@ -638,38 +591,6 @@
         }
       }
     },
-    "Approve": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Approve"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "批准"
-          }
-        }
-      }
-    },
-    "Archive": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Archive"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "归档"
-          }
-        }
-      }
-    },
     "Archive conversation": {
       "extractionState": "manual",
       "localizations": {
@@ -704,22 +625,6 @@
         }
       }
     },
-    "Assistant": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Assistant"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "助手"
-          }
-        }
-      }
-    },
     "At most two replies can be processed at once. Wait for generation or saving to finish.": {
       "extractionState": "manual",
       "localizations": {
@@ -749,22 +654,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "遗忘记忆后，审计内容已清除"
-          }
-        }
-      }
-    },
-    "Authority": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Authority"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "权威级别"
           }
         }
       }
@@ -998,22 +887,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "执行前取消"
-          }
-        }
-      }
-    },
-    "Candidate body unavailable.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Candidate body unavailable."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "候选记忆正文不可用。"
           }
         }
       }
@@ -1352,22 +1225,6 @@
         }
       }
     },
-    "Close": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "关闭"
-          }
-        }
-      }
-    },
     "Committed message": {
       "localizations": {
         "en": {
@@ -1380,22 +1237,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "已提交的消息"
-          }
-        }
-      }
-    },
-    "Compare the proposed memory with the current version before confirming the replacement.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Compare the proposed memory with the current version before confirming the replacement."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "确认替代前，请比较提议的记忆与当前版本。"
           }
         }
       }
@@ -1550,22 +1391,6 @@
         }
       }
     },
-    "Confirm replacement": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confirm replacement"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "确认替代"
-          }
-        }
-      }
-    },
     "Confirm that this model supports streaming text conversations.": {
       "extractionState": "manual",
       "localizations": {
@@ -1579,22 +1404,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "请确认此模型支持流式文本对话。"
-          }
-        }
-      }
-    },
-    "Confirmed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confirmed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已确认"
           }
         }
       }
@@ -2011,22 +1820,6 @@
         }
       }
     },
-    "Create a memory from a committed user message or add one manually.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create a memory from a committed user message or add one manually."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "从已提交的用户消息创建记忆，或手动添加记忆。"
-          }
-        }
-      }
-    },
     "Create a named route preset to use a model.": {
       "localizations": {
         "en": {
@@ -2089,38 +1882,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "当前权限或连接已改变，工具未执行。"
-          }
-        }
-      }
-    },
-    "Current body unavailable.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current body unavailable."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "当前记忆正文不可用。"
-          }
-        }
-      }
-    },
-    "Current memory": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current memory"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "当前记忆"
           }
         }
       }
@@ -2239,22 +2000,6 @@
         }
       }
     },
-    "Details": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Details"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "详细信息"
-          }
-        }
-      }
-    },
     "Directory": {
       "extractionState": "manual",
       "localizations": {
@@ -2301,22 +2046,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "完成"
-          }
-        }
-      }
-    },
-    "Edit": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Edit"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "编辑"
           }
         }
       }
@@ -2801,22 +2530,6 @@
         }
       }
     },
-    "Explicit user": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Explicit user"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "用户明确指定"
-          }
-        }
-      }
-    },
     "Export Library Backup…": {
       "extractionState": "manual",
       "localizations": {
@@ -2896,70 +2609,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "请先配置大于 128 Token 的上下文窗口，再检测能力。"
-          }
-        }
-      }
-    },
-    "Forget memory": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forget memory"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "遗忘记忆"
-          }
-        }
-      }
-    },
-    "Forget this memory?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forget this memory?"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "要遗忘这条记忆吗？"
-          }
-        }
-      }
-    },
-    "Forget…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forget…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "遗忘……"
-          }
-        }
-      }
-    },
-    "Forgotten": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forgotten"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已遗忘"
           }
         }
       }
@@ -3143,22 +2792,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "未完成"
-          }
-        }
-      }
-    },
-    "Inferred": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inferred"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "推断"
           }
         }
       }
@@ -3424,22 +3057,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "超出限额"
-          }
-        }
-      }
-    },
-    "Loading current version": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading current version"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在加载当前版本"
           }
         }
       }
@@ -3818,22 +3435,6 @@
         }
       }
     },
-    "Memory content was forgotten and is no longer available.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Memory content was forgotten and is no longer available."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "该记忆已被遗忘，正文不再可用。"
-          }
-        }
-      }
-    },
     "Memory evidence excerpt is required and must be short.": {
       "localizations": {
         "en": {
@@ -3910,22 +3511,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "记忆意图配置不可用。"
-          }
-        }
-      }
-    },
-    "Memory operation incomplete": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Memory operation incomplete"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "记忆操作未完成"
           }
         }
       }
@@ -4022,22 +3607,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "记忆搜索查询过长。"
-          }
-        }
-      }
-    },
-    "Memory state": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Memory state"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "记忆状态"
           }
         }
       }
@@ -4568,22 +4137,6 @@
         }
       }
     },
-    "No memories": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No memories"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有记忆"
-          }
-        }
-      }
-    },
     "No model configured": {
       "extractionState": "manual",
       "localizations": {
@@ -4613,22 +4166,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "未配置提供商连接。"
-          }
-        }
-      }
-    },
-    "Not allowed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not allowed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不允许"
           }
         }
       }
@@ -4663,38 +4200,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "好"
-          }
-        }
-      }
-    },
-    "Observed user": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Observed user"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "观察到的用户"
-          }
-        }
-      }
-    },
-    "Observed user statement": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Observed user statement"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "观察到的用户陈述"
           }
         }
       }
@@ -4865,22 +4370,6 @@
         }
       }
     },
-    "Origin": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Origin"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "来源"
-          }
-        }
-      }
-    },
     "Original user excerpt": {
       "localizations": {
         "en": {
@@ -5046,22 +4535,6 @@
         }
       }
     },
-    "Proposed memory": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proposed memory"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "提议的记忆"
-          }
-        }
-      }
-    },
     "Protocol": {
       "localizations": {
         "en": {
@@ -5176,70 +4649,6 @@
         }
       }
     },
-    "Reject": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reject"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "拒绝"
-          }
-        }
-      }
-    },
-    "Reject candidate": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reject candidate"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "拒绝候选记忆"
-          }
-        }
-      }
-    },
-    "Rejected": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rejected"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已拒绝"
-          }
-        }
-      }
-    },
-    "Reload review": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reload review"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重新加载审核"
-          }
-        }
-      }
-    },
     "Remember this message…": {
       "localizations": {
         "en": {
@@ -5252,22 +4661,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "记住这条消息……"
-          }
-        }
-      }
-    },
-    "Remote use": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remote use"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "远程使用"
           }
         }
       }
@@ -5300,22 +4693,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "移除绑定 / 继承"
-          }
-        }
-      }
-    },
-    "Removed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Removed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已移除"
           }
         }
       }
@@ -5364,22 +4741,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "替代记忆 %@"
-          }
-        }
-      }
-    },
-    "Replacement history": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Replacement history"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "替代历史"
           }
         }
       }
@@ -5535,38 +4896,6 @@
         }
       }
     },
-    "Restore": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "恢复"
-          }
-        }
-      }
-    },
-    "Restore for review": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore for review"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "恢复以供审核"
-          }
-        }
-      }
-    },
     "Restore to New Directory…": {
       "extractionState": "manual",
       "localizations": {
@@ -5668,22 +4997,6 @@
         }
       }
     },
-    "Review its content, evidence, and lifecycle here.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Review its content, evidence, and lifecycle here."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在此查看其内容、证据和生命周期。"
-          }
-        }
-      }
-    },
     "Review memory request": {
       "localizations": {
         "en": {
@@ -5696,38 +5009,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "查看记忆请求"
-          }
-        }
-      }
-    },
-    "Review replacement": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Review replacement"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "审核替代记忆"
-          }
-        }
-      }
-    },
-    "Revision": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revision"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "版本"
           }
         }
       }
@@ -5760,54 +5041,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "此回复使用的版本 %lld"
-          }
-        }
-      }
-    },
-    "Revision body was cleared after forgetting this memory.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revision body was cleared after forgetting this memory."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "遗忘这条记忆后，修订正文已被清除。"
-          }
-        }
-      }
-    },
-    "Revision content unavailable.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revision content unavailable."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "修订内容不可用。"
-          }
-        }
-      }
-    },
-    "Revisions": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revisions"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "修订记录"
           }
         }
       }
@@ -6023,22 +5256,6 @@
         }
       }
     },
-    "Search memories": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search memories"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "搜索记忆"
-          }
-        }
-      }
-    },
     "Select a connection": {
       "localizations": {
         "en": {
@@ -6051,22 +5268,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "选择连接"
-          }
-        }
-      }
-    },
-    "Select a memory": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select a memory"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择一条记忆"
           }
         }
       }
@@ -6154,22 +5355,6 @@
         }
       }
     },
-    "Sensitive": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sensitive"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "敏感"
-          }
-        }
-      }
-    },
     "Sensitive memory": {
       "localizations": {
         "en": {
@@ -6182,22 +5367,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "敏感记忆"
-          }
-        }
-      }
-    },
-    "Sensitivity": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sensitivity"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "敏感度"
           }
         }
       }
@@ -6387,22 +5556,6 @@
         }
       }
     },
-    "Showing the first 100 results. Refine your search to see more.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Showing the first 100 results. Refine your search to see more."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在显示前 100 条结果。请细化搜索以查看更多内容。"
-          }
-        }
-      }
-    },
     "Source revision %@": {
       "localizations": {
         "en": {
@@ -6431,22 +5584,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "来源：已提交的用户消息"
-          }
-        }
-      }
-    },
-    "Standard": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Standard"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "普通"
           }
         }
       }
@@ -6918,38 +6055,6 @@
         }
       }
     },
-    "The candidate and current memory have different scopes. Reload review or reject this candidate.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The candidate and current memory have different scopes. Reload review or reject this candidate."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "候选记忆与当前记忆的范围不同。请重新加载审核，或拒绝此候选记忆。"
-          }
-        }
-      }
-    },
-    "The candidate and current memory have different subjects. Reload review or reject this candidate.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The candidate and current memory have different subjects. Reload review or reject this candidate."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "候选记忆与当前记忆的主体不同。请重新加载审核，或拒绝此候选记忆。"
-          }
-        }
-      }
-    },
     "The captured memory is no longer available for this execution.": {
       "localizations": {
         "en": {
@@ -7095,22 +6200,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "当前用户消息已不再授权此记忆。"
-          }
-        }
-      }
-    },
-    "The current version is unavailable. Reload review or reject this candidate.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The current version is unavailable. Reload review or reject this candidate."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "当前版本不可用。请重新加载审核，或拒绝此候选记忆。"
           }
         }
       }
@@ -8759,22 +7848,6 @@
         }
       }
     },
-    "The previous memory is no longer the current active version. Reload review or reject this candidate.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The previous memory is no longer the current active version. Reload review or reject this candidate."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "之前的记忆已不再是当前有效版本。请重新加载审核，或拒绝此候选记忆。"
-          }
-        }
-      }
-    },
     "The previous model output has not been submitted.": {
       "extractionState": "manual",
       "localizations": {
@@ -9180,38 +8253,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "替换候选已不可用。"
-          }
-        }
-      }
-    },
-    "The replacement chain contains a cycle. Reload review or reject this candidate.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The replacement chain contains a cycle. Reload review or reject this candidate."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "替代链包含循环。请重新加载审核，或拒绝此候选记忆。"
-          }
-        }
-      }
-    },
-    "The replacement chain is too long to review safely. Reload review or reject this candidate.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The replacement chain is too long to review safely. Reload review or reject this candidate."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "替代链过长，无法安全审核。请重新加载审核，或拒绝此候选记忆。"
           }
         }
       }
@@ -9810,38 +8851,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "此备份使用不受支持的开发版本。请创建新的资料库继续使用；原备份未被修改。"
-          }
-        }
-      }
-    },
-    "This candidate is no longer available for confirmation. Reload review or reject it.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This candidate is no longer available for confirmation. Reload review or reject it."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此候选记忆已无法确认。请重新加载审核，或拒绝它。"
-          }
-        }
-      }
-    },
-    "This candidate is not linked to the proposed replacement. Reload review or reject it.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This candidate is not linked to the proposed replacement. Reload review or reject it."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此候选记忆未关联到提议的替代关系。请重新加载审核，或拒绝它。"
           }
         }
       }
@@ -13259,295 +12268,6 @@
         }
       }
     },
-    "Search knowledge": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search knowledge"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "搜索知识库"
-          }
-        }
-      }
-    },
-    "Import Markdown…": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import Markdown…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入 Markdown……"
-          }
-        }
-      }
-    },
-    "Loading source": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading source"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在加载来源"
-          }
-        }
-      }
-    },
-    "Select a source": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select a source"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择来源"
-          }
-        }
-      }
-    },
-    "Import a Markdown file or select a source to inspect its versions and chunks.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import a Markdown file or select a source to inspect its versions and chunks."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入 Markdown 文件，或选择来源以查看其版本和分块。"
-          }
-        }
-      }
-    },
-    "No knowledge sources": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No knowledge sources"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有知识来源"
-          }
-        }
-      }
-    },
-    "Import Markdown files to make local source material available for review.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import Markdown files to make local source material available for review."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入 Markdown 文件，使本地来源内容可供审核。"
-          }
-        }
-      }
-    },
-    "No matching knowledge": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No matching knowledge"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有匹配的知识内容"
-          }
-        }
-      }
-    },
-    "Try a different search phrase.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try a different search phrase."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请尝试其他搜索词。"
-          }
-        }
-      }
-    },
-    "Importing Markdown": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importing Markdown"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在导入 Markdown"
-          }
-        }
-      }
-    },
-    "Import results": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import results"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入结果"
-          }
-        }
-      }
-    },
-    "Reused existing version": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reused existing version"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已复用现有版本"
-          }
-        }
-      }
-    },
-    "Imported": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imported"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已导入"
-          }
-        }
-      }
-    },
-    "Current version available": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current version available"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "当前版本可用"
-          }
-        }
-      }
-    },
-    "No current version": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No current version"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有当前版本"
-          }
-        }
-      }
-    },
-    "Model use allowed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Model use allowed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "允许模型使用"
-          }
-        }
-      }
-    },
-    "Delete knowledge source?": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete knowledge source?"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除知识来源？"
-          }
-        }
-      }
-    },
     "Delete %@": {
       "extractionState": "manual",
       "localizations": {
@@ -13582,23 +12302,6 @@
         }
       }
     },
-    "Choose up to 100 Markdown files, each no larger than 10 MiB.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose up to 100 Markdown files, each no larger than 10 MiB."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最多选择 100 个 Markdown 文件，每个文件不得超过 10 MiB。"
-          }
-        }
-      }
-    },
     "Choose one Markdown file to update %@.": {
       "extractionState": "manual",
       "localizations": {
@@ -13612,159 +12315,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "选择一个 Markdown 文件以更新 %@。"
-          }
-        }
-      }
-    },
-    "Model use": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Model use"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "模型使用"
-          }
-        }
-      }
-    },
-    "Allow model use for this source": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allow model use for this source"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "允许模型使用此来源"
-          }
-        }
-      }
-    },
-    "Sources are local-only by default. Allowing model use permits this source to be sent through an explicitly configured route when policy and workspace restrictions allow it.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sources are local-only by default. Allowing model use permits this source to be sent through an explicitly configured route when policy and workspace restrictions allow it."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "来源默认仅保存在本地。允许模型使用后，在策略和工作区限制允许时，此来源可通过明确配置的路由发送。"
-          }
-        }
-      }
-    },
-    "Save model-use setting": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save model-use setting"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存模型使用设置"
-          }
-        }
-      }
-    },
-    "Versions": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Versions"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "版本"
-          }
-        }
-      }
-    },
-    "Version": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Version"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "版本"
-          }
-        }
-      }
-    },
-    "No versions are available.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No versions are available."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有可用版本。"
-          }
-        }
-      }
-    },
-    "Ready": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ready"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "就绪"
-          }
-        }
-      }
-    },
-    "Parse failed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parse failed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "解析失败"
           }
         }
       }
@@ -13803,40 +12353,6 @@
         }
       }
     },
-    "Chunks": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chunks"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分块"
-          }
-        }
-      }
-    },
-    "This version has no parsed chunks.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This version has no parsed chunks."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此版本没有已解析的分块。"
-          }
-        }
-      }
-    },
     "Chunk %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -13867,23 +12383,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "第 %lld–%lld 行"
-          }
-        }
-      }
-    },
-    "Source chunk": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Source chunk"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "来源分块"
           }
         }
       }
@@ -13990,125 +12489,6 @@
         }
       }
     },
-    "Select at most 100 Markdown files, or one file when updating a source.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select at most 100 Markdown files, or one file when updating a source."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最多选择 100 个 Markdown 文件；更新来源时只能选择一个文件。"
-          }
-        }
-      }
-    },
-    "The Markdown file exceeds the 10 MiB limit.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The Markdown file exceeds the 10 MiB limit."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Markdown 文件超过 10 MiB 限制。"
-          }
-        }
-      }
-    },
-    "Showing the first 200 chunks.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Showing the first 200 chunks."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示前 100 个分块。"
-          }
-        }
-      }
-    },
-    "Update selected source": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Update selected source"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "更新选中的来源"
-          }
-        }
-      }
-    },
-    "Delete": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除"
-          }
-        }
-      }
-    },
-    "Imports keep an immutable snapshot; Mira does not retain file access or update it automatically.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imports keep an immutable snapshot; Mira does not retain file access or update it automatically."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入会保留不可变快照；Mira 不会保留文件访问权限，也不会自动更新快照。"
-          }
-        }
-      }
-    },
-    "Search results may be incomplete. Refine your search phrase.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search results may be incomplete. Refine your search phrase."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "搜索结果可能不完整。请缩小搜索短语。"
-          }
-        }
-      }
-    },
     "Search checked %lld candidates before its time limit. Refine your query.": {
       "extractionState": "manual",
       "localizations": {
@@ -14122,57 +12502,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "搜索在达到时间限制前检查了 %lld 个候选项。请缩小查询范围。"
-          }
-        }
-      }
-    },
-    "Source unavailable": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Source unavailable"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "来源不可用"
-          }
-        }
-      }
-    },
-    "Reload source": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reload source"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重新加载来源"
-          }
-        }
-      }
-    },
-    "The selected source belongs to another workspace.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The selected source belongs to another workspace."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选中的来源属于另一个工作区。"
           }
         }
       }
@@ -15193,40 +13522,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "暂存数据库留下了意外的日志文件。"
-          }
-        }
-      }
-    },
-    "Showing the first 100 sources. Search can find older sources.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Showing the first 100 sources. Search can find older sources."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示前 100 个来源。搜索可以找到更早的来源。"
-          }
-        }
-      }
-    },
-    "Showing the first 100 versions.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Showing the first 100 versions."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示前 100 个版本。"
           }
         }
       }
@@ -19179,23 +17474,6 @@
         }
       }
     },
-    "Expired": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expired"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已过期"
-          }
-        }
-      }
-    },
     "Historical reply retained. The related memory has changed or is unavailable, so this reply is excluded from future model context.": {
       "extractionState": "manual",
       "localizations": {
@@ -19209,23 +17487,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "历史回复已保留。关联记忆已变更或不可用，因此该回复不再用于后续模型上下文。"
-          }
-        }
-      }
-    },
-    "Not yet valid": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not yet valid"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "尚未生效"
           }
         }
       }
@@ -19396,40 +17657,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "关联记忆已更新"
-          }
-        }
-      }
-    },
-    "Superseded": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Superseded"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已被替代"
-          }
-        }
-      }
-    },
-    "The memory content and revisions will be cleared, and Mira will stop recalling it. Historical messages and replies remain visible in conversation history with a forgotten-memory status tag.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The memory content and revisions will be cleared, and Mira will stop recalling it. Historical messages and replies remain visible in conversation history with a forgotten-memory status tag."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "记忆内容及其修订版本将被清除，Mira 将停止召回该记忆。历史消息和回复仍会在对话历史中显示，并带有“关联记忆已遗忘”状态标签。"
           }
         }
       }
@@ -19842,74 +18069,6 @@
         }
       }
     },
-    "Action": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Action"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "操作"
-          }
-        }
-      }
-    },
-    "Add due date": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add due date"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "添加截止时间"
-          }
-        }
-      }
-    },
-    "Add reminder": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add reminder"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "添加提醒"
-          }
-        }
-      }
-    },
-    "Allow Mira notifications in System Settings, then return to retry scheduling.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allow Mira notifications in System Settings, then return to retry scheduling."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请在系统设置中允许 Mira 发送通知，然后返回重试排程。"
-          }
-        }
-      }
-    },
     "At most 60 future reminders can be active. Complete or cancel a reminder first.": {
       "extractionState": "manual",
       "localizations": {
@@ -19995,23 +18154,6 @@
         }
       }
     },
-    "Cancel task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "取消任务"
-          }
-        }
-      }
-    },
     "Choose a future reminder time before scheduling.": {
       "extractionState": "manual",
       "localizations": {
@@ -20029,23 +18171,6 @@
         }
       }
     },
-    "Choose an exact reminder date and time before accepting.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose an exact reminder date and time before accepting."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "接受前请选择准确的提醒日期和时间。"
-          }
-        }
-      }
-    },
     "Choose an exact reminder time before accepting this proposal.": {
       "extractionState": "manual",
       "localizations": {
@@ -20059,193 +18184,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "接受此建议前，请选择准确的提醒时间。"
-          }
-        }
-      }
-    },
-    "Complete": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Complete"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "完成"
-          }
-        }
-      }
-    },
-    "Complete task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Complete task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "完成任务"
-          }
-        }
-      }
-    },
-    "Create a task or review a proposed task.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create a task or review a proposed task."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "创建任务或审核建议的任务。"
-          }
-        }
-      }
-    },
-    "Create task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "创建任务"
-          }
-        }
-      }
-    },
-    "Created": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Created"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已创建"
-          }
-        }
-      }
-    },
-    "Due": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Due"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "截止时间"
-          }
-        }
-      }
-    },
-    "Elapsed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Elapsed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已过期"
-          }
-        }
-      }
-    },
-    "Enable notifications": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enable notifications"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "启用通知"
-          }
-        }
-      }
-    },
-    "In progress": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In progress"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "进行中"
-          }
-        }
-      }
-    },
-    "Include completed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Include completed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "包括已完成"
-          }
-        }
-      }
-    },
-    "Loading task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在加载任务"
           }
         }
       }
@@ -20284,91 +18222,6 @@
         }
       }
     },
-    "New task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新任务"
-          }
-        }
-      }
-    },
-    "No reminder": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No reminder"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无提醒"
-          }
-        }
-      }
-    },
-    "No revision history available.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No revision history available."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有可用的修订历史。"
-          }
-        }
-      }
-    },
-    "No tasks": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No tasks"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有任务"
-          }
-        }
-      }
-    },
-    "Notes": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notes"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "备注"
-          }
-        }
-      }
-    },
     "Notification permission could not be requested. Check System Settings.": {
       "extractionState": "manual",
       "localizations": {
@@ -20382,23 +18235,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法请求通知权限，请检查系统设置。"
-          }
-        }
-      }
-    },
-    "Notifications enabled.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications enabled."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "通知已启用。"
           }
         }
       }
@@ -20420,23 +18256,6 @@
         }
       }
     },
-    "Notifications remain disabled.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications remain disabled."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "通知仍处于停用状态。"
-          }
-        }
-      }
-    },
     "Only one-time reminders with an exact time are supported. Recurring and conditional reminders require a different schedule.": {
       "extractionState": "manual",
       "localizations": {
@@ -20454,193 +18273,6 @@
         }
       }
     },
-    "Open": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "开放"
-          }
-        }
-      }
-    },
-    "Original request": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Original request"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "原始请求"
-          }
-        }
-      }
-    },
-    "Pending": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pending"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "待处理"
-          }
-        }
-      }
-    },
-    "Permission required": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permission required"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "需要权限"
-          }
-        }
-      }
-    },
-    "Proposed task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proposed task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "建议任务"
-          }
-        }
-      }
-    },
-    "Reminder": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reminder"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "提醒"
-          }
-        }
-      }
-    },
-    "Reminder delivery": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reminder delivery"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "提醒投递"
-          }
-        }
-      }
-    },
-    "Reminder time needs review": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reminder time needs review"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "需要审核提醒时间"
-          }
-        }
-      }
-    },
-    "Reopen": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reopen"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重新打开"
-          }
-        }
-      }
-    },
-    "Resume reminder": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resume reminder"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "恢复提醒"
-          }
-        }
-      }
-    },
-    "Retry scheduling": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retry scheduling"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重试安排"
-          }
-        }
-      }
-    },
     "Review pending task proposals before creating more.": {
       "extractionState": "manual",
       "localizations": {
@@ -20654,159 +18286,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "请先审核待处理的任务建议，再创建更多建议。"
-          }
-        }
-      }
-    },
-    "Review proposed task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Review proposed task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "审核建议任务"
-          }
-        }
-      }
-    },
-    "Review task details, evidence, and reminder delivery.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Review task details, evidence, and reminder delivery."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "查看任务详情、证据和提醒投递状态。"
-          }
-        }
-      }
-    },
-    "Review task proposal": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Review task proposal"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "审核任务建议"
-          }
-        }
-      }
-    },
-    "Revision history": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revision history"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "修订历史"
-          }
-        }
-      }
-    },
-    "Schedule": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Schedule"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "日程"
-          }
-        }
-      }
-    },
-    "Scheduled": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scheduled"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已安排"
-          }
-        }
-      }
-    },
-    "Select a task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select a task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择任务"
-          }
-        }
-      }
-    },
-    "Task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Task"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "任务"
-          }
-        }
-      }
-    },
-    "Task details": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Task details"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "任务详情"
           }
         }
       }
@@ -21066,121 +18545,223 @@
         }
       }
     },
-    "Time zone": {
+    "API Address and Protocol": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time zone"
+            "value": "API Address and Protocol"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "时区"
+            "value": "API 地址与协议"
           }
         }
       }
     },
-    "Update task": {
-      "extractionState": "manual",
+    "Back to Mira": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update task"
+            "value": "Back to Mira"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "修改任务"
+            "value": "返回 Mira"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
+    "Clear search": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear search"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除搜索"
           }
         }
       }
     },
-    "Updated": {
+    "Configure the dedicated route in Models > Purpose Defaults. Mira never falls back to a conversation route for memory extraction.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Updated"
+            "value": "Configure the dedicated route in Models > Purpose Defaults. Mira never falls back to a conversation route for memory extraction."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已更新"
+            "value": "请在“模型 > 用途默认”中配置专用路由。Mira 不会将记忆提取回退到对话路由。"
           }
         }
       }
     },
-    "Changed by": {
+    "Connection Settings": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Changed by"
+            "value": "Connection Settings"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "修改者"
+            "value": "连接设置"
           }
         }
       }
     },
-    "Task operation incomplete": {
+    "Data & Privacy": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Task operation incomplete"
+            "value": "Data & Privacy"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "任务操作未完成"
+            "value": "数据与隐私"
           }
         }
       }
     },
-    "Edit task": {
+    "Discard Changes": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Edit task"
+            "value": "Discard Changes"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "编辑任务"
+            "value": "放弃更改"
           }
         }
       }
     },
-    "Title": {
+    "Manage your model pool and choose defaults for each purpose.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Title"
+            "value": "Manage your model pool and choose defaults for each purpose."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "标题"
+            "value": "管理模型池，为不同用途选择默认模型。"
+          }
+        }
+      }
+    },
+    "More": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多"
+          }
+        }
+      }
+    },
+    "Not configured": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not configured"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未配置"
+          }
+        }
+      }
+    },
+    "Purpose Defaults": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purpose Defaults"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用途默认"
+          }
+        }
+      }
+    },
+    "Search providers": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search providers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索服务商"
+          }
+        }
+      }
+    },
+    "Settings…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置…"
           }
         }
       }

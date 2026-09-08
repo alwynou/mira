@@ -2,7 +2,7 @@
 
 **文档版本：** v1.3
 **更新日期：** 2026-09-07
-**状态：** M6 的一次性本地 Task / Reminder 增量已实现；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md) 和 [Task / Reminder 验收记录](../engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
+**状态：** M6 的一次性本地 Task / Reminder 底层能力保留；原任务管理界面已于 2026-09-08 按用户要求移除，替代界面待设计与实现。历史实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md) 和 [Task / Reminder 验收记录](../engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 定义事件、任务、提醒、日程和轻量财务记录的业务含义及 Apple 发布体验；当前实现的详细技术契约见 [Tasks and local reminders implementation](../architecture/TASKS_AND_REMINDERS.md)，版本范围由 MVP 决定。
 
@@ -39,7 +39,7 @@ FinancialTransaction
 
 当前实现的是 M6 的最小纵向路径：Task 可属于 Inbox 或一个 Workspace，包含标题、备注、可选到期时间、状态和修订历史；每个 Task 最多带一个确定时刻的一次性本地 Reminder。结构化记录的其他对象仍属于设计范围，未因 Task 实现而提前开放。
 
-Tasks 页面支持创建、编辑、完成、取消、重新打开、查看来源证据和修订历史。来自对话的明确 Task / Reminder 命令使用 `task.list` 与 `task.change`；含糊目标、缺少必要时间或需要用户判断的解释保留为独立 Proposal 供审核。通知的“已保存”与“已由系统确认排程”分开显示。
+Tasks 菜单当前保留为待实现入口，点击不会跳转或打开弹窗。创建、编辑、完成、取消、重新打开、来源证据、修订历史和 Proposal 审核的管理界面均待重新设计。来自对话的明确 Task / Reminder 命令仍使用 `task.list` 与 `task.change`；含糊目标、缺少必要时间或需要用户判断的解释仍保留为独立 Proposal，不因审核界面暂不可用而自动批准。通知的“已保存”与“已由系统确认排程”仍分开记录。
 
 <a id="s15-02"></a>
 

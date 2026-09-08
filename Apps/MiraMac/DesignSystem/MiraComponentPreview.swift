@@ -64,7 +64,7 @@ private struct MiraComponentPreview: View {
         }
         .frame(width: 800, height: 460)
         .foregroundStyle(MiraTheme.Colors.text)
-        .containerBackground(.clear, for: .window)
+        .containerBackground(MiraTheme.Colors.canvas, for: .window)
     }
 }
 
@@ -74,4 +74,55 @@ private struct MiraComponentPreview: View {
 
 #Preview("Components · Dark") {
     MiraComponentPreview().environment(\.locale, Locale(identifier: "en")).preferredColorScheme(.dark)
+}
+
+#Preview("Settings · Light") {
+    @Previewable @State var search = ""
+    @Previewable @State var enabled = true
+    MiraSettingsPage {
+        MiraSettingsSearchField(prompt: "Search providers", text: $search)
+        MiraSettingsSection("Providers") {
+            MiraSettingsRow("Active") { Toggle("Active", isOn: $enabled).labelsHidden().toggleStyle(.switch) }
+            MiraSettingsDivider()
+            MiraSettingsRow("Default Models") { Button("Configure") {} }
+        }
+    }
+    .frame(width: 650, height: 460)
+    .preferredColorScheme(.light)
+}
+
+#Preview("Settings · Dark") {
+    @Previewable @State var search = ""
+    MiraSettingsPage {
+        MiraSettingsSearchField(prompt: "Search providers", text: $search)
+        MiraSettingsSection("Language") {
+            MiraSettingsRow("Display Language") { Text("English") }
+            MiraSettingsDivider()
+            Text("macOS manages the language of system menus and file dialogs.")
+                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+        }
+    }
+    .frame(width: 650, height: 460)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Native window · Narrow") {
+    @Previewable @State var showsInspector = false
+    MiraWindowShell(
+        sidebar: AnyView(VStack(alignment: .leading) {
+            Text("Mira").font(MiraTheme.Typography.title).padding()
+            MiraSidebarRow(isSelected: true) { Label("New conversation", systemImage: "square.and.pencil") }
+            Spacer()
+        }.padding(MiraTheme.Spacing.sm)),
+        detail: AnyView(Text("Start with an idea")
+            .font(MiraTheme.Typography.welcome)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)),
+        inspector: AnyView(Text("Execution details").padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)),
+        title: "Mira", locale: Locale(identifier: "en"), isSettings: false,
+        canInspect: true, showsInspector: $showsInspector,
+        newConversation: {}, returnToConversation: {}
+    )
+    .frame(width: 850, height: 620)
+    .containerBackground(MiraTheme.Colors.canvas, for: .window)
 }

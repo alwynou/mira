@@ -61,6 +61,8 @@ targets:
     platform: macOS
     sources:
       - Apps/MiraMac/Localization
+      - Apps/MiraMac/App/MiraWindowShell.swift
+      - Apps/MiraMac/DesignSystem/MiraTheme.swift
       - Apps/MiraMac/Resources/Localizable.xcstrings
       - Tests/MiraLocalizationTests
       - Tests/MiraPlatformTests
@@ -69,11 +71,9 @@ targets:
       - Apps/MiraMac/Platform/Keychain
       - Apps/MiraMac/Presentation/ConversationStreamBuffer.swift
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
+      - Apps/MiraMac/Presentation/ConversationReadingState.swift
       - Apps/MiraMac/Presentation/TranscriptFollowScheduler.swift
       - Apps/MiraMac/Presentation/TranscriptScrollAnimation.swift
-      - Apps/MiraMac/Presentation/TaskModel.swift
-      - Apps/MiraMac/Presentation/MemoryModel.swift
-      - Apps/MiraMac/Presentation/KnowledgeModel.swift
       - Apps/MiraMac/Presentation/SourceCitationModel.swift
       - Apps/MiraMac/Features/Conversation/UsageCostView.swift
       - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests

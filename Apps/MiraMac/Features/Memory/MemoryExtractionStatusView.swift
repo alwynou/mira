@@ -6,7 +6,6 @@ struct MemoryExtractionStatusView: View {
     @Environment(\.locale) private var locale
     let application: MiraApplication
     let conversationID: ConversationID?
-    let onOpenMemory: (MemoryID) -> Void
     let onOpenSource: (MessageID) -> Void
 
     @State private var jobs: [MemoryExtractionJob] = []
@@ -68,7 +67,7 @@ struct MemoryExtractionStatusView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 440)
             if captureMode == .manualOnly {
-                SettingsLink {
+                MiraSettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
                 .buttonStyle(.bordered)
@@ -93,7 +92,7 @@ struct MemoryExtractionStatusView: View {
             }
             Spacer(minLength: 0)
             if captureMode == .manualOnly {
-                SettingsLink {
+                MiraSettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
                 .controlSize(.small)
@@ -204,12 +203,6 @@ struct MemoryExtractionStatusView: View {
             HStack(spacing: 8) {
                 Button("Open source") { onOpenSource(job.sourceMessageID) }
                     .buttonStyle(.link)
-                ForEach(job.memoryIDs, id: \.self) { memoryID in
-                    Button("Open memory") {
-                        onOpenMemory(memoryID)
-                    }
-                        .buttonStyle(.link)
-                }
                 if captureMode != .manualOnly && canRetry(job.state) {
                     Button("Retry") { retry(job) }
                         .buttonStyle(.bordered)

@@ -8,6 +8,12 @@
 
 返回 [PRD.md](../PRD.md) · 版本范围：[MVP](../MVP.md)
 
+## Current management UI status — 2026-09-08
+
+The previous Memory and Knowledge management screens have been removed at the user's request. Their sidebar entries remain visible as inert destinations with a "Not implemented yet" help label; clicking them preserves the current conversation and draft. The toolbar Knowledge entry is also inert. Memory extraction feedback no longer links to the removed management screen. Replacement management interfaces are pending design and implementation; the management interactions described below are product requirements, not currently available UI.
+
+This removes presentation only. Memory extraction, recall, conversation citations, explicit save/approval flows, settings, persisted records, and knowledge retrieval remain in place.
+
 ---
 
 <a id="s09"></a>
@@ -246,7 +252,7 @@ Agent 主动深度检索
 - 当前状态；
 - 是否被用户明确确认。
 
-Opening a memory from its processing result shows that specific memory, including an older item beyond the initial management list. Existing search text is cleared for this direct navigation; workspace access boundaries still apply.
+The replacement management interface must open a specific memory from its processing result, including an older item beyond the initial list, while preserving workspace access boundaries. This direct navigation is currently unavailable while the interface is deferred.
 
 <a id="s09-09"></a>
 

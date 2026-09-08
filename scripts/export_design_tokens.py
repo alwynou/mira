@@ -23,10 +23,11 @@ def export() -> None:
         "units": {"dimensions": "pt", "fontSizes": "pt", "colors": "RGB hex", "opacity": "fraction"},
         "systemSurfaces": {
             "sidebar": {
-                "owner": "macOS NavigationSplitView",
+                "owner": "macOS NSSplitViewItem sidebar",
                 "appearance": "automatic",
                 "transparency": "system accessibility preference",
-                "source": "Apps/MiraMac/Features/Conversation/ConversationView.swift",
+                "source": "Apps/MiraMac/App/MiraWindowShell.swift",
+                "windowBackground": "colors.canvas",
             }
         },
         "colors": {

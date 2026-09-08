@@ -24,15 +24,21 @@ Color values are appearance-aware. They use the current system light/dark appear
 
 ## Sidebar material
 
-The sidebar uses the native material supplied by `NavigationSplitView`. Keep its content background clear and the conversation window's container background clear (`.containerBackground(.clear, for: .window)`) so the system can blend and blur colors behind the window. Detail screens retain their opaque canvas. The glass tint follows its surroundings and system appearance; it has no fixed RGB or opacity token. macOS owns the opaque treatment when Reduce Transparency is enabled.
+The sidebar uses the native material supplied by `NSSplitViewItem(sidebarWithViewController:)` in `MiraWindowShell`. Keep its content background clear and use `MiraTheme.Colors.canvas` for the window container and detail screens. This prevents the desktop from showing directly through the sidebar's surrounding rim. The sidebar now has a subdued, near-opaque treatment over the canvas; wallpaper color is minimal. Native glass still owns the edge, blur, and accessibility treatment; it has no app-controlled RGB or opacity token.
 
-Preserve the original native translucency and full-height sidebar, including its titlebar area. Do not override the system glass style, inspect or mutate native glass ancestors, or add custom visual-effect backdrops. The portable export records this system-owned surface under `systemSurfaces.sidebar`. Keep translucent row styling independent of the sidebar material.
+Preserve the full-height sidebar, including its titlebar area. The native window titlebar is transparent to the material beneath it, without a separate fill or separator. Only the native narrow top, leading, and bottom insets expose the window canvas. Do not override the system glass style, inspect or mutate native glass ancestors, or add custom visual-effect backdrops. The portable export records this system-owned surface under `systemSurfaces.sidebar`. Keep translucent row styling independent of the sidebar material.
 
 Sidebar selection, hover, and pressing share one `sidebarOverlay` fill at 4% opacity (`opacity.sidebarHighlight`). `MiraSidebarRow` draws it once; hovering or pressing an already selected row never adds a second layer or darkens it. The button style forwards pressed state without drawing another background. Text and icons stay fully opaque. Reduce Transparency and Increase Contrast use the same solid `sidebarHighlight` color for these states; increased contrast also retains the selected-row outline.
 
 ## Scale and layout
 
 The screenshot suggests a 34 pt navigation row, 30 pt controls, a 220–300 pt sidebar, and an 760 pt reading/composer measure. Spacing uses 4, 8, 12, 16, 24, and 32 pt steps. Radii are 6 pt for small controls, 9 pt for rows, 16 pt for panels, and 22 pt for the composer.
+
+The shared conversation/settings shell uses `NSSplitViewController` and `NSToolbar`, with each pane hosted by SwiftUI. The window uses the native AppKit title with no custom width cap or title replacement. New conversation, Execution details, and Knowledge stay together on the right. New conversation retains Command-N and its sidebar entry. The system sidebar toggle and window controls remain native.
+
+AppKit owns column widths: the sidebar retains its token bounds, the execution inspector uses 180–480 pt, and the conversation has no minimum width. Hosted content cannot impose an additional window minimum. Opening the inspector compresses the conversation at the current window width and preserves the sidebar; only a user sidebar toggle or divider gesture collapses it. Continuing to drag the inspector left after reaching its maximum must leave the sidebar and outer window layout stationary, including while the mouse remains held. The native shell fills its parent viewport throughout the gesture. Content stays clipped to its allocated viewport. Execution details uses the native inspector material and divider; its background need not match the conversation canvas. Sidebar translucency remains system-owned.
+
+The window container owns the conversation's `canvas` background. Conversation and execution-details pane roots do not paint separate full-pane fills; AppKit supplies the inspector's system material. On macOS 26, the conversation item lets AppKit adjust its safe area beneath neighboring native panes. Message bubbles, composer surfaces, and execution-record cards retain their component backgrounds.
 
 ## Component anatomy and states
 
@@ -73,9 +79,25 @@ The reading column and composer share an 760 pt maximum content width with 24 pt
 
 The memory extraction disclosure appears once the conversation has messages or execution history. Empty conversations keep the welcome state clear.
 
-User messages are right aligned in a quiet inset bubble. Assistant replies keep their native Markdown renderer, thinking disclosure, citations, recoverable output, and reading-position behavior. Markdown tables, quotes, inline code, and fenced-code chrome use the neutral palette. Links retain an underline; syntax highlighting keeps its semantic colors through the renderer’s built-in GitHub theme. The transcript clips to its content viewport so scrolled prose cannot draw over window controls. Memory/knowledge/task management retain their established native layouts while using the shared neutral palette and primary action style.
+User messages are right aligned in a quiet inset bubble. Assistant replies keep their native Markdown renderer, thinking disclosure, citations, recoverable output, and reading-position behavior. Markdown tables, quotes, inline code, and fenced-code chrome use the neutral palette. Links retain an underline; syntax highlighting keeps its semantic colors through the renderer’s built-in GitHub theme. The transcript clips to its content viewport so scrolled prose cannot draw over window controls. Memory, Knowledge, and Tasks retain their sidebar rows but have no navigation action while replacement management interfaces are pending. Their help label indicates that they are not implemented yet. No placeholder page or sheet is mounted.
 
 The reference's account avatar, development branch controls, and Codex logo are not Mira features. macOS owns window buttons, the resizable sidebar, menus, focus rings, and toolbar treatments. The host OS can render these differently from the reference image.
+
+## Settings composition
+
+Settings is a mode of the current main window. Its existing AppKit split controller stays in place while the sidebar and detail hosts switch to settings content. The execution inspector is temporarily hidden, with its conversation visibility preference retained for return. The same window size, native corners, traffic-light insets, full-height sidebar material, column width, and sidebar toggle remain in use. The settings detail has no backward/forward/title strip. The app menu and Command-comma target the focused main window; in-app settings links target their own window.
+
+The five categories are General, Providers, Models, Memory, and Data & Privacy. The left column reuses `MiraSidebarRow` and the conversation sidebar's width, insets, and row spacing. Back to Mira appears above the categories; when the sidebar is collapsed a toolbar return action remains available. Clicking Providers returns from a provider detail to the directory. Returning restores the conversation; conversation selection, composer draft, model choice, and reading intent remain owned by the window. Running conversations continue through the application runtime while settings is visible. The shared window content has an 850 × 620 pt minimum.
+
+`MiraSettingsPage` supplies the same `canvas` background as conversation content and the existing reading-width cap; the status footer uses that canvas too. `MiraSettingsSection`, `MiraSettingsRow`, `MiraSettingsDivider`, and `MiraSettingsSearchField` compose groups using the existing surface, border, typography, spacing, and radius tokens. Panels use the shared `panel` radius and navigation uses the shared `row` radius. They introduce no separate settings palette or corner treatment. Native pickers, menus, disclosure groups, secure fields, and buttons retain keyboard and accessibility behavior.
+
+Providers uses a searchable list of saved connections and unconfigured bundled templates. Selecting a row opens its detail in the same column. Connection settings expand inline; changing API credentials or endpoint still requires explicit Save. A provider template is not an activated connection, and activating a provider does not enable models or certify capabilities. Model discovery and synthetic capability tests retain their explicit actions.
+
+Models separates Purpose Defaults and Model Pool. Defaults show one card per implemented purpose (conversation and memory extraction), with a shared global/workspace/conversation scope selector. Selecting an option does not save it until Save Selection is pressed. Existing inherited and unavailable route states remain visible. Memory keeps capture, budget, route, reload, and save controls; Data & Privacy keeps diagnostics, backup, restore, and cleanup actions.
+
+Changing categories or leaving settings retains preference drafts and local maintenance progress in window-owned presentation models. Only the active settings page is mounted and observing library updates. Inactive pages do not participate in layout, keyboard handling, or accessibility. Provider credentials are cleared when their editor leaves the detail column, and a dirty provider draft retains its original revision for conflict detection.
+
+The supplied settings images define layout only. General retains the existing language setting; unimplemented appearance preferences, global search shortcuts, and additional model purposes are not introduced. The shared window supports the process-local dark appearance QA flag.
 
 ## Reusable deliverables
 

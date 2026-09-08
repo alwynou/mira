@@ -10,7 +10,7 @@
 
 ## Architecture
 
-- macOS 15+, Swift 6 strict concurrency. Native SwiftUI with Observation; UI state belongs to `@MainActor` presentation models.
+- macOS 15+, Swift 6 strict concurrency. SwiftUI content with Observation and an AppKit window shell; UI state belongs to `@MainActor` presentation models.
 - `MiraCore` imports Foundation only. It owns domain values, use cases, runtime, and ports. `MiraData` and `MiraProviders` implement those ports; `MiraMac` composes adapters and owns platform services.
 - Views never query GRDB or send provider requests. Long-running executions belong to the application runtime, not a view task.
 - Persist a user message and queued execution atomically. Enforce one active execution per conversation in SQLite. Preserve recoverable drafts and terminal-state uniqueness.
@@ -23,7 +23,7 @@
 
 - Before changing UI, read `docs/product/DESIGN_SYSTEM.md` and `docs/product/VISUAL_IDENTITY.md`. Preserve the neutral palette, system typography, generous spacing, and Mira's Contour Silver identity described there.
 - Use `Apps/MiraMac/DesignSystem/MiraTheme.swift` as the token source of truth and reuse the primitives in `MiraComponents.swift` and `MiraBrandMark.swift`. Put shared visual changes in the design system instead of duplicating palettes or control styles in feature views.
-- Keep the `NavigationSplitView` sidebar and conversation window backgrounds clear so the native sidebar material can reveal colors behind the window. Preserve its original translucency and full-height treatment, including the titlebar. Do not override system glass styles, inspect or mutate native glass ancestors, or add custom backdrop layers. Use `MiraSidebarRow` for translucent selection and preserve Reduce Transparency and Increase Contrast treatment.
+- Keep native `NSSplitViewItem` sidebar content clear; use the shared canvas token for the window container so the sidebar's surrounding rim matches the main pane. Keep the titlebar transparent to the sidebar's native material, without a separate titlebar fill. The sidebar should have a subdued, near-opaque appearance over the canvas, rather than directly exposing the desktop through a clear window. Preserve native full-height glass, its insets, and its corner treatment. Do not inspect or mutate native glass ancestors or add custom backdrop layers. Use `MiraSidebarRow` for translucent selection and preserve Reduce Transparency and Increase Contrast treatment.
 - After changing tokens, run `python3 scripts/export_design_tokens.py` and update the owning design document and affected consumers together. `designs/mira-ui/tokens.json` is a generated export; do not maintain it independently or duplicate token values in these contributor instructions.
 - Add or update relevant examples in `Apps/MiraMac/DesignSystem/MiraComponentPreview.swift` when changing shared components. Keep previews self-contained and independent of databases, credentials, and provider requests.
 - Preserve native macOS window controls, menus, keyboard navigation, focus, and accessibility semantics. Visual changes must preserve conversation behavior, including thinking, citations, reading position, cancellation, and recovery.

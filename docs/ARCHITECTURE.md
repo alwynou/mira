@@ -125,6 +125,8 @@ API Key、OAuth Token 等凭据只保存在系统安全存储中。普通数据�
 
 SwiftUI View 不直接操作 GRDB、不直接调用 Provider、不持有 Agent Runtime 内部可变状态。
 
+The macOS window shell uses an AppKit split controller and toolbar to own native column sizing and window chrome. SwiftUI hosting controllers render sidebar, conversation, settings, and inspector content; they do not add content-derived minimum-width constraints. Window-owned presentation models retain navigation, drafts, and reading intent across mode changes. This platform bridge remains in `MiraMac` and does not change runtime or adapter boundaries.
+
 ```text
 View
   ↓

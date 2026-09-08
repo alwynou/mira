@@ -96,8 +96,11 @@ struct ExecutionInspector: View {
                         }.padding(12).background(.quaternary.opacity(0.3), in: .rect(cornerRadius: 10))
                     }
                 }
-            }.padding(20)
+            }
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .padding(20)
         }
+        .accessibilityIdentifier("conversation.executionInspector")
         .task(id: refreshID) {
             let id = execution?.id
             auditExecutionID = nil; loadedAttempts = []; loadedInvocations = []; auditError = nil

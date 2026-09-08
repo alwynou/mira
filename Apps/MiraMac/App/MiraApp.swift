@@ -12,8 +12,8 @@ struct MiraApp: App {
         WindowGroup {
             Group {
                 if let application = container.application {
-                    ConversationRoot(application: application, isDemo: container.isDemo)
-                        .containerBackground(.clear, for: .window)
+                    ConversationRoot(application: application, container: container)
+                        .containerBackground(MiraTheme.Colors.canvas, for: .window)
                         .task {
                             delegate.container = container
                             do { try await container.seedDemo() }
@@ -33,8 +33,8 @@ struct MiraApp: App {
         }
         .defaultSize(width: 1100, height: 760)
         .windowToolbarStyle(.unified)
+        .commands { MiraSettingsCommands(locale: language.locale) }
         .commands { CommandGroup(replacing: .help) { Link(L10n.string("Mira Documentation", locale: language.locale), destination: URL(string: "https://github.com/alwynou/mira/tree/dev/docs")!) } }
-        Settings { SettingsView(container: container).environment(\.locale, language.locale).tint(MiraTheme.Colors.accent) }
     }
 }
 

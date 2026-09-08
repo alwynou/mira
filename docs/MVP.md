@@ -3,7 +3,7 @@
 **版本：** v1.0  
 **日期：** 2026-09-07
 
-**状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。本次继续完成普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒。M6 已有原生界面与确定性测试；本机通知授权、应用完全退出后的普通提醒送达，以及重启后的到期状态已通过用户配合验收。专注模式与正式分发按用户选择暂缓。完整证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
+**状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒底层能力保留。2026-09-08 按用户要求移除原记忆、知识库和任务管理界面，菜单保留为无跳转的待实现入口，替代界面待设计；历史原生界面验收不代表当前可用界面。本机通知授权、应用完全退出后的普通提醒送达，以及重启后的到期状态曾通过用户配合验收。专注模式与正式分发按用户选择暂缓。历史证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 服务商接入流程已按“配置并激活服务商 → 选择服务商模型 → 模型池 → 选择模型”更新，模型池阶段验收见 [模型池验收记录](engineering/PROVIDER_POOL_VERIFICATION.md)。新增服务商目录、models.dev 资料和用途筛选的当前范围见 [目录与筛选验收](engineering/MODEL_CATALOG_VERIFICATION.md)。
 
@@ -25,6 +25,10 @@ The [usage and cost increment](engineering/USAGE_COST_VERIFICATION.md) adds prov
 The user-selected [Contour Silver app icon](product/VISUAL_IDENTITY.md) is integrated; [native rendering and Debug build evidence](engineering/APP_ICON_DESIGN.md) is recorded separately from platform runtime acceptance.
 
 The [Mira design system](product/DESIGN_SYSTEM.md) extracts a screenshot-inspired neutral visual language into SwiftUI tokens, reusable components, and a portable JSON export. Native implementation and verification scope are recorded in [interface verification](engineering/DESIGN_SYSTEM_VERIFICATION.md).
+
+Settings now switches the current main window into a settings mode, with a category sidebar, grouped detail pages, inline provider configuration, and separate purpose defaults/model pool views. Returning retains the conversation draft and reading intent. [Settings layout verification](engineering/SETTINGS_LAYOUT_VERIFICATION.md) records native navigation and localization checks; this changes presentation without adding new model purposes or appearance preferences.
+
+The main/settings window now uses an AppKit split controller and toolbar with SwiftUI pane content. [Window-shell verification](engineering/APPKIT_WINDOW_SHELL.md) covers the 850 pt inspector layout, native commands, retained drafts, and pane-state synchronization; platform and performance limits remain explicit.
 
 本文只决定做什么、按什么依赖顺序做、完成到什么程度可以进入下一阶段。产品行为由 [PRD 与领域产品规范](PRD.md) 定义，技术契约由 [架构总览及领域设计](ARCHITECTURE.md) 定义，测试数值门槛由 [质量标准](engineering/QUALITY.md#quality-gates) 统一维护。
 
@@ -79,11 +83,11 @@ M2 使用 Fake Tool 验证完整管线，测试工具不进入发布注册表。
 
 | 区域 | 首版必需内容 |
 |---|---|
-| Sidebar | Inbox、Workspace、Memories、Knowledge、Settings；不显示尚未实现的占位功能入口 |
+| Sidebar | Inbox、Workspace、Settings；Memories、Knowledge、Tasks 按用户要求暂保留为无跳转的待实现入口 |
 | Conversation | 消息、发送 / 取消 / 重试、模型和执行状态、记忆处理反馈、引用入口 |
 | Workspace | 名称、项目背景、发送策略；不建设层级 Workspace |
-| Memory | Active / Candidate / Archived 筛选、来源、Scope、编辑与删除动作 |
-| Knowledge | Markdown 导入、进度 / 失败、Source 列表、版本与片段查看、搜索 |
+| Memory | 管理界面已移除，替代设计与实现待完成；底层记忆和对话内反馈保留 |
+| Knowledge | 管理界面已移除，替代设计与实现待完成；底层检索和对话引用保留 |
 | Inspector | 实际 Context、有效来源、被省略原因、Step / Tool / 错误、Usage |
 | Settings | Provider / 用途路线、自动记忆与预算、隐私、备份 / 恢复 / 清理 |
 
@@ -218,7 +222,7 @@ Working Memory 只组合用户固定项与当前 Workspace 的有效决定；尚
 
 **依赖：** 已有对话、执行、来源、存储与恢复能力。用户已授权在需人工配合的 v0.1 验收项暂缓时继续实现 M6；该授权不等于发布质量门槛通过。
 
-**当前实现：** 任务列表、手动新增与编辑、完成 / 取消 / 重新打开、独立候选审核、`task.list` / `task.change`、原消息时间与时区、一次性本地通知、权限恢复入口和恢复后暂停提醒。产品范围见 [Records](product/RECORDS.md)，技术契约见 [Tasks and reminders](architecture/TASKS_AND_REMINDERS.md)。
+**当前实现：** 保留任务用例、独立候选、`task.list` / `task.change`、原消息时间与时区、一次性本地通知及恢复后暂停提醒。原任务列表、编辑、状态操作、候选审核和权限恢复管理界面已移除，替代界面待实现。产品范围见 [Records](product/RECORDS.md)，技术契约见 [Tasks and reminders](architecture/TASKS_AND_REMINDERS.md)。
 
 **交付：** 明确命令创建 / 修改任务和一次性提醒、RecordProposal、Revision + Evidence、本地通知、完成 / 取消与失败状态。
 
@@ -247,7 +251,7 @@ Apple Calendar / Reminders 单向发布作为其后的独立增量：实现 Noti
 
 ## 5. 开发前条件与发布前条件
 
-**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并实现手动管理、可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆已有独立配置、任务、预算与审核实现，并通过确定性验收；M4 资料工具、完整文件备份与界面已实现并通过确定性测试和 CI；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。本次已增加自然记忆与资料预取，并完成 M6 任务 / 一次性提醒的实现。真实 Provider 的广泛质量验证、Keychain 故障演练及完整平台交互验收仍待补；M3–M6 尚未完成全部发布验收。
+**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并保留可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆保留独立配置、任务、预算与审核用例；M4 保留资料工具与完整文件备份；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。自然记忆与资料预取、M6 任务 / 一次性提醒底层实现保留。原记忆、知识库和任务管理界面已按用户要求移除，待重新设计与实现，历史界面验收不视为当前可用能力。真实 Provider 的广泛质量验证、Keychain 故障演练及完整平台交互验收仍待补；M3–M6 尚未完成全部发布验收。
 
 **实施时填写的证据：** 实际选用的模型 ID / 端点及能力验证结果、Package.resolved、最低系统与各 CPU 的验证环境。无需在文档中写入密钥。
 
