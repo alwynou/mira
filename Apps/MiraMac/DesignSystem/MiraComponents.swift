@@ -11,10 +11,15 @@ struct MiraSidebarRow<Content: View>: View {
     @Environment(\.miraSidebarIsPressed) private var isPressed
     @State private var isHovered = false
     let isSelected: Bool
+    let isKeyboardFocused: Bool
+    let minimumHeight: CGFloat
     @ViewBuilder let content: () -> Content
 
-    init(isSelected: Bool = false, @ViewBuilder content: @escaping () -> Content) {
+    init(isSelected: Bool = false, isKeyboardFocused: Bool = false,
+         minimumHeight: CGFloat = MiraTheme.Layout.rowHeight, @ViewBuilder content: @escaping () -> Content) {
         self.isSelected = isSelected
+        self.isKeyboardFocused = isKeyboardFocused
+        self.minimumHeight = minimumHeight
         self.content = content
     }
 
@@ -22,7 +27,7 @@ struct MiraSidebarRow<Content: View>: View {
         content()
             .font(MiraTheme.Typography.sidebar)
             .foregroundStyle(MiraTheme.Colors.text)
-            .frame(maxWidth: .infinity, minHeight: MiraTheme.Layout.rowHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: minimumHeight, alignment: .leading)
             .padding(.horizontal, MiraTheme.Spacing.md)
             .background(
                 RoundedRectangle(cornerRadius: MiraTheme.Radius.row, style: .continuous)
@@ -40,7 +45,7 @@ struct MiraSidebarRow<Content: View>: View {
     }
 
     private var isHighlighted: Bool {
-        isSelected || (isEnabled && (isHovered || isPressed))
+        isSelected || (isEnabled && (isHovered || isPressed || isKeyboardFocused))
     }
 
     private var highlightFill: Color {

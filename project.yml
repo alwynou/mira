@@ -62,6 +62,7 @@ targets:
     sources:
       - Apps/MiraMac/Localization
       - Apps/MiraMac/App/MiraWindowShell.swift
+      - Apps/MiraMac/App/AppDisplayMode.swift
       - Apps/MiraMac/DesignSystem/MiraTheme.swift
       - Apps/MiraMac/Resources/Localizable.xcstrings
       - Tests/MiraLocalizationTests

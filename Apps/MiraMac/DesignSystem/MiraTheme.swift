@@ -34,6 +34,7 @@ enum MiraTheme {
 
     enum Opacity {
         static let sidebarHighlight: Double = 0.04
+        static let selectShadow: Double = 0.12
     }
 
     enum Spacing {
@@ -59,6 +60,11 @@ enum MiraTheme {
         static let contentMax: CGFloat = 760
         static let composerMax: CGFloat = 760
         static let controlHeight: CGFloat = 30
+        static let selectHeight: CGFloat = 28
+        static let selectMinWidth: CGFloat = 100
+        static let selectMaxWidth: CGFloat = 200
+        static let selectMenuMinWidth: CGFloat = 140
+        static let selectMenuMaxWidth: CGFloat = 320
         static let rowHeight: CGFloat = 34
         static let settingsPageTopInset: CGFloat = 64
     }

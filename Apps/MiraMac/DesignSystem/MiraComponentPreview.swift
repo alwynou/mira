@@ -94,19 +94,33 @@ private struct MiraComponentPreview: View {
 }
 
 #Preview("Settings · Dark") {
-    @Previewable @State var search = ""
+    @Previewable @State var language = "zh-CN"
+    @Previewable @State var displayMode = "dark"
     MiraSettingsPage {
-        MiraSettingsHeader(title: "General", subtitle: "Customize Mira's display language.")
+        MiraSettingsHeader(title: "General", subtitle: "Customize Mira's display language and appearance.")
         MiraSettingsSection("Language") {
-            MiraSettingsRow("Display Language") { Text("English") }
+            MiraSettingsRow("Display Language") {
+                MiraSettingsSelect(title: "Display Language", selection: $language, options: [
+                    .init(id: "en", title: "English"),
+                    .init(id: "zh-CN", title: "Chinese (Simplified)")
+                ], identifier: "preview.language")
+            }
             MiraSettingsDivider()
             Text("macOS manages the language of system menus and file dialogs.")
                 .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
         }
+        MiraSettingsSection("Appearance") {
+            MiraSettingsRow("Display Mode", subtitle: "Choose an appearance for all Mira windows, or follow your system setting.") {
+                MiraSettingsSelect(title: "Display Mode", selection: $displayMode, options: [
+                    .init(id: "dark", title: "Dark"), .init(id: "light", title: "Light"),
+                    .init(id: "system", title: "Follow System")
+                ], identifier: "preview.displayMode")
+            }
+        }
     }
     .frame(width: 850 - MiraTheme.Layout.sidebarIdeal, height: 620)
     .environment(\.locale, Locale(identifier: "zh-CN"))
-    .preferredColorScheme(.dark)
+    .preferredColorScheme(AppDisplayMode.resolve(stored: displayMode).colorScheme)
 }
 
 #Preview("Native window · Narrow") {
@@ -128,4 +142,51 @@ private struct MiraComponentPreview: View {
     )
     .frame(width: 850, height: 620)
     .containerBackground(MiraTheme.Colors.canvas, for: .window)
+}
+
+// The language selector uses content width within the configured limits and stays 28 pt tall.
+#Preview("Language select · Light") {
+    @Previewable @State var language = "en"
+    MiraSettingsPage {
+        MiraSettingsHeader(title: "General", subtitle: "Customize Mira's display language and appearance.")
+        MiraSettingsSection("Language") {
+            MiraSettingsRow("Display Language") {
+                MiraSettingsSelect(title: "Display Language", selection: $language, options: [
+                    .init(id: "en", title: "English"),
+                    .init(id: "zh-CN", title: "Chinese (Simplified)")
+                ], identifier: "preview.language")
+            }
+        }
+    }
+    .frame(width: 850 - MiraTheme.Layout.sidebarIdeal, height: 620)
+    .environment(\.locale, Locale(identifier: "en"))
+    .preferredColorScheme(.light)
+}
+
+// Interaction check: click a menu, then the empty page to clear hover/focus; Escape restores keyboard focus.
+#Preview("Select sizing · Minimum, capped, unbounded") {
+    @Previewable @State var shortSelection = "short"
+    @Previewable @State var longSelection = "long"
+    let options: [MiraSettingsSelect.Option] = [
+        .init(id: "short", title: "English"),
+        .init(id: "long", title: "macOS manages the language of system menus and file dialogs.")
+    ]
+    MiraSettingsPage {
+        MiraSettingsSection("Language") {
+            // A short label retains the default minimum dimensions.
+            MiraSettingsSelect(title: "Display Language", selection: $shortSelection,
+                               options: options, identifier: "preview.select.minimum")
+            // The trigger truncates; capped menu options wrap and grow taller.
+            MiraSettingsSelect(title: "Display Language", selection: $longSelection,
+                               options: options, identifier: "preview.select.capped",
+                               maximumWidth: MiraTheme.Layout.selectMaxWidth,
+                               menuMaximumWidth: MiraTheme.Layout.selectMenuMaxWidth)
+            // Omitted maximums allow the same long label to take its intrinsic width.
+            MiraSettingsSelect(title: "Display Language", selection: $longSelection,
+                               options: options, identifier: "preview.select.unbounded")
+        }
+    }
+    .frame(width: 850, height: 620)
+    .environment(\.locale, Locale(identifier: "en"))
+    .preferredColorScheme(.light)
 }

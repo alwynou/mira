@@ -6,6 +6,8 @@ struct MiraApp: App {
     @NSApplicationDelegateAdaptor(MiraAppDelegate.self) private var delegate
     private let container = AppContainer()
     @AppStorage(AppLanguage.preferenceKey) private var languagePreference = ""
+    @AppStorage(AppDisplayMode.preferenceKey) private var displayModePreference = AppDisplayMode.initialValue.rawValue
+    private var displayMode: AppDisplayMode { .resolve(stored: displayModePreference) }
     private var language: AppLanguage { .resolve(stored: languagePreference) }
 
     var body: some Scene {
@@ -26,10 +28,13 @@ struct MiraApp: App {
             }
             .environment(\.locale, language.locale)
             .tint(MiraTheme.Colors.accent)
-            #if DEBUG
-            // Scope appearance QA to this process without changing system preferences.
-            .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--design-preview-dark") ? .dark : nil)
-            #endif
+            .preferredColorScheme(displayMode.colorScheme)
+            .onChange(of: displayMode, initial: true) { _, mode in
+                // Native split panes, menus, and future windows share the saved mode.
+                if NSApp.appearance?.name != mode.appearanceName {
+                    NSApp.appearance = mode.appearanceName.flatMap { NSAppearance(named: $0) }
+                }
+            }
         }
         .defaultSize(width: 1100, height: 760)
         .windowToolbarStyle(.unified)

@@ -181,6 +181,12 @@ Host Adapter：
 
 授权状态随时可能变化，Adapter 每次安排前验证权限并返回可解释错误。
 
+### 2.7 Display preferences
+
+`MiraMac.AppDisplayMode` owns the application-wide presentation preference `app.displayMode` in UserDefaults. Valid values are `dark`, `light`, and `system`; the default is `system`. SwiftUI roots observe it through `AppStorage`, apply `preferredColorScheme`, and synchronize `NSApplication.appearance` so native split panes, menus, and newly opened windows share the selected appearance. System mode clears both overrides instead of taking a one-time snapshot of the current system color scheme. No system-wide appearance preference is written.
+
+The Debug-only `--design-preview-dark` argument supplies an initial fallback when a valid saved choice is absent. A saved or newly selected value always wins. Display mode is independent of the display-language preference and stays in the macOS presentation layer; it does not enter Core, persisted conversation records, provider requests, or model prompts.
+
 ---
 
 <a id="s28"></a>
