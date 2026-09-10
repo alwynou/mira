@@ -19,3 +19,9 @@ Use `designs/mira-app-icon/final/mira-logo-black.svg` (graphite) on light backgr
 ## Application interface
 
 The macOS interface uses the [Mira design system](DESIGN_SYSTEM.md): a neutral canvas, quiet sidebar selection, generous reading space, and compact monochrome actions inspired by the user-supplied Codex reference. The existing Contour Silver mark remains the application identity.
+
+Provider identity is a narrow exception to monochrome interface actions. The model-service settings list and detail header use locally bundled LobeHub provider marks with original brand colors where published and theme-appropriate monochrome variants otherwise. These marks identify third-party services; they do not change Mira's Contour Silver identity or the neutral surface palette. Source and adaptation details live in `Apps/MiraMac/Resources/Vendor/LobeHubIcons/PROVENANCE.md`.
+
+Kimi Code and Moonshot share the published LobeHub Moonshot mark with neutral black/white appearance variants. Service navigation uses this Moonshot mark; model rows use their own model-family marks. Kimi model rows retain the published white/blue Kimi SVG paths inside the user-requested rounded black enclosure and inset. Claude rows use the published Claude color mark. Model marks are 36 pt, sized against the two-line identity block, and never inherit an aggregator logo solely because it hosts the model. Only the required individual SVGs and appearance variants are bundled; shared OpenAI and DeepSeek assets are reused.
+
+Model capability symbols are a user-requested semantic color exception: vision is blue, tools orange, and thinking uses a diagonal blue-to-purple gradient using shared appearance-aware tokens. Their distinct symbols and localized accessibility labels preserve meaning without color. Other interface actions and the Contour Silver identity remain neutral.

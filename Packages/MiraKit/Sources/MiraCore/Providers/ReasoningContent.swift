@@ -39,7 +39,7 @@ public struct ThinkingCapabilities: Sendable {
                 efforts = []
             } else {
                 modes = [.providerDefault, .enabled]
-                if modelID == "kimi-k3" { efforts = [.low, .high, .max] }
+                if ["kimi-k3", "k3", "k3-256k"].contains(modelID) { efforts = [.low, .high, .max] }
             }
         case .anthropicManual:
             supportsBudget = true

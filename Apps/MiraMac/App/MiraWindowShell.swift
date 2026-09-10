@@ -36,6 +36,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private var updatingFromSwiftUI = false
         private var inspectorUpdate: Task<Void, Never>?
         private var conversationSidebarWasCollapsed = false
+        private var conversationSidebarPosition = MiraTheme.Layout.sidebarIdeal
         private var inspectorObservation: NSKeyValueObservation?
         private let nativeToolbar = NSToolbar(identifier: "mira.window.toolbar")
         private var cachedItems: [NSToolbarItem.Identifier: NSToolbarItem] = [:]
@@ -53,8 +54,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             // The split items, not hosted content measurements, own all column widths.
             for host in [sidebarHost, detailHost, inspectorHost] { host.sizingOptions = [] }
             sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
-            sidebarItem.minimumThickness = MiraTheme.Layout.sidebarMin
-            sidebarItem.maximumThickness = MiraTheme.Layout.sidebarMax
+            updateSidebarWidthLimits()
             sidebarItem.canCollapse = !configuration.isSettings
             sidebarItem.canCollapseFromWindowResize = false
             sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
@@ -90,7 +90,8 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             installToolbar()
             if !initialPositionSet {
                 initialPositionSet = true
-                splitView.setPosition(MiraTheme.Layout.sidebarIdeal, ofDividerAt: 0)
+                splitView.setPosition(configuration.isSettings ? MiraTheme.Layout.settingsSidebarWidth : conversationSidebarPosition,
+                                      ofDividerAt: 0)
             }
         }
 
@@ -118,6 +119,10 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             let settingsChanged = self.configuration.isSettings != configuration.isSettings
             if settingsChanged && configuration.isSettings {
                 conversationSidebarWasCollapsed = sidebarItem.isCollapsed
+                if !sidebarItem.isCollapsed {
+                    // Native sidebar insets make its content width differ from the divider position.
+                    conversationSidebarPosition = sidebarHost.view.convert(sidebarHost.view.bounds, to: splitView).maxX
+                }
             }
             self.configuration = configuration
             sidebarHost.rootView = Self.fitted(configuration.sidebar)
@@ -126,6 +131,10 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 sidebarItem.canCollapse = !configuration.isSettings
                 // Changing canCollapse also resets AppKit's window-resize policy.
                 sidebarItem.canCollapseFromWindowResize = false
+                updateSidebarWidthLimits()
+                sidebarItem.isCollapsed = false
+                splitView.setPosition(configuration.isSettings ? MiraTheme.Layout.settingsSidebarWidth : conversationSidebarPosition,
+                                      ofDividerAt: 0)
                 sidebarItem.isCollapsed = configuration.isSettings ? false : conversationSidebarWasCollapsed
             }
             let visible = configuration.showsInspector && !configuration.isSettings
@@ -146,6 +155,17 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 }
             }
             updateWindow()
+        }
+
+        private func updateSidebarWidthLimits() {
+            // Widen the allowed interval first when returning to the conversation.
+            if configuration.isSettings {
+                sidebarItem.minimumThickness = MiraTheme.Layout.settingsSidebarWidth
+                sidebarItem.maximumThickness = MiraTheme.Layout.settingsSidebarWidth
+            } else {
+                sidebarItem.maximumThickness = MiraTheme.Layout.sidebarMax
+                sidebarItem.minimumThickness = MiraTheme.Layout.sidebarMin
+            }
         }
 
         private func observeCollapsedState() {

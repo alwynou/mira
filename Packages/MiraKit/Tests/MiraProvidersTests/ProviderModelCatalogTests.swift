@@ -42,7 +42,8 @@ private final class CatalogTransport: HTTPStreamingTransport, @unchecked Sendabl
 @Test("Bundled catalog preserves provenance and reviewed protocol modes")
 func bundledCatalogProvenanceAndModes() throws {
     let catalog = ProviderModelCatalog.bundled
-    #expect(catalog.providers.map(\.id) == ["openai", "anthropic", "deepseek", "moonshotai-cn", "moonshotai", "siliconflow-cn", "siliconflow", "openrouter"])
+    #expect(catalog.providers.map(\.id) == ["openai", "anthropic", "kimi-for-coding", "moonshotai-cn", "moonshotai", "deepseek", "openrouter"])
+    #expect(catalog.directoryProviders.map(\.id) == ["openai", "anthropic", "kimi-for-coding", "moonshotai-cn", "deepseek", "openrouter"])
     let openAI = try #require(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.openai.com/v1"), modelID: "gpt-5.1"))
     #expect(openAI.metadata.sourceURL == "https://models.dev/api.json")
     #expect(openAI.metadata.sourceRevision.hasPrefix("sha256:"))
@@ -58,6 +59,11 @@ func bundledCatalogProvenanceAndModes() throws {
     #expect(deepSeek.suggestedProtocolMode == .deepSeek)
     let kimi = try #require(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.moonshot.ai/v1"), modelID: "kimi-k2-thinking"))
     #expect(kimi.suggestedProtocolMode == .kimi)
+    let kimiCode = try #require(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.kimi.com/coding/v1"), modelID: "k3"))
+    #expect(kimiCode.metadata.providerID == "kimi-for-coding")
+    #expect(kimiCode.suggestedProtocolMode == .kimi)
+    #expect(catalog.matchingProvider(for: catalogConnection(.openAICompatible, baseURL: "https://api.kimi.com/coding/v1/"))?.id == "kimi-for-coding")
+    #expect(catalog.matchingProvider(for: catalogConnection(.openAICompatible, baseURL: "https://api.kimi.com/v1")) == nil)
 
     let priced = try #require(catalog.model(for: catalogConnection(.openAICompatible, baseURL: "https://api.openai.com/v1"), modelID: "gpt-5"))
     #expect(priced.metadata.pricing?.input == Decimal(string: "1.25"))

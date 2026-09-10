@@ -12,14 +12,12 @@ struct MiraSidebarRow<Content: View>: View {
     @Environment(\.miraSidebarIsPressed) private var isPressed
     @State private var isHovered = false
     let isSelected: Bool
-    let isKeyboardFocused: Bool
     let minimumHeight: CGFloat
     @ViewBuilder let content: () -> Content
 
-    init(isSelected: Bool = false, isKeyboardFocused: Bool = false,
+    init(isSelected: Bool = false,
          minimumHeight: CGFloat = MiraTheme.Layout.rowHeight, @ViewBuilder content: @escaping () -> Content) {
         self.isSelected = isSelected
-        self.isKeyboardFocused = isKeyboardFocused
         self.minimumHeight = minimumHeight
         self.content = content
     }
@@ -46,7 +44,7 @@ struct MiraSidebarRow<Content: View>: View {
     }
 
     private var isHighlighted: Bool {
-        isSelected || (isEnabled && (isHovered || isPressed || isKeyboardFocused))
+        isSelected || (isEnabled && (isHovered || isPressed))
     }
 
     private var highlightFill: Color {
@@ -102,16 +100,19 @@ struct MiraCircleButtonStyle: ButtonStyle {
 
 struct MiraSurface<Content: View>: View {
     let cornerRadius: CGFloat
+    let fill: Color
     @ViewBuilder let content: () -> Content
 
-    init(cornerRadius: CGFloat = MiraTheme.Radius.panel, @ViewBuilder content: @escaping () -> Content) {
+    init(cornerRadius: CGFloat = MiraTheme.Radius.panel, fill: Color = MiraTheme.Colors.surface,
+         @ViewBuilder content: @escaping () -> Content) {
         self.cornerRadius = cornerRadius
+        self.fill = fill
         self.content = content
     }
 
     var body: some View {
         content()
-            .background(MiraTheme.Colors.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(fill, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(MiraTheme.Colors.border, lineWidth: 1)

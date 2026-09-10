@@ -1,6 +1,40 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Active Providers": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active Providers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已激活"
+          }
+        }
+      }
+    },
+    "Inactive Providers": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inactive Providers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未激活"
+          }
+        }
+      }
+    },
     "Not implemented yet": {
       "extractionState": "manual",
       "localizations": {
@@ -1108,19 +1142,19 @@
         }
       }
     },
-    "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed.": {
+    "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed. macOS manages the language of system menus and file dialogs.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed."
+            "value": "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed. macOS manages the language of system menus and file dialogs."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "更改会立即应用到所有 Mira 窗口，并在下次启动时保留。对话内容和模型回复语言不会改变。"
+            "value": "更改会立即应用到所有 Mira 窗口，并在下次启动时保留。对话内容和模型回复语言不会改变。系统菜单和文件对话框的语言由 macOS 管理。"
           }
         }
       }
@@ -18966,6 +19000,652 @@
           "stringUnit": {
             "state": "translated",
             "value": "拷贝"
+          }
+        }
+      }
+    },
+    "Configuration": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
+          }
+        }
+      }
+    },
+    "API Proxy URL": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API Proxy URL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 代理地址"
+          }
+        }
+      }
+    },
+    "Test Connectivity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Connectivity"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试连通性"
+          }
+        }
+      }
+    },
+    "Test Model": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试模型"
+          }
+        }
+      }
+    },
+    "Test": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试"
+          }
+        }
+      }
+    },
+    "Connection successful": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection successful"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接成功"
+          }
+        }
+      }
+    },
+    "Testing connection…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testing connection…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测试连接…"
+          }
+        }
+      }
+    },
+    "Testing sends a short request using the selected model. Enabling requires a successful test. A saved API key can be reused.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testing sends a short request using the selected model. Enabling requires a successful test. A saved API key can be reused."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试会使用所选模型发送简短请求，通过后才能启用服务商。已保存的 API Key 可直接复用。"
+          }
+        }
+      }
+    },
+    "Add and configure a text model to test this provider.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add and configure a text model to test this provider."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先添加并配置一个文本模型，再测试此服务商。"
+          }
+        }
+      }
+    },
+    "Select a configured text model to test this provider.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a configured text model to test this provider."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择一个已配置的文本模型来测试此服务商。"
+          }
+        }
+      }
+    },
+    "Connection testing is unavailable in demo mode.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection testing is unavailable in demo mode."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "演示模式下无法测试连接。"
+          }
+        }
+      }
+    },
+    "The connection test failed. The provider was not enabled.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The connection test failed. The provider was not enabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接测试失败，服务商未启用。"
+          }
+        }
+      }
+    },
+    "The provider configuration changed. Discard your draft and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider configuration changed. Discard your draft and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商配置已更改，请放弃当前更改后重试。"
+          }
+        }
+      }
+    },
+    "The test model changed. Select the current model and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The test model changed. Select the current model and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试模型已更改，请重新选择模型后重试。"
+          }
+        }
+      }
+    },
+    "Input %@/M · Output %@/M": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input %@/M · Output %@/M"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入 %@/M · 输出 %@/M"
+          }
+        }
+      }
+    },
+    "Vision": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vision"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "视觉"
+          }
+        }
+      }
+    },
+    "Context window": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context window"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文窗口"
+          }
+        }
+      }
+    },
+    "Choose models for conversations and memory.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose models for conversations and memory."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择对话与记忆使用的模型。"
+          }
+        }
+      }
+    },
+    "Applies to": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用范围"
+          }
+        }
+      }
+    },
+    "Workspace: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目：%@"
+          }
+        }
+      }
+    },
+    "Conversation: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversation: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话：%@"
+          }
+        }
+      }
+    },
+    "Memory extraction model": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory extraction model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提取模型"
+          }
+        }
+      }
+    },
+    "Used for new conversations.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used for new conversations."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于新建对话。"
+          }
+        }
+      }
+    },
+    "Used to organize memories in the background.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used to organize memories in the background."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于在后台整理记忆。"
+          }
+        }
+      }
+    },
+    "Configure a compatible model in Providers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure a compatible model in Providers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在服务商中配置可用的模型。"
+          }
+        }
+      }
+    },
+    "Test Capabilities": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Capabilities"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试模型能力"
+          }
+        }
+      }
+    },
+    "Memory extraction uses JSON text with local validation. Declare it separately or use Test JSON Extraction in the provider model menu. Native structured output is not required.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory extraction uses JSON text with local validation. Declare it separately or use Test JSON Extraction in the provider model menu. Native structured output is not required."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记忆提取使用 JSON 文本并在本地校验。请单独声明此能力，或在服务商模型菜单中测试 JSON 提取，无需原生结构化输出。"
+          }
+        }
+      }
+    },
+    "Automatic capture uses extra tokens. Sensitive memories stay local.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic capture uses extra tokens. Sensitive memories stay local."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动捕获会额外消耗 token，敏感记忆仅保留在本地。"
+          }
+        }
+      }
+    },
+    "Choose a memory extraction model in Models.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a memory extraction model in Models."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在模型设置中选择记忆提取模型。"
+          }
+        }
+      }
+    },
+    "Daily token budget for automatic memory. Resets at 00:00 UTC.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily token budget for automatic memory. Resets at 00:00 UTC."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动记忆的每日 token 额度，于 UTC 00:00 重置。"
+          }
+        }
+      }
+    },
+    "Remaining today": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaining today"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日剩余"
+          }
+        }
+      }
+    },
+    "Only memories you save or approve are stored.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only memories you save or approve are stored."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅保存你手动添加或确认的记忆。"
+          }
+        }
+      }
+    },
+    "New memories wait for your review.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New memories wait for your review."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新记忆需经过你的确认。"
+          }
+        }
+      }
+    },
+    "Eligible memories are saved automatically.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eligible memories are saved automatically."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动保存符合条件的记忆。"
+          }
+        }
+      }
+    },
+    "Select an option": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select an option"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择"
+          }
+        }
+      }
+    },
+    "No options available": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No options available"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无可选项"
+          }
+        }
+      }
+    },
+    "Clear Selection": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Selection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除选择"
+          }
+        }
+      }
+    },
+    "Example Model": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Example Model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "示例模型"
           }
         }
       }

@@ -9,7 +9,7 @@ struct GeneralSettingsView: View {
         MiraSettingsPage {
             MiraSettingsHeader(title: "General", subtitle: "Customize Mira's display language and appearance.")
             MiraSettingsSection("Language") {
-                MiraSettingsRow("Display Language", subtitle: "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed.") {
+                MiraSettingsRow("Display Language", subtitle: "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed. macOS manages the language of system menus and file dialogs.") {
                     MiraSettingsSelect(
                         title: "Display Language",
                         selection: Binding(
@@ -21,14 +21,9 @@ struct GeneralSettingsView: View {
                             .init(id: AppLanguage.simplifiedChinese.rawValue, title: "Chinese (Simplified)")
                         ],
                         identifier: "settings.language",
-                        maximumWidth: MiraTheme.Layout.selectMaxWidth,
-                        menuMaximumWidth: MiraTheme.Layout.selectMenuMaxWidth
+                        maximumWidth: MiraTheme.Layout.selectMaxWidth
                     )
                 }
-                MiraSettingsDivider()
-                Text("macOS manages the language of system menus and file dialogs.")
-                    .font(MiraTheme.Typography.caption)
-                    .foregroundStyle(MiraTheme.Colors.secondaryText)
             }
             MiraSettingsSection("Appearance") {
                 MiraSettingsRow("Display Mode", subtitle: "Choose an appearance for all Mira windows, or follow your system setting.") {
@@ -44,8 +39,7 @@ struct GeneralSettingsView: View {
                             .init(id: AppDisplayMode.system.rawValue, title: "Follow System")
                         ],
                         identifier: "settings.displayMode",
-                        maximumWidth: MiraTheme.Layout.selectMaxWidth,
-                        menuMaximumWidth: MiraTheme.Layout.selectMenuMaxWidth
+                        maximumWidth: MiraTheme.Layout.selectMaxWidth
                     )
                 }
             }

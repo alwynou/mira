@@ -65,11 +65,11 @@ struct CostSummaryView: View {
 enum CostPresentation {
     static func amount(_ value: Decimal, locale: Locale, bundle: Bundle = .main) -> String {
         let minimum = Decimal(1) / 100_000_000
-        let style = Decimal.FormatStyle.Currency(code: "USD").precision(.fractionLength(2...8)).locale(locale)
+        let style = Decimal.FormatStyle().precision(.fractionLength(2...8)).locale(locale)
         if value > 0 && value < minimum {
-            return L10n.format("Less than %@", locale: locale, bundle: bundle, minimum.formatted(style))
+            return L10n.format("Less than %@", locale: locale, bundle: bundle, "$" + minimum.formatted(style))
         }
-        return value.formatted(style)
+        return "$" + value.formatted(style)
     }
 
     static func reasonKey(_ reason: CostUnavailableReason) -> String {

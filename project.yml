@@ -79,6 +79,10 @@ targets:
       - Apps/MiraMac/DesignSystem/MiraTheme.swift
       - Apps/MiraMac/DesignSystem/MiraBrandMark.swift
       - Apps/MiraMac/DesignSystem/MiraComponents.swift
+      - Apps/MiraMac/DesignSystem/MiraSettingsComponents.swift
+      - Apps/MiraMac/Presentation/ProviderConnectionSettingsModel.swift
+      - Apps/MiraMac/Presentation/ProviderConnectionTestModel.swift
+      - Tests/MiraSettingsTests
       - Apps/MiraMac/Features/Conversation/NativeTranscriptRow.swift
       - Apps/MiraMac/Features/Conversation/MessageRow.swift
       - Apps/MiraMac/Resources/Localizable.xcstrings

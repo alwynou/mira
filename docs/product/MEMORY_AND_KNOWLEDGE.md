@@ -14,6 +14,8 @@ The previous Memory and Knowledge management screens have been removed at the us
 
 This removes presentation only. Memory extraction, recall, conversation citations, explicit save/approval flows, settings, persisted records, and knowledge retrieval remain in place.
 
+Memory settings now uses compact capture-mode and daily-budget cards, shared dropdowns and inputs, and one remaining-token summary. Detailed routing and usage diagnostics are omitted; a missing extraction model links to Models settings. Capturing policy, sensitive-memory boundaries, token-budget enforcement, explicit saves, and errors are unchanged. Discard Changes appears only for an edited draft.
+
 ---
 
 <a id="s09"></a>

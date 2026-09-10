@@ -27,6 +27,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
 
 enum SettingsDestination: Hashable {
     case category(SettingsCategory)
+    // Provider destinations select the detail pane inside the shared Providers page.
     case provider(ConnectionID)
     case catalogProvider(String)
 
@@ -104,7 +105,7 @@ struct SettingsView: View {
             case .general:
                 GeneralSettingsView()
             case .memory:
-                MemorySettingsView(model: model.memory)
+                MemorySettingsView(model: model.memory, onManageModels: { model.navigate(.category(.models)) })
             case .data:
                 DataSettingsView(model: model.data)
             case .providers, .models:

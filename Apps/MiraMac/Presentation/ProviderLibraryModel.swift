@@ -67,15 +67,19 @@ final class ProviderLibraryModel {
         } catch { self.error = MiraError.safe(error) }
     }
 
-    func setProviderEnabled(_ enabled: Bool, connection: ProviderConnection) async {
+    func addCatalogModel(_ item: CatalogModel, connection: ProviderConnection) async {
         guard let application = container.application, !isWorking, !container.isDemo else { return }
-        cancelDiscovery(); cancelProbe()
+        cancelProbe()
         isWorking = true; error = nil; statusKey = nil
         defer { isWorking = false }
         do {
-            var updated = connection
-            updated.isEnabled = enabled; updated.revision += 1
-            try await application.saveConnection(updated, expectedRevision: connection.revision)
+            let current = try await application.library().configuration
+            guard current.connections.first(where: { $0.id == connection.id }) == connection, connection.isEnabled else {
+                throw MiraError(.conflict, "The provider configuration changed. Discard your draft and try again.")
+            }
+            let entry = ProviderConnectionTestModel(catalog: item, connection: connection)
+            try entry.snapshot(for: connection).validateForSending()
+            try await application.savePoolModel(entry.model, route: entry.route, expectedModelRevision: nil, expectedRouteRevision: nil)
             await refresh()
         } catch { self.error = MiraError.safe(error) }
     }
@@ -91,15 +95,6 @@ final class ProviderLibraryModel {
             try await application.saveModel(updated, expectedRevision: model.revision)
             await refresh()
         } catch { self.error = MiraError.safe(error) }
-    }
-
-    func removeProvider(_ connection: ProviderConnection) async {
-        guard !isWorking, !container.isDemo else { return }
-        cancelDiscovery(); cancelProbe()
-        isWorking = true; error = nil
-        defer { isWorking = false }
-        do { try await container.removeConnection(connection); await refresh() }
-        catch { self.error = MiraError.safe(error) }
     }
 
     func removeModel(_ model: ModelDescriptor) async {

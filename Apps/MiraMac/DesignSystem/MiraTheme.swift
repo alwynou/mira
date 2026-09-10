@@ -7,6 +7,12 @@ enum MiraTheme {
     enum Colors {
         static var canvas: Color { dynamic(light: 0xFFFFFF, dark: 0x1B1B1B) }
         static var surface: Color { dynamic(light: 0xFFFFFF, dark: 0x252525) }
+        static var settingsSurface: Color { dynamic(light: 0xF7F7F7, dark: 0x252525) }
+        static var settingsDescription: Color { dynamic(light: 0x7A7A78, dark: 0xA3A3A0) }
+        static var active: Color { dynamic(light: 0x34C759, dark: 0x30D158) }
+        static var modelVision: Color { dynamic(light: 0x1C64C7, dark: 0x70AFFF) }
+        static var modelTools: Color { dynamic(light: 0xCE6A0F, dark: 0xFFAD5B) }
+        static var modelThinking: Color { dynamic(light: 0x8050B5, dark: 0xC095E8) }
         static var inset: Color { dynamic(light: 0xF5F5F5, dark: 0x303030) }
         static var text: Color { dynamic(light: 0x202020, dark: 0xF2F2F2) }
         static var secondaryText: Color { dynamic(light: 0x666664, dark: 0xB8B8B5) }
@@ -34,7 +40,6 @@ enum MiraTheme {
 
     enum Opacity {
         static let sidebarHighlight: Double = 0.04
-        static let selectShadow: Double = 0.12
         static let composerBorder: Double = 0.70
         static let composerShadow: Double = 0.06
         static let composerMaterialLight: Double = 1.0
@@ -70,10 +75,19 @@ enum MiraTheme {
         static let selectHeight: CGFloat = 28
         static let selectMinWidth: CGFloat = 100
         static let selectMaxWidth: CGFloat = 200
-        static let selectMenuMinWidth: CGFloat = 140
-        static let selectMenuMaxWidth: CGFloat = 320
         static let rowHeight: CGFloat = 34
         static let settingsPageTopInset: CGFloat = 64
+        static let settingsFormLabelWidth: CGFloat = 88
+        static let settingsInputHeight: CGFloat = 32
+        static let settingsButtonHeight: CGFloat = 32
+        static let settingsSidebarWidth: CGFloat = 180
+        static let providerListWidth: CGFloat = 180
+        static let providerRowHeight: CGFloat = 32
+        static let providerIconSize: CGFloat = 18
+        static let providerHeadingIconSize: CGFloat = 36
+        static let providerModelIconSize: CGFloat = 36
+        static let providerModelRowMinHeight: CGFloat = 64
+        static let providerModelListMaxHeight: CGFloat = 480
     }
 
     enum Markdown {
@@ -85,6 +99,8 @@ enum MiraTheme {
     }
 
     enum Typography {
+        @MainActor static let appKitBody: NSFont = .systemFont(ofSize: 14)
+        @MainActor static let appKitCaption: NSFont = .systemFont(ofSize: 12)
         static let body: Font = .system(size: 14)
         static let sidebar: Font = .system(size: 14)
         static let caption: Font = .system(size: 12)
@@ -92,6 +108,8 @@ enum MiraTheme {
         static let composerModel: Font = .system(size: 11)
         static let section: Font = .system(size: 12)
         static let title: Font = .system(size: 20, weight: .semibold)
+        static let providerTitle: Font = .system(size: 16, weight: .semibold)
+        static let modelCapability: Font = .system(size: 10, weight: .medium)
         static let welcome: Font = .system(size: 28)
     }
 }

@@ -54,7 +54,7 @@ struct PoolModelEditor: View {
             catalogReference
             Text("Catalog suggestions are declarations, not successful tests. Confirm the limits and capabilities before saving. Connection or model changes require reconfirmation.")
                 .font(.caption).foregroundStyle(.secondary)
-            Text("Memory extraction uses JSON text with local validation. Declare it separately or run Test JSON Extraction in the pool. Native structured output is not required.")
+            Text("Memory extraction uses JSON text with local validation. Declare it separately or use Test JSON Extraction in the provider model menu. Native structured output is not required.")
                 .font(.caption).foregroundStyle(.secondary)
             }.frame(maxHeight: 500)
             if let error { Text(L10n.error(error, locale: locale)).font(.callout).foregroundStyle(.red) }

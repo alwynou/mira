@@ -6,16 +6,21 @@ import MiraCore
 /// untouched.
 enum ProviderThinkingRules {
     static func usesCompletionTokenLimit(for route: ResolvedModelRouteSnapshot) -> Bool {
-        route.protocolMode == .openAI || (route.protocolMode == .kimi && route.modelID == "kimi-k3")
+        route.protocolMode == .openAI || isKimiK3(route) ||
+            (route.protocolMode == .kimi && ["kimi-for-coding", "kimi-for-coding-highspeed"].contains(route.modelID))
+    }
+
+    private static func isKimiK3(_ route: ResolvedModelRouteSnapshot) -> Bool {
+        route.protocolMode == .kimi && ["kimi-k3", "k3", "k3-256k"].contains(route.modelID)
     }
 
     static func preservesKimiThinking(for route: ResolvedModelRouteSnapshot) -> Bool {
-        route.protocolMode == .kimi && route.modelID == "kimi-k2.6" && route.thinking.mode != .disabled
+        route.protocolMode == .kimi && ["kimi-k2.6", "kimi-for-coding", "kimi-for-coding-highspeed"].contains(route.modelID) && route.thinking.mode != .disabled
     }
 
     static func openAIThinkingType(for route: ResolvedModelRouteSnapshot) -> String? {
         guard route.protocolMode == .deepSeek || route.protocolMode == .kimi,
-              !(route.protocolMode == .kimi && route.modelID == "kimi-k3") else { return nil }
+              !isKimiK3(route) else { return nil }
         if preservesKimiThinking(for: route) { return "enabled" }
         switch route.thinking.mode {
         case .providerDefault: return nil
@@ -28,7 +33,7 @@ enum ProviderThinkingRules {
         if route.protocolMode == .deepSeek, route.thinking.mode != .disabled {
             return route.thinking.effort.map { $0 == .medium ? "high" : $0.rawValue }
         }
-        if route.protocolMode == .kimi, route.modelID == "kimi-k3", route.thinking.mode != .disabled {
+        if isKimiK3(route), route.thinking.mode != .disabled {
             return route.thinking.effort?.rawValue
         }
         guard route.protocolMode == .openAI else { return nil }

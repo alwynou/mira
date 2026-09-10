@@ -6,7 +6,7 @@ import MiraProviders
 import Observation
 
 @MainActor @Observable
-final class AppContainer {
+final class AppContainer: ProviderConnectionSettingsStore {
     let application: MiraApplication?
     let startupError: MiraError?
     let directory: URL
@@ -111,9 +111,56 @@ final class AppContainer {
         }
     }
 
-    /// Installs a new immutable credential version first; rolls it back if the DB commit fails.
-    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String) async throws {
+    func hasCredential(for connection: ProviderConnection) -> Bool {
+        (try? credentials.read(reference: connection.credentialReference, version: connection.credentialVersion)) != nil
+    }
+
+    /// Tests the exact draft with synthetic content, without saving its key or changing model capabilities.
+    func testConnection(_ connection: ProviderConnection, previous: ProviderConnection?, secret: String,
+                        model: ProviderConnectionTestModel) async throws {
+        guard !isDemo else { throw MiraError(.configuration, "Connection testing is unavailable in demo mode.") }
+        try connection.validate()
+        try await validateConnectionDraft(previous: previous, connection: connection, testModel: model)
+        let reader: any CredentialReader = secret.isEmpty ? credentials : DraftConnectionCredentials(
+            reference: connection.credentialReference, version: connection.credentialVersion, secret: secret)
+        let observation = await ProviderCapabilityProbe(provider: HTTPModelProvider(credentials: reader))
+            .run(route: model.snapshot(for: connection), kind: .text)
+        try Task.checkCancellation()
+        try await validateConnectionDraft(previous: previous, connection: connection, testModel: model)
+        guard observation.state == .verified else {
+            throw observation.error ?? MiraError(.providerRejected, "The connection test failed. The provider was not enabled.")
+        }
+    }
+
+    private func validateConnectionDraft(previous: ProviderConnection?, connection: ProviderConnection,
+                                         testModel: ProviderConnectionTestModel?) async throws {
         guard let application else { throw MiraError(.storage, "The library is not open.") }
+        let configuration = try await application.library().configuration
+        guard configuration.connections.first(where: { $0.id == connection.id }) == previous else {
+            throw MiraError(.conflict, "The provider configuration changed. Discard your draft and try again.")
+        }
+        if let testModel, testModel.isSaved {
+            guard testModel.model.connectionID == connection.id,
+                  configuration.models.first(where: { $0.id == testModel.model.id }) == testModel.model,
+                  configuration.routes.first(where: { $0.id == testModel.route.id }) == testModel.route else {
+                throw MiraError(.conflict, "The test model changed. Select the current model and try again.")
+            }
+        }
+        try Task.checkCancellation()
+    }
+
+    /// Only a transition to enabled requires a fresh connection check. Ordinary saves are local.
+    /// Installs a new immutable credential version first; rolls it back if the DB commit fails.
+    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String,
+                        testModel: ProviderConnectionTestModel?) async throws -> ProviderConnection {
+        guard !isDemo, let application else { throw MiraError(.storage, "The library is not open.") }
+        try route.validate()
+        let isActivation = route.isEnabled && previous?.isEnabled != true
+        if isActivation {
+            guard let testModel else { throw MiraError(.configuration, "Select a configured text model to test this provider.") }
+            try await testConnection(route, previous: previous, secret: secret, model: testModel)
+        }
+        try await validateConnectionDraft(previous: previous, connection: route, testModel: isActivation ? testModel : nil)
         var updated = route
         let replacement = !secret.isEmpty
         if replacement {
@@ -124,20 +171,16 @@ final class AppContainer {
             do { try credentials.save(secret, reference: updated.credentialReference, version: updated.credentialVersion) }
             catch { await retryCredentialCleanup(); throw error }
         } else if previous == nil { throw MiraError(.credentialMissing, "A new connection requires an API key.") }
-        do { try await application.saveConnection(updated, expectedRevision: previous?.revision) }
+        do {
+            try Task.checkCancellation()
+            try await application.saveConnection(updated, expectedRevision: previous?.revision)
+        }
         catch {
             if replacement { await retryCredentialCleanup() }
             throw error
         }
         if replacement { await retryCredentialCleanup() }
-    }
-
-    func removeConnection(_ route: ProviderConnection) async throws {
-        guard let application else { throw MiraError(.storage, "The library is not open.") }
-        try credentialCleanup.enqueue([route])
-        do { try await application.removeConnection(route.id) }
-        catch { await retryCredentialCleanup(); throw error }
-        await retryCredentialCleanup()
+        return updated
     }
 
     func retryCredentialCleanup() async {
@@ -146,6 +189,20 @@ final class AppContainer {
             let routes = try await application.library().configuration.connections
             maintenanceMessage = try credentialCleanup.reconcile(retaining: routes, credentials: credentials)
         } catch { maintenanceMessage = MiraError.safe(error).message }
+    }
+}
+
+/// An unsaved API key is scoped to one explicit request and never written to disk or diagnostics.
+private struct DraftConnectionCredentials: CredentialReader {
+    let reference: String
+    let version: Int
+    let secret: String
+
+    func read(reference: String, version: Int) throws -> String {
+        guard reference == self.reference, version == self.version, !secret.isEmpty else {
+            throw MiraError(.credentialMissing, "Enter an API key.")
+        }
+        return secret
     }
 }
 

@@ -6,6 +6,18 @@ import MiraCore
 public struct ProviderModelCatalog: Sendable {
     public let providers: [CatalogProvider]
 
+    /// One settings entry per service. Regional metadata remains endpoint-specific.
+    public var directoryProviders: [CatalogProvider] {
+        var seen = Set<String>()
+        return providers.filter { seen.insert($0.directoryID).inserted }
+    }
+
+    public func displayName(for connection: ProviderConnection) -> String {
+        guard let provider = matchingProvider(for: connection),
+              ["moonshotai-cn", "kimi-for-coding"].contains(provider.directoryID) else { return connection.name }
+        return provider.name
+    }
+
     public static let bundled: ProviderModelCatalog = {
         guard let url = Bundle.module.url(forResource: "ModelCatalog", withExtension: "json"),
               let data = try? Data(contentsOf: url),
@@ -60,6 +72,16 @@ public struct CatalogProvider: Identifiable, Sendable {
     public let documentationURL: String
     public let providerKind: ProviderKind
     public let models: [CatalogModel]
+
+    public var directoryID: String { id == "moonshotai" ? "moonshotai-cn" : id }
+
+    public var defaultTestModelID: String? {
+        switch directoryID {
+        case "kimi-for-coding": "kimi-for-coding"
+        case "moonshotai-cn": "kimi-k2.6"
+        default: nil
+        }
+    }
 
     fileprivate init(_ value: CatalogDocument.Provider) {
         id = value.id

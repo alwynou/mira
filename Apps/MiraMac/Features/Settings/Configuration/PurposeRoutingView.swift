@@ -6,6 +6,14 @@ private enum RoutingScopeChoice: Hashable {
     case workspace(WorkspaceID)
     case conversation(ConversationID)
 
+    var id: String {
+        switch self {
+        case .global: "global" // i18n-verbatim: Stable route-scope selection identifier.
+        case .workspace(let id): "workspace-\(id.rawValue.uuidString)"
+        case .conversation(let id): "conversation-\(id.rawValue.uuidString)"
+        }
+    }
+
     var routeScope: RouteScope {
         switch self {
         case .global: .global
@@ -16,6 +24,7 @@ private enum RoutingScopeChoice: Hashable {
 }
 
 struct PurposeRoutingView: View {
+    @Environment(\.locale) private var locale
     let configuration: ModelConfiguration
     let workspaces: [Workspace]
     let conversations: [Conversation]
@@ -25,27 +34,16 @@ struct PurposeRoutingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
-            MiraSettingsSection {
-                MiraSettingsRow("Scope") {
-                    Picker("Scope", selection: $scope) {
-                        Text("Global").tag(RoutingScopeChoice.global)
-                        if !workspaces.isEmpty {
-                            Section("Workspaces") {
-                                ForEach(workspaces) { Text(verbatim: $0.name).tag(RoutingScopeChoice.workspace($0.id)) }
-                            }
-                        }
-                        if !conversations.isEmpty {
-                            Section("Conversations") {
-                                ForEach(conversations) { conversation in
-                                    Group {
-                                        if conversation.title.isEmpty { Text("Untitled conversation") }
-                                        else { Text(verbatim: conversation.title) }
-                                    }.tag(RoutingScopeChoice.conversation(conversation.id))
-                                }
-                            }
-                        }
-                    }.labelsHidden().frame(maxWidth: 300)
-                        .accessibilityIdentifier("settings.models.scope")
+            if scopeChoices.count > 1 {
+                MiraSettingsSection {
+                    MiraSettingsRow("Applies to") {
+                        MiraSettingsSelect(title: "Applies to", selection: Binding(
+                            get: { scope.id },
+                            set: { value in
+                                if let choice = scopeChoices.first(where: { $0.scope.id == value }) { scope = choice.scope }
+                            }), options: scopeChoices.map { .init(id: $0.scope.id, title: $0.title) },
+                            identifier: "settings.models.scope", maximumWidth: 240)
+                    }
                 }
             }
             ForEach([ModelPurpose.conversation, .memoryExtraction], id: \.self) { purpose in
@@ -53,9 +51,17 @@ struct PurposeRoutingView: View {
                                  purpose: purpose, scope: scope.routeScope, onChange: onChange)
                     .id(scope)
             }
-            Text("Adding a model to the pool does not select it for any purpose. Removing a local selection uses the workspace or global default when configured.")
-                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
         }
+    }
+
+    private var scopeChoices: [(scope: RoutingScopeChoice, title: LocalizedStringResource)] {
+        var choices: [(scope: RoutingScopeChoice, title: LocalizedStringResource)] = [(.global, "Global")]
+        choices += workspaces.map { (.workspace($0.id), "Workspace: \($0.name)") }
+        choices += conversations.map { conversation in
+            let title = conversation.title.isEmpty ? L10n.string("Untitled conversation", locale: locale) : conversation.title
+            return (.conversation(conversation.id), "Conversation: \(title)")
+        }
+        return choices
     }
 }
 
@@ -69,92 +75,89 @@ private struct PurposeModelCard: View {
     @State private var routeID: RouteID?
     @State private var loadedBinding: RouteBinding?
     @State private var error: MiraError?
-    @State private var statusKey: String?
     @State private var saving = false
 
     var body: some View {
-        MiraSettingsSection {
-            Text(LocalizedStringKey(purpose == .conversation ? "Conversation" : "Memory Extraction"))
-                .font(MiraTheme.Typography.body.weight(.semibold))
-            Text(LocalizedStringKey(purpose == .conversation
-                ? "Conversation models need streaming text and valid token limits. Agent tools also need tool-call capability."
-                : "Memory extraction needs streaming text, valid token limits, and a separate JSON extraction declaration. Native structured output is optional."))
-                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
-            Menu {
-                Picker("Model", selection: $routeID) {
-                    Text("Inherit / no binding").tag(nil as RouteID?)
-                    if let routeID, !eligibleModels.contains(where: { $0.route.id == routeID }) {
-                        Text("Unavailable model").tag(Optional(routeID))
-                    }
-                    ForEach(eligibleModels) { entry in
-                        Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id))
-                    }
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
+            MiraSettingsSection {
+                MiraSettingsRow(purpose == .conversation ? "Conversation model" : "Memory extraction model",
+                                subtitle: purpose == .conversation ? "Used for new conversations." : "Used to organize memories in the background.") {
+                    MiraSettingsSelect(title: "Model", selection: Binding(
+                        get: { routeID?.rawValue.uuidString ?? "" },
+                        set: { value in
+                            if value.isEmpty { routeID = nil }
+                            else if let entry = eligibleModels.first(where: { $0.route.id.rawValue.uuidString == value }) {
+                                routeID = entry.route.id
+                            }
+                            error = nil
+                        }), options: modelOptions, identifier: "settings.models.default.\(purpose.rawValue)",
+                        placeholder: "Select a model", clearSelectionTitle: scope == .global ? "Clear Selection" : "Use Inherited Model",
+                        minimumWidth: 160, maximumWidth: 240)
+                        .disabled(saving)
                 }
-                .pickerStyle(.inline)
-            } label: {
+                if eligibleModels.isEmpty {
+                    Text("Configure a compatible model in Providers.")
+                        .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+                }
+            }
+            if hasChanges || saving {
                 HStack {
-                    selectionLabel
+                    if saving { ProgressView().controlSize(.small) }
                     Spacer()
-                    Image(systemName: "chevron.down").font(MiraTheme.Typography.caption)
+                    if hasChanges {
+                        Button("Discard Changes") { loadBinding() }
+                            .buttonStyle(MiraSettingsButtonStyle()).disabled(saving)
+                    }
+                    Button("Save") { saveBinding() }
+                        .buttonStyle(MiraSettingsButtonStyle(isPrimary: true))
+                        .disabled(saving || container.isDemo || !selectionAvailable || !hasChanges)
                 }
-                .padding(MiraTheme.Spacing.md)
-                .background(MiraTheme.Colors.surface, in: .rect(cornerRadius: MiraTheme.Radius.small))
-                .overlay {
-                    RoundedRectangle(cornerRadius: MiraTheme.Radius.small)
-                        .strokeBorder(MiraTheme.Colors.border, lineWidth: 1)
-                }
             }
-            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).disabled(saving)
-            .accessibilityLabel(Text("Model"))
-            .accessibilityIdentifier("settings.models.default.\(purpose.rawValue)")
-            if eligibleModels.isEmpty {
-                Text("No models are ready for this purpose. Configure capabilities in the model pool.")
-                    .font(MiraTheme.Typography.caption).foregroundStyle(.orange)
+            if let error {
+                Text(L10n.error(error, locale: locale))
+                    .font(MiraTheme.Typography.caption).foregroundStyle(.red).textSelection(.enabled)
             }
-            HStack {
-                Button("Use Inherited Model", role: .destructive) { removeBinding() }
-                    .disabled(saving || container.isDemo || loadedBinding == nil)
-                Spacer()
-                Button("Save Selection") { saveBinding() }
-                    .buttonStyle(MiraPrimaryButtonStyle())
-                    .disabled(saving || container.isDemo || !selectionAvailable || (routeID == nil && loadedBinding == nil))
-            }
-            if let error { Text(L10n.error(error, locale: locale)).font(MiraTheme.Typography.caption).foregroundStyle(.red) }
-            if let statusKey { Text(L10n.string(statusKey, locale: locale)).font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText) }
         }
         .onAppear { loadBinding() }
-        .onChange(of: scope) { _, _ in loadBinding() }
-        .onChange(of: configuration.bindings) { _, _ in loadBinding() }
+        .onChange(of: configuration.bindings) { _, _ in
+            if !hasChanges && !saving { loadBinding() }
+        }
     }
 
     private var eligibleModels: [ModelPoolEntry] {
         configuration.models(for: purpose == .conversation ? .conversation : .memoryExtraction)
     }
 
-    @ViewBuilder private var selectionLabel: some View {
-        if let routeID {
-            if let entry = eligibleModels.first(where: { $0.route.id == routeID }) {
-                Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").lineLimit(1)
-            } else { Text("Unavailable model") }
-        } else { Text("Inherit / no binding") }
+    private var modelOptions: [MiraSettingsSelect.Option] {
+        var options: [MiraSettingsSelect.Option] = []
+        if let routeID, !eligibleModels.contains(where: { $0.route.id == routeID }) {
+            options.append(.init(id: routeID.rawValue.uuidString, title: "Unavailable model"))
+        }
+        options += eligibleModels.map { entry in
+            let name = entry.model.catalogMetadata?.displayName ?? entry.model.modelID
+            return .init(id: entry.route.id.rawValue.uuidString, verbatimTitle: "\(name) · \(entry.connection.name)")
+        }
+        return options
     }
 
+    private var hasChanges: Bool { routeID != loadedBinding?.routeID }
     private var selectionAvailable: Bool { routeID.map { id in eligibleModels.contains { $0.route.id == id } } ?? true }
-    private var currentRouteScope: RouteScope { scope }
-    private var currentBinding: RouteBinding? { configuration.bindings.first { $0.scope == currentRouteScope && $0.purpose == purpose } }
+    private var currentBinding: RouteBinding? { configuration.bindings.first { $0.scope == scope && $0.purpose == purpose } }
+
     private func loadBinding() {
         loadedBinding = currentBinding
         routeID = loadedBinding?.routeID
         error = nil
-        statusKey = nil
     }
+
     private func saveBinding() {
-        guard let application = container.application else { return }
+        guard hasChanges, !saving, !container.isDemo, let application = container.application else { return }
         guard selectionAvailable else { error = MiraError(.configuration, "Choose an available model from your pool."); return }
-        let targetScope = currentRouteScope
+        let targetScope = scope
         let targetPurpose = purpose
         let selectedRouteID = routeID
-        let expectedRevision = loadedBinding?.revision
+        let originalBinding = loadedBinding
+        let expectedRevision = originalBinding?.revision
         saving = true
         error = nil
         Task { @MainActor in
@@ -164,32 +167,17 @@ private struct PurposeModelCard: View {
                     try await application.saveRouteBinding(binding, expectedRevision: expectedRevision)
                     loadedBinding = binding
                     routeID = selectedRouteID
-                    statusKey = "Binding saved."
-                } else if let loadedBinding {
-                    try await application.removeRouteBinding(loadedBinding)
-                    self.loadedBinding = nil
+                } else if let originalBinding {
+                    try await application.removeRouteBinding(originalBinding)
+                    loadedBinding = nil
                     routeID = nil
-                    statusKey = "Binding removed; using inherited routing."
                 }
-                saving = false
                 await onChange()
-            } catch { saving = false; self.error = MiraError.safe(error) }
-        }
-    }
-    private func removeBinding() {
-        guard let binding = loadedBinding, let application = container.application else { routeID = nil; return }
-        saving = true
-        error = nil
-        Task { @MainActor in
-            do {
-                try await application.removeRouteBinding(binding)
-                loadedBinding = nil
-                routeID = nil
                 saving = false
-                statusKey = "Binding removed; using inherited routing."
-                await onChange()
+            } catch {
+                saving = false
+                self.error = MiraError.safe(error)
             }
-            catch { saving = false; self.error = MiraError.safe(error) }
         }
     }
 }

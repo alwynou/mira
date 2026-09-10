@@ -4,11 +4,11 @@ import XCTest
 @MainActor
 final class SettingsLayoutUITests: XCTestCase {
     func testEnglishSettingsNavigation() throws {
-        try exerciseSettings(language: "en", poolLabel: "Model Pool", dark: false)
+        try exerciseSettings(language: "en", dark: false)
     }
 
     func testChineseSettingsNavigationInDarkAppearance() throws {
-        try exerciseSettings(language: "zh-CN", poolLabel: "模型池", dark: true) // i18n-fixture: Chinese segmented-control label in the supported locale.
+        try exerciseSettings(language: "zh-CN", dark: true)
     }
 
     func testReadingPositionAcrossSettings() throws {
@@ -34,7 +34,7 @@ final class SettingsLayoutUITests: XCTestCase {
         try exerciseConversationReturn(app)
     }
 
-    private func exerciseSettings(language: String, poolLabel: String, dark: Bool) throws {
+    private func exerciseSettings(language: String, dark: Bool) throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-Settings-UI-\(UUID())", isDirectory: true)
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "--data-directory", directory.path, "-app.language", language, "-AppleLanguages", "(en)"]
@@ -95,30 +95,46 @@ final class SettingsLayoutUITests: XCTestCase {
             XCTAssertEqual(window.frame.width, 850, accuracy: 2)
             XCTAssertEqual(window.frame.height - window.toolbars.firstMatch.frame.height, 620, accuracy: 2)
         }
+        let languageSelect = app.popUpButtons["settings.language"]
+        XCTAssertTrue(languageSelect.exists)
+        let languageBefore = languageSelect.value as? String
+        languageSelect.click()
+        XCTAssertTrue(app.menuItems["settings.language.option.en"].waitForExistence(timeout: 3))
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertEqual(languageSelect.value as? String, languageBefore)
         captureSettings(window, page: "General", language: language)
 
         providers.click()
-        let search = app.textFields["settings.providers.search"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        let providerList = app.descendants(matching: .any).matching(identifier: "settings.providers.list").firstMatch
+        XCTAssertTrue(providerList.waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["settings.providers.status"].exists, "Demo mode alone must not show a footer.")
         captureSettings(window, page: "Providers", language: language)
-        search.click()
-        search.typeText("OpenAI")
-        search.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.buttons["settings.catalog.openai"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["settings.catalog.anthropic"].exists)
+        XCTAssertTrue(app.buttons["settings.catalog.anthropic"].exists)
         app.buttons["settings.catalog.openai"].click()
         guard app.secureTextFields["settings.provider.apiKey"].waitForExistence(timeout: 5) else {
             XCTFail("The provider detail did not expose its secure field.")
             return
         }
         XCTAssertFalse(app.buttons["settings.provider.save"].isEnabled)
+        XCTAssertFalse(app.buttons["settings.provider.test"].isEnabled)
+        let testModel = app.popUpButtons["settings.provider.testModel"]
+        let originalModel = testModel.value as? String
+        testModel.click()
+        let option = app.menuItems.matching(NSPredicate(format: "identifier BEGINSWITH %@", "settings.provider.testModel.option.")).firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 3))
+        option.click()
+        XCTAssertNotNil(testModel.value as? String)
+        testModel.click()
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertFalse(app.buttons["settings.provider.test"].isEnabled, "Choosing a model cannot bypass the key requirement.")
+        XCTAssertNotNil(originalModel)
         let providerCapture = XCTAttachment(screenshot: window.screenshot())
         providerCapture.name = "Settings provider - \(language)"
         providerCapture.lifetime = .keepAlways
         add(providerCapture)
         providers.click()
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        XCTAssertTrue(providerList.waitForExistence(timeout: 5))
         app.buttons["settings.catalog.openai"].click()
         XCTAssertTrue(app.secureTextFields["settings.provider.apiKey"].waitForExistence(timeout: 5))
 
@@ -127,15 +143,30 @@ final class SettingsLayoutUITests: XCTestCase {
         XCTAssertTrue(conversationModel.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["settings.models.default.memoryExtraction"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["settings.providers.status"].exists)
+        let selectedConversationModel = conversationModel.value as? String
         conversationModel.click()
+        let clear = app.menuItems["settings.models.default.conversation.clear"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 3))
+        clear.click()
+        XCTAssertNotEqual(conversationModel.value as? String, selectedConversationModel)
+        conversationModel.click()
+        XCTAssertFalse(app.menuItems["settings.models.default.conversation.clear"].exists)
+        app.typeKey(.escape, modifierFlags: [])
+        let discardTitle = language == "zh-CN" ? "放弃更改" : "Discard Changes" // i18n-fixture: Settings discard action.
+        app.buttons[discardTitle].click()
+        XCTAssertEqual(conversationModel.value as? String, selectedConversationModel)
+        let memoryModel = app.popUpButtons["settings.models.default.memoryExtraction"]
+        memoryModel.click()
+        let empty = app.menuItems["settings.models.default.memoryExtraction.empty"]
+        XCTAssertTrue(empty.waitForExistence(timeout: 3))
+        XCTAssertFalse(empty.isEnabled)
         app.typeKey(.escape, modifierFlags: [])
         app.buttons["settings.category.models"].click()
         let modelCapture = XCTAttachment(screenshot: window.screenshot())
         modelCapture.name = "Settings purpose defaults - \(language)"
         modelCapture.lifetime = .keepAlways
         add(modelCapture)
-        app.radioButtons[poolLabel].click()
-        XCTAssertFalse(conversationModel.exists)
+        XCTAssertEqual(app.radioButtons.count, 0, "Models no longer has a separate pool tab.")
 
         app.buttons["settings.category.memory"].click()
         XCTAssertTrue(app.popUpButtons["settings.memory.mode"].waitForExistence(timeout: 5))

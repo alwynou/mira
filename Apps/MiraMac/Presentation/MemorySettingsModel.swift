@@ -8,6 +8,8 @@ final class MemorySettingsModel {
     var mode: MemoryCaptureMode = .manualOnly
     var dailyTokenLimitText = "10000"
     private var policyRevision = 1
+    private var savedMode: MemoryCaptureMode = .manualOnly
+    private var savedDailyTokenLimitText = "10000"
     var configuration = ModelConfiguration(connections: [], models: [], routes: [], bindings: [])
     var workspaces: [Workspace] = []
     var budget: MemoryExtractionBudget?
@@ -34,7 +36,7 @@ final class MemorySettingsModel {
 
     func markDirty() {
         guard !isApplying else { return }
-        isDirty = true
+        isDirty = mode != savedMode || dailyTokenLimitText != savedDailyTokenLimitText
         changeGeneration += 1
         statusKey = nil
         error = nil
@@ -88,6 +90,8 @@ final class MemorySettingsModel {
         isApplying = true
         mode = policy.mode
         dailyTokenLimitText = String(policy.dailyTokenLimit)
+        savedMode = mode
+        savedDailyTokenLimitText = dailyTokenLimitText
         policyRevision = policy.revision
         isDirty = false
         isApplying = false

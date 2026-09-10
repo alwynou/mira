@@ -131,6 +131,9 @@ final class MiraWindowShellTests: XCTestCase {
         XCTAssertTrue(state.visible, "Settings hides the inspector without discarding the conversation preference.")
         XCTAssertFalse(sidebar.isCollapsed)
         XCTAssertFalse(sidebar.canCollapse)
+        XCTAssertEqual(sidebar.minimumThickness, 180)
+        XCTAssertEqual(sidebar.maximumThickness, 180)
+        XCTAssertEqual(sidebar.viewController.view.frame.width, 180, accuracy: 1)
         XCTAssertFalse(try XCTUnwrap(window.toolbar).items.contains { $0.itemIdentifier == .toggleSidebar })
         controller.toggleSidebar(nil)
         XCTAssertFalse(sidebar.isCollapsed, "Settings must ignore the sidebar command.")
@@ -138,6 +141,8 @@ final class MiraWindowShellTests: XCTestCase {
         controller.update(shell)
         try await Task.sleep(for: .milliseconds(600))
         XCTAssertFalse(inspector.isCollapsed)
+        XCTAssertEqual(sidebar.viewController.view.frame.width, sidebarFrame.width, accuracy: 1,
+                       "Leaving settings restores the conversation width.")
 
         // Native divider collapse must update the SwiftUI presentation binding.
         inspector.isCollapsed = true

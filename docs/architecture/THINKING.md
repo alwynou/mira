@@ -45,3 +45,7 @@ Provider activation, model discovery, pool membership, purpose eligibility and a
 - [OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create): native reasoning effort and completion-token budget. Chat Completions does not expose the Responses reasoning-item workflow; Responses remains a separate adapter increment.
 
 Synthetic and live acceptance evidence belongs in `docs/engineering`; catalog provenance remains in [MODEL_CATALOG.md](MODEL_CATALOG.md).
+
+## Kimi Code aliases
+
+Kimi Code uses the existing OpenAI-compatible Kimi policy and lossless `reasoning_content` replay. Official Coding IDs `k3` and `k3-256k` share K3's mandatory thinking, `low`/`high`/`max` effort, and `max_completion_tokens` output reservation. `kimi-for-coding` and `kimi-for-coding-highspeed` are mandatory-thinking K2.7 Code deployments; their requests explicitly preserve thinking with `type: enabled` and `keep: all`, and use `max_completion_tokens`. These aliases never permit thinking-off fallback to another model. Client identity is unchanged; no approved-client impersonation header is introduced. The [official Coding model documentation](https://www.kimi.com/code/docs/en/kimi-code/models.html) and [Chat Completions reference](https://platform.kimi.ai/docs/api/chat) support these protocol settings. Live service acceptance remains deferred.

@@ -16,26 +16,25 @@ SOURCE_URL = "https://models.dev/api.json"
 PROVIDER_ORDER = [
     "openai",
     "anthropic",
-    "deepseek",
+    "kimi-for-coding",
     "moonshotai-cn",
     "moonshotai",
-    "siliconflow-cn",
-    "siliconflow",
+    "deepseek",
     "openrouter",
 ]
 PROVIDER_KINDS = {"openai": "openAICompatible", "anthropic": "anthropic"}
 PROVIDER_NAMES = {
-    "moonshotai-cn": "Kimi / Moonshot (China)",
-    "moonshotai": "Kimi / Moonshot (International)",
+    "kimi-for-coding": "Kimi Code",
+    "moonshotai-cn": "Moonshot",
+    "moonshotai": "Moonshot",
 }
 OFFICIAL_BASE_URLS = {
     "openai": "https://api.openai.com/v1",
     "anthropic": "https://api.anthropic.com/v1",
     "deepseek": "https://api.deepseek.com",
+    "kimi-for-coding": "https://api.kimi.com/coding/v1",
     "moonshotai-cn": "https://api.moonshot.cn/v1",
     "moonshotai": "https://api.moonshot.ai/v1",
-    "siliconflow-cn": "https://api.siliconflow.cn/v1",
-    "siliconflow": "https://api.siliconflow.com/v1",
     "openrouter": "https://openrouter.ai/api/v1",
 }
 OFFICIAL_PRICING_BASE_URLS = {
@@ -106,6 +105,9 @@ def catalog_pricing(provider_id: str, model_id: str, raw: dict[str, Any], task: 
     rates and cache-write rates. Only the base tariff below the first verified
     context threshold is retained; the higher bands remain unsupported.
     """
+    # Membership quota is not a free per-token API tariff.
+    if provider_id == "kimi-for-coding":
+        return None
     cost = raw.get("cost")
     if cost is None:
         return None
@@ -217,7 +219,7 @@ def suggested_mode(provider_id: str, model_id: str, raw: dict[str, Any], task: s
         return "standard"
     if provider_id == "deepseek":
         return "deepSeek"
-    if provider_id in {"moonshotai-cn", "moonshotai"}:
+    if provider_id in {"moonshotai-cn", "moonshotai", "kimi-for-coding"}:
         return "kimi"
     if provider_id == "anthropic":
         return "anthropicAdaptive" if any(model_id == base or model_id.startswith(base + "-20") for base in ANTHROPIC_ADAPTIVE_IDS) else "anthropicManual"
