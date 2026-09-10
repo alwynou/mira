@@ -27,25 +27,29 @@ struct TranscriptFollowSchedulerTests {
         #expect(events == ["new"])
     }
 
-    @Test func followIntentIsCheckedWhenTheDeferredCallbackExecutes() async throws {
+    @Test func pendingExplicitJumpCanBeCancelledBeforeDeferredCallback() async throws {
         let scheduler = TranscriptFollowScheduler(interval: .milliseconds(10))
         var state = TranscriptScrollState()
-        var count = 0
         var callbacks = 0
-        scheduler.schedule {
-            if state.shouldFollowContentChange() { count += 1 }
-            callbacks += 1
-        }
-        state.revealHistory()
-        try await waitForCallback { callbacks == 1 }
-        #expect(count == 0)
+        var jumps = 0
         state.jumpToLatest()
         scheduler.schedule {
-            if state.shouldFollowContentChange() { count += 1 }
             callbacks += 1
+            if state.consumePendingJumpToLatest() { jumps += 1 }
+        }
+        state.userScrollChanged(isScrolling: true, isNearBottom: false)
+        try await waitForCallback { callbacks == 1 }
+        #expect(jumps == 0)
+        state.userScrollChanged(isScrolling: false, isNearBottom: false)
+        state.jumpToLatest()
+        scheduler.schedule {
+            callbacks += 1
+            if state.consumePendingJumpToLatest() { jumps += 1 }
         }
         try await waitForCallback { callbacks == 2 }
-        #expect(count == 1)
+        #expect(jumps == 1)
+        let consumedAgain = state.consumePendingJumpToLatest()
+        #expect(!consumedAgain)
     }
 
     private func waitForCallback(_ completed: () -> Bool) async throws {

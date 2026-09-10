@@ -44,19 +44,25 @@ private struct MiraComponentPreview: View {
                     Button("Send", systemImage: "arrow.up") {}
                         .labelStyle(.iconOnly).buttonStyle(MiraCircleButtonStyle()).disabled(true)
                 }
-                MiraSurface(cornerRadius: MiraTheme.Radius.composer) {
+                VStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
                         Text("Send a message…").foregroundStyle(MiraTheme.Colors.secondaryText)
-                        HStack {
-                            Text("Use default model").font(MiraTheme.Typography.caption)
-                            Spacer()
-                            Button("Stop", systemImage: "stop.fill") {}
-                                .labelStyle(.iconOnly).buttonStyle(MiraCircleButtonStyle())
+                        MiraComposerBarLayout {
+                            Color.clear.frame(width: 0, height: 0)
+                            Text("Local demo").font(MiraTheme.Typography.composerFootnote)
+                                .foregroundStyle(MiraTheme.Colors.secondaryText)
+                            HStack(spacing: MiraTheme.Spacing.sm) {
+                                Text("Use default model").font(MiraTheme.Typography.composerModel)
+                                    .foregroundStyle(MiraTheme.Colors.secondaryText)
+                                Button("Stop", systemImage: "stop.fill") {}
+                                    .labelStyle(.iconOnly).buttonStyle(MiraCircleButtonStyle())
+                            }
                         }
                     }
                     .padding(MiraTheme.Spacing.lg)
                     .frame(width: 360)
                 }
+                .modifier(MiraComposerGlass())
             }
             .padding(MiraTheme.Spacing.xxl)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -189,4 +195,57 @@ private struct MiraComponentPreview: View {
     .frame(width: 850, height: 620)
     .environment(\.locale, Locale(identifier: "en"))
     .preferredColorScheme(.light)
+}
+
+/// Synthetic renderer preview; no application runtime or library is opened.
+private struct MiraMarkdownPreview: NSViewRepresentable {
+    @Environment(\.locale) private var locale
+    func makeNSView(context: Context) -> MiraMarkdownView { MiraMarkdownView() }
+    func updateNSView(_ view: MiraMarkdownView, context: Context) {
+        let source = "# A native reply\n\nSelectable **Markdown** with `inline code` and a [link](https://www.swift.org).\n\n- A stable paragraph\n- A wrapped list item\n\n```swift\nlet answer = 42\n```"
+        let theme = MiraMarkdownStyle.theme(for: view.effectiveAppearance)
+        view.apply(content: .init(markdown: source, theme: theme, locale: locale), source: source,
+                   theme: theme, locale: locale, isStreaming: false, reduceMotion: true)
+    }
+}
+
+#Preview("Markdown · Light") {
+    MiraMarkdownPreview().frame(width: 500, height: 420).padding(24)
+        .background(MiraTheme.Colors.canvas).preferredColorScheme(.light)
+}
+
+#Preview("Markdown · Dark") {
+    MiraMarkdownPreview().frame(width: 360, height: 420).padding(24)
+        .background(MiraTheme.Colors.canvas).preferredColorScheme(.dark)
+        .environment(\.locale, Locale(identifier: "zh-CN"))
+}
+
+#Preview("Composer material over content") {
+    @Previewable @State var draft = ""
+    ZStack(alignment: .bottom) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: MiraTheme.Spacing.lg) {
+                ForEach(0..<20) { _ in
+                    Text("Start with an idea").font(MiraTheme.Typography.welcome)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
+            TextField("Send a message…", text: $draft, axis: .vertical)
+                .textFieldStyle(.plain).lineLimit(3...8)
+            HStack {
+                Text("Local demo").font(MiraTheme.Typography.composerFootnote)
+                Spacer()
+                Button("Send", systemImage: "arrow.up") {}
+                    .labelStyle(.iconOnly).buttonStyle(MiraCircleButtonStyle())
+            }
+        }
+        .padding(MiraTheme.Spacing.lg)
+        .modifier(MiraComposerGlass())
+        .padding(.horizontal, MiraTheme.Spacing.xl)
+        .padding(.bottom, MiraTheme.Layout.composerBottomInset)
+    }
+    .background(MiraTheme.Colors.canvas)
+    .frame(width: 560, height: 480)
 }

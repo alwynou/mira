@@ -1,0 +1,29 @@
+{
+  "os": "26.6.2",
+  "passed": true,
+  "scenarios": [
+    {
+      "maximumPrefixDrift": 0,
+      "maximumScrollDrift": 0,
+      "overlaps": 0,
+      "passed": true,
+      "samples": 23,
+      "scenario": "light-en"
+    },
+    {
+      "maximumPrefixDrift": 0,
+      "maximumScrollDrift": 0,
+      "overlaps": 0,
+      "passed": true,
+      "samples": 23,
+      "scenario": "minimum-dark-zh"
+    }
+  ],
+  "fixtureNotes": [
+    "Offline Debug native transcript with 100 synthetic history messages.",
+    "48-character updates at 80 ms intervals, then fade settling and terminal replacement.",
+    "Prefix drift tracks the first eight completed font runs in window coordinates; this is geometry sampling, not a frame-rate measurement.",
+    "Captured fixture used equivalent literal CJK text; the checked-in fixture escapes those same Unicode scalars and omits incomplete layer-cache screenshots."
+  ],
+  "rendererSHA256": "5814810f3fef3c5aad0c9ae131fe1b8b54659423acdedc8a3eb24e59ab57bae2"
+}

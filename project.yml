@@ -19,8 +19,15 @@ settings:
 packages:
   MiraKit:
     path: Packages/MiraKit
-  SwiftStreamingMarkdown:
-    path: Vendor/SwiftStreamingMarkdown
+  MarkdownView:
+    url: https://github.com/Lakr233/MarkdownView
+    revision: 757b6fcc4b3095e84f4c0613f4b98147f49dcd09
+  ListViewKit:
+    url: https://github.com/Lakr233/ListViewKit
+    revision: c6a067ba837758a50612f88dd1d6bb025175df6c
+  Litext:
+    url: https://github.com/Lakr233/Litext
+    revision: 130b4eef642d76a3d2dcf07ab966f32f08e14b90
 targets:
   Mira:
     type: application
@@ -54,8 +61,14 @@ targets:
         product: MiraData
       - package: MiraKit
         product: MiraProviders
-      - package: SwiftStreamingMarkdown
-        product: SwiftStreamingMarkdown
+      - package: MarkdownView
+        product: MarkdownView
+      - package: MarkdownView
+        product: MarkdownParser
+      - package: ListViewKit
+        product: ListViewKit
+      - package: Litext
+        product: Litext
   MiraHostTests:
     type: bundle.unit-test
     platform: macOS
@@ -64,6 +77,10 @@ targets:
       - Apps/MiraMac/App/MiraWindowShell.swift
       - Apps/MiraMac/App/AppDisplayMode.swift
       - Apps/MiraMac/DesignSystem/MiraTheme.swift
+      - Apps/MiraMac/DesignSystem/MiraBrandMark.swift
+      - Apps/MiraMac/DesignSystem/MiraComponents.swift
+      - Apps/MiraMac/Features/Conversation/NativeTranscriptRow.swift
+      - Apps/MiraMac/Features/Conversation/MessageRow.swift
       - Apps/MiraMac/Resources/Localizable.xcstrings
       - Tests/MiraLocalizationTests
       - Tests/MiraPlatformTests
@@ -71,13 +88,14 @@ targets:
         buildPhase: resources
       - Apps/MiraMac/Platform/Keychain
       - Apps/MiraMac/Presentation/ConversationStreamBuffer.swift
+      - Apps/MiraMac/Presentation/TranscriptViewportLayout.swift
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
       - Apps/MiraMac/Presentation/ConversationReadingState.swift
       - Apps/MiraMac/Presentation/TranscriptFollowScheduler.swift
-      - Apps/MiraMac/Presentation/TranscriptScrollAnimation.swift
       - Apps/MiraMac/Presentation/SourceCitationModel.swift
       - Apps/MiraMac/Features/Conversation/UsageCostView.swift
-      - Vendor/SwiftStreamingMarkdown/Tests/SwiftStreamingMarkdownLocaleTests
+      - Apps/MiraMac/DesignSystem/MiraMarkdownView.swift
+      - Apps/MiraMac/Presentation/NativeTranscriptState.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
@@ -89,8 +107,14 @@ targets:
         product: MiraData
       - package: MiraKit
         product: MiraProviders
-      - package: SwiftStreamingMarkdown
-        product: SwiftStreamingMarkdown
+      - package: MarkdownView
+        product: MarkdownView
+      - package: MarkdownView
+        product: MarkdownParser
+      - package: ListViewKit
+        product: ListViewKit
+      - package: Litext
+        product: Litext
   MiraUITests:
     type: bundle.ui-testing
     platform: macOS

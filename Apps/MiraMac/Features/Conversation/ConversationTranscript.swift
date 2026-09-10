@@ -4,116 +4,31 @@ import MiraCore
 struct ConversationTranscript: View {
     let model: ConversationModel
     let readingState: ConversationReadingState
+    let bottomOverlayHeight: CGFloat
     @Binding var rememberedMessage: Message?
     @Binding var revealedMessageID: MessageID?
-    @State private var position = ScrollPosition()
-    @State private var followScheduler = TranscriptFollowScheduler()
-    @State private var latestBottomOffset: CGFloat = 0
-    @State private var followsByOffset = false
+    @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        // Growing content must not feed the window's min/ideal/max size negotiation.
         GeometryReader { _ in
-            transcript.frame(maxWidth: .infinity, maxHeight: .infinity)
+            NativeConversationTranscript(items: transcriptItems, model: model, readingState: readingState,
+                                         locale: locale, reduceMotion: reduceMotion, bottomOverlayHeight: bottomOverlayHeight,
+                                         rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .clipped()
-    }
-
-    private var transcript: some View {
-        ScrollView {
-            // Long Markdown messages change height asynchronously after parsing. Keep
-            // their measured layouts alive; lazy row eviction caused placement loops.
-            VStack(alignment: .leading, spacing: MiraTheme.Spacing.xxl) {
-                ForEach(transcriptItems) { item in
-                    TranscriptRow(item: item, model: model, conversationID: model.selectedConversationID,
-                                  rememberedMessage: $rememberedMessage)
-                        .equatable()
-                        .id(item.id)
-                }
-            }
-            .scrollTargetLayout()
-            .padding(MiraTheme.Spacing.xl).frame(maxWidth: MiraTheme.Layout.contentMax + MiraTheme.Spacing.xl * 2).frame(maxWidth: .infinity)
-        }
-        .accessibilityIdentifier("conversation.transcript")
-        .scrollPosition($position)
-        .defaultScrollAnchor(readingState.scrollState.followsLatest ? .bottom : .top, for: .initialOffset)
-        .onAppear { readingState.prepareForDisplay() }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, offset in
-            readingState.recordOffset(offset)
-        }
-        .defaultScrollAnchor(.top, for: .alignment)
-        .onScrollGeometryChange(for: TranscriptViewport.self) { geometry in
-            TranscriptViewport(contentHeight: ceil(geometry.contentSize.height), containerHeight: ceil(geometry.containerSize.height),
-                               visibleBottom: geometry.visibleRect.maxY)
-        } action: { _, viewport in
-            latestBottomOffset = max(0, viewport.contentHeight - viewport.containerHeight)
-            if let offset = readingState.takeRestorationOffset(maximumOffset: latestBottomOffset) {
-                // The scroll binding belongs to this mounted ScrollView. Restore only
-                // the saved value, outside the geometry transaction.
-                followScheduler.schedule { position.scrollTo(y: offset) }
-            }
-            // Follow the rendered height, including asynchronous Markdown and code layout,
-            // rather than raw token count. A point target can interpolate as the bottom
-            // moves; a permanently pinned edge would jump with every size change.
-            if readingState.scrollState.shouldFollowContentChange(),
-               !followsByOffset || viewport.visibleBottom < viewport.contentHeight - 1 {
-                followScheduler.schedule {
-                    guard readingState.scrollState.shouldFollowContentChange() else { return }
-                    TranscriptScrollAnimation.perform(animated: followsByOffset && !reduceMotion && model.activeExecution != nil) {
-                        position.scrollTo(y: latestBottomOffset)
-                    }
-                    followsByOffset = true
-                }
-            }
-        }
-        .onScrollPhaseChange { _, phase, context in
-            let isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
-            if isUserScrolling { followScheduler.cancel(); readingState.userStartedScrolling() }
-            readingState.scrollState.userScrollChanged(
-                isScrolling: isUserScrolling,
-                isNearBottom: TranscriptScrollState.isNearBottom(
-                    contentHeight: context.geometry.contentSize.height,
-                    visibleBottom: context.geometry.visibleRect.maxY
-                )
-            )
-        }
-        .onChange(of: model.messages.last(where: { $0.role == .user })?.id) { oldID, newID in
-            if newID != nil, oldID != newID { jumpToLatest() }
-        }
-        .onChange(of: revealedMessageID) { _, messageID in
-            guard let messageID,
-                  model.messages.contains(where: { $0.id == messageID && $0.role == .user && $0.status == .committed }) else { return }
-            followScheduler.cancel()
-            readingState.userStartedScrolling()
-            readingState.scrollState.revealHistory()
-            position.scrollTo(id: "message:\(messageID.rawValue.uuidString)", anchor: .center)
-            revealedMessageID = nil
-        }
         .overlay(alignment: .bottomTrailing) {
-            if !readingState.scrollState.followsLatest && !readingState.scrollState.isUserScrolling {
-                Button("Jump to latest", systemImage: "arrow.down") { jumpToLatest() }
-                    .buttonStyle(MiraPrimaryButtonStyle())
-                    .padding(16)
+            if !readingState.scrollState.isAtLatest && !readingState.scrollState.isUserScrolling {
+                Button("Jump to latest", systemImage: "arrow.down") {
+                    readingState.userStartedScrolling()
+                    readingState.scrollState.jumpToLatest()
+                }
+                .buttonStyle(MiraPrimaryButtonStyle())
+                .padding(16)
+                .padding(.bottom, bottomOverlayHeight)
             }
         }
-        .onChange(of: reduceMotion) { _, enabled in
-            if enabled, readingState.scrollState.shouldFollowContentChange() {
-                followScheduler.cancel()
-                TranscriptScrollAnimation.perform(animated: false) { position.scrollTo(y: latestBottomOffset) }
-            }
-        }
-        .onDisappear { followScheduler.cancel(); readingState.leave() }
-    }
-
-    private func jumpToLatest() {
-        followScheduler.cancel()
-        readingState.userStartedScrolling()
-        readingState.scrollState.jumpToLatest()
-        TranscriptScrollAnimation.perform(animated: false) { position.scrollTo(y: latestBottomOffset) }
-        followsByOffset = true
     }
 
     private var transcriptItems: [TranscriptItem] {
@@ -140,60 +55,7 @@ struct ConversationTranscript: View {
     }
 }
 
-/// Compare the entire immutable row, not only its Markdown leaf. Capturing the
-/// transcript's changing view value in every ForEach child fans draft updates out
-/// through the headers, menus, and citation containers of all historical rows.
-private struct TranscriptRow: View, Equatable {
-    let item: TranscriptItem
-    let model: ConversationModel
-    let conversationID: ConversationID?
-    @Binding var rememberedMessage: Message?
-
-    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.item == rhs.item && lhs.model === rhs.model && lhs.conversationID == rhs.conversationID
-    }
-
-    var body: some View {
-        Group {
-            if item.bodyPurgedAt != nil {
-                Label("Reply content cleared after forgetting a memory", systemImage: "eye.slash")
-                    .font(.callout).foregroundStyle(.secondary)
-            } else if item.role == .assistant {
-                VStack(alignment: .leading, spacing: 10) {
-                    AssistantMarkdownRow(text: item.text, status: item.status, isStreaming: item.isStreaming, trace: item.trace)
-                        .equatable()
-                    MemoryHistoryTags(notices: item.memoryNotices).padding(.leading, 40)
-                    if let executionID = item.executionID, let conversationID {
-                        TranscriptCitations(text: item.text, executionID: executionID, conversationID: conversationID, model: model, memoryNotices: item.memoryNotices)
-                            .equatable()
-                            .padding(.leading, 40)
-                    }
-                }
-            } else {
-                MessageRow(role: item.role, text: item.text, status: item.status)
-                    .contextMenu {
-                        if let message = item.message, message.role == .user, message.status == .committed {
-                            Button("Remember this message…", systemImage: "brain") { rememberedMessage = message }
-                        }
-                    }
-            }
-        }
-    }
-}
-
-private struct TranscriptViewport: Equatable {
-    let contentHeight: CGFloat
-    let containerHeight: CGFloat
-    let visibleBottom: CGFloat
-
-    // Offset-only callbacks must not schedule another scroll. Compare rounded sizes
-    // to avoid chasing subpixel changes while AppKit settles its text layout.
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.contentHeight == rhs.contentHeight && lhs.containerHeight == rhs.containerHeight
-    }
-}
-
-private struct TranscriptCitations: View, Equatable {
+struct TranscriptCitations: View, Equatable {
     let text: String
     let executionID: ExecutionID
     let conversationID: ConversationID

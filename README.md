@@ -14,7 +14,7 @@ Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个�
 swift test --package-path Packages/MiraKit
 xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
-  -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
+  -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build
 open .build/xcode/Build/Products/Debug/Mira.app
 ```
 
@@ -99,7 +99,7 @@ Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保�
 
 `MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例、对话运行时与 Task / Reminder 契约；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。记忆、知识和本地 Task / Reminder 契约由 Core 定义，Data 实现本地检索、托管文件、任务存储和完整备份。
 
-Assistant messages use Microsoft SwiftStreamingMarkdown v0.7.0 with a small locale adaptation in `Vendor/SwiftStreamingMarkdown`; the upstream commit and changes are documented in its `UPSTREAM.md`. Remote images and unverified citations remain disabled.构建时仅对已审阅的固定依赖使用 `-skipMacroValidation`；依赖与许可证见 [第三方说明](docs/engineering/THIRD_PARTY.md)。
+Assistant messages use pinned MarkdownView and MarkdownParser packages with ListViewKit's virtualized AppKit transcript. Remote images are not fetched; external links require HTTP(S). Dependency revisions and bundled notices are documented in [Third-party dependencies](docs/engineering/THIRD_PARTY.md).
 
 Core 定义接口，外层实现适配。UI 不直接访问数据库或调用 Provider，Core 不依赖 Apple UI 或 GRDB 实现。Mira 不建设自有业务后端。
 

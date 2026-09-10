@@ -18,7 +18,7 @@ struct ConversationReadingStateTests {
         #expect(state.pendingRestoreOffset == nil)
         #expect(restoration == 900)
         #expect(state.takeRestorationOffset(maximumOffset: 1400) == nil)
-        #expect(!state.scrollState.followsLatest)
+        #expect(!state.scrollState.isAtLatest)
     }
 
     @Test func newScrollOverridesAnUnfinishedRestoration() {
@@ -33,12 +33,12 @@ struct ConversationReadingStateTests {
         #expect(state.visibleOffset == 120)
     }
 
-    @Test func followingReaderReturnsToLatestAfterBackgroundGrowth() {
+    @Test func returningToConversationDoesNotResumeContentFollowing() {
         let state = ConversationReadingState()
         state.recordOffset(900)
         state.leave()
         state.prepareForDisplay()
-        #expect(state.scrollState.shouldFollowContentChange())
+        #expect(state.scrollState.isAtLatest)
         #expect(state.pendingRestoreOffset == nil)
     }
 }

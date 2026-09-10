@@ -1,0 +1,5443 @@
+{
+  "elapsedSeconds": 74.251315667,
+  "historyMessageCount": 100,
+  "historyUTF8Bytes": 34773,
+  "limitations": [
+    "Main-actor queue service latency is not hardware keystroke latency or displayed frame rate.",
+    "Composer updates and scroll commands are programmatic; real input and Instruments require separate verification.",
+    "Presentation fixtures bypass provider and persistence; cancellation and recovery are not measured.",
+    "Thinking expansion follows the explicit benchmark flag; actual input is verified separately.",
+    "Debug build on the current host; RSS includes retained allocator memory and is not a leak diagnosis."
+  ],
+  "nativeScrollViewFound": true,
+  "os": "26.6.2",
+  "physicalMemoryBytes": 17179869184,
+  "processorCount": 10,
+  "samples": [
+    {
+      "appActive": true,
+      "elapsedSeconds": 0.548170417,
+      "phase": "warmup",
+      "residentBytes": 175489024,
+      "serviceMilliseconds": 446.74075000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 0.92236425,
+      "phase": "warmup",
+      "residentBytes": 182910976,
+      "serviceMilliseconds": 267.339542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.025788708,
+      "phase": "warmup",
+      "residentBytes": 182861824,
+      "serviceMilliseconds": 2.089375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.13379725,
+      "phase": "warmup",
+      "residentBytes": 182910976,
+      "serviceMilliseconds": 3.244792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.235279083,
+      "phase": "warmup",
+      "residentBytes": 182927360,
+      "serviceMilliseconds": 0.010916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.342524917,
+      "phase": "warmup",
+      "residentBytes": 182910976,
+      "serviceMilliseconds": 3.194334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.446061292,
+      "phase": "warmup",
+      "residentBytes": 182894592,
+      "serviceMilliseconds": 0.088375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.5510045,
+      "phase": "warmup",
+      "residentBytes": 182910976,
+      "serviceMilliseconds": 3.22625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.654651708,
+      "phase": "warmup",
+      "residentBytes": 182894592,
+      "serviceMilliseconds": 0.099583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.754849375,
+      "phase": "warmup",
+      "residentBytes": 182894592,
+      "serviceMilliseconds": 0.018083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.8565878329999999,
+      "phase": "warmup",
+      "residentBytes": 182894592,
+      "serviceMilliseconds": 0.065916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 1.9621840000000002,
+      "phase": "warmup",
+      "residentBytes": 182943744,
+      "serviceMilliseconds": 0.029750000000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.064427167,
+      "phase": "warmup",
+      "residentBytes": 182943744,
+      "serviceMilliseconds": 0.08533400000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.189422708,
+      "phase": "warmup",
+      "residentBytes": 188235776,
+      "serviceMilliseconds": 19.015,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.290260042,
+      "phase": "warmup",
+      "residentBytes": 188252160,
+      "serviceMilliseconds": 0.017584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.395966708,
+      "phase": "warmup",
+      "residentBytes": 188252160,
+      "serviceMilliseconds": 0.18629099999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.498213792,
+      "phase": "warmup",
+      "residentBytes": 188252160,
+      "serviceMilliseconds": 0.073209,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.600275083,
+      "phase": "warmup",
+      "residentBytes": 188252160,
+      "serviceMilliseconds": 0.029541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.704287667,
+      "phase": "warmup",
+      "residentBytes": 188284928,
+      "serviceMilliseconds": 0.052417000000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.811454625,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.07054200000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 2.9128585,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.043417000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.014442583,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.040958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.117219792,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.024459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.224925083,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.174875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.330776958,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.047125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.433524167,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.059292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.540210167,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.049,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.64115925,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.055958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.744933833,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.030208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.8481214169999998,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.04075,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 3.950499333,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.022791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.051425958,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.020125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.15243125,
+      "phase": "warmup",
+      "residentBytes": 188301312,
+      "serviceMilliseconds": 0.029667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.255337375,
+      "phase": "warmup",
+      "residentBytes": 188284928,
+      "serviceMilliseconds": 0.012,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.357448208,
+      "phase": "warmup",
+      "residentBytes": 188284928,
+      "serviceMilliseconds": 0.015290999999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.461946542,
+      "phase": "warmup",
+      "residentBytes": 187826176,
+      "serviceMilliseconds": 0.044917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.567923958,
+      "phase": "warmup",
+      "residentBytes": 187826176,
+      "serviceMilliseconds": 0.014624999999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.669140333,
+      "phase": "warmup",
+      "residentBytes": 187826176,
+      "serviceMilliseconds": 0.0315,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.771127042,
+      "phase": "warmup",
+      "residentBytes": 187580416,
+      "serviceMilliseconds": 0.031584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.878131333,
+      "phase": "warmup",
+      "residentBytes": 187580416,
+      "serviceMilliseconds": 0.083625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 4.979059083,
+      "phase": "warmup",
+      "residentBytes": 187580416,
+      "serviceMilliseconds": 0.039916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.079501542,
+      "phase": "warmup",
+      "residentBytes": 187580416,
+      "serviceMilliseconds": 0.033209,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.183146333,
+      "phase": "warmup",
+      "residentBytes": 187400192,
+      "serviceMilliseconds": 0.043083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.288314833,
+      "phase": "warmup",
+      "residentBytes": 187318272,
+      "serviceMilliseconds": 0.029416,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.39374225,
+      "phase": "warmup",
+      "residentBytes": 187318272,
+      "serviceMilliseconds": 0.026625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.497256292,
+      "phase": "warmup",
+      "residentBytes": 187219968,
+      "serviceMilliseconds": 0.16162500000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.604463667,
+      "phase": "warmup",
+      "residentBytes": 187219968,
+      "serviceMilliseconds": 0.011375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.70475575,
+      "phase": "warmup",
+      "residentBytes": 187219968,
+      "serviceMilliseconds": 0.051833000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.807793667,
+      "phase": "warmup",
+      "residentBytes": 187219968,
+      "serviceMilliseconds": 0.039584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 5.911936083,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.056291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.016405792,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.027292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.1185875,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.058582999999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.224447667,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.023417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.332937417,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.039417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.435144583,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.037375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.5388234579999995,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.027708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.643357417,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.038625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.743968583,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.041333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.846875125,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.038792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 6.947236458,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.023541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.051225833,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.014375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.152014708,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.055624999999999994,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.25807825,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.152375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.359312167,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.040917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.460430333,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.04425,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.563545583,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.044208000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.670222542,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.050667000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.774537458,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.064583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.876801625,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.068083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 7.982110167,
+      "phase": "warmup",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 0.053,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.083743292,
+      "phase": "streaming",
+      "residentBytes": 187580416,
+      "serviceMilliseconds": 0.046834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.188605083,
+      "phase": "streaming",
+      "residentBytes": 189022208,
+      "serviceMilliseconds": 3.194625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.291239917,
+      "phase": "streaming",
+      "residentBytes": 188923904,
+      "serviceMilliseconds": 2.044417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.39136425,
+      "phase": "streaming",
+      "residentBytes": 191283200,
+      "serviceMilliseconds": 0.0077919999999999994,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.499432917,
+      "phase": "streaming",
+      "residentBytes": 189595648,
+      "serviceMilliseconds": 2.658334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.6064575,
+      "phase": "streaming",
+      "residentBytes": 189530112,
+      "serviceMilliseconds": 2.6181669999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.707400667,
+      "phase": "streaming",
+      "residentBytes": 189661184,
+      "serviceMilliseconds": 0.341375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.816635708,
+      "phase": "streaming",
+      "residentBytes": 189562880,
+      "serviceMilliseconds": 6.766875000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 8.923165583,
+      "phase": "streaming",
+      "residentBytes": 189644800,
+      "serviceMilliseconds": 4.829583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.02506475,
+      "phase": "streaming",
+      "residentBytes": 190005248,
+      "serviceMilliseconds": 0.059917000000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.134010375,
+      "phase": "streaming",
+      "residentBytes": 192987136,
+      "serviceMilliseconds": 3.890542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.240430708,
+      "phase": "streaming",
+      "residentBytes": 190840832,
+      "serviceMilliseconds": 3.1713750000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.342901583,
+      "phase": "streaming",
+      "residentBytes": 193298432,
+      "serviceMilliseconds": 0.062916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.448358292,
+      "phase": "streaming",
+      "residentBytes": 191528960,
+      "serviceMilliseconds": 2.7642919999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.550007458,
+      "phase": "streaming",
+      "residentBytes": 191381504,
+      "serviceMilliseconds": 0.362583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.658831792,
+      "phase": "streaming",
+      "residentBytes": 191365120,
+      "serviceMilliseconds": 2.9038340000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.765555167,
+      "phase": "streaming",
+      "residentBytes": 191545344,
+      "serviceMilliseconds": 3.312792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.868039458,
+      "phase": "streaming",
+      "residentBytes": 191676416,
+      "serviceMilliseconds": 0.006875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 9.976014958,
+      "phase": "streaming",
+      "residentBytes": 191676416,
+      "serviceMilliseconds": 7.864915999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.076384083,
+      "phase": "streaming",
+      "residentBytes": 191938560,
+      "serviceMilliseconds": 0.167625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.181216875,
+      "phase": "streaming",
+      "residentBytes": 192004096,
+      "serviceMilliseconds": 0.260833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.2903135,
+      "phase": "streaming",
+      "residentBytes": 191971328,
+      "serviceMilliseconds": 5.110333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.399723958,
+      "phase": "streaming",
+      "residentBytes": 193921024,
+      "serviceMilliseconds": 3.1494999999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.512125167,
+      "phase": "streaming",
+      "residentBytes": 186990592,
+      "serviceMilliseconds": 6.767459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.616579375,
+      "phase": "streaming",
+      "residentBytes": 188530688,
+      "serviceMilliseconds": 2.7279169999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.729129125,
+      "phase": "streaming",
+      "residentBytes": 186826752,
+      "serviceMilliseconds": 6.618875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.831166917000001,
+      "phase": "streaming",
+      "residentBytes": 186777600,
+      "serviceMilliseconds": 0.195875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 10.941404792,
+      "phase": "streaming",
+      "residentBytes": 187154432,
+      "serviceMilliseconds": 5.203292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.050298,
+      "phase": "streaming",
+      "residentBytes": 187170816,
+      "serviceMilliseconds": 2.9897080000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.157670625,
+      "phase": "streaming",
+      "residentBytes": 187252736,
+      "serviceMilliseconds": 2.607917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.266455583,
+      "phase": "streaming",
+      "residentBytes": 186859520,
+      "serviceMilliseconds": 2.501583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.367859667,
+      "phase": "streaming",
+      "residentBytes": 186810368,
+      "serviceMilliseconds": 0.505542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.476115792,
+      "phase": "streaming",
+      "residentBytes": 186990592,
+      "serviceMilliseconds": 3.973834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.583765625,
+      "phase": "streaming",
+      "residentBytes": 187269120,
+      "serviceMilliseconds": 4.598292000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.695733333,
+      "phase": "streaming",
+      "residentBytes": 187383808,
+      "serviceMilliseconds": 10.995125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.800922458,
+      "phase": "streaming",
+      "residentBytes": 187432960,
+      "serviceMilliseconds": 0.067958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 11.912000833,
+      "phase": "streaming",
+      "residentBytes": 188710912,
+      "serviceMilliseconds": 6.66875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.015826333,
+      "phase": "streaming",
+      "residentBytes": 187432960,
+      "serviceMilliseconds": 3.52175,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.124975792,
+      "phase": "streaming",
+      "residentBytes": 191299584,
+      "serviceMilliseconds": 4.318167000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.225476833,
+      "phase": "streaming",
+      "residentBytes": 187383808,
+      "serviceMilliseconds": 0.063291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.332532083,
+      "phase": "streaming",
+      "residentBytes": 187744256,
+      "serviceMilliseconds": 2.53275,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.433510583,
+      "phase": "streaming",
+      "residentBytes": 187858944,
+      "serviceMilliseconds": 0.057457999999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.541503083,
+      "phase": "streaming",
+      "residentBytes": 187727872,
+      "serviceMilliseconds": 3.147375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.649691375,
+      "phase": "streaming",
+      "residentBytes": 187809792,
+      "serviceMilliseconds": 6.111333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.757408042,
+      "phase": "streaming",
+      "residentBytes": 187924480,
+      "serviceMilliseconds": 2.4715000000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.859258417,
+      "phase": "streaming",
+      "residentBytes": 187924480,
+      "serviceMilliseconds": 0.06741699999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 12.967471167,
+      "phase": "streaming",
+      "residentBytes": 187957248,
+      "serviceMilliseconds": 4.044042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.074142625,
+      "phase": "streaming",
+      "residentBytes": 187957248,
+      "serviceMilliseconds": 2.440958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.175757792,
+      "phase": "streaming",
+      "residentBytes": 188071936,
+      "serviceMilliseconds": 0.063959,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.284703542,
+      "phase": "streaming",
+      "residentBytes": 188039168,
+      "serviceMilliseconds": 4.5486249999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.391506417,
+      "phase": "streaming",
+      "residentBytes": 190021632,
+      "serviceMilliseconds": 2.567417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.499839708,
+      "phase": "streaming",
+      "residentBytes": 188399616,
+      "serviceMilliseconds": 6.29925,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.606406542,
+      "phase": "streaming",
+      "residentBytes": 192266240,
+      "serviceMilliseconds": 4.331042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.716416125,
+      "phase": "streaming",
+      "residentBytes": 188579840,
+      "serviceMilliseconds": 6.126417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.824918833,
+      "phase": "streaming",
+      "residentBytes": 189169664,
+      "serviceMilliseconds": 6.2750829999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 13.932948875,
+      "phase": "streaming",
+      "residentBytes": 189169664,
+      "serviceMilliseconds": 4.003792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.041807958,
+      "phase": "streaming",
+      "residentBytes": 188940288,
+      "serviceMilliseconds": 6.946125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.149871333,
+      "phase": "streaming",
+      "residentBytes": 188940288,
+      "serviceMilliseconds": 3.194291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.257991167,
+      "phase": "streaming",
+      "residentBytes": 188973056,
+      "serviceMilliseconds": 2.950542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.367231125,
+      "phase": "streaming",
+      "residentBytes": 188989440,
+      "serviceMilliseconds": 6.932583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.4747205,
+      "phase": "streaming",
+      "residentBytes": 188825600,
+      "serviceMilliseconds": 2.888375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.584576875,
+      "phase": "streaming",
+      "residentBytes": 188923904,
+      "serviceMilliseconds": 8.081792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.688388792,
+      "phase": "streaming",
+      "residentBytes": 189005824,
+      "serviceMilliseconds": 1.066167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.798426083,
+      "phase": "streaming",
+      "residentBytes": 189022208,
+      "serviceMilliseconds": 4.931833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 14.908240750000001,
+      "phase": "streaming",
+      "residentBytes": 190906368,
+      "serviceMilliseconds": 4.173375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.020551583,
+      "phase": "streaming",
+      "residentBytes": 189267968,
+      "serviceMilliseconds": 5.475291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.126090125,
+      "phase": "streaming",
+      "residentBytes": 189415424,
+      "serviceMilliseconds": 0.5918749999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.23420425,
+      "phase": "streaming",
+      "residentBytes": 189235200,
+      "serviceMilliseconds": 1.363125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.342534208,
+      "phase": "streaming",
+      "residentBytes": 189988864,
+      "serviceMilliseconds": 2.886541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.450616792,
+      "phase": "streaming",
+      "residentBytes": 189988864,
+      "serviceMilliseconds": 1.822875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.559666375,
+      "phase": "streaming",
+      "residentBytes": 189857792,
+      "serviceMilliseconds": 3.538875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.667302124999999,
+      "phase": "streaming",
+      "residentBytes": 189857792,
+      "serviceMilliseconds": 4.86275,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.775294417,
+      "phase": "streaming",
+      "residentBytes": 189890560,
+      "serviceMilliseconds": 4.508792000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.88454675,
+      "phase": "streaming",
+      "residentBytes": 189890560,
+      "serviceMilliseconds": 3.8755,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 15.987938375,
+      "phase": "streaming",
+      "residentBytes": 189939712,
+      "serviceMilliseconds": 0.475167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.098778042,
+      "phase": "streaming",
+      "residentBytes": 189956096,
+      "serviceMilliseconds": 5.628417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.204971958,
+      "phase": "streaming",
+      "residentBytes": 189923328,
+      "serviceMilliseconds": 1.281458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.309208208,
+      "phase": "streaming",
+      "residentBytes": 189939712,
+      "serviceMilliseconds": 0.642375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.421447375,
+      "phase": "streaming",
+      "residentBytes": 191774720,
+      "serviceMilliseconds": 6.928042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.526420625,
+      "phase": "streaming",
+      "residentBytes": 193003520,
+      "serviceMilliseconds": 4.390083000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.634332458,
+      "phase": "streaming",
+      "residentBytes": 189661184,
+      "serviceMilliseconds": 4.304708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.74249825,
+      "phase": "streaming",
+      "residentBytes": 190218240,
+      "serviceMilliseconds": 7.700832999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.850709167,
+      "phase": "streaming",
+      "residentBytes": 190382080,
+      "serviceMilliseconds": 1.903167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 16.959094083,
+      "phase": "streaming",
+      "residentBytes": 190660608,
+      "serviceMilliseconds": 7.996291000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.068203375,
+      "phase": "streaming",
+      "residentBytes": 190660608,
+      "serviceMilliseconds": 3.9528749999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.172582708,
+      "phase": "streaming",
+      "residentBytes": 190873600,
+      "serviceMilliseconds": 0.513,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.276202792,
+      "phase": "streaming",
+      "residentBytes": 190873600,
+      "serviceMilliseconds": 0.3655,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.384814417,
+      "phase": "streaming",
+      "residentBytes": 190922752,
+      "serviceMilliseconds": 3.869375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.492798917000002,
+      "phase": "streaming",
+      "residentBytes": 190922752,
+      "serviceMilliseconds": 3.4775,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.600968833,
+      "phase": "streaming",
+      "residentBytes": 190922752,
+      "serviceMilliseconds": 4.225833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.707391917,
+      "phase": "streaming",
+      "residentBytes": 190742528,
+      "serviceMilliseconds": 1.408292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.813030667,
+      "phase": "streaming",
+      "residentBytes": 190939136,
+      "serviceMilliseconds": 0.5576249999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 17.917975667,
+      "phase": "streaming",
+      "residentBytes": 192774144,
+      "serviceMilliseconds": 0.440334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.026900833,
+      "phase": "streaming",
+      "residentBytes": 193855488,
+      "serviceMilliseconds": 2.155916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.134196792,
+      "phase": "streaming",
+      "residentBytes": 191168512,
+      "serviceMilliseconds": 2.1247089999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.24072625,
+      "phase": "streaming",
+      "residentBytes": 191430656,
+      "serviceMilliseconds": 0.427042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.342986125,
+      "phase": "streaming",
+      "residentBytes": 191578112,
+      "serviceMilliseconds": 0.73575,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.451574417,
+      "phase": "streaming",
+      "residentBytes": 191610880,
+      "serviceMilliseconds": 1.81125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.564050792,
+      "phase": "streaming",
+      "residentBytes": 191610880,
+      "serviceMilliseconds": 7.14925,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.673601167,
+      "phase": "streaming",
+      "residentBytes": 191660032,
+      "serviceMilliseconds": 3.200709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.784104958,
+      "phase": "streaming",
+      "residentBytes": 191479808,
+      "serviceMilliseconds": 7.627041,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 18.893307458,
+      "phase": "streaming",
+      "residentBytes": 191725568,
+      "serviceMilliseconds": 3.987625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.000988375,
+      "phase": "streaming",
+      "residentBytes": 191725568,
+      "serviceMilliseconds": 0.936875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.109728083,
+      "phase": "streaming",
+      "residentBytes": 191807488,
+      "serviceMilliseconds": 1.977291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.215785083,
+      "phase": "streaming",
+      "residentBytes": 191627264,
+      "serviceMilliseconds": 0.368291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.32435775,
+      "phase": "streaming",
+      "residentBytes": 191496192,
+      "serviceMilliseconds": 5.339542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.433425333,
+      "phase": "streaming",
+      "residentBytes": 192446464,
+      "serviceMilliseconds": 6.641333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.541348458,
+      "phase": "streaming",
+      "residentBytes": 194478080,
+      "serviceMilliseconds": 1.800541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.651624708,
+      "phase": "streaming",
+      "residentBytes": 191774720,
+      "serviceMilliseconds": 8.488124999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.763576417,
+      "phase": "streaming",
+      "residentBytes": 192069632,
+      "serviceMilliseconds": 7.729959,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.86820625,
+      "phase": "streaming",
+      "residentBytes": 192118784,
+      "serviceMilliseconds": 3.895875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 19.974029417,
+      "phase": "streaming",
+      "residentBytes": 192086016,
+      "serviceMilliseconds": 1.3507090000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.081968625,
+      "phase": "streaming",
+      "residentBytes": 192184320,
+      "serviceMilliseconds": 5.515458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.18895675,
+      "phase": "streaming",
+      "residentBytes": 192348160,
+      "serviceMilliseconds": 0.597583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.298951625,
+      "phase": "streaming",
+      "residentBytes": 192430080,
+      "serviceMilliseconds": 3.245292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.409839417,
+      "phase": "streaming",
+      "residentBytes": 192479232,
+      "serviceMilliseconds": 4.7965,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.517830542,
+      "phase": "streaming",
+      "residentBytes": 192479232,
+      "serviceMilliseconds": 5.492834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.629462833,
+      "phase": "streaming",
+      "residentBytes": 192544768,
+      "serviceMilliseconds": 6.786124999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.730646917,
+      "phase": "streaming",
+      "residentBytes": 192512000,
+      "serviceMilliseconds": 0.597959,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.841666917,
+      "phase": "streaming",
+      "residentBytes": 194609152,
+      "serviceMilliseconds": 6.442749999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 20.946408292,
+      "phase": "streaming",
+      "residentBytes": 192954368,
+      "serviceMilliseconds": 0.677042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.062392875,
+      "phase": "streaming",
+      "residentBytes": 196198400,
+      "serviceMilliseconds": 9.189875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.164274292,
+      "phase": "streaming",
+      "residentBytes": 192823296,
+      "serviceMilliseconds": 1.010584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.279113208,
+      "phase": "streaming",
+      "residentBytes": 193003520,
+      "serviceMilliseconds": 11.008916000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.397068708,
+      "phase": "streaming",
+      "residentBytes": 193216512,
+      "serviceMilliseconds": 12.298458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.502043667,
+      "phase": "streaming",
+      "residentBytes": 193396736,
+      "serviceMilliseconds": 4.454167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.60933375,
+      "phase": "streaming",
+      "residentBytes": 193380352,
+      "serviceMilliseconds": 0.51325,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.718833458,
+      "phase": "streaming",
+      "residentBytes": 193216512,
+      "serviceMilliseconds": 4.738916000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.826869125,
+      "phase": "streaming",
+      "residentBytes": 193101824,
+      "serviceMilliseconds": 3.073083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 21.938375042,
+      "phase": "streaming",
+      "residentBytes": 193265664,
+      "serviceMilliseconds": 9.254625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.054189792,
+      "phase": "streaming",
+      "residentBytes": 193085440,
+      "serviceMilliseconds": 9.08725,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.156693333,
+      "phase": "streaming",
+      "residentBytes": 193232896,
+      "serviceMilliseconds": 0.486083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.265820708,
+      "phase": "streaming",
+      "residentBytes": 193757184,
+      "serviceMilliseconds": 3.491291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.376859292,
+      "phase": "streaming",
+      "residentBytes": 195362816,
+      "serviceMilliseconds": 5.763375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.484531375,
+      "phase": "streaming",
+      "residentBytes": 193953792,
+      "serviceMilliseconds": 2.424458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.592484958,
+      "phase": "streaming",
+      "residentBytes": 196657152,
+      "serviceMilliseconds": 3.162791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.698883583,
+      "phase": "streaming",
+      "residentBytes": 193806336,
+      "serviceMilliseconds": 5.267625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.809022625,
+      "phase": "streaming",
+      "residentBytes": 193822720,
+      "serviceMilliseconds": 3.325542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 22.916508292,
+      "phase": "streaming",
+      "residentBytes": 193855488,
+      "serviceMilliseconds": 6.744459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.024706958,
+      "phase": "streaming",
+      "residentBytes": 193740800,
+      "serviceMilliseconds": 2.098291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.139169,
+      "phase": "streaming",
+      "residentBytes": 193642496,
+      "serviceMilliseconds": 8.164375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.241650208,
+      "phase": "streaming",
+      "residentBytes": 193855488,
+      "serviceMilliseconds": 2.336125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.354260083,
+      "phase": "streaming",
+      "residentBytes": 193953792,
+      "serviceMilliseconds": 7.884375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.456598458,
+      "phase": "streaming",
+      "residentBytes": 194052096,
+      "serviceMilliseconds": 0.655291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.567778542,
+      "phase": "streaming",
+      "residentBytes": 194134016,
+      "serviceMilliseconds": 4.421125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.679123417,
+      "phase": "streaming",
+      "residentBytes": 194166784,
+      "serviceMilliseconds": 11.029,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.781584458,
+      "phase": "streaming",
+      "residentBytes": 194183168,
+      "serviceMilliseconds": 0.696666,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 23.896063125,
+      "phase": "streaming",
+      "residentBytes": 194396160,
+      "serviceMilliseconds": 8.480417000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.005538542,
+      "phase": "streaming",
+      "residentBytes": 195411968,
+      "serviceMilliseconds": 4.117292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.106673125,
+      "phase": "streaming",
+      "residentBytes": 194117632,
+      "serviceMilliseconds": 0.696542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.213259292,
+      "phase": "streaming",
+      "residentBytes": 194609152,
+      "serviceMilliseconds": 1.154709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.323850208,
+      "phase": "streaming",
+      "residentBytes": 194625536,
+      "serviceMilliseconds": 3.712208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.438139417,
+      "phase": "streaming",
+      "residentBytes": 195133440,
+      "serviceMilliseconds": 8.943167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.547489375,
+      "phase": "streaming",
+      "residentBytes": 195395584,
+      "serviceMilliseconds": 4.488958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.648416292,
+      "phase": "streaming",
+      "residentBytes": 195395584,
+      "serviceMilliseconds": 0.22699999999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.758103,
+      "phase": "streaming",
+      "residentBytes": 195411968,
+      "serviceMilliseconds": 3.178625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.871847542,
+      "phase": "streaming",
+      "residentBytes": 195411968,
+      "serviceMilliseconds": 9.249167000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 24.975456917,
+      "phase": "streaming",
+      "residentBytes": 195477504,
+      "serviceMilliseconds": 3.149459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.087534708,
+      "phase": "streaming",
+      "residentBytes": 195477504,
+      "serviceMilliseconds": 8.421083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.189343417,
+      "phase": "streaming",
+      "residentBytes": 195543040,
+      "serviceMilliseconds": 1.174417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.305389792,
+      "phase": "streaming",
+      "residentBytes": 195788800,
+      "serviceMilliseconds": 12.314125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.418418958,
+      "phase": "streaming",
+      "residentBytes": 197165056,
+      "serviceMilliseconds": 8.229291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.529944125,
+      "phase": "streaming",
+      "residentBytes": 195624960,
+      "serviceMilliseconds": 4.809667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.639040167,
+      "phase": "streaming",
+      "residentBytes": 198885376,
+      "serviceMilliseconds": 8.149834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.749425583,
+      "phase": "streaming",
+      "residentBytes": 195461120,
+      "serviceMilliseconds": 3.639958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.859121542,
+      "phase": "streaming",
+      "residentBytes": 195461120,
+      "serviceMilliseconds": 5.034834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 25.971747458,
+      "phase": "streaming",
+      "residentBytes": 195674112,
+      "serviceMilliseconds": 9.238375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.083398625,
+      "phase": "streaming",
+      "residentBytes": 195657728,
+      "serviceMilliseconds": 7.004458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.196867542,
+      "phase": "streaming",
+      "residentBytes": 195657728,
+      "serviceMilliseconds": 8.567084000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.312839125,
+      "phase": "streaming",
+      "residentBytes": 195706880,
+      "serviceMilliseconds": 9.247833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.414984208,
+      "phase": "streaming",
+      "residentBytes": 195723264,
+      "serviceMilliseconds": 0.754,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.525920917,
+      "phase": "streaming",
+      "residentBytes": 195592192,
+      "serviceMilliseconds": 4.256709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.638264875,
+      "phase": "streaming",
+      "residentBytes": 195411968,
+      "serviceMilliseconds": 11.869417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.755327458,
+      "phase": "streaming",
+      "residentBytes": 195543040,
+      "serviceMilliseconds": 10.288291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.860100333,
+      "phase": "streaming",
+      "residentBytes": 196083712,
+      "serviceMilliseconds": 4.2126660000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 26.97218975,
+      "phase": "streaming",
+      "residentBytes": 198049792,
+      "serviceMilliseconds": 6.742917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.07605,
+      "phase": "streaming",
+      "residentBytes": 196378624,
+      "serviceMilliseconds": 3.683292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.188422042,
+      "phase": "streaming",
+      "residentBytes": 199147520,
+      "serviceMilliseconds": 6.336125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.300340917,
+      "phase": "streaming",
+      "residentBytes": 196198400,
+      "serviceMilliseconds": 5.098167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.408105208,
+      "phase": "streaming",
+      "residentBytes": 196673536,
+      "serviceMilliseconds": 3.212208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.521029208,
+      "phase": "streaming",
+      "residentBytes": 196493312,
+      "serviceMilliseconds": 8.106874999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.639456542,
+      "phase": "streaming",
+      "residentBytes": 196591616,
+      "serviceMilliseconds": 13.089417000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.749952125,
+      "phase": "streaming",
+      "residentBytes": 196591616,
+      "serviceMilliseconds": 3.9207080000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.856131792,
+      "phase": "streaming",
+      "residentBytes": 196722688,
+      "serviceMilliseconds": 1.235834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 27.967022875,
+      "phase": "streaming",
+      "residentBytes": 196722688,
+      "serviceMilliseconds": 4.091583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.075113375,
+      "phase": "streaming",
+      "residentBytes": 196788224,
+      "serviceMilliseconds": 3.93875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.181364792,
+      "phase": "streaming",
+      "residentBytes": 196788224,
+      "serviceMilliseconds": 2.005334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.282495167,
+      "phase": "streaming",
+      "residentBytes": 196853760,
+      "serviceMilliseconds": 0.7640840000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.394037125,
+      "phase": "streaming",
+      "residentBytes": 196804608,
+      "serviceMilliseconds": 5.091792000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.497768083,
+      "phase": "streaming",
+      "residentBytes": 199000064,
+      "serviceMilliseconds": 0.238458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.601357917,
+      "phase": "streaming",
+      "residentBytes": 197230592,
+      "serviceMilliseconds": 0.7690419999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.714421708,
+      "phase": "streaming",
+      "residentBytes": 197099520,
+      "serviceMilliseconds": 12.465874999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.829481667,
+      "phase": "streaming",
+      "residentBytes": 196968448,
+      "serviceMilliseconds": 8.9035,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 28.939215167,
+      "phase": "streaming",
+      "residentBytes": 197296128,
+      "serviceMilliseconds": 4.5432500000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.050258042,
+      "phase": "streaming",
+      "residentBytes": 197296128,
+      "serviceMilliseconds": 7.231459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.156278,
+      "phase": "streaming",
+      "residentBytes": 197509120,
+      "serviceMilliseconds": 1.476417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.267348208,
+      "phase": "streaming",
+      "residentBytes": 197509120,
+      "serviceMilliseconds": 4.2892909999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.38010775,
+      "phase": "streaming",
+      "residentBytes": 197525504,
+      "serviceMilliseconds": 5.998083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.480892708,
+      "phase": "streaming",
+      "residentBytes": 197525504,
+      "serviceMilliseconds": 0.008166,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.59344575,
+      "phase": "streaming",
+      "residentBytes": 197558272,
+      "serviceMilliseconds": 5.8212079999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.705201250000002,
+      "phase": "streaming",
+      "residentBytes": 197378048,
+      "serviceMilliseconds": 9.343667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.82081175,
+      "phase": "streaming",
+      "residentBytes": 197509120,
+      "serviceMilliseconds": 9.522375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 29.929830208,
+      "phase": "streaming",
+      "residentBytes": 197902336,
+      "serviceMilliseconds": 3.467916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.030816333,
+      "phase": "streaming",
+      "residentBytes": 212860928,
+      "serviceMilliseconds": 0.848333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.173144,
+      "phase": "streaming",
+      "residentBytes": 211779584,
+      "serviceMilliseconds": 35.540333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.287964207999998,
+      "phase": "streaming",
+      "residentBytes": 210386944,
+      "serviceMilliseconds": 8.540041,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.397739667,
+      "phase": "streaming",
+      "residentBytes": 210829312,
+      "serviceMilliseconds": 4.5835420000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.509006458,
+      "phase": "streaming",
+      "residentBytes": 210927616,
+      "serviceMilliseconds": 4.640375000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.617167292,
+      "phase": "streaming",
+      "residentBytes": 211501056,
+      "serviceMilliseconds": 4.010084,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.730223917,
+      "phase": "streaming",
+      "residentBytes": 211599360,
+      "serviceMilliseconds": 9.444125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.842937167,
+      "phase": "streaming",
+      "residentBytes": 211763200,
+      "serviceMilliseconds": 5.9119589999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 30.954283875,
+      "phase": "streaming",
+      "residentBytes": 211861504,
+      "serviceMilliseconds": 7.624667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.0624855,
+      "phase": "streaming",
+      "residentBytes": 211976192,
+      "serviceMilliseconds": 6.786625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.171191458,
+      "phase": "streaming",
+      "residentBytes": 212058112,
+      "serviceMilliseconds": 7.884458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.279794583,
+      "phase": "streaming",
+      "residentBytes": 212254720,
+      "serviceMilliseconds": 1.894625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.396006708,
+      "phase": "streaming",
+      "residentBytes": 212254720,
+      "serviceMilliseconds": 9.426416,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.4985385,
+      "phase": "streaming",
+      "residentBytes": 212287488,
+      "serviceMilliseconds": 0.911042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.606219958,
+      "phase": "streaming",
+      "residentBytes": 212287488,
+      "serviceMilliseconds": 0.929833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.717154833,
+      "phase": "streaming",
+      "residentBytes": 213843968,
+      "serviceMilliseconds": 4.759290999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.831684833,
+      "phase": "streaming",
+      "residentBytes": 214056960,
+      "serviceMilliseconds": 14.219624999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 31.947158292,
+      "phase": "streaming",
+      "residentBytes": 211976192,
+      "serviceMilliseconds": 9.516459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.05914025,
+      "phase": "streaming",
+      "residentBytes": 212484096,
+      "serviceMilliseconds": 5.195625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.171896292,
+      "phase": "streaming",
+      "residentBytes": 212484096,
+      "serviceMilliseconds": 9.279417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.280785875,
+      "phase": "streaming",
+      "residentBytes": 212434944,
+      "serviceMilliseconds": 8.617125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.397069542,
+      "phase": "streaming",
+      "residentBytes": 212434944,
+      "serviceMilliseconds": 9.502625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.512971042,
+      "phase": "streaming",
+      "residentBytes": 212516864,
+      "serviceMilliseconds": 10.279625000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.629651833,
+      "phase": "streaming",
+      "residentBytes": 212516864,
+      "serviceMilliseconds": 9.888375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.7392365,
+      "phase": "streaming",
+      "residentBytes": 212385792,
+      "serviceMilliseconds": 4.5930420000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.854433042,
+      "phase": "streaming",
+      "residentBytes": 212205568,
+      "serviceMilliseconds": 8.452292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 32.956849292,
+      "phase": "streaming",
+      "residentBytes": 212353024,
+      "serviceMilliseconds": 0.9897090000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.072183583,
+      "phase": "streaming",
+      "residentBytes": 212795392,
+      "serviceMilliseconds": 9.509500000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.1813965,
+      "phase": "streaming",
+      "residentBytes": 214368256,
+      "serviceMilliseconds": 8.847707999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.297058875,
+      "phase": "streaming",
+      "residentBytes": 199655424,
+      "serviceMilliseconds": 9.385833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.401444333,
+      "phase": "streaming",
+      "residentBytes": 200769536,
+      "serviceMilliseconds": 1.160875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.50591575,
+      "phase": "streaming",
+      "residentBytes": 199442432,
+      "serviceMilliseconds": 1.4966249999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.618302417,
+      "phase": "streaming",
+      "residentBytes": 199933952,
+      "serviceMilliseconds": 8.233459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.729819292,
+      "phase": "streaming",
+      "residentBytes": 199950336,
+      "serviceMilliseconds": 7.997667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.831508125,
+      "phase": "streaming",
+      "residentBytes": 199852032,
+      "serviceMilliseconds": 1.1017080000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 33.94031075,
+      "phase": "streaming",
+      "residentBytes": 199868416,
+      "serviceMilliseconds": 2.037417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.055845583,
+      "phase": "streaming",
+      "residentBytes": 199884800,
+      "serviceMilliseconds": 12.858457999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.165646125,
+      "phase": "streaming",
+      "residentBytes": 199704576,
+      "serviceMilliseconds": 8.769957999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.268251,
+      "phase": "streaming",
+      "residentBytes": 199819264,
+      "serviceMilliseconds": 1.015208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.377275583,
+      "phase": "streaming",
+      "residentBytes": 199819264,
+      "serviceMilliseconds": 3.8920410000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.490482667,
+      "phase": "streaming",
+      "residentBytes": 199917568,
+      "serviceMilliseconds": 10.510584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.599532458,
+      "phase": "streaming",
+      "residentBytes": 200294400,
+      "serviceMilliseconds": 2.898,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.706709375,
+      "phase": "streaming",
+      "residentBytes": 202326016,
+      "serviceMilliseconds": 1.681333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.821649167,
+      "phase": "streaming",
+      "residentBytes": 200687616,
+      "serviceMilliseconds": 8.325542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 34.924895375,
+      "phase": "streaming",
+      "residentBytes": 201785344,
+      "serviceMilliseconds": 0.980083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.038053375,
+      "phase": "streaming",
+      "residentBytes": 200179712,
+      "serviceMilliseconds": 8.081458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.155460083,
+      "phase": "streaming",
+      "residentBytes": 200671232,
+      "serviceMilliseconds": 12.485375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.272582042,
+      "phase": "streaming",
+      "residentBytes": 200474624,
+      "serviceMilliseconds": 10.331667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.3891855,
+      "phase": "streaming",
+      "residentBytes": 200589312,
+      "serviceMilliseconds": 9.842208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.492189667,
+      "phase": "streaming",
+      "residentBytes": 200605696,
+      "serviceMilliseconds": 1.03075,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.606357875,
+      "phase": "streaming",
+      "residentBytes": 200687616,
+      "serviceMilliseconds": 8.825332999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.714744917,
+      "phase": "streaming",
+      "residentBytes": 200540160,
+      "serviceMilliseconds": 2.200125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.830831458,
+      "phase": "streaming",
+      "residentBytes": 200359936,
+      "serviceMilliseconds": 9.315040999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 35.939747208,
+      "phase": "streaming",
+      "residentBytes": 200523776,
+      "serviceMilliseconds": 2.1549579999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.055389875,
+      "phase": "streaming",
+      "residentBytes": 200622080,
+      "serviceMilliseconds": 8.954625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.172084417,
+      "phase": "streaming",
+      "residentBytes": 200769536,
+      "serviceMilliseconds": 10.083667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.287910125,
+      "phase": "streaming",
+      "residentBytes": 202604544,
+      "serviceMilliseconds": 9.064457999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.406667625,
+      "phase": "streaming",
+      "residentBytes": 202473472,
+      "serviceMilliseconds": 13.69075,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.522919917,
+      "phase": "streaming",
+      "residentBytes": 201064448,
+      "serviceMilliseconds": 9.490167000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.633900458,
+      "phase": "streaming",
+      "residentBytes": 201424896,
+      "serviceMilliseconds": 6.225083000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.747048875,
+      "phase": "streaming",
+      "residentBytes": 201457664,
+      "serviceMilliseconds": 9.719999999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.855627667,
+      "phase": "streaming",
+      "residentBytes": 201637888,
+      "serviceMilliseconds": 8.272209,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 36.956985667,
+      "phase": "streaming",
+      "residentBytes": 201637888,
+      "serviceMilliseconds": 1.1570420000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.066491167,
+      "phase": "streaming",
+      "residentBytes": 201719808,
+      "serviceMilliseconds": 3.161167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.172718458,
+      "phase": "streaming",
+      "residentBytes": 201719808,
+      "serviceMilliseconds": 2.2975,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.280294167,
+      "phase": "streaming",
+      "residentBytes": 201768960,
+      "serviceMilliseconds": 0.799709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.397467,
+      "phase": "streaming",
+      "residentBytes": 201768960,
+      "serviceMilliseconds": 12.850333000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.506204833,
+      "phase": "streaming",
+      "residentBytes": 201588736,
+      "serviceMilliseconds": 1.9925410000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.620064833,
+      "phase": "streaming",
+      "residentBytes": 201408512,
+      "serviceMilliseconds": 7.456333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.740619083,
+      "phase": "streaming",
+      "residentBytes": 201441280,
+      "serviceMilliseconds": 14.487541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.854891583,
+      "phase": "streaming",
+      "residentBytes": 202932224,
+      "serviceMilliseconds": 7.496957999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 37.971875292,
+      "phase": "streaming",
+      "residentBytes": 202752000,
+      "serviceMilliseconds": 10.552999999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.080935917,
+      "phase": "streaming",
+      "residentBytes": 201703424,
+      "serviceMilliseconds": 8.436667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.197888292,
+      "phase": "streaming",
+      "residentBytes": 202096640,
+      "serviceMilliseconds": 13.266459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.306501542,
+      "phase": "streaming",
+      "residentBytes": 202178560,
+      "serviceMilliseconds": 8.361417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.422085208,
+      "phase": "streaming",
+      "residentBytes": 202457088,
+      "serviceMilliseconds": 8.826416,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.532481833,
+      "phase": "streaming",
+      "residentBytes": 202473472,
+      "serviceMilliseconds": 6.216333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.647951208,
+      "phase": "streaming",
+      "residentBytes": 202342400,
+      "serviceMilliseconds": 8.683125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.749701917,
+      "phase": "streaming",
+      "residentBytes": 202440704,
+      "serviceMilliseconds": 1.038792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.857133708,
+      "phase": "streaming",
+      "residentBytes": 202489856,
+      "serviceMilliseconds": 1.2817079999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 38.972640458,
+      "phase": "streaming",
+      "residentBytes": 202571776,
+      "serviceMilliseconds": 10.184875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.0806905,
+      "phase": "streaming",
+      "residentBytes": 202588160,
+      "serviceMilliseconds": 1.57075,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.182036542,
+      "phase": "streaming",
+      "residentBytes": 202588160,
+      "serviceMilliseconds": 1.195125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.295308375,
+      "phase": "streaming",
+      "residentBytes": 202620928,
+      "serviceMilliseconds": 6.483,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.396151208,
+      "phase": "streaming",
+      "residentBytes": 204177408,
+      "serviceMilliseconds": 0.06208299999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.521431708,
+      "phase": "streaming",
+      "residentBytes": 204046336,
+      "serviceMilliseconds": 23.859583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.626525417,
+      "phase": "streaming",
+      "residentBytes": 202768384,
+      "serviceMilliseconds": 1.135459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.738226833,
+      "phase": "streaming",
+      "residentBytes": 202702848,
+      "serviceMilliseconds": 8.737125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.84209225,
+      "phase": "streaming",
+      "residentBytes": 202866688,
+      "serviceMilliseconds": 1.106875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 39.947936417,
+      "phase": "streaming",
+      "residentBytes": 203194368,
+      "serviceMilliseconds": 2.444042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.057095417,
+      "phase": "streaming",
+      "residentBytes": 203276288,
+      "serviceMilliseconds": 3.326709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.164815833,
+      "phase": "streaming",
+      "residentBytes": 203358208,
+      "serviceMilliseconds": 2.416833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.273910208,
+      "phase": "streaming",
+      "residentBytes": 203358208,
+      "serviceMilliseconds": 3.550291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.386767458,
+      "phase": "streaming",
+      "residentBytes": 203423744,
+      "serviceMilliseconds": 10.605500000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.488875625,
+      "phase": "streaming",
+      "residentBytes": 203423744,
+      "serviceMilliseconds": 0.25145799999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.592651208,
+      "phase": "streaming",
+      "residentBytes": 203440128,
+      "serviceMilliseconds": 1.177125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.706513667,
+      "phase": "streaming",
+      "residentBytes": 203440128,
+      "serviceMilliseconds": 9.012167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.821362208,
+      "phase": "streaming",
+      "residentBytes": 203341824,
+      "serviceMilliseconds": 8.079583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 40.922705792,
+      "phase": "streaming",
+      "residentBytes": 204800000,
+      "serviceMilliseconds": 1.155209,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.048717667,
+      "phase": "streaming",
+      "residentBytes": 204439552,
+      "serviceMilliseconds": 20.828792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.155256417,
+      "phase": "streaming",
+      "residentBytes": 203374592,
+      "serviceMilliseconds": 2.355959,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.268068708,
+      "phase": "streaming",
+      "residentBytes": 203440128,
+      "serviceMilliseconds": 6.985708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.381042,
+      "phase": "streaming",
+      "residentBytes": 203538432,
+      "serviceMilliseconds": 7.288958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.489666583,
+      "phase": "streaming",
+      "residentBytes": 203980800,
+      "serviceMilliseconds": 2.4776249999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.591670625,
+      "phase": "streaming",
+      "residentBytes": 203882496,
+      "serviceMilliseconds": 1.174,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.699576417,
+      "phase": "streaming",
+      "residentBytes": 203964416,
+      "serviceMilliseconds": 1.137209,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.854383,
+      "phase": "streaming",
+      "residentBytes": 204128256,
+      "serviceMilliseconds": 53.651375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 41.956045583,
+      "phase": "streaming",
+      "residentBytes": 204029952,
+      "serviceMilliseconds": 0.214791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.0637585,
+      "phase": "streaming",
+      "residentBytes": 204128256,
+      "serviceMilliseconds": 1.1730829999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.193797083,
+      "phase": "streaming",
+      "residentBytes": 204242944,
+      "serviceMilliseconds": 23.234291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.305203,
+      "phase": "streaming",
+      "residentBytes": 204292096,
+      "serviceMilliseconds": 7.701708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.427256458,
+      "phase": "streaming",
+      "residentBytes": 205193216,
+      "serviceMilliseconds": 21.434166,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.541656458,
+      "phase": "streaming",
+      "residentBytes": 205897728,
+      "serviceMilliseconds": 10.774375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.679702667,
+      "phase": "streaming",
+      "residentBytes": 205127680,
+      "serviceMilliseconds": 32.174042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.784136167,
+      "phase": "streaming",
+      "residentBytes": 204537856,
+      "serviceMilliseconds": 0.062625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.888399625,
+      "phase": "streaming",
+      "residentBytes": 204668928,
+      "serviceMilliseconds": 0.176292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 42.989216792,
+      "phase": "streaming",
+      "residentBytes": 205078528,
+      "serviceMilliseconds": 0.233042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.090886333,
+      "phase": "streaming",
+      "residentBytes": 204914688,
+      "serviceMilliseconds": 0.656458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.205463167,
+      "phase": "streaming",
+      "residentBytes": 204931072,
+      "serviceMilliseconds": 7.913250000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.309152917,
+      "phase": "streaming",
+      "residentBytes": 205094912,
+      "serviceMilliseconds": 0.08079199999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.43842675,
+      "phase": "streaming",
+      "residentBytes": 205160448,
+      "serviceMilliseconds": 28.971875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.541136292,
+      "phase": "streaming",
+      "residentBytes": 205160448,
+      "serviceMilliseconds": 0.054167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.641394417,
+      "phase": "streaming",
+      "residentBytes": 205160448,
+      "serviceMilliseconds": 0.097917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.754897042,
+      "phase": "streaming",
+      "residentBytes": 205160448,
+      "serviceMilliseconds": 8.851875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.856873,
+      "phase": "streaming",
+      "residentBytes": 205045760,
+      "serviceMilliseconds": 0.864792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 43.9578175,
+      "phase": "streaming",
+      "residentBytes": 206979072,
+      "serviceMilliseconds": 0.050041999999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.079907292,
+      "phase": "streaming",
+      "residentBytes": 205963264,
+      "serviceMilliseconds": 18.585792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.18377025,
+      "phase": "streaming",
+      "residentBytes": 205062144,
+      "serviceMilliseconds": 0.057541999999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.295507875,
+      "phase": "streaming",
+      "residentBytes": 205209600,
+      "serviceMilliseconds": 9.168792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.399107875,
+      "phase": "streaming",
+      "residentBytes": 205537280,
+      "serviceMilliseconds": 1.636458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.512519708,
+      "phase": "streaming",
+      "residentBytes": 205930496,
+      "serviceMilliseconds": 6.612500000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.621794708,
+      "phase": "streaming",
+      "residentBytes": 205881344,
+      "serviceMilliseconds": 7.65975,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.741153083,
+      "phase": "streaming",
+      "residentBytes": 205914112,
+      "serviceMilliseconds": 12.669791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.854700167,
+      "phase": "streaming",
+      "residentBytes": 205914112,
+      "serviceMilliseconds": 7.197375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 44.956001125,
+      "phase": "streaming",
+      "residentBytes": 205799424,
+      "serviceMilliseconds": 0.29341700000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.057357875,
+      "phase": "streaming",
+      "residentBytes": 205619200,
+      "serviceMilliseconds": 0.06849999999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.173689625,
+      "phase": "streaming",
+      "residentBytes": 205717504,
+      "serviceMilliseconds": 9.560208000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.301090333,
+      "phase": "streaming",
+      "residentBytes": 205635584,
+      "serviceMilliseconds": 21.173750000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.413108958,
+      "phase": "streaming",
+      "residentBytes": 205701120,
+      "serviceMilliseconds": 5.606458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.523446667,
+      "phase": "streaming",
+      "residentBytes": 207077376,
+      "serviceMilliseconds": 4.731834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.640814042,
+      "phase": "streaming",
+      "residentBytes": 206389248,
+      "serviceMilliseconds": 10.551542000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.755512292,
+      "phase": "streaming",
+      "residentBytes": 206946304,
+      "serviceMilliseconds": 7.888125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.855971958,
+      "phase": "streaming",
+      "residentBytes": 206209024,
+      "serviceMilliseconds": 0.053,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 45.956108458,
+      "phase": "streaming",
+      "residentBytes": 206536704,
+      "serviceMilliseconds": 0.019208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.09228275,
+      "phase": "streaming",
+      "residentBytes": 206536704,
+      "serviceMilliseconds": 33.790833,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.205523958,
+      "phase": "streaming",
+      "residentBytes": 206553088,
+      "serviceMilliseconds": 11.733666,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.307008625,
+      "phase": "streaming",
+      "residentBytes": 206618624,
+      "serviceMilliseconds": 0.073667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.421451792,
+      "phase": "streaming",
+      "residentBytes": 206438400,
+      "serviceMilliseconds": 8.183334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.522646917,
+      "phase": "streaming",
+      "residentBytes": 206897152,
+      "serviceMilliseconds": 0.18933399999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.624929542,
+      "phase": "streaming",
+      "residentBytes": 206897152,
+      "serviceMilliseconds": 0.050584000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.742409,
+      "phase": "streaming",
+      "residentBytes": 206995456,
+      "serviceMilliseconds": 15.935167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.85481675,
+      "phase": "streaming",
+      "residentBytes": 206995456,
+      "serviceMilliseconds": 8.934,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 46.963968625,
+      "phase": "streaming",
+      "residentBytes": 206995456,
+      "serviceMilliseconds": 8.137375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.065283875,
+      "phase": "streaming",
+      "residentBytes": 208830464,
+      "serviceMilliseconds": 0.050167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.177139625,
+      "phase": "streaming",
+      "residentBytes": 208273408,
+      "serviceMilliseconds": 5.068625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.281091458,
+      "phase": "streaming",
+      "residentBytes": 207306752,
+      "serviceMilliseconds": 0.269541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.408002542,
+      "phase": "streaming",
+      "residentBytes": 207650816,
+      "serviceMilliseconds": 20.49825,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.521381125,
+      "phase": "streaming",
+      "residentBytes": 207503360,
+      "serviceMilliseconds": 7.381875000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.631338417,
+      "phase": "streaming",
+      "residentBytes": 207880192,
+      "serviceMilliseconds": 8.619167000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.734413042,
+      "phase": "streaming",
+      "residentBytes": 207880192,
+      "serviceMilliseconds": 0.043084000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.8400005,
+      "phase": "streaming",
+      "residentBytes": 208060416,
+      "serviceMilliseconds": 2.874167,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 47.95499175,
+      "phase": "streaming",
+      "residentBytes": 207880192,
+      "serviceMilliseconds": 9.098458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.062590917,
+      "phase": "streaming",
+      "residentBytes": 207962112,
+      "serviceMilliseconds": 4.290541999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.164372208,
+      "phase": "streaming",
+      "residentBytes": 207962112,
+      "serviceMilliseconds": 0.044791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.283575833,
+      "phase": "streaming",
+      "residentBytes": 207978496,
+      "serviceMilliseconds": 15.098624999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.389309417,
+      "phase": "streaming",
+      "residentBytes": 207978496,
+      "serviceMilliseconds": 0.199,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.497835625,
+      "phase": "streaming",
+      "residentBytes": 208027648,
+      "serviceMilliseconds": 3.3621250000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.598679292,
+      "phase": "streaming",
+      "residentBytes": 210223104,
+      "serviceMilliseconds": 0.147334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.717102,
+      "phase": "streaming",
+      "residentBytes": 208371712,
+      "serviceMilliseconds": 15.674750000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.859395,
+      "phase": "streaming",
+      "residentBytes": 208551936,
+      "serviceMilliseconds": 35.467958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 48.966201625,
+      "phase": "streaming",
+      "residentBytes": 208125952,
+      "serviceMilliseconds": 0.007542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.072375625,
+      "phase": "streaming",
+      "residentBytes": 208896000,
+      "serviceMilliseconds": 0.155958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.175008917,
+      "phase": "streaming",
+      "residentBytes": 208945152,
+      "serviceMilliseconds": 0.053042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.281559667,
+      "phase": "streaming",
+      "residentBytes": 208961536,
+      "serviceMilliseconds": 0.761417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.383874708,
+      "phase": "streaming",
+      "residentBytes": 208961536,
+      "serviceMilliseconds": 0.049499999999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.488930083,
+      "phase": "streaming",
+      "residentBytes": 209010688,
+      "serviceMilliseconds": 0.705875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.589189292,
+      "phase": "streaming",
+      "residentBytes": 209010688,
+      "serviceMilliseconds": 0.050417000000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.692299042,
+      "phase": "streaming",
+      "residentBytes": 208846848,
+      "serviceMilliseconds": 0.097209,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.797687583,
+      "phase": "streaming",
+      "residentBytes": 208945152,
+      "serviceMilliseconds": 0.239208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 49.908353292,
+      "phase": "streaming",
+      "residentBytes": 208961536,
+      "serviceMilliseconds": 4.690334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.022221958,
+      "phase": "streaming",
+      "residentBytes": 209010688,
+      "serviceMilliseconds": 9.658791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.140507292,
+      "phase": "streaming",
+      "residentBytes": 209567744,
+      "serviceMilliseconds": 14.279709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.256546917,
+      "phase": "streaming",
+      "residentBytes": 210288640,
+      "serviceMilliseconds": 13.728083999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.396846583,
+      "phase": "streaming",
+      "residentBytes": 210042880,
+      "serviceMilliseconds": 33.468708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.512540541999996,
+      "phase": "streaming",
+      "residentBytes": 209076224,
+      "serviceMilliseconds": 8.883208999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.626456667,
+      "phase": "streaming",
+      "residentBytes": 209960960,
+      "serviceMilliseconds": 7.017459000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.732361042,
+      "phase": "streaming",
+      "residentBytes": 210042880,
+      "serviceMilliseconds": 1.562375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.857277458,
+      "phase": "streaming",
+      "residentBytes": 209895424,
+      "serviceMilliseconds": 18.279666,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 50.973255833,
+      "phase": "streaming",
+      "residentBytes": 210010112,
+      "serviceMilliseconds": 13.489125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.081508458,
+      "phase": "streaming",
+      "residentBytes": 210059264,
+      "serviceMilliseconds": 3.7624999999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.185629917,
+      "phase": "streaming",
+      "residentBytes": 210059264,
+      "serviceMilliseconds": 1.512959,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.293533083,
+      "phase": "streaming",
+      "residentBytes": 210059264,
+      "serviceMilliseconds": 6.723790999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.398608292,
+      "phase": "streaming",
+      "residentBytes": 210059264,
+      "serviceMilliseconds": 4.055375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.509963458,
+      "phase": "streaming",
+      "residentBytes": 210272256,
+      "serviceMilliseconds": 5.111708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.624946,
+      "phase": "streaming",
+      "residentBytes": 210239488,
+      "serviceMilliseconds": 10.386375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.7453415,
+      "phase": "streaming",
+      "residentBytes": 212484096,
+      "serviceMilliseconds": 14.247375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.859042375,
+      "phase": "streaming",
+      "residentBytes": 210911232,
+      "serviceMilliseconds": 7.814583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 51.974184958,
+      "phase": "streaming",
+      "residentBytes": 211943424,
+      "serviceMilliseconds": 10.01825,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.081529292,
+      "phase": "streaming",
+      "residentBytes": 209829888,
+      "serviceMilliseconds": 3.7053339999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.190454042,
+      "phase": "streaming",
+      "residentBytes": 210550784,
+      "serviceMilliseconds": 2.2472920000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.30670925,
+      "phase": "streaming",
+      "residentBytes": 210714624,
+      "serviceMilliseconds": 9.4655,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.416637167,
+      "phase": "streaming",
+      "residentBytes": 210567168,
+      "serviceMilliseconds": 4.565375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.532677167,
+      "phase": "streaming",
+      "residentBytes": 210386944,
+      "serviceMilliseconds": 10.147834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.641175333,
+      "phase": "streaming",
+      "residentBytes": 210518016,
+      "serviceMilliseconds": 2.06,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.75590075,
+      "phase": "streaming",
+      "residentBytes": 210419712,
+      "serviceMilliseconds": 9.3705,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.860764583,
+      "phase": "streaming",
+      "residentBytes": 210419712,
+      "serviceMilliseconds": 1.81975,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 52.966192708,
+      "phase": "streaming",
+      "residentBytes": 210518016,
+      "serviceMilliseconds": 2.069291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.075837375,
+      "phase": "streaming",
+      "residentBytes": 210436096,
+      "serviceMilliseconds": 3.836583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.184098042,
+      "phase": "streaming",
+      "residentBytes": 210501632,
+      "serviceMilliseconds": 2.402417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.295685167,
+      "phase": "streaming",
+      "residentBytes": 212353024,
+      "serviceMilliseconds": 6.5360000000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.400915792,
+      "phase": "streaming",
+      "residentBytes": 210386944,
+      "serviceMilliseconds": 4.916834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.515981708,
+      "phase": "streaming",
+      "residentBytes": 211025920,
+      "serviceMilliseconds": 10.18825,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.624224875,
+      "phase": "streaming",
+      "residentBytes": 210632704,
+      "serviceMilliseconds": 1.471875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.732891083,
+      "phase": "streaming",
+      "residentBytes": 211288064,
+      "serviceMilliseconds": 2.125708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.847033583,
+      "phase": "scrolling",
+      "residentBytes": 211435520,
+      "serviceMilliseconds": 7.361083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 53.954320708,
+      "phase": "scrolling",
+      "residentBytes": 211992576,
+      "serviceMilliseconds": 7.02425,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.055828792,
+      "phase": "scrolling",
+      "residentBytes": 211992576,
+      "serviceMilliseconds": 0.023542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.159087458,
+      "phase": "scrolling",
+      "residentBytes": 211992576,
+      "serviceMilliseconds": 0.015208000000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.261007333,
+      "phase": "scrolling",
+      "residentBytes": 211992576,
+      "serviceMilliseconds": 0.074875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.421783333,
+      "phase": "scrolling",
+      "residentBytes": 213352448,
+      "serviceMilliseconds": 59.621166,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.52346075,
+      "phase": "scrolling",
+      "residentBytes": 213352448,
+      "serviceMilliseconds": 0.121208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.626764167,
+      "phase": "scrolling",
+      "residentBytes": 213352448,
+      "serviceMilliseconds": 0.372,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.733630125,
+      "phase": "scrolling",
+      "residentBytes": 213352448,
+      "serviceMilliseconds": 0.018458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 54.835326167,
+      "phase": "scrolling",
+      "residentBytes": 213352448,
+      "serviceMilliseconds": 0.047792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.108060875,
+      "phase": "scrolling",
+      "residentBytes": 223641600,
+      "serviceMilliseconds": 169.91125000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.211178667,
+      "phase": "scrolling",
+      "residentBytes": 223641600,
+      "serviceMilliseconds": 0.1105,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.315310333,
+      "phase": "scrolling",
+      "residentBytes": 223641600,
+      "serviceMilliseconds": 0.337791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.425410917,
+      "phase": "scrolling",
+      "residentBytes": 224804864,
+      "serviceMilliseconds": 6.535417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.528756417,
+      "phase": "scrolling",
+      "residentBytes": 224804864,
+      "serviceMilliseconds": 0.164375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.634206792,
+      "phase": "scrolling",
+      "residentBytes": 224804864,
+      "serviceMilliseconds": 0.312917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.735795875,
+      "phase": "scrolling",
+      "residentBytes": 224804864,
+      "serviceMilliseconds": 0.055208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.836919167,
+      "phase": "scrolling",
+      "residentBytes": 224804864,
+      "serviceMilliseconds": 0.028334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 55.998837375,
+      "phase": "scrolling",
+      "residentBytes": 225591296,
+      "serviceMilliseconds": 58.662417000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.101370417,
+      "phase": "scrolling",
+      "residentBytes": 225591296,
+      "serviceMilliseconds": 0.129959,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.205278875,
+      "phase": "scrolling",
+      "residentBytes": 225591296,
+      "serviceMilliseconds": 0.3325,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.308558708,
+      "phase": "scrolling",
+      "residentBytes": 225591296,
+      "serviceMilliseconds": 0.047166,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.437121208,
+      "phase": "scrolling",
+      "residentBytes": 226508800,
+      "serviceMilliseconds": 21.657916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.539387083,
+      "phase": "scrolling",
+      "residentBytes": 226508800,
+      "serviceMilliseconds": 0.146,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.644739625,
+      "phase": "scrolling",
+      "residentBytes": 226508800,
+      "serviceMilliseconds": 0.029332999999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.746804125,
+      "phase": "scrolling",
+      "residentBytes": 226508800,
+      "serviceMilliseconds": 0.032375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 56.849115292,
+      "phase": "scrolling",
+      "residentBytes": 226508800,
+      "serviceMilliseconds": 0.045417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.025655333,
+      "phase": "scrolling",
+      "residentBytes": 225673216,
+      "serviceMilliseconds": 70.381125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.127743083,
+      "phase": "scrolling",
+      "residentBytes": 225673216,
+      "serviceMilliseconds": 0.018875000000000003,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.230342375,
+      "phase": "scrolling",
+      "residentBytes": 225673216,
+      "serviceMilliseconds": 0.057583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.342021292,
+      "phase": "scrolling",
+      "residentBytes": 225673216,
+      "serviceMilliseconds": 0.023375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.456490625,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 9.056958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.559524083,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.1395,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.663594625,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.270333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.769172583,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.043875000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 57.869706458,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.034708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.050130667,
+      "phase": "scrolling",
+      "residentBytes": 225689600,
+      "serviceMilliseconds": 76.079917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.15131625,
+      "phase": "scrolling",
+      "residentBytes": 225689600,
+      "serviceMilliseconds": 0.09912499999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.254683833,
+      "phase": "scrolling",
+      "residentBytes": 225689600,
+      "serviceMilliseconds": 0.285416,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.35581675,
+      "phase": "scrolling",
+      "residentBytes": 225689600,
+      "serviceMilliseconds": 0.031207999999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.462872667,
+      "phase": "scrolling",
+      "residentBytes": 225689600,
+      "serviceMilliseconds": 4.8208340000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.569673458,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.0115,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.670729333,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.021166,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.775353042,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.060625000000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 58.880004417,
+      "phase": "scrolling",
+      "residentBytes": 226590720,
+      "serviceMilliseconds": 0.042292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.10485825,
+      "phase": "scrolling",
+      "residentBytes": 225722368,
+      "serviceMilliseconds": 123.29891699999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.205569417,
+      "phase": "scrolling",
+      "residentBytes": 225722368,
+      "serviceMilliseconds": 0.018584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.309839542,
+      "phase": "scrolling",
+      "residentBytes": 225722368,
+      "serviceMilliseconds": 0.291709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.413670125,
+      "phase": "scrolling",
+      "residentBytes": 225722368,
+      "serviceMilliseconds": 0.018417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.547144583,
+      "phase": "scrolling",
+      "residentBytes": 225492992,
+      "serviceMilliseconds": 32.602,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.650225292,
+      "phase": "scrolling",
+      "residentBytes": 225492992,
+      "serviceMilliseconds": 0.10175000000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.75302075,
+      "phase": "scrolling",
+      "residentBytes": 225492992,
+      "serviceMilliseconds": 0.051125000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.858389292,
+      "phase": "scrolling",
+      "residentBytes": 225492992,
+      "serviceMilliseconds": 0.04675,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 59.961237792,
+      "phase": "scrolling",
+      "residentBytes": 225492992,
+      "serviceMilliseconds": 0.20683400000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.128798208,
+      "phase": "scrolling",
+      "residentBytes": 225165312,
+      "serviceMilliseconds": 60.7035,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.230015167,
+      "phase": "scrolling",
+      "residentBytes": 225165312,
+      "serviceMilliseconds": 0.128417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.331891792,
+      "phase": "scrolling",
+      "residentBytes": 225165312,
+      "serviceMilliseconds": 0.038834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.43479475,
+      "phase": "scrolling",
+      "residentBytes": 225165312,
+      "serviceMilliseconds": 0.039958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.556278125,
+      "phase": "scrolling",
+      "residentBytes": 226066432,
+      "serviceMilliseconds": 18.0935,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.658192917,
+      "phase": "scrolling",
+      "residentBytes": 226066432,
+      "serviceMilliseconds": 0.102834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.763273167,
+      "phase": "scrolling",
+      "residentBytes": 226066432,
+      "serviceMilliseconds": 0.084042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.871678875,
+      "phase": "scrolling",
+      "residentBytes": 226066432,
+      "serviceMilliseconds": 0.079375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 60.976997833,
+      "phase": "scrolling",
+      "residentBytes": 226066432,
+      "serviceMilliseconds": 0.015290999999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.139703167,
+      "phase": "scrolling",
+      "residentBytes": 225181696,
+      "serviceMilliseconds": 57.787209,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.240816292,
+      "phase": "scrolling",
+      "residentBytes": 225181696,
+      "serviceMilliseconds": 0.018709,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.344078125,
+      "phase": "scrolling",
+      "residentBytes": 225181696,
+      "serviceMilliseconds": 0.017042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.449813042,
+      "phase": "scrolling",
+      "residentBytes": 225181696,
+      "serviceMilliseconds": 0.014834,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.578720167,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 23.840084,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.680580417,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.12320899999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.783057167,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.141292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.88620475,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.029249999999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 61.99145375,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.048417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.164198917,
+      "phase": "scrolling",
+      "residentBytes": 225214464,
+      "serviceMilliseconds": 65.83512499999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.265508208,
+      "phase": "scrolling",
+      "residentBytes": 225214464,
+      "serviceMilliseconds": 0.018458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.371849125,
+      "phase": "scrolling",
+      "residentBytes": 225214464,
+      "serviceMilliseconds": 0.348375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.477948792,
+      "phase": "scrolling",
+      "residentBytes": 225214464,
+      "serviceMilliseconds": 0.270584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.603747792,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 24.894125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.704994583,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.124,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.807851458,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.059875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 62.911913708,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.27633300000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.016789333,
+      "phase": "scrolling",
+      "residentBytes": 226115584,
+      "serviceMilliseconds": 0.052625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.174514833,
+      "phase": "scrolling",
+      "residentBytes": 225230848,
+      "serviceMilliseconds": 50.931166,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.276363708,
+      "phase": "scrolling",
+      "residentBytes": 225230848,
+      "serviceMilliseconds": 0.12108300000000001,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.379364083,
+      "phase": "scrolling",
+      "residentBytes": 225230848,
+      "serviceMilliseconds": 0.267416,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.485601625,
+      "phase": "scrolling",
+      "residentBytes": 225230848,
+      "serviceMilliseconds": 0.21745799999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.612324708,
+      "phase": "scrolling",
+      "residentBytes": 226131968,
+      "serviceMilliseconds": 22.789666,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.716100833,
+      "phase": "scrolling",
+      "residentBytes": 226131968,
+      "serviceMilliseconds": 0.14716600000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.819400833,
+      "phase": "scrolling",
+      "residentBytes": 226131968,
+      "serviceMilliseconds": 0.251375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 63.922997667,
+      "phase": "scrolling",
+      "residentBytes": 226131968,
+      "serviceMilliseconds": 0.045000000000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.028083625,
+      "phase": "scrolling",
+      "residentBytes": 226131968,
+      "serviceMilliseconds": 0.029124999999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.195307917,
+      "phase": "scrolling",
+      "residentBytes": 225247232,
+      "serviceMilliseconds": 64.60549999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.298157083,
+      "phase": "scrolling",
+      "residentBytes": 225247232,
+      "serviceMilliseconds": 0.135125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.402894208,
+      "phase": "scrolling",
+      "residentBytes": 225247232,
+      "serviceMilliseconds": 0.033916,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.508354208,
+      "phase": "scrolling",
+      "residentBytes": 225247232,
+      "serviceMilliseconds": 0.185583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.633551542,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 20.393459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.73451525,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 0.016208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.837632458,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 0.026041,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 64.941452375,
+      "phase": "scrolling",
+      "residentBytes": 226164736,
+      "serviceMilliseconds": 0.039708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.051969417,
+      "phase": "scrolling",
+      "residentBytes": 226164736,
+      "serviceMilliseconds": 0.05125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.213694792,
+      "phase": "scrolling",
+      "residentBytes": 225263616,
+      "serviceMilliseconds": 58.633708999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.314157708,
+      "phase": "scrolling",
+      "residentBytes": 225263616,
+      "serviceMilliseconds": 0.023708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.416920667,
+      "phase": "scrolling",
+      "residentBytes": 225263616,
+      "serviceMilliseconds": 0.056875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.525604167,
+      "phase": "scrolling",
+      "residentBytes": 225263616,
+      "serviceMilliseconds": 0.016,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.655217833,
+      "phase": "scrolling",
+      "residentBytes": 226164736,
+      "serviceMilliseconds": 23.541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.75713975,
+      "phase": "scrolling",
+      "residentBytes": 226164736,
+      "serviceMilliseconds": 0.11975,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.860021,
+      "phase": "scrolling",
+      "residentBytes": 226164736,
+      "serviceMilliseconds": 0.384083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 65.964763417,
+      "phase": "scrolling",
+      "residentBytes": 226164736,
+      "serviceMilliseconds": 0.8495,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.070348917,
+      "phase": "scrolling",
+      "residentBytes": 226164736,
+      "serviceMilliseconds": 0.051334,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.232717958,
+      "phase": "scrolling",
+      "residentBytes": 225280000,
+      "serviceMilliseconds": 59.664083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.335834958,
+      "phase": "scrolling",
+      "residentBytes": 225280000,
+      "serviceMilliseconds": 0.109208,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.438485,
+      "phase": "scrolling",
+      "residentBytes": 225280000,
+      "serviceMilliseconds": 0.29474999999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.54410475,
+      "phase": "scrolling",
+      "residentBytes": 225280000,
+      "serviceMilliseconds": 0.34912499999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.671956792,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 26.622667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.773357667,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 0.018292,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.879682708,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 0.016416,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 66.9863105,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 0.054708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.088643708,
+      "phase": "scrolling",
+      "residentBytes": 226181120,
+      "serviceMilliseconds": 0.049541,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.255956708,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 65.169083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.357174667,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.016458999999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.463310167,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.364459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.565523333,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.029875000000000002,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.704,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 34.797667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.806951583,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.109333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 67.90817079199999,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.050124999999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.016607542,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.35612499999999997,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.117643833,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.08075,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.283298,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 64.573542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.386353875,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.11012499999999999,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.487405375,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.049957999999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.588854625,
+      "phase": "scrolling",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.055083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.712602958,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 19.12975,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.814475583,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.020041,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 68.919922,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.014667,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.0211085,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.042583,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.124031083,
+      "phase": "scrolling",
+      "residentBytes": 226197504,
+      "serviceMilliseconds": 0.053,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.33062375,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 100.512625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.430831083,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.018958,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.533386583,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.029458,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.640780958,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.156416,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.747494333,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.050333,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.852641292,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.055584,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 69.953333667,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.039208999999999994,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.05958475,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.047375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.160127417,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.041084,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.26053675,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.05425,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.36743125,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.023042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.470519042,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.020916999999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.571904,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.028708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.679318,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.046875,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.781975625,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.052667000000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.891298917,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.052959,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 70.994213667,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.088042,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.10018125,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.048374999999999994,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.205848042,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.045917,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.314776958,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.053,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.420509292,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.027084,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.522673458,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.029915999999999998,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.625451208,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.034708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.73104125,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.059375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.833798708,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.054333000000000006,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 71.938382292,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.0435,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.041197083,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.04,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.147024083,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.057540999999999995,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.25062,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.044833000000000005,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.358058833,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.152375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.467113208,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.053458000000000006,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.572572917,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.058375,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.679463208,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.045291,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.783488667,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.046792,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.889629292,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.067459,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 72.993053333,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.064708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.096748125,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.052083000000000004,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.202493542,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.067125,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.303783708,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.047791,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.409830958,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.04775,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.510469,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.050124999999999996,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.617373958,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.046708,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.72377575,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.030542,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.8266235,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.031083,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 73.932468167,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.059625,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 74.040911792,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 1.837417,
+      "windowVisible": true
+    },
+    {
+      "appActive": true,
+      "elapsedSeconds": 74.147007708,
+      "phase": "settled",
+      "residentBytes": 225296384,
+      "serviceMilliseconds": 0.047958,
+      "windowVisible": true
+    }
+  ],
+  "schema": 1,
+  "scrollPositions": [
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675,
+    -24,
+    46675
+  ],
+  "streamedUTF8Bytes": 20911,
+  "summaries": [
+    {
+      "count": 70,
+      "maximum": 446.74075000000005,
+      "p50": 0.043083,
+      "p95": 3.244792,
+      "phase": "warmup"
+    },
+    {
+      "count": 417,
+      "maximum": 53.651375,
+      "p50": 4.2892909999999995,
+      "p95": 14.247375,
+      "phase": "streaming"
+    },
+    {
+      "count": 135,
+      "maximum": 169.91125000000002,
+      "p50": 0.109333,
+      "p95": 64.60549999999999,
+      "phase": "scrolling"
+    },
+    {
+      "count": 47,
+      "maximum": 100.512625,
+      "p50": 0.047958,
+      "p95": 0.156416,
+      "phase": "settled"
+    }
+  ],
+  "thinkingExpanded": true,
+  "thinkingUTF8Bytes": 1760,
+  "sourceSHA256": {
+    "Apps/MiraMac/Features/Conversation/NativeConversationTranscript.swift": "5945d4864ec49534bd96602701ef6f261c6c1c13742feb8318202c6f93ab4a69",
+    "Apps/MiraMac/Features/Conversation/NativeTranscriptRow.swift": "6ec5152f6b564ab99f65afacc529381966eb9680b8befb986fec70f0a0a463b2",
+    "Apps/MiraMac/DesignSystem/MiraMarkdownView.swift": "5cab7c7f95bb1be10bf36cc376ebc825ad118f21f1de37fd1a37222f62ebb592",
+    "Apps/MiraMac/Performance/NativePerformanceBenchmark.swift": "b35a66820b229b6c861dd1aede3663d6e066c2d381902da284d994e1979cb80a"
+  },
+  "validationDate": "2026-09-09"
+}

@@ -234,7 +234,7 @@ def main() -> int:
                 "xcodebuild", "-project", "Mira.xcodeproj", "-scheme", "Mira",
                 "-configuration", "Release", "-destination", "platform=macOS",
                 "-derivedDataPath", str(derived_data), "-onlyUsePackageVersionsFromResolvedFile",
-                "-disableAutomaticPackageResolution", "-skipMacroValidation",
+                "-disableAutomaticPackageResolution",
                 "CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO", "ARCHS=arm64 x86_64",
                 "ONLY_ACTIVE_ARCH=NO", "build",
             ]

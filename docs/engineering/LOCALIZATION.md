@@ -25,7 +25,7 @@ Built-in prompts stay English. The conversational prompt instructs the model to 
 
 Non-English source exceptions require an English explanation and a narrow allowlist: translation resources, original third-party notices, Unicode or language-specific test fixtures. Existing product and design documents are not translated as part of implementation cleanup.
 
-The vendored SwiftStreamingMarkdown source retains its upstream identity and license. Its small locale patch makes code-copy controls and list/table accessibility labels use the current SwiftUI locale instead of the process language. See its `UPSTREAM.md` for the exact scope; original third-party source and fixtures are excluded from Mira's first-party source-language scan. Third-party locale tests are included in Mira's hostless Xcode test target so the actual compiled string catalogs are tested.
+MarkdownView and ListViewKit remain third-party rendering dependencies with their upstream source and licenses recorded in the app's third-party notices. They do not own Mira's locale selection or resource lookup; Mira-owned wrappers pass the active locale where the dependency API supports it. No vendored renderer locale tests are part of the hostless target.
 
 ## Verification
 

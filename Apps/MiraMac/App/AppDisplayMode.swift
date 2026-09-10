@@ -36,3 +36,19 @@ enum AppDisplayMode: String {
         }
     }
 }
+
+/// Own the app-wide override in one place so native panes and SwiftUI inherit together.
+struct MiraAppAppearance: ViewModifier {
+    @AppStorage(AppDisplayMode.preferenceKey) private var preference = AppDisplayMode.initialValue.rawValue
+    private var mode: AppDisplayMode { .resolve(stored: preference) }
+
+    func body(content: Content) -> some View {
+        // A second SwiftUI color-scheme preference can leave hosted panes dark after returning to nil.
+        content
+            .onChange(of: mode, initial: true) { _, mode in
+                if NSApp.appearance?.name != mode.appearanceName {
+                    NSApp.appearance = mode.appearanceName.flatMap { NSAppearance(named: $0) }
+                }
+            }
+    }
+}

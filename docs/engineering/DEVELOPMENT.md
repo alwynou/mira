@@ -130,7 +130,7 @@ Mira/
 swift test --package-path Packages/MiraKit --disable-automatic-resolution
 xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
-  -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
+  -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build
 xcodebuild -project Mira.xcodeproj -scheme Mira \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
   -onlyTesting:MiraHostTests test
@@ -142,7 +142,7 @@ Opt-in live memory evaluation uses `MIRA_EVAL_CASE_IDS` (one to four fixture IDs
 
 首次解析可使用 `swift package --package-path Packages/MiraKit resolve`。依赖升级时同时检查两个 `Package.resolved`。工程源配置为根目录 `project.yml`，新增 Host 文件后用 XcodeGen 2.46.0 生成并提交 `.xcodeproj` 与共享 Scheme。Core / Data / Providers 是 Swift Package 的三个库；测试只使用合成数据。
 
-CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) 为依据。SwiftStreamingMarkdown v0.7.0 固定依赖 swift-markdown 0.7.3，其 Package 清单要求 Swift 6.2，所以原 Xcode 16.4 不能构建当前 Host。编译器升级不改变 macOS 15 最低部署版本。CI 的运行结果与本机结果分别记录，不从配置文件存在推断 CI 已成功。
+CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) 为依据。MarkdownView、ListViewKit 与 Litext 以提交号固定，当前 Host 使用 Xcode 26.3 构建。编译器升级不改变 macOS 15 最低部署版本。CI 的运行结果与本机结果分别记录，不从配置文件存在推断 CI 已成功。
 
 ### 资料库与演示
 
@@ -172,16 +172,9 @@ Opening a restored directory does not send requests, reauthorize external files,
 
 ## 流式 Markdown 依赖
 
-MiraMac uses the vendored Microsoft SwiftStreamingMarkdown v0.7.0 source from commit `5f7c04e0558df6146f90d482edb62cb456986bda`. The local package carries locale and measured-layout fixes; provenance and changed files are recorded in `Vendor/SwiftStreamingMarkdown/UPSTREAM.md`. Runtime transitive dependencies stay pinned in the Xcode lock file. MiraKit does not import this UI dependency.
+MiraMac uses MarkdownView's `MarkdownView` and `MarkdownParser` products with ListViewKit's virtualized AppKit list and Litext's text rendering API. The direct package revisions are pinned in `project.yml` and the generated Xcode lock file; MiraKit does not import these UI dependencies. Their transitive packages include Highlightr, SwiftMath, LRUCache, swift-cmark, swift-collections, and MSDisplayLink. Attribution and bundled font / highlight.js notices are in [第三方说明](THIRD_PARTY.md) and the app resource.
 
-库带 Equatable 编译宏。已审阅、锁定的依赖在 CLI / CI 使用 `-skipMacroValidation`；不修改机器全局信任设置。依赖升级必须重新审阅并验证。该选项不会绕过应用签名或公证。详见 [第三方说明](THIRD_PARTY.md)。
+Conversation presentation coalesces runtime text and thinking snapshots at 100 ms before publishing observable state. Authoritative reloads, terminal messages, selection changes, and privacy clears replace pending presentation state immediately. Stable transcript rows retain their renderer. Appended paragraph text uses a display-only 500 ms fade with up to 100 ms of word staggering; animation ticks neither mutate attributed text nor invalidate intrinsic size, and completion removes fade markers from the current document without restoring stale attachment reservations. Initial and completed snapshots render immediately, and Reduce Motion disables fades. The composer observes its own input independently from transcript content. Streaming growth now preserves reading position without auto-follow. Current surface, typography, and navigation verification are documented in [floating composer](FLOATING_COMPOSER.md); the original renderer measurements remain in [renderer replacement](RENDERER_REPLACEMENT.md).
 
-Conversation presentation coalesces runtime text and thinking snapshots at 100 ms before publishing observable state. Authoritative reloads, terminal messages, selection changes, and privacy clears replace pending presentation state immediately. Stable transcript rows retain their renderer. Appended paragraph text uses a display-only 500 ms fade with up to 100 ms of word staggering; animation frames neither mutate attributed text nor invalidate intrinsic size. Initial and completed snapshots render immediately, and Reduce Motion disables fades. The composer observes its own input independently from transcript content. Native scroll-follow behavior and verification are documented in [streaming performance](STREAMING_PERFORMANCE.md).
 
-### Native long-conversation fixture
-
-After building Debug, run `python3 scripts/run_rendering_benchmark.py --output /private/tmp/mira-rendering-report.json --expand-thinking` with a new output path. Keep the fixture window visible and avoid concurrent builds, profiling, or accessibility-tree enumeration during a clean timing run. The runner copies and ad-hoc signs a uniquely identified disposable app, requires a new temporary library, and removes only its own process/app/library on exit. It does not quit the user's Mira or reuse its data. Benchmark entry points are compiled out of Release.
-
-The fixture presents 100 historical messages, streams mixed Markdown, updates the unsent composer, and issues 30 native scroll commands. Main-actor queue service samples are a responsiveness proxy, not hardware input latency or frame rate. The JSON records raw samples, RSS, visibility, and scroll positions. The runner fails on incomplete phases or missing native scroll probes. Threshold interpretation and remaining acceptance work belong to [long-conversation performance](LONG_CONVERSATION_PERFORMANCE.md). Capture Instruments separately from clean timing; raw traces can contain process environment values and must not be committed.
-
-For a deterministic long-response check, launch Debug with `--demo --demo-stress --data-directory /absolute/path/to/isolated-fixture-library` and send any synthetic message. The stress fixture emits 12 characters every 24 ms, keeping its roughly 20 KB reply active long enough to exercise input and scrolling. It exercises thinking and mixed Markdown through the normal runtime without a network call. Quit the fixture app before returning to the current development library; delete only the explicitly created fixture directory after the check.
+The current native-app rendering health check is `python3 scripts/run_rendering_benchmark.py --output /absolute/new-report.json --expand-thinking` after a Debug build. It runs a disposable app/library and removes them on exit. Its main-actor queue samples are not displayed frame-rate measurements; current evidence is in [Renderer replacement](RENDERER_REPLACEMENT.md).

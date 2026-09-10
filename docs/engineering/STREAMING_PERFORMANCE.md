@@ -1,5 +1,7 @@
 # Streaming performance verification
 
+> Historical evidence for the renderer used at the time. The 2026-09-09 MarkdownView + ListViewKit replacement removes the vendored renderer and its focused tests; current implementation and acceptance are recorded in [Renderer replacement](RENDERER_REPLACEMENT.md).
+
 Date: 2026-09-06. Scope: M1 conversation rendering, streaming follow behavior, and the reported native app hang.
 
 ## Evidence and repair
@@ -8,7 +10,7 @@ A five-second sample of the frozen app on macOS 26.6.2 showed 2,400 of 2,404 mai
 
 The fix separates composer and transcript observation, coalesces cumulative text/thinking snapshots at 100 ms, and immediately replaces pending snapshots on authoritative reload or selection changes. The transcript uses stable eager rows so asynchronous Markdown heights are retained instead of repeatedly evicted and measured. The initial hang repair disabled text entrance animations; the follow-up below restores appended-text fades. Collapsed thinking is not parsed, and unchanged answer/citation views skip recomputation.
 
-The vendored renderer now caches exact-width paragraph measurements with a bounded four-entry cache, invalidates intrinsic size only when the actual layout width changes, and derives table column widths from one viewport source. Cancelled parsing tasks cannot publish superseded content. Source provenance and patch boundaries are in `Vendor/SwiftStreamingMarkdown/UPSTREAM.md`.
+The vendored renderer now caches exact-width paragraph measurements with a bounded four-entry cache, invalidates intrinsic size only when the actual layout width changes, and derives table column widths from one viewport source. Cancelled parsing tasks cannot publish superseded content. The removed source provenance and patch record can be inspected with `git show 6a45af4:Vendor/SwiftStreamingMarkdown/UPSTREAM.md`; the current dependency record is [Renderer replacement](RENDERER_REPLACEMENT.md).
 
 Follow intent is separate from geometry: user scrolling or a source jump pauses following; returning to the bottom or the localized jump button resumes it. Only rounded content/container size changes can request a follow scroll, and a view already at the bottom does not issue another scroll. A second long-response check caught residual layout activity before this final guard was added.
 

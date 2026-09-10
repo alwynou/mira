@@ -35,7 +35,7 @@ def export() -> None:
             for index, mode in enumerate(("light", "dark"))
         },
     }
-    for group in ("Spacing", "Radius", "Layout", "Opacity"):
+    for group in ("Spacing", "Radius", "Layout", "Opacity", "Markdown"):
         section = source.split(f"enum {group} {{", 1)[1].split("}", 1)[0]
         tokens[group.lower()] = {
             name: float(value) for name, value in re.findall(r"static let (\w+): (?:CGFloat|Double) = ([\d.]+)", section)

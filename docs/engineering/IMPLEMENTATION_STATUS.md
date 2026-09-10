@@ -10,7 +10,7 @@ Current acceptance is tracked in the [execution ledger](MVP_EXECUTION.md), [know
 |---|---|
 | M0 工程 | AGENTS.md、XcodeGen 源配置、Xcode 工程 / 共享 Scheme、MiraCore / MiraData / MiraProviders 三个库、精确 GRDB 依赖锁、Git ignore、GitHub Actions |
 | M0 存储 | 命名迁移、WAL、外键、单对话活动执行与消息序号约束、修订冲突、临时资料库与 SQLite / FTS5 探测 |
-| M1 对话 | Workspace / Inbox、项目背景与发送开关、对话创建 / 归档、SwiftStreamingMarkdown 流式渲染、取消、最后失败回合重试、本地历史与草稿恢复 |
+| M1 对话 | Workspace / Inbox、项目背景与发送开关、对话创建 / 归档、MarkdownView + ListViewKit 原生流式渲染、取消、最后失败回合重试、本地历史与草稿恢复 |
 | M1 Provider | OpenAI Chat Completions 兼容接口与 Anthropic Messages、手工 Model ID / 窗口 / 输出上限、文本 / 工具独立合成检测、Keychain 引用与版本 |
 | M1 异常边界 | UserMessage + queued Execution 原子提交、网络前落盘请求、每 250 ms 或 4 KiB 草稿检查点、唯一终态、保留部分回复、保存失败重试、退出期间禁止新请求 |
 | M1 数据 | SQLite Backup API 导出、原备份只读使用（校验操作在暂存副本）、拒绝错误结构 / 约束、恢复到新目录、未知用量显示“服务未提供” |

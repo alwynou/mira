@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 private extension EnvironmentValues {
     @Entry var miraSidebarIsPressed = false
@@ -147,4 +148,90 @@ private struct MiraInteractiveLabel<Shape: InsettableShape>: View {
         guard isEnabled, configuration.isPressed || isHovered else { return .clear }
         return configuration.isPressed ? MiraTheme.Colors.selected : MiraTheme.Colors.hover
     }
+}
+
+/// Centers the hint without letting either control group overlap it.
+struct MiraComposerBarLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? MiraTheme.Layout.composerMax
+        let sizes = measuredSizes(width: width, subviews: subviews)
+        return CGSize(width: width, height: max(MiraTheme.Layout.controlHeight, sizes.map(\.height).max() ?? 0))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = measuredSizes(width: bounds.width, subviews: subviews)
+        guard sizes.count == 3 else { return }
+        for index in 0..<3 {
+            let x = index == 0 ? bounds.minX + sizes[index].width / 2
+                : (index == 1 ? bounds.midX : bounds.maxX - sizes[index].width / 2)
+            subviews[index].place(at: CGPoint(x: x, y: bounds.midY), anchor: .center,
+                                  proposal: ProposedViewSize(sizes[index]))
+        }
+    }
+
+    private func measuredSizes(width: CGFloat, subviews: Subviews) -> [CGSize] {
+        guard subviews.count == 3 else { return [] }
+        let sideWidth = max(0, width * 0.4)
+        let leading = subviews[0].sizeThatFits(.init(width: sideWidth, height: nil))
+        let trailing = subviews[2].sizeThatFits(.init(width: sideWidth, height: nil))
+        let centerWidth = max(0, width - 2 * (max(leading.width, trailing.width) + MiraTheme.Spacing.sm))
+        let center = subviews[1].sizeThatFits(.init(width: centerWidth, height: nil))
+        return [leading, center, trailing]
+    }
+}
+
+/// A window-local material behind the composer and its controls.
+struct MiraComposerGlass: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content.background {
+            let shape = RoundedRectangle(cornerRadius: MiraTheme.Radius.composer, style: .continuous)
+            Group {
+                if reduceTransparency || contrast == .increased {
+                    shape.fill(MiraTheme.Colors.surface)
+                } else {
+                    MiraComposerBackdrop()
+                        .clipShape(shape)
+                }
+            }
+            .overlay {
+                shape.strokeBorder(MiraTheme.Colors.border.opacity(contrast == .increased ? 1 : MiraTheme.Opacity.composerBorder), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(MiraTheme.Opacity.composerShadow),
+                    radius: MiraTheme.Layout.composerShadowRadius, y: MiraTheme.Layout.composerShadowOffset)
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+private struct MiraComposerBackdrop: NSViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeNSView(context: Context) -> MiraComposerBackdropView {
+        let view = MiraComposerBackdropView()
+        updateNSView(view, context: context)
+        return view
+    }
+
+    func updateNSView(_ nsView: MiraComposerBackdropView, context: Context) {
+        // Adjust only the backdrop; input text, controls, and the border stay fully opaque.
+        nsView.alphaValue = colorScheme == .light ? MiraTheme.Opacity.composerMaterialLight : 1
+    }
+}
+
+@MainActor
+final class MiraComposerBackdropView: NSVisualEffectView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        blendingMode = .withinWindow
+        material = .headerView
+        state = .active
+        isEmphasized = false
+        setAccessibilityElement(false)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

@@ -230,44 +230,26 @@ private struct ConversationDetail: View {
     let isDemo: Bool
     @Environment(\.locale) private var locale
     @State private var rememberedMessage: Message?
-    @State private var showsExtractionStatus = false
     @State private var revealedMessageID: MessageID?
+    @State private var bottomOverlayHeight: CGFloat = 0
 
     var body: some View {
-        VStack(spacing: 0) {
-            if model.messages.isEmpty && model.activeExecution == nil { welcome.frame(maxHeight: .infinity) }
+        ZStack(alignment: .bottom) {
+            if model.messages.isEmpty && model.activeExecution == nil {
+                welcome.padding(.bottom, bottomOverlayHeight).frame(maxHeight: .infinity)
+            }
             else {
-                ConversationTranscript(model: model, readingState: readingState, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
+                ConversationTranscript(model: model, readingState: readingState, bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
                     .id(model.selectedConversationID)
             }
-            if let execution = model.executions.last, execution.status.isTerminal, execution.status != .completed {
-                HStack(alignment: .top) {
-                    Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
-                    Text(execution.error.map { L10n.error($0, locale: locale) } ?? L10n.string("The reply was interrupted.", locale: locale)).font(.callout).foregroundStyle(.secondary)
-                    Spacer()
-                    if model.retryableExecution != nil { Button("Retry last turn") { Task { await model.retry() } } }
-                }.padding(.horizontal, 28).padding(.vertical, 12)
-            }
-            if model.currentConversation?.isArchived == true {
-                Label("This conversation is archived", systemImage: "archivebox").foregroundStyle(.secondary).padding(20)
-            }
-            if let conversationID = model.selectedConversationID, !model.messages.isEmpty || !model.executions.isEmpty {
-                DisclosureGroup(isExpanded: $showsExtractionStatus) {
-                    MemoryExtractionStatusView(application: model.application, conversationID: conversationID,
-                                               onOpenSource: revealMessage)
-                        .frame(minHeight: 72, maxHeight: 220)
-                        .environment(\.locale, locale)
-                } label: {
-                    Label("Memory extraction", systemImage: "sparkles")
-                        .font(MiraTheme.Typography.caption)
-                        .foregroundStyle(MiraTheme.Colors.secondaryText)
+            bottomOverlay
+                .onGeometryChange(for: CGFloat.self) { geometry in
+                    ceil(geometry.size.height)
+                } action: { height in
+                    bottomOverlayHeight = height
                 }
-                .frame(maxWidth: MiraTheme.Layout.composerMax)
-                .padding(.horizontal, MiraTheme.Spacing.xl)
-                .padding(.vertical, 8)
-            }
-            if model.currentConversation?.isArchived != true { ConversationComposer(model: model, isDemo: isDemo) }
         }
+        .background(MiraTheme.Colors.canvas)
         .sheet(item: $rememberedMessage) { message in
             MemoryEditorView(application: model.application, workspaces: model.workspaces,
                              initialScope: model.currentConversation?.workspaceID.map(MemoryScope.workspace) ?? .global,
@@ -280,6 +262,31 @@ private struct ConversationDetail: View {
             return .handled
         })
     }
+    private var bottomOverlay: some View {
+        VStack(spacing: MiraTheme.Spacing.sm) {
+            if let execution = model.executions.last, execution.status.isTerminal, execution.status != .completed {
+                HStack(alignment: .top) {
+                    Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+                    Text(execution.error.map { L10n.error($0, locale: locale) } ?? L10n.string("The reply was interrupted.", locale: locale)).font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    if model.retryableExecution != nil { Button("Retry last turn") { Task { await model.retry() } } }
+                }
+                .padding(MiraTheme.Spacing.md)
+                .modifier(MiraComposerGlass())
+                .frame(maxWidth: MiraTheme.Layout.composerMax)
+                .padding(.horizontal, MiraTheme.Spacing.xl)
+            }
+            if model.currentConversation?.isArchived == true {
+                Label("This conversation is archived", systemImage: "archivebox")
+                    .foregroundStyle(.secondary).padding(MiraTheme.Spacing.lg)
+                    .modifier(MiraComposerGlass())
+                    .padding(.bottom, MiraTheme.Spacing.lg)
+            }
+            if model.currentConversation?.isArchived != true { ConversationComposer(model: model, isDemo: isDemo) }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private var welcome: some View {
         VStack(spacing: MiraTheme.Spacing.xl) {
             MiraBrandMark()
@@ -308,11 +315,6 @@ private struct ConversationDetail: View {
         .padding(MiraTheme.Spacing.xxl)
         .frame(maxWidth: .infinity)
     }
-    private func revealMessage(_ messageID: MessageID) {
-        guard model.messages.contains(where: { $0.id == messageID && $0.role == .user && $0.status == .committed }) else { return }
-        revealedMessageID = messageID
-    }
-
     private var welcomeMessage: String {
         if model.routes.isEmpty {
             return L10n.string("Connect your own model service first.\nConversations are stored on this Mac, and only the connection you choose is used when sending.", locale: locale)
@@ -325,14 +327,14 @@ private struct ConversationComposer: View {
     @Bindable var model: ConversationModel
     let isDemo: Bool
     @Environment(\.locale) private var locale
-    @Environment(\.colorSchemeContrast) private var contrast
     @FocusState private var composerFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             contextShelf
-                .padding(.horizontal, MiraTheme.Spacing.md)
-            VStack(alignment: .leading, spacing: MiraTheme.Spacing.lg) {
+            Rectangle().fill(MiraTheme.Colors.border).frame(height: 1)
+                .padding(.horizontal, MiraTheme.Spacing.lg)
+            VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
                 TextField("Send a message…", text: $model.composer, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(3...8)
@@ -344,31 +346,28 @@ private struct ConversationComposer: View {
                     Text("Choose an available model or use the default model before sending.")
                         .font(MiraTheme.Typography.caption).foregroundStyle(.orange)
                 }
-                HStack(spacing: MiraTheme.Spacing.sm) {
-                    executionStatus
-                    Spacer(minLength: MiraTheme.Spacing.sm)
-                    modelPicker
-                    primaryAction
+                MiraComposerBarLayout {
+                    HStack(spacing: MiraTheme.Spacing.sm) { executionStatus }
+                    Text(L10n.string(isDemo ? "Local demo" : "Send to selected model service · ⌘ Return to send", locale: locale))
+                        .font(MiraTheme.Typography.composerFootnote)
+                        .foregroundStyle(MiraTheme.Colors.secondaryText)
+                        .multilineTextAlignment(.center)
+                    HStack(spacing: MiraTheme.Spacing.sm) {
+                        modelPicker
+                        primaryAction
+                    }
                 }
             }
-            .padding(MiraTheme.Spacing.lg)
-            .background(MiraTheme.Colors.surface, in: .rect(cornerRadius: MiraTheme.Radius.composer))
-            .overlay {
-                RoundedRectangle(cornerRadius: MiraTheme.Radius.composer)
-                    .strokeBorder(composerFocused ? MiraTheme.Colors.secondaryText.opacity(contrast == .increased ? 1 : 0.5) : MiraTheme.Colors.border,
-                                  lineWidth: contrast == .increased || composerFocused ? 1.5 : 1)
-            }
-            .shadow(color: .black.opacity(0.035), radius: 12, x: 0, y: 3)
+            .padding(.horizontal, MiraTheme.Spacing.lg)
+            .padding(.top, MiraTheme.Spacing.md)
+            .padding(.bottom, MiraTheme.Spacing.sm)
 
-            Text(L10n.string(isDemo ? "Local demo" : "Send to selected model service · ⌘ Return to send", locale: locale))
-                .font(MiraTheme.Typography.caption)
-                .foregroundStyle(MiraTheme.Colors.secondaryText)
-                .padding(.top, MiraTheme.Spacing.sm)
         }
         .frame(maxWidth: MiraTheme.Layout.composerMax)
+        .modifier(MiraComposerGlass())
         .padding(.horizontal, MiraTheme.Spacing.xl)
-        .padding(.bottom, MiraTheme.Spacing.lg)
-        .padding(.top, MiraTheme.Spacing.md)
+        .padding(.bottom, MiraTheme.Layout.composerBottomInset)
+        .padding(.top, MiraTheme.Spacing.sm)
         .frame(maxWidth: .infinity)
     }
 
@@ -388,28 +387,45 @@ private struct ConversationComposer: View {
         .padding(.horizontal, MiraTheme.Spacing.lg)
         .padding(.top, MiraTheme.Spacing.md)
         .padding(.bottom, MiraTheme.Spacing.md + MiraTheme.Spacing.xs)
-        .background(MiraTheme.Colors.inset, in: .rect(topLeadingRadius: MiraTheme.Radius.panel, topTrailingRadius: MiraTheme.Radius.panel))
-        .padding(.bottom, -MiraTheme.Spacing.xs)
     }
 
     private var modelPicker: some View {
-        Picker("Conversation model", selection: $model.selectedRouteID) {
-            Text("Use default model").tag(nil as RouteID?)
-            if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) {
-                Text("Unavailable model").tag(Optional(selected))
+        Menu {
+            Picker("Conversation model", selection: $model.selectedRouteID) {
+                Text("Use default model").tag(nil as RouteID?)
+                if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) {
+                    Text("Unavailable model").tag(Optional(selected))
+                }
+                ForEach(model.configuration.models(for: .conversation)) { entry in
+                    Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id))
+                }
             }
-            ForEach(model.configuration.models(for: .conversation)) { entry in
-                Text(verbatim: "\(entry.model.modelID) · \(entry.connection.name)").tag(Optional(entry.route.id))
-            }
+        } label: {
+            Text(verbatim: selectedModelLabel)
+                .font(MiraTheme.Typography.composerModel)
+                .foregroundStyle(MiraTheme.Colors.secondaryText)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .buttonStyle(.plain)
-        .font(MiraTheme.Typography.caption)
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: 260)
+        .frame(maxWidth: MiraTheme.Layout.composerModelMax, alignment: .trailing)
         .disabled(model.activeExecution != nil)
+        .help(selectedModelLabel)
+        .accessibilityLabel("Conversation model")
+        .accessibilityValue(selectedModelLabel)
         .accessibilityIdentifier("conversation.modelPicker")
+    }
+
+    private var selectedModelLabel: String {
+        guard let selected = model.selectedRouteID else {
+            return L10n.string("Use default model", locale: locale)
+        }
+        guard let entry = model.configuration.models(for: .conversation).first(where: { $0.route.id == selected }) else {
+            return L10n.string("Unavailable model", locale: locale)
+        }
+        return "\(entry.model.modelID) · \(entry.connection.name)"
     }
 
     @ViewBuilder private var executionStatus: some View {

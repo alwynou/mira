@@ -1,5 +1,7 @@
 # M2 工具基础与 Markdown 验证记录
 
+> Historical evidence for the renderer used at the time. The 2026-09-09 MarkdownView + ListViewKit replacement removes the vendored renderer and its focused tests; current implementation and acceptance are recorded in [Renderer replacement](RENDERER_REPLACEMENT.md).
+
 日期：2026-09-05。这是当前开发增量的证据，完整产品范围仍见 [MVP](../MVP.md)。
 
 ## 已实现

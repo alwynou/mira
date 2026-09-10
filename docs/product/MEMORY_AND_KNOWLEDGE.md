@@ -10,7 +10,7 @@
 
 ## Current management UI status — 2026-09-08
 
-The previous Memory and Knowledge management screens have been removed at the user's request. Their sidebar entries remain visible as inert destinations with a "Not implemented yet" help label; clicking them preserves the current conversation and draft. The toolbar Knowledge entry is also inert. Memory extraction feedback no longer links to the removed management screen. Replacement management interfaces are pending design and implementation; the management interactions described below are product requirements, not currently available UI.
+The previous Memory and Knowledge management screens have been removed at the user's request. Their sidebar entries remain visible as inert destinations with a "Not implemented yet" help label; clicking them preserves the current conversation and draft. The toolbar Knowledge entry is also inert. The conversation memory extraction disclosure and status panel have also been removed at the user's request; replacement feedback presentation is pending. Replacement management interfaces are pending design and implementation; the management interactions described below are product requirements, not currently available UI.
 
 This removes presentation only. Memory extraction, recall, conversation citations, explicit save/approval flows, settings, persisted records, and knowledge retrieval remain in place.
 

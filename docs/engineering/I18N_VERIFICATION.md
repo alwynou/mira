@@ -1,5 +1,7 @@
 # English source and bilingual UI verification
 
+> Historical evidence for the renderer used at the time. The 2026-09-09 MarkdownView + ListViewKit replacement removes the vendored renderer and its focused tests; current implementation and acceptance are recorded in [Renderer replacement](RENDERER_REPLACEMENT.md).
+
 Date: 2026-09-05. Branch: `dev`. Implementation commit: [`7c5d5f0`](https://github.com/alwynou/mira/commit/7c5d5f07b3a4716520741531abe9625f30b97f22).
 
 ## Delivered behavior
@@ -7,7 +9,7 @@ Date: 2026-09-05. Branch: `dev`. Implementation commit: [`7c5d5f0`](https://gith
 - First-party implementation, comments, diagnostics, tool descriptions, and built-in prompts use English. CI checks the source policy, documented Unicode fixtures, catalog completeness, format placeholders, and compiler-extracted UI keys.
 - Settings → General switches Mira-owned UI between `en` and `zh-CN` immediately and persists the selection. English keys and both translations live in the app's string catalog.
 - Display language does not rewrite user content, model output, workspace background, saved titles, or request snapshots. Prompts remain English and ask the model to follow the user's requested language or message language.
-- The pinned Microsoft SwiftStreamingMarkdown runtime has a narrowly scoped locale patch for copy controls, text-selection menus, and list/table accessibility labels. Its source, license, provenance, and focused tests are in `Vendor/SwiftStreamingMarkdown`.
+- The pinned Microsoft SwiftStreamingMarkdown runtime has a narrowly scoped locale patch for copy controls, text-selection menus, and list/table accessibility labels. Its removed source, license, provenance, and focused tests are preserved under `Vendor/SwiftStreamingMarkdown` in commit `6a45af4`; the current dependency record is [Renderer replacement](RENDERER_REPLACEMENT.md).
 - Early development uses the current v3 schema directly. Old schemas are rejected without deleting them; there are no historical backup upgrades, translated-error aliases, title sentinels, or text-based omission parsers. New conversations store an empty title until the first user message. Request snapshots belong to model attempts, and tool capability starts explicitly at `unknown`.
 
 ## Automated evidence

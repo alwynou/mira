@@ -35,6 +35,9 @@ enum MiraTheme {
     enum Opacity {
         static let sidebarHighlight: Double = 0.04
         static let selectShadow: Double = 0.12
+        static let composerBorder: Double = 0.70
+        static let composerShadow: Double = 0.06
+        static let composerMaterialLight: Double = 1.0
     }
 
     enum Spacing {
@@ -59,6 +62,10 @@ enum MiraTheme {
         static let sidebarMax: CGFloat = 300
         static let contentMax: CGFloat = 760
         static let composerMax: CGFloat = 760
+        static let composerBottomInset: CGFloat = 14
+        static let composerModelMax: CGFloat = 160
+        static let composerShadowRadius: CGFloat = 4
+        static let composerShadowOffset: CGFloat = 2
         static let controlHeight: CGFloat = 30
         static let selectHeight: CGFloat = 28
         static let selectMinWidth: CGFloat = 100
@@ -69,10 +76,20 @@ enum MiraTheme {
         static let settingsPageTopInset: CGFloat = 64
     }
 
+    enum Markdown {
+        static let body: CGFloat = 14
+        static let code: CGFloat = 12
+        static let heading: CGFloat = 20
+        static let largeHeading: CGFloat = 24
+        static let lineSpacing: CGFloat = 2
+    }
+
     enum Typography {
         static let body: Font = .system(size: 14)
         static let sidebar: Font = .system(size: 14)
         static let caption: Font = .system(size: 12)
+        static let composerFootnote: Font = .system(size: 10)
+        static let composerModel: Font = .system(size: 11)
         static let section: Font = .system(size: 12)
         static let title: Font = .system(size: 20, weight: .semibold)
         static let welcome: Font = .system(size: 28)
