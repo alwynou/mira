@@ -43,6 +43,8 @@ private struct MiraComponentPreview: View {
                         .labelStyle(.iconOnly).buttonStyle(MiraCircleButtonStyle())
                     Button("Send", systemImage: "arrow.up") {}
                         .labelStyle(.iconOnly).buttonStyle(MiraCircleButtonStyle()).disabled(true)
+                    Button("Jump to latest", systemImage: "arrow.down") {}
+                        .labelStyle(.iconOnly).buttonStyle(MiraGlassCircleButtonStyle())
                 }
                 VStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {

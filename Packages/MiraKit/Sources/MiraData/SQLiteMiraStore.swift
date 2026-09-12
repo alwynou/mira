@@ -110,6 +110,20 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
         }
     }
 
+    public func startConversation(workspaceID: WorkspaceID?, text: String, route: ResolvedModelRouteSnapshot, conversationID: ConversationID, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution {
+        try safely {
+            guard !text.isEmpty else { throw MiraError(.invalidInput, "The message cannot be empty.") }
+            return try pool.write { db in
+                if let workspaceID,
+                   try Int.fetchOne(db, sql: "SELECT 1 FROM workspaces WHERE id = ?", arguments: [id(workspaceID)]) == nil {
+                    throw MiraError(.notFound, "The workspace does not exist.")
+                }
+                try db.execute(sql: "INSERT INTO conversations (id, workspace_id, title, is_archived, created_at, updated_at, revision) VALUES (?, ?, '', 0, ?, ?, 1)", arguments: [id(conversationID), workspaceID.map(id), at.timeIntervalSince1970, at.timeIntervalSince1970])
+                return try enqueue(conversationID: conversationID, text: text, route: route, executionID: executionID, messageID: messageID, at: at, in: db)
+            }
+        }
+    }
+
     public func archiveConversation(_ conversationID: ConversationID, at: Date) throws {
         try safely {
             try pool.write { db in
@@ -334,25 +348,29 @@ public final class SQLiteMiraStore: MiraStore, @unchecked Sendable {
         try safely {
             guard !text.isEmpty else { throw MiraError(.invalidInput, "The message cannot be empty.") }
             return try pool.write { db in
-                guard let conversation = try Row.fetchOne(db, sql: "SELECT is_archived FROM conversations WHERE id = ?", arguments: [id(conversationID)]) else { throw MiraError(.notFound, "The conversation does not exist.") }
-                guard conversation["is_archived"] as Int == 0 else { throw MiraError(.invalidInput, "Messages cannot be sent to an archived conversation.") }
-                if try Int.fetchOne(db, sql: "SELECT 1 FROM executions WHERE conversation_id = ? AND status IN ('queued', 'waitingForModel') LIMIT 1", arguments: [id(conversationID)]) != nil {
-                    throw MiraError(.busy, "This conversation already has an execution in progress.")
-                }
-                let hadUserMessage = try Int.fetchOne(db, sql: "SELECT 1 FROM messages WHERE conversation_id = ? AND role = 'user' LIMIT 1", arguments: [id(conversationID)]) != nil
-                let sequence = (try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sequence), 0) + 1 FROM messages WHERE conversation_id = ?", arguments: [id(conversationID)]) ?? 1)
-                let execution = Execution(id: executionID, conversationID: conversationID, triggerMessageID: messageID, route: route, createdAt: at, updatedAt: at)
-                try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_json, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'queued', ?, ?, NULL, ?, ?)", arguments: [id(executionID), id(conversationID), id(messageID), try encode(route), try encode(TokenUsage()), at.timeIntervalSince1970, at.timeIntervalSince1970])
-                try db.execute(sql: "INSERT INTO messages (id, conversation_id, execution_id, sequence, role, status, text, trace_json, created_at) VALUES (?, ?, ?, ?, 'user', 'committed', ?, '[]', ?)", arguments: [id(messageID), id(conversationID), id(executionID), sequence, text, at.timeIntervalSince1970])
-                try db.execute(sql: "INSERT INTO message_time_context (message_id, time_zone) VALUES (?, ?)", arguments: [id(messageID), TimeZone.current.identifier])
-                try db.execute(sql: "UPDATE conversations SET updated_at = ?, revision = revision + 1 WHERE id = ?", arguments: [at.timeIntervalSince1970, id(conversationID)])
-                if !hadUserMessage {
-                    let preview = String(text.prefix(80))
-                    try db.execute(sql: "UPDATE conversations SET title = ? WHERE id = ?", arguments: [preview, id(conversationID)])
-                }
-                return execution
+                try enqueue(conversationID: conversationID, text: text, route: route, executionID: executionID, messageID: messageID, at: at, in: db)
             }
         }
+    }
+
+    private func enqueue(conversationID: ConversationID, text: String, route: ResolvedModelRouteSnapshot, executionID: ExecutionID, messageID: MessageID, at: Date, in db: Database) throws -> Execution {
+        guard let conversation = try Row.fetchOne(db, sql: "SELECT is_archived FROM conversations WHERE id = ?", arguments: [id(conversationID)]) else { throw MiraError(.notFound, "The conversation does not exist.") }
+        guard conversation["is_archived"] as Int == 0 else { throw MiraError(.invalidInput, "Messages cannot be sent to an archived conversation.") }
+        if try Int.fetchOne(db, sql: "SELECT 1 FROM executions WHERE conversation_id = ? AND status IN ('queued', 'waitingForModel') LIMIT 1", arguments: [id(conversationID)]) != nil {
+            throw MiraError(.busy, "This conversation already has an execution in progress.")
+        }
+        let hadUserMessage = try Int.fetchOne(db, sql: "SELECT 1 FROM messages WHERE conversation_id = ? AND role = 'user' LIMIT 1", arguments: [id(conversationID)]) != nil
+        let sequence = (try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sequence), 0) + 1 FROM messages WHERE conversation_id = ?", arguments: [id(conversationID)]) ?? 1)
+        let execution = Execution(id: executionID, conversationID: conversationID, triggerMessageID: messageID, route: route, createdAt: at, updatedAt: at)
+        try db.execute(sql: "INSERT INTO executions (id, conversation_id, trigger_message_id, retry_of_execution_id, status, route_json, usage_json, error_json, created_at, updated_at) VALUES (?, ?, ?, NULL, 'queued', ?, ?, NULL, ?, ?)", arguments: [id(executionID), id(conversationID), id(messageID), try encode(route), try encode(TokenUsage()), at.timeIntervalSince1970, at.timeIntervalSince1970])
+        try db.execute(sql: "INSERT INTO messages (id, conversation_id, execution_id, sequence, role, status, text, trace_json, created_at) VALUES (?, ?, ?, ?, 'user', 'committed', ?, '[]', ?)", arguments: [id(messageID), id(conversationID), id(executionID), sequence, text, at.timeIntervalSince1970])
+        try db.execute(sql: "INSERT INTO message_time_context (message_id, time_zone) VALUES (?, ?)", arguments: [id(messageID), TimeZone.current.identifier])
+        try db.execute(sql: "UPDATE conversations SET updated_at = ?, revision = revision + 1 WHERE id = ?", arguments: [at.timeIntervalSince1970, id(conversationID)])
+        if !hadUserMessage {
+            let preview = String(text.prefix(80))
+            try db.execute(sql: "UPDATE conversations SET title = ? WHERE id = ?", arguments: [preview, id(conversationID)])
+        }
+        return execution
     }
 
     public func retry(executionID: ExecutionID, newExecutionID: ExecutionID, route: ResolvedModelRouteSnapshot, at: Date) throws -> Execution {

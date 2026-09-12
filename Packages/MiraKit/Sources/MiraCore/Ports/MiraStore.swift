@@ -15,6 +15,8 @@ public protocol MiraStore: MemoryStore, MemoryExtractionStore, KnowledgeStore, T
     func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws
     func conversations(includeArchived: Bool) throws -> [Conversation]
     func createConversation(_ conversation: Conversation) throws
+    /// Atomically creates an untitled conversation and queues its first execution.
+    func startConversation(workspaceID: WorkspaceID?, text: String, route: ResolvedModelRouteSnapshot, conversationID: ConversationID, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution
     func archiveConversation(_ id: ConversationID, at: Date) throws
     func messages(in conversationID: ConversationID) throws -> [Message]
     func executions(in conversationID: ConversationID) throws -> [Execution]

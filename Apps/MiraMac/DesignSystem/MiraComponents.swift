@@ -98,6 +98,35 @@ struct MiraCircleButtonStyle: ButtonStyle {
     }
 }
 
+/// A neutral floating action with native Liquid Glass where available.
+struct MiraGlassCircleButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func makeBody(configuration: Configuration) -> some View {
+        let label = configuration.label
+            .font(MiraTheme.Typography.body.weight(.semibold))
+            .foregroundStyle(MiraTheme.Colors.text)
+            .frame(width: MiraTheme.Layout.floatingControlSize, height: MiraTheme.Layout.floatingControlSize)
+            .contentShape(Circle())
+        Group {
+            if reduceTransparency || contrast == .increased {
+                label
+                    .background(MiraTheme.Colors.surface, in: Circle())
+                    .overlay { Circle().strokeBorder(MiraTheme.Colors.secondaryText, lineWidth: 1) }
+            } else if #available(macOS 26.0, *) {
+                label.glassEffect(.regular.interactive(), in: .circle)
+            } else {
+                label
+                    .background(.regularMaterial, in: Circle())
+                    .overlay { Circle().strokeBorder(MiraTheme.Colors.border, lineWidth: 1) }
+            }
+        }
+        .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.45)
+    }
+}
+
 struct MiraSurface<Content: View>: View {
     let cornerRadius: CGFloat
     let fill: Color

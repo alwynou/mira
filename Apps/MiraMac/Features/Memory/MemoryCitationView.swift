@@ -113,7 +113,14 @@ private struct MemoryCitationSheet: View {
             await reload()
             for await event in events {
                 guard !Task.isCancelled else { return }
-                if case .changed = event { await reload() }
+                switch event {
+                case .conversationContentInvalidated:
+                    detail = nil; error = nil
+                    await reload()
+                case .changed: await reload()
+                case .conversationChanged(let id) where id == conversationID: await reload()
+                default: break
+                }
             }
         }
     }

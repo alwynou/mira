@@ -7,6 +7,47 @@ import GRDB
 
 @Suite("SQLite Mira store")
 struct SQLiteMiraStoreTests {
+    @Test func startConversationAtomicallyCreatesFirstTurn() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let route = try installFixtureConfiguration(in: store)
+        let workspace = Workspace(id: .init(), name: "Fixture workspace")
+        try store.saveWorkspace(workspace, expectedRevision: nil)
+        let conversationID = ConversationID()
+        let executionID = ExecutionID()
+        let messageID = MessageID()
+
+        let execution = try store.startConversation(workspaceID: workspace.id, text: "first input", route: route,
+                                                     conversationID: conversationID, executionID: executionID, messageID: messageID, at: .now)
+
+        #expect(execution.conversationID == conversationID)
+        #expect(try store.conversations(includeArchived: true).map(\.id) == [conversationID])
+        #expect(try store.messages(in: conversationID).map(\.id) == [messageID])
+        #expect(try store.executions(in: conversationID).map(\.id) == [executionID])
+        #expect(try store.conversations(includeArchived: true).first?.title == "first input")
+    }
+
+    @Test func startConversationRollsBackConversationWhenFirstEnqueueFails() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteMiraStore(directory: directory)
+        let route = try installFixtureConfiguration(in: store)
+        let existingConversation = try store.startConversation(workspaceID: nil, text: "existing", route: route,
+                                                               conversationID: .init(), executionID: .init(), messageID: .init(), at: .now)
+        let duplicateMessageID = existingConversation.triggerMessageID
+        let failedConversationID = ConversationID()
+
+        #expect(throws: MiraError.self) {
+            _ = try store.startConversation(workspaceID: nil, text: "must roll back", route: route,
+                                            conversationID: failedConversationID, executionID: .init(), messageID: duplicateMessageID, at: .now)
+        }
+
+        #expect(try store.conversations(includeArchived: true).count == 1)
+        #expect(try store.conversations(includeArchived: true).contains { $0.id == failedConversationID } == false)
+        #expect(try store.executions(in: existingConversation.conversationID).count == 1)
+    }
+
     @Test func emptyConversationTitleIsAcceptedAndReadAsUntitled() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

@@ -61,6 +61,7 @@ final class FaultInjectingStore: MiraStore, @unchecked Sendable {
     func saveWorkspace(_ workspace: Workspace, expectedRevision: Int?) throws { try base.saveWorkspace(workspace, expectedRevision: expectedRevision) }
     func conversations(includeArchived: Bool) throws -> [Conversation] { try base.conversations(includeArchived: includeArchived) }
     func createConversation(_ conversation: Conversation) throws { try base.createConversation(conversation) }
+    func startConversation(workspaceID: WorkspaceID?, text: String, route: ResolvedModelRouteSnapshot, conversationID: ConversationID, executionID: ExecutionID, messageID: MessageID, at: Date) throws -> Execution { try base.startConversation(workspaceID: workspaceID, text: text, route: route, conversationID: conversationID, executionID: executionID, messageID: messageID, at: at) }
     func archiveConversation(_ id: ConversationID, at: Date) throws { try base.archiveConversation(id, at: at) }
     func messages(in id: ConversationID) throws -> [Message] { try base.messages(in: id) }
     func executions(in id: ConversationID) throws -> [Execution] { try base.executions(in: id) }

@@ -3,7 +3,7 @@ import MiraCore
 
 struct ConversationTranscript: View {
     let model: ConversationModel
-    let readingStates: ConversationReadingStore
+    let page: ConversationPageState
     let topOverlayHeight: CGFloat
     let bottomOverlayHeight: CGFloat
     @Binding var rememberedMessage: Message?
@@ -13,50 +13,66 @@ struct ConversationTranscript: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var readingState: ConversationReadingState {
-        readingStates.state(for: model.selectedConversationID?.rawValue)
+        page.readingState
     }
 
     var body: some View {
         GeometryReader { _ in
-            NativeConversationTranscript(items: transcriptItems, model: model, conversationID: model.selectedConversationID, readingState: readingState,
+            NativeConversationTranscript(items: transcriptItems, model: model, page: page, conversationID: page.conversationID, readingState: readingState, isActive: page.isActive, contentGeneration: page.contentGeneration,
                                          locale: locale, colorScheme: colorScheme, reduceMotion: reduceMotion, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight,
                                          rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .overlay(alignment: .bottomTrailing) {
-            if !readingState.scrollState.isAtLatest && !readingState.scrollState.isUserScrolling {
-                Button("Jump to latest", systemImage: "arrow.down") {
-                    readingState.userStartedScrolling()
-                    readingState.scrollState.jumpToLatest()
-                }
-                .buttonStyle(MiraPrimaryButtonStyle())
-                .padding(16)
-                .padding(.bottom, bottomOverlayHeight)
-            }
+        .overlay(alignment: .bottom) {
+            TranscriptJumpToLatestButton(readingState: readingState)
+                .padding(.bottom, bottomOverlayHeight + MiraTheme.Spacing.sm)
         }
     }
 
     private var transcriptItems: [TranscriptItem] {
-        var items = model.messages.map { message in
+        var items = page.messages.map { message in
             TranscriptItem(
                 id: message.role == .assistant ? (message.executionID.map { "execution:\($0.rawValue.uuidString)" } ?? "message:\(message.id.rawValue.uuidString)") : "message:\(message.id.rawValue.uuidString)",
                 role: message.role, text: message.text, status: message.status, isStreaming: false,
                 message: message, bodyPurgedAt: message.bodyPurgedAt,
                 executionID: message.executionID, trace: message.trace,
-                memoryNotices: message.executionID.flatMap { model.memoryNotices[$0] } ?? []
+                memoryNotices: message.executionID.flatMap { page.memoryNotices[$0] } ?? []
             )
         }
-        if let execution = model.executions.last,
+        if let execution = page.executions.last,
            !items.contains(where: { $0.id == "execution:\(execution.id.rawValue.uuidString)" }),
-           let draft = model.streamBuffer.drafts[execution.id] {
+           let draft = page.streamBuffer.drafts[execution.id] {
             items.append(.init(
                 id: "execution:\(execution.id.rawValue.uuidString)", role: .assistant, text: draft,
                 status: execution.status.isTerminal ? .interrupted : nil,
                 isStreaming: !execution.status.isTerminal,
-                executionID: execution.id, trace: model.streamBuffer.thinkingTraces[execution.id] ?? []
+                executionID: execution.id, trace: page.streamBuffer.thinkingTraces[execution.id] ?? []
             ))
         }
         return items
+    }
+}
+
+/// Scroll-driven visibility updates do not rebuild transcript message snapshots.
+private struct TranscriptJumpToLatestButton: View {
+    let readingState: ConversationReadingState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let isVisible = readingState.scrollState.showsJumpToLatest
+        Button("Jump to latest", systemImage: "arrow.down") {
+            readingState.userStartedScrolling()
+            readingState.scrollState.jumpToLatest()
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(MiraGlassCircleButtonStyle())
+        .help("Jump to latest")
+        .accessibilityIdentifier("conversation.jumpToLatest")
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .disabled(!isVisible)
+        .accessibilityHidden(!isVisible)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: isVisible)
     }
 }
 

@@ -6,7 +6,6 @@ struct ConversationRoot: View {
     @Environment(\.locale) private var locale
     @Environment(\.openWindow) private var openWindow
     @State private var model: ConversationModel
-    @State private var readingStates = ConversationReadingStore()
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
@@ -58,24 +57,33 @@ struct ConversationRoot: View {
                 .environment(\.locale, locale)
                 .environment(\.miraOpenSettingsWindow, openWindow)
                 .foregroundStyle(MiraTheme.Colors.text).tint(MiraTheme.Colors.accent)),
-            detail: AnyView(ConversationDetail(model: model,
-                                               readingStates: readingStates, isDemo: isDemo,
-                                               title: displayedConversationTitle, titlebarInsets: titlebarInsets)
+            detail: AnyView(ZStack {
+                ForEach(model.retainedPages) { page in
+                    ConversationDetail(model: model, page: page, isDemo: isDemo,
+                                       title: title(for: page), titlebarInsets: titlebarInsets)
+                        .opacity(page.isActive ? 1 : 0)
+                        .allowsHitTesting(page.isActive)
+                        .disabled(!page.isActive)
+                        .accessibilityHidden(!page.isActive)
+                }
+            }
                 .environment(\.locale, locale)
                 .environment(\.miraOpenSettingsWindow, openWindow)
                 .foregroundStyle(MiraTheme.Colors.text).tint(MiraTheme.Colors.accent)),
-            inspector: AnyView(ExecutionInspector(model: model)
+            inspector: AnyView(ExecutionInspector(model: model, page: model.activePage)
                 .environment(\.locale, locale)),
             title: displayedConversationTitle, locale: locale,
-            canInspect: !model.executions.isEmpty, showsInspector: $showsInspector,
+            canInspect: !model.activePage.executions.isEmpty, showsInspector: $showsInspector,
             titlebarInsets: $titlebarInsets,
             newConversation: { Task { await model.newConversation() } }
         )
         .ignoresSafeArea()
     }
 
-    private var displayedConversationTitle: String {
-        guard let conversation = model.currentConversation else { return "Mira" }
+    private var displayedConversationTitle: String { title(for: model.activePage) }
+
+    private func title(for page: ConversationPageState) -> String {
+        guard let conversation = model.conversations.first(where: { $0.id == page.conversationID }) else { return "Mira" }
         return conversation.title.isEmpty ? L10n.string("New conversation", locale: locale) : conversation.title
     }
 
@@ -148,8 +156,7 @@ struct ConversationRoot: View {
                 .padding(.horizontal, MiraTheme.Spacing.md)
                 .padding(.bottom, MiraTheme.Spacing.sm)
             Button {
-                model.selectedWorkspaceID = nil
-                Task { await model.selectConversation(nil) }
+                Task { await model.selectWorkspace(nil) }
             } label: {
                 MiraSidebarRow(isSelected: model.selectedWorkspaceID == nil) {
                     Label("Inbox", systemImage: "tray")
@@ -157,8 +164,7 @@ struct ConversationRoot: View {
             }
             ForEach(model.workspaces) { workspace in
                 Button {
-                    model.selectedWorkspaceID = workspace.id
-                    Task { await model.selectConversation(nil) }
+                    Task { await model.selectWorkspace(workspace.id) }
                 } label: {
                     MiraSidebarRow(isSelected: model.selectedWorkspaceID == workspace.id) {
                         Label {
@@ -235,7 +241,7 @@ private struct ConversationTitleVisibility: ViewModifier {
 
 private struct ConversationDetail: View {
     @Bindable var model: ConversationModel
-    let readingStates: ConversationReadingStore
+    @Bindable var page: ConversationPageState
     let isDemo: Bool
     let title: String
     let titlebarInsets: MiraTitlebarInsets
@@ -243,6 +249,8 @@ private struct ConversationDetail: View {
     @State private var rememberedMessage: Message?
     @State private var revealedMessageID: MessageID?
     @State private var bottomOverlayHeight: CGFloat = 0
+
+    private var currentConversation: Conversation? { model.conversations.first { $0.id == page.conversationID } }
 
     var body: some View {
         GeometryReader { geometry in
@@ -262,7 +270,7 @@ private struct ConversationDetail: View {
         .background(MiraTheme.Colors.canvas)
         .sheet(item: $rememberedMessage) { message in
             MemoryEditorView(application: model.application, workspaces: model.workspaces,
-                             initialScope: model.currentConversation?.workspaceID.map(MemoryScope.workspace) ?? .global,
+                             initialScope: currentConversation?.workspaceID.map(MemoryScope.workspace) ?? .global,
                              sourceMessage: message, onSaved: { await model.reload() })
                 .environment(\.locale, locale)
         }
@@ -275,11 +283,11 @@ private struct ConversationDetail: View {
 
     private func conversation(topOverlayHeight: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
-            if model.selectedConversationID != nil {
-                ConversationTranscript(model: model, readingStates: readingStates, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
+            if page.conversationID != nil {
+                ConversationTranscript(model: model, page: page, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
             }
-            if model.messages.isEmpty && model.activeExecution == nil {
-                if !model.isLoadingConversation {
+            if page.messages.isEmpty && page.activeExecution == nil {
+                if !page.isLoading {
                     welcome.padding(.top, topOverlayHeight).padding(.bottom, bottomOverlayHeight).frame(maxHeight: .infinity)
                 }
             }
@@ -287,25 +295,25 @@ private struct ConversationDetail: View {
     }
     private var bottomOverlay: some View {
         VStack(spacing: MiraTheme.Spacing.sm) {
-            if let execution = model.executions.last, execution.status.isTerminal, execution.status != .completed {
+            if let execution = page.executions.last, execution.status.isTerminal, execution.status != .completed {
                 HStack(alignment: .top) {
                     Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
                     Text(execution.error.map { L10n.error($0, locale: locale) } ?? L10n.string("The reply was interrupted.", locale: locale)).font(.callout).foregroundStyle(.secondary)
                     Spacer()
-                    if model.retryableExecution != nil { Button("Retry last turn") { Task { await model.retry() } } }
+                    if page.retryableExecution != nil { Button("Retry last turn") { Task { await model.retry(page) } } }
                 }
                 .padding(MiraTheme.Spacing.md)
                 .modifier(MiraComposerGlass())
                 .frame(maxWidth: MiraTheme.Layout.composerMax)
                 .padding(.horizontal, MiraTheme.Spacing.xl)
             }
-            if model.currentConversation?.isArchived == true {
+            if currentConversation?.isArchived == true {
                 Label("This conversation is archived", systemImage: "archivebox")
                     .foregroundStyle(.secondary).padding(MiraTheme.Spacing.lg)
                     .modifier(MiraComposerGlass())
                     .padding(.bottom, MiraTheme.Spacing.lg)
             }
-            if model.currentConversation?.isArchived != true { ConversationComposer(model: model, isDemo: isDemo) }
+            if currentConversation?.isArchived != true { ConversationComposer(model: model, page: page, isDemo: isDemo) }
         }
         .frame(maxWidth: .infinity)
     }
@@ -347,10 +355,15 @@ private struct ConversationDetail: View {
 }
 
 private struct ConversationComposer: View {
-    @Bindable var model: ConversationModel
+    let model: ConversationModel
+    @Bindable var page: ConversationPageState
     let isDemo: Bool
     @Environment(\.locale) private var locale
     @FocusState private var composerFocused: Bool
+
+    private var selectedModelUnavailable: Bool {
+        page.selectedRouteID.map { selected in !model.routes.contains { $0.id == selected } } ?? false
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -358,14 +371,14 @@ private struct ConversationComposer: View {
             Rectangle().fill(MiraTheme.Colors.border).frame(height: 1)
                 .padding(.horizontal, MiraTheme.Spacing.lg)
             VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
-                TextField("Send a message…", text: $model.composer, axis: .vertical)
+                TextField("Send a message…", text: $page.composer, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(3...8)
                     .font(MiraTheme.Typography.body)
                     .focused($composerFocused)
                     .accessibilityLabel("Message input")
                     .accessibilityIdentifier("conversation.composer")
-                if model.selectedModelUnavailable {
+                if selectedModelUnavailable {
                     Text("Choose an available model or use the default model before sending.")
                         .font(MiraTheme.Typography.caption).foregroundStyle(.orange)
                 }
@@ -392,12 +405,15 @@ private struct ConversationComposer: View {
         .padding(.bottom, MiraTheme.Layout.composerBottomInset)
         .padding(.top, MiraTheme.Spacing.sm)
         .frame(maxWidth: .infinity)
+        .onChange(of: page.isActive) { _, active in
+            if !active { composerFocused = false }
+        }
     }
 
     private var contextShelf: some View {
         HStack(spacing: MiraTheme.Spacing.lg) {
             Label {
-                Text(verbatim: model.workspaces.first(where: { $0.id == model.selectedWorkspaceID })?.name
+                Text(verbatim: model.workspaces.first(where: { $0.id == page.workspaceID })?.name
                      ?? L10n.string("Inbox", locale: locale))
                     .lineLimit(1)
             } icon: { Image(systemName: "folder") }
@@ -414,9 +430,9 @@ private struct ConversationComposer: View {
 
     private var modelPicker: some View {
         Menu {
-            Picker("Conversation model", selection: $model.selectedRouteID) {
+            Picker("Conversation model", selection: $page.selectedRouteID) {
                 Text("Use default model").tag(nil as RouteID?)
-                if let selected = model.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) {
+                if let selected = page.selectedRouteID, !model.routes.contains(where: { $0.id == selected }) {
                     Text("Unavailable model").tag(Optional(selected))
                 }
                 ForEach(model.configuration.models(for: .conversation)) { entry in
@@ -434,7 +450,7 @@ private struct ConversationComposer: View {
         .menuIndicator(.hidden)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: MiraTheme.Layout.composerModelMax, alignment: .trailing)
-        .disabled(model.activeExecution != nil)
+        .disabled(page.activeExecution != nil)
         .help(selectedModelLabel)
         .accessibilityLabel("Conversation model")
         .accessibilityValue(selectedModelLabel)
@@ -442,7 +458,7 @@ private struct ConversationComposer: View {
     }
 
     private var selectedModelLabel: String {
-        guard let selected = model.selectedRouteID else {
+        guard let selected = page.selectedRouteID else {
             return L10n.string("Use default model", locale: locale)
         }
         guard let entry = model.configuration.models(for: .conversation).first(where: { $0.route.id == selected }) else {
@@ -452,32 +468,32 @@ private struct ConversationComposer: View {
     }
 
     @ViewBuilder private var executionStatus: some View {
-        if model.needsPersistenceRetry {
+        if page.needsPersistenceRetry {
             Label("Reply pending save", systemImage: "externaldrive.badge.exclamationmark")
                 .font(MiraTheme.Typography.caption).foregroundStyle(.orange)
-        } else if model.activeExecution != nil {
+        } else if page.activeExecution != nil {
             ProgressView().controlSize(.small)
             Text("Generating").font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
         }
     }
 
     @ViewBuilder private var primaryAction: some View {
-        if model.needsPersistenceRetry {
-            Button("Retry save", systemImage: "externaldrive") { Task { await model.retrySaving() } }
+        if page.needsPersistenceRetry {
+            Button("Retry save", systemImage: "externaldrive") { Task { await model.retrySaving(page) } }
                 .buttonStyle(MiraPrimaryButtonStyle())
-        } else if model.activeExecution != nil {
-            Button("Stop", systemImage: "stop.fill") { Task { await model.cancel() } }
+        } else if page.activeExecution != nil {
+            Button("Stop", systemImage: "stop.fill") { Task { await model.cancel(page) } }
                 .labelStyle(.iconOnly)
                 .buttonStyle(MiraCircleButtonStyle())
                 .keyboardShortcut(".", modifiers: .command)
                 .help("Stop")
                 .accessibilityIdentifier("conversation.stop")
         } else {
-            Button("Send", systemImage: "arrow.up") { Task { await model.send(); composerFocused = true } }
+            Button("Send", systemImage: "arrow.up") { Task { await model.send(page); if page.isActive { composerFocused = true } } }
                 .labelStyle(.iconOnly)
                 .buttonStyle(MiraCircleButtonStyle())
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(model.isSending || model.selectedModelUnavailable || model.routes.isEmpty || model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(page.isSending || selectedModelUnavailable || model.routes.isEmpty || page.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .help("Send")
                 .accessibilityIdentifier("conversation.send")
         }

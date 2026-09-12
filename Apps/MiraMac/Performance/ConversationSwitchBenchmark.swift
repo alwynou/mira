@@ -86,53 +86,56 @@ enum ConversationSwitchBenchmark {
         defer { probeTask.cancel() }
         let first = conversationIDs[0], second = conversationIDs[1]
         let firstSelection = await select(model, first)
-        guard let firstList = await waitForList(expectedCount: 100) else {
+        guard let firstList = await waitForList(expectedCount: 100, conversationID: first) else {
             return ["schema": 1, "passed": false, "error": model.error?.message ?? "First native transcript did not mount."]
         }
         let firstReadyMilliseconds = firstSelection.elapsedMilliseconds
-        let firstBottomSamples = await bottomSamples(expectedCount: 100)
-        let firstMessageCount = model.messages.count
-        model.composer = "Synthetic composer draft"
+        let firstBottomSamples = await bottomSamples(expectedCount: 100, conversationID: first)
+        let firstMessageCount = model.activePage.messages.count
+        model.activePage.composer = "Synthetic composer draft"
         probe.phase = "same-selection"
-        let revisionBeforeSameSelection = model.inspectionRevision
+        let revisionBeforeSameSelection = model.activePage.inspectionRevision
         let sameSelection = await select(model, first)
-        let sameSelectionPreserved = model.messages.count == firstMessageCount
-            && !model.composer.isEmpty && model.inspectionRevision == revisionBeforeSameSelection
+        let sameSelectionPreserved = model.activePage.messages.count == firstMessageCount
+            && !model.activePage.composer.isEmpty && model.activePage.inspectionRevision == revisionBeforeSameSelection
         let firstAnchor = captureAnchor(firstList)
         firstList.setContentOffset(CGPoint(x: 0, y: firstList.maximumContentOffset.y / 2), animated: false)
         try? await Task.sleep(for: .milliseconds(250))
         let firstMiddleAnchor = captureAnchor(firstList)
         probe.phase = "second-entry"
         let secondSelection = await select(model, second)
-        guard let mountedSecond = await waitForList(expectedCount: 120) else {
+        guard let mountedSecond = await waitForList(expectedCount: 120, conversationID: second) else {
             return ["schema": 1, "passed": false, "error": "Second native transcript did not mount."]
         }
         let secondReadyMilliseconds = secondSelection.elapsedMilliseconds
-        let secondMessageCount = model.messages.count
-        let secondBottomSamples = await bottomSamples(expectedCount: 120)
+        let secondMessageCount = model.activePage.messages.count
+        let secondBottomSamples = await bottomSamples(expectedCount: 120, conversationID: second)
         mountedSecond.setContentOffset(CGPoint(x: 0, y: mountedSecond.maximumContentOffset.y / 2), animated: false)
         try? await Task.sleep(for: .milliseconds(250))
         let secondMiddleAnchor = captureAnchor(mountedSecond)
-        let reuseCountBeforeReturn = (mountedSecond.superview as? NativeTranscriptViewport)?.readingMeasurementReuseCount ?? 0
+        let snapshotLoadCountBeforeReturn = model.snapshotLoadCount
         probe.phase = "history-return"
         let returnSelection = await select(model, first)
-        guard let returnedFirstList = await waitForList(expectedCount: 100) else {
+        guard let returnedFirstList = await waitForList(expectedCount: 100, conversationID: first) else {
             return ["schema": 1, "passed": false, "error": "First transcript did not remount."]
         }
         let returnReadyMilliseconds = returnSelection.elapsedMilliseconds
         try? await Task.sleep(for: .milliseconds(250))
         let returnedFirstAnchor = captureAnchor(returnedFirstList)
-        let returnMeasurementReuseCount = ((returnedFirstList.superview as? NativeTranscriptViewport)?.readingMeasurementReuseCount ?? 0) - reuseCountBeforeReturn
+        let firstListReused = returnedFirstList === firstList
+        let secondListDistinct = mountedSecond !== firstList
+        let firstComposerPreserved = model.activePage.composer == "Synthetic composer draft"
+        let snapshotLoadCountAfterReturn = model.snapshotLoadCount
         let firstAnchorPreserved = firstMiddleAnchor.id == returnedFirstAnchor.id && abs(firstMiddleAnchor.relativeY - returnedFirstAnchor.relativeY) < 2
         var repeatedAnchorChecks = [firstAnchorPreserved]
         var repeatedAnchors: [[String: Any]] = []
         for _ in 0..<3 {
             _ = await select(model, second)
-            guard let currentSecond = await waitForList(expectedCount: 120) else { break }
+            guard let currentSecond = await waitForList(expectedCount: 120, conversationID: second) else { break }
             try? await Task.sleep(for: .milliseconds(180))
             let secondReturnAnchor = captureAnchor(currentSecond)
             _ = await select(model, first)
-            guard let currentFirst = await waitForList(expectedCount: 100) else { break }
+            guard let currentFirst = await waitForList(expectedCount: 100, conversationID: first) else { break }
             try? await Task.sleep(for: .milliseconds(180))
             let firstReturnAnchor = captureAnchor(currentFirst)
             repeatedAnchors.append([
@@ -151,7 +154,9 @@ enum ConversationSwitchBenchmark {
             "conversationIDs": conversationIDs.map { $0.rawValue.uuidString },
             "passed": firstSelection.passed && sameSelection.passed && secondSelection.passed && returnSelection.passed
                 && sameSelectionPreserved && firstAnchorPreserved && repeatedAnchorChecks.count == 4
-                && returnMeasurementReuseCount > 0
+                && firstListReused && secondListDistinct && firstComposerPreserved
+                && snapshotLoadCountAfterReturn == snapshotLoadCountBeforeReturn
+                && model.snapshotLoadCount == snapshotLoadCountBeforeReturn
                 && repeatedAnchorChecks.allSatisfy { $0 }
                 && !firstBottomSamples.isEmpty && firstBottomSamples.allSatisfy { abs($0) < 2 }
                 && !secondBottomSamples.isEmpty && secondBottomSamples.allSatisfy { abs($0) < 2 },
@@ -162,10 +167,15 @@ enum ConversationSwitchBenchmark {
             "firstNativeReadyMs": firstReadyMilliseconds,
             "secondNativeReadyMs": secondReadyMilliseconds,
             "returnNativeReadyMs": returnReadyMilliseconds,
-            "returnMeasurementReuseCount": returnMeasurementReuseCount,
+            "firstListReused": firstListReused,
+            "secondListDistinct": secondListDistinct,
+            "firstComposerPreserved": firstComposerPreserved,
+            "snapshotLoadCount": model.snapshotLoadCount,
+            "snapshotLoadCountBeforeReturn": snapshotLoadCountBeforeReturn,
+            "snapshotLoadCountAfterReturn": snapshotLoadCountAfterReturn,
             "firstMessageCount": firstMessageCount,
             "secondMessageCount": secondMessageCount,
-            "inspectionRevision": model.inspectionRevision,
+            "inspectionRevision": model.activePage.inspectionRevision,
             "sameSelectionPreserved": sameSelectionPreserved,
             "firstEntryBottomDistances": firstBottomSamples,
             "secondEntryBottomDistances": secondBottomSamples,
@@ -178,7 +188,7 @@ enum ConversationSwitchBenchmark {
             "nativeListType": String(describing: type(of: firstList)),
             "mainActorServiceMs": probe.samples,
             "mainActorServiceByPhaseMs": probe.samplesByPhase,
-            "limitations": ["Selection timings end when the model snapshot is published, before native rendering completes.", "Main-actor queue service and sampled geometry are proxies, not displayed frame rate or hardware input latency.", "Synthetic SQLite fixtures do not contact providers or read credentials."]
+            "limitations": ["Selection timings end when the selection call returns. Cold entry awaits its snapshot and may include native work scheduled on the main actor; cached activation does not read a snapshot. Native readiness is measured separately.", "Main-actor queue service and sampled geometry are proxies, not displayed frame rate or hardware input latency.", "Synthetic SQLite fixtures do not contact providers or read credentials."]
         ]
         return report
     }
@@ -210,12 +220,15 @@ enum ConversationSwitchBenchmark {
         await model.selectConversation(id)
         let duration = start.duration(to: .now)
         return .init(started: start, milliseconds: Double(duration.components.attoseconds) / 1e15 + Double(duration.components.seconds) * 1_000,
-                     passed: model.selectedConversationID == id && !model.messages.isEmpty)
+                     passed: model.selectedConversationID == id && !model.activePage.messages.isEmpty)
     }
 
-    private static func findList() -> ListView<NativeTranscriptToken>? {
+    private static func findList(for conversationID: ConversationID) -> ListView<NativeTranscriptToken>? {
         func descend(_ view: NSView) -> ListView<NativeTranscriptToken>? {
-            if let list = view as? ListView<NativeTranscriptToken> { return list }
+            if let viewport = view as? NativeTranscriptViewport {
+                guard viewport.isActive, viewport.conversationID == conversationID else { return nil }
+                return viewport.subviews.compactMap { $0 as? ListView<NativeTranscriptToken> }.first
+            }
             for child in view.subviews {
                 if let list = descend(child) { return list }
             }
@@ -224,18 +237,18 @@ enum ConversationSwitchBenchmark {
         return NSApp.windows.first(where: { $0.isVisible })?.contentView.flatMap(descend)
     }
 
-    private static func waitForList(expectedCount: Int) async -> ListView<NativeTranscriptToken>? {
+    private static func waitForList(expectedCount: Int, conversationID: ConversationID) async -> ListView<NativeTranscriptToken>? {
         for _ in 0..<75 {
-            if let list = findList(), list.content.count == expectedCount { return list }
+            if let list = findList(for: conversationID), list.content.count == expectedCount { return list }
             try? await Task.sleep(for: .milliseconds(16))
         }
         return nil
     }
 
-    private static func bottomSamples(expectedCount: Int) async -> [Double] {
+    private static func bottomSamples(expectedCount: Int, conversationID: ConversationID) async -> [Double] {
         var values: [Double] = []
         for _ in 0..<47 {
-            if let list = await waitForList(expectedCount: expectedCount), !list.content.isEmpty {
+            if let list = await waitForList(expectedCount: expectedCount, conversationID: conversationID), !list.content.isEmpty {
                 let bottom = list.rectForRow(at: list.content.count - 1).maxY
                 values.append(Double(list.bounds.height - list.contentInsets.bottom - (bottom - list.contentOffset.y)))
             }

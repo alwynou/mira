@@ -2,6 +2,9 @@ import Foundation
 
 public enum ApplicationEvent: Sendable {
     case changed
+    case conversationChanged(ConversationID)
+    case conversationFailure(ConversationID, MiraError)
+    case conversationContentInvalidated
     case draft(ExecutionID, String)
     case thinking(ExecutionID, [CanonicalMessage])
     case failure(MiraError)
@@ -65,6 +68,7 @@ public actor MiraApplication {
     }
     private func removeObserver(_ id: UUID) { observers[id] = nil }
     private func emit(_ event: ApplicationEvent) { for observer in observers.values { observer.yield(event) } }
+    private func emitConversationChanged(_ id: ConversationID) { emit(.conversationChanged(id)) }
 
     /// Called once by composition after opening the library, independent of view lifetime.
     public func startBackgroundWork() async {
@@ -148,12 +152,16 @@ public actor MiraApplication {
     }
     public func setSourceRemoteUse(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, allowed: Bool, expectedRevision: Int) async throws -> KnowledgeSource {
         let source = try store.setSourceRemoteUse(id, workspaceID: workspaceID, allowed: allowed, expectedRevision: expectedRevision, at: environment.now())
-        if !allowed { discardPurgedLiveState(); await cancelMemoryConsumers() }
+        if !allowed {
+            emit(.conversationContentInvalidated)
+            discardPurgedLiveState(); await cancelMemoryConsumers()
+        }
         emit(.changed)
         return source
     }
     public func deleteKnowledgeSource(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int) async throws {
         try store.deleteKnowledgeSource(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: environment.now())
+        emit(.conversationContentInvalidated)
         discardPurgedLiveState()
         await cancelMemoryConsumers()
         emit(.changed)
@@ -193,6 +201,7 @@ public actor MiraApplication {
     }
     public func forgetMemory(_ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int) async throws -> MemoryForgetReceipt {
         let receipt = try store.forgetMemory(id, workspaceID: workspaceID, expectedRevision: expectedRevision, at: environment.now())
+        emit(.conversationContentInvalidated)
         for executionID in receipt.redactedExecutionIDs {
             tasks[executionID]?.cancel(); text[executionID] = nil; pendingSaves[executionID] = nil
             emit(.draft(executionID, ""))
@@ -262,6 +271,30 @@ public actor MiraApplication {
         let now = environment.now(), id = ConversationID(environment.uuid())
         try store.createConversation(.init(id: id, workspaceID: workspaceID, title: "", createdAt: now, updatedAt: now))
         emit(.changed); return id
+    }
+
+    @discardableResult
+    public func startConversation(workspaceID: WorkspaceID?, text input: String, routeID: RouteID? = nil) throws -> Execution {
+        let input = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty, input.utf8.count <= 262_144 else { throw MiraError(.invalidInput, "Enter a message (maximum 256 KiB).") }
+        try checkLifecycleAndCapacity()
+        let conversationID = ConversationID(environment.uuid())
+        let workspace: Workspace?
+        if let workspaceID {
+            guard let value = try store.workspaces().first(where: { $0.id == workspaceID }) else {
+                throw MiraError(.notFound, "The workspace does not exist.")
+            }
+            workspace = value
+        } else {
+            workspace = nil
+        }
+        let now = environment.now()
+        let conversation = Conversation(id: conversationID, workspaceID: workspaceID, title: "", createdAt: now, updatedAt: now)
+        let route = try store.modelConfiguration().resolve(purpose: .conversation, explicitRouteID: routeID, conversation: conversation, workspace: workspace)
+        let execution = try store.startConversation(workspaceID: workspaceID, text: input, route: route,
+                                                     conversationID: conversationID, executionID: .init(environment.uuid()), messageID: .init(environment.uuid()), at: now)
+        launch(execution)
+        return execution
     }
     public func archiveConversation(_ id: ConversationID) async throws {
         try store.archiveConversation(id, at: environment.now()); await invalidateMemoryExtraction(); emit(.changed)
@@ -356,7 +389,7 @@ public actor MiraApplication {
     public func retryPendingSave(_ id: ExecutionID) throws {
         guard let pending = pendingSaves[id], let execution = active[id] else { return }
         try finish(execution, status: pending.status, error: pending.error)
-        pendingSaves[id] = nil; clearLiveState(id); emit(.changed)
+        pendingSaves[id] = nil; clearLiveState(id); emitConversationChanged(execution.conversationID)
         Task { if !isShuttingDown { await memoryExtraction.wake() } }
     }
     @discardableResult
@@ -394,7 +427,7 @@ public actor MiraApplication {
     private func launch(_ execution: Execution) {
         active[execution.id] = execution; text[execution.id] = ""; usage[execution.id] = .init(); pendingCheckpointBytes[execution.id] = 0
         tasks[execution.id] = Task { await self.run(execution) }
-        emit(.changed)
+        emitConversationChanged(execution.conversationID)
     }
 
     private func run(_ execution: Execution) async {
@@ -411,13 +444,17 @@ public actor MiraApplication {
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .milliseconds(250)); try self.checkpoint(execution.id) }
                 catch is CancellationError { return }
-                catch { self.tasks[execution.id]?.cancel(); self.emit(.failure(MiraError.safe(error))); return }
+                catch {
+                    self.tasks[execution.id]?.cancel()
+                    self.emit(.conversationFailure(execution.conversationID, MiraError.safe(error)))
+                    return
+                }
             }
         }
         defer {
             ticker.cancel(); deadline.cancel(); tasks[execution.id] = nil
             if pendingSaves[execution.id] == nil { clearLiveState(execution.id) }
-            emit(.changed)
+            emitConversationChanged(execution.conversationID)
         }
         var finalStatus = ExecutionStatus.completed
         var finalError: MiraError?
@@ -458,7 +495,7 @@ public actor MiraApplication {
                 try validateDispatch(execution)
                 let attempt = ModelAttempt(id: attemptID, executionID: execution.id, stepID: environment.uuid(), stepIndex: step, request: request, createdAt: environment.now())
                 try store.prepareAttempt(attempt)
-                emit(.changed)
+                emitConversationChanged(execution.conversationID)
                 let output: ModelOutput
                 var attemptUsage = TokenUsage()
                 do {
@@ -470,7 +507,7 @@ public actor MiraApplication {
                 let invocations = output.toolCalls.enumerated().map { ToolInvocation(id: environment.uuid(), attemptID: attemptID, modelOrder: $0.offset, call: $0.element) }
                 try store.finishAttempt(attemptID, output: output, invocations: invocations, usage: attemptUsage, error: nil, at: environment.now())
                 try checkpoint(execution.id)
-                emit(.changed)
+                emitConversationChanged(execution.conversationID)
                 if output.finishReason == .outputLimit { throw MiraError(.outputLimit, "Output limit reached. Adjust the model configuration and retry.") }
                 if output.toolCalls.isEmpty {
                     guard !output.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.providerRejected, "The model returned no text. Check this model's interface capabilities and retry.") }
@@ -508,7 +545,7 @@ public actor MiraApplication {
         do { try finish(execution, status: finalStatus, error: finalError) }
         catch {
             pendingSaves[execution.id] = .init(status: finalStatus, error: finalError)
-            emit(.failure(.init(.storage, "Reply has not been saved and is being kept in the current app. Check available disk space, then click \"Retry Save.\"")))
+            emit(.conversationFailure(execution.conversationID, .init(.storage, "Reply has not been saved and is being kept in the current app. Check available disk space, then click \"Retry Save.\"")))
         }
         await memoryApprovals.cancel(executionID: execution.id)
         if !isShuttingDown { await memoryExtraction.wake() }
@@ -620,7 +657,7 @@ public actor MiraApplication {
                 while next < min(batch.count, limits.maxParallelTools) { schedule(batch[next]); next += 1 }
                 while let (id, result) = try await group.next() {
                     try store.finishToolInvocation(id, result: result, at: environment.now()); results[id] = result
-                    emit(.changed)
+                    emitConversationChanged(execution.conversationID)
                     if next < batch.count && !Task.isCancelled { schedule(batch[next]); next += 1 }
                 }
                 for invocation in batch[next...] {
@@ -684,7 +721,7 @@ public actor MiraApplication {
     private func markToolDispatch(_ id: UUID, execution: Execution) throws {
         // This actor check follows tool-specific authorization and immediately precedes its operation.
         try validateDispatch(execution)
-        try store.markToolDispatched(id, at: environment.now()); emit(.changed)
+        try store.markToolDispatched(id, at: environment.now()); emitConversationChanged(execution.conversationID)
     }
 
     private func clearLiveState(_ id: ExecutionID) {

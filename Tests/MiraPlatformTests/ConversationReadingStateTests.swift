@@ -41,23 +41,21 @@ struct ConversationReadingStateTests {
     }
 
     @Test func onlyAnUnvisitedConversationStartsWithoutRestoration() {
-        let store = ConversationReadingStore()
-        let firstID = UUID(), secondID = UUID()
-        let first = store.state(for: firstID)
+        let first = ConversationPageState().readingState
         first.prepareForDisplay()
         #expect(first.pendingRestoreOffset == nil)
         first.recordOffset(420)
         first.leave()
-        let second = store.state(for: secondID)
+        let second = ConversationPageState().readingState
         second.prepareForDisplay()
         #expect(second.pendingRestoreOffset == nil)
         second.recordOffset(870)
         second.leave()
-        let returning = store.state(for: firstID)
+        let returning = first
         #expect(returning === first)
         returning.prepareForDisplay()
         #expect(returning.pendingRestoreOffset == 420)
-        #expect(store.state(for: secondID).visibleOffset == 870)
+        #expect(second.visibleOffset == 870)
     }
 
     @Test func topContentInsetIsPreserved() {

@@ -9,8 +9,11 @@ import MiraCore
 struct NativeConversationTranscript: NSViewRepresentable {
     let items: [TranscriptItem]
     let model: ConversationModel
+    let page: ConversationPageState
     let conversationID: ConversationID?
     let readingState: ConversationReadingState
+    let isActive: Bool
+    let contentGeneration: Int
     let locale: Locale
     let colorScheme: ColorScheme
     let reduceMotion: Bool
@@ -45,9 +48,12 @@ struct NativeConversationTranscript: NSViewRepresentable {
         private var measurementSignatures: [String: Int] = [:]
         private var theme: MarkdownTheme
         private var appearanceName: NSAppearance.Name?
+        private var renderedLocale: Locale?
+        private var renderedReduceMotion: Bool?
         private var boundsObserver: NSObjectProtocol?
         private var eventMonitor: Any?
         private var activity: Task<Void, Never>?
+        private var activityGeneration = 0
         private var isMounted = false
         private var selectionDrag: NSEvent?
         private var settlingUntil: TimeInterval = 0
@@ -66,6 +72,9 @@ struct NativeConversationTranscript: NSViewRepresentable {
             self.parent = parent
             conversationID = parent.conversationID
             theme = MiraMarkdownStyle.theme(for: NSAppearance(named: parent.colorScheme == .dark ? .darkAqua : .aqua) ?? NSApp.effectiveAppearance)
+            viewport.conversationID = parent.conversationID
+            viewport.isActive = parent.isActive
+            viewport.isHidden = !parent.isActive
             viewport.addSubview(list)
             list.autoresizingMask = [.width, .height]
             list.frame = viewport.bounds
@@ -85,9 +94,6 @@ struct NativeConversationTranscript: NSViewRepresentable {
                         if let cached = heights[token.id], cached.width == context.width { return cached.height }
                         if let cached = self.parent.readingState.rowMeasurements[token.id],
                            cached.signature == measurementSignatures[token.id], cached.width == context.width {
-                            #if DEBUG
-                            viewport.readingMeasurementReuseCount += 1
-                            #endif
                             heights[token.id] = (cached.width, cached.height)
                             return cached.height
                         }
@@ -122,7 +128,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
         }
 
         private func handle(_ event: NSEvent) -> Bool {
-            guard event.window === list.window else { return false }
+            guard parent.isActive, parent.page.isActive, event.window === list.window else { return false }
             let point = list.convert(event.locationInWindow, from: nil)
             let isScrollKey = event.type == .keyDown && [115, 116, 119, 121, 125, 126].contains(event.keyCode)
                 && event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty
@@ -188,18 +194,43 @@ struct NativeConversationTranscript: NSViewRepresentable {
         }
 
         func update(_ newParent: NativeConversationTranscript) {
-            guard newParent.conversationID == newParent.model.selectedConversationID else { return }
-            let localeChanged = parent.locale != newParent.locale
-            let reducedMotionChanged = parent.reduceMotion != newParent.reduceMotion
+            guard newParent.conversationID == newParent.page.conversationID else { return }
+            let localeChanged = renderedLocale != newParent.locale
+            let reducedMotionChanged = renderedReduceMotion != newParent.reduceMotion
+            let reactivating = !parent.isActive && newParent.isActive
+            if parent.isActive && !newParent.isActive {
+                recordAnchor()
+                navigationGeneration &+= 1
+                scheduler.cancel(); activity?.cancel(); activity = nil
+                list.cancelCurrentScrolling()
+                bottomAlignmentUntil = 0; restorationUntil = 0
+                parent.readingState.leave()
+            }
+            if parent.contentGeneration != newParent.contentGeneration {
+                // Privacy invalidation must clear native bodies even on hidden pages.
+                resetForSelection()
+            }
             if conversationID != newParent.conversationID {
                 resetForSelection()
                 conversationID = newParent.conversationID
                 newParent.readingState.prepareForDisplay()
             }
             parent = newParent
+            viewport.conversationID = parent.conversationID
+            viewport.isActive = parent.isActive
+            viewport.isHidden = !parent.isActive
+            guard parent.isActive else { return }
+            if reactivating {
+                parent.readingState.prepareForDisplay()
+                if hasInstalledSnapshot {
+                    parent.readingState.completeRestoration()
+                    restorationAnchor = parent.readingState.nativeAnchor
+                    restorationUntil = ProcessInfo.processInfo.systemUptime + 0.5
+                }
+            }
             // The temporary empty loading state is not an authoritative snapshot.
             // Do not prune the destination's saved measurements or thinking state.
-            guard !parent.model.isLoadingConversation else { return }
+            guard !parent.page.isLoading else { return }
             let privacyChanged = parent.items.contains { item in
                 item.bodyPurgedAt != nil && state.items[item.id]?.bodyPurgedAt == nil
             }
@@ -216,6 +247,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
             let name: NSAppearance.Name = parent.colorScheme == .dark ? .darkAqua : .aqua
             let styleChanged = appearanceName != name || localeChanged
             appearanceName = name
+            renderedLocale = parent.locale
+            renderedReduceMotion = parent.reduceMotion
             if styleChanged {
                 theme = MiraMarkdownStyle.theme(for: NSAppearance(named: name) ?? list.effectiveAppearance)
                 contents.removeAll()
@@ -276,8 +309,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 let origin = conversationID
                 let generation = navigationGeneration
                 Task { @MainActor [weak self] in
-                    guard let self, isMounted, conversationID == origin,
-                          parent.model.selectedConversationID == origin, navigationGeneration == generation else { return }
+                    guard let self, isMounted, parent.isActive, parent.page.isActive, conversationID == origin,
+                          parent.page.conversationID == origin, navigationGeneration == generation else { return }
                     parent.readingState.scrollState.jumpToLatest()
                     wake()
                 }
@@ -328,8 +361,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 let origin = conversationID
                 let generation = navigationGeneration
                 Task { @MainActor [weak self] in
-                    guard let self, isMounted, parent.revealedMessageID == reveal, conversationID == origin,
-                          parent.model.selectedConversationID == origin, navigationGeneration == generation else { return }
+                    guard let self, isMounted, parent.isActive, parent.page.isActive, parent.revealedMessageID == reveal, conversationID == origin,
+                          parent.page.conversationID == origin, navigationGeneration == generation else { return }
                     navigationGeneration &+= 1
                     scheduler.cancel()
                     bottomAlignmentUntil = 0
@@ -352,7 +385,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
         /// Install estimates in an empty viewport, then measure only the destination rows.
         /// Positioning completes in the native layout pass before those rows are displayed.
         private func layoutViewport() {
-            guard isMounted, !isPositioning, !state.tokens.isEmpty,
+            guard isMounted, parent.isActive, !isPositioning, !state.tokens.isEmpty,
                   viewport.bounds.width > 0, viewport.bounds.height > 0,
                   parent.bottomOverlayHeight > 0 else { return }
             isPositioning = true
@@ -431,6 +464,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
 
         private func configure(_ row: NativeTranscriptRow, token: NativeTranscriptToken, measurement measuring: Bool) {
             guard let item = state.items[token.id] else { return }
+            let origin = conversationID
+            let contentGeneration = parent.contentGeneration
             if !measuring { rowViews.add(row) }
             let visible = item.bodyPurgedAt == nil && item.role == .assistant
             let expanded = state.expandedThinking.contains(item.id)
@@ -454,7 +489,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 }.environment(\.locale, parent.locale))
             } else { auxiliary = AnyView(EmptyView()) }
             row.onHeightChange = measuring ? nil : { [weak self, weak row] height in
-                guard let self, let row, isMounted else { return }
+                guard let self, let row, isMounted, parent.isActive, parent.page.isActive,
+                      conversationID == origin, parent.contentGeneration == contentGeneration else { return }
                 let width = row.bounds.width
                 guard heights[item.id]?.width != width || heights[item.id]?.height != height else { return }
                 cacheHeight(height, width: width, id: item.id)
@@ -463,7 +499,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 if now < restorationUntil { restorationUntil = now + 0.5 }
                 pendingHeightIDs.insert(item.id)
                 scheduler.schedule { [weak self] in
-                    guard let self, isMounted else { return }
+                    guard let self, isMounted, parent.isActive, parent.page.isActive,
+                          conversationID == origin, parent.contentGeneration == contentGeneration else { return }
                     let ids = pendingHeightIDs
                     pendingHeightIDs.removeAll()
                     for id in ids { list.invalidateLayout(forRowWith: id) }
@@ -472,7 +509,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 }
             }
             row.onToggleThinking = { [weak self] in
-                guard let self else { return }
+                guard let self, isMounted, parent.isActive, parent.page.isActive,
+                      conversationID == origin, parent.contentGeneration == contentGeneration else { return }
                 state.toggleThinking(item.id)
                 parent.readingState.expandedThinkingIDs = state.expandedThinking
                 measurementSignatures[item.id] = item.measurementSignature(expanded: state.expandedThinking.contains(item.id))
@@ -486,7 +524,9 @@ struct NativeConversationTranscript: NSViewRepresentable {
             row.configure(item: item, body: body, reasoning: reasoning, reasoningSource: reasoningSource,
                           expanded: expanded, theme: theme, locale: parent.locale, reduceMotion: parent.reduceMotion,
                           measurement: measuring, auxiliary: auxiliary) { [weak self] message in
-                self?.parent.rememberedMessage = message
+                guard let self, isMounted, parent.isActive, parent.page.isActive,
+                      conversationID == origin, parent.contentGeneration == contentGeneration else { return }
+                parent.rememberedMessage = message
             }
         }
 
@@ -501,9 +541,11 @@ struct NativeConversationTranscript: NSViewRepresentable {
         }
 
         private func wake() {
-            guard isMounted else { return }
+            guard isMounted, parent.isActive, parent.page.isActive else { return }
             settlingUntil = ProcessInfo.processInfo.systemUptime + 0.5
             guard activity == nil else { return }
+            activityGeneration &+= 1
+            let generation = activityGeneration
             activity = Task { @MainActor [weak self] in
                 while !Task.isCancelled {
                     do { try await Task.sleep(for: .milliseconds(16)) } catch { break }
@@ -512,11 +554,12 @@ struct NativeConversationTranscript: NSViewRepresentable {
                     if !parent.items.contains(where: \.isStreaming), !list.isUserInteractingWithScroll,
                        ProcessInfo.processInfo.systemUptime > settlingUntil { break }
                 }
-                self?.activity = nil
+                if self?.activityGeneration == generation { self?.activity = nil }
             }
         }
 
         private func observeGeometry() {
+            guard parent.isActive, parent.page.isActive else { return }
             guard hasInstalledSnapshot else {
                 viewport.needsLayout = true
                 return
@@ -554,12 +597,13 @@ struct NativeConversationTranscript: NSViewRepresentable {
             alignLatestIfNeeded()
             alignRestorationIfNeeded()
             reading.scrollState.updateVisiblePosition(isNearLatest: TranscriptViewportLayout.isNearLatest(in: list))
+            reading.scrollState.updateJumpVisibility(distanceToLatest: Double(TranscriptViewportLayout.distanceToLatest(in: list)))
             lastViewportSize = list.bounds.size
             recordAnchor()
         }
 
         private func recordAnchor() {
-            guard hasInstalledSnapshot, parent.model.selectedConversationID == conversationID else { return }
+            guard hasInstalledSnapshot, parent.isActive, parent.page.isActive, parent.page.conversationID == conversationID else { return }
             let reading = parent.readingState
             reading.recordOffset(list.contentOffset.y)
             guard reading.pendingRestoreOffset == nil else { return }
@@ -575,9 +619,8 @@ struct NativeConversationTranscript: NSViewRepresentable {
 @MainActor
 final class NativeTranscriptViewport: NSView {
     var onLayout: (() -> Void)?
-    #if DEBUG
-    var readingMeasurementReuseCount = 0
-    #endif
+    var conversationID: ConversationID?
+    var isActive = false
     override var acceptsFirstResponder: Bool { true }
     override var isFlipped: Bool { true }
     override init(frame: NSRect) {

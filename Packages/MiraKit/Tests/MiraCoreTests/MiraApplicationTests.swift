@@ -4,11 +4,58 @@ import MiraCore
 import MiraData
 
 struct MiraApplicationTests {
+    @Test func startConversationPrevalidatesAndEmitsConversationIdentity() async throws {
+        let fixture = try RuntimeFixture()
+        defer { fixture.cleanup() }
+        let app = try MiraApplication(store: fixture.store, provider: fixture.provider)
+        let stream = await app.events()
+        var iterator = stream.makeAsyncIterator()
+        #expect(await iterator.next().map { event in
+            if case .changed = event { return true }
+            return false
+        } == true)
+
+        let execution = try await app.startConversation(workspaceID: nil, text: "new conversation", routeID: fixture.route.id)
+        #expect(try fixture.store.conversations(includeArchived: true).contains { $0.id == execution.conversationID })
+        #expect(try fixture.store.messages(in: execution.conversationID).map(\.text) == ["new conversation"])
+        #expect(try fixture.store.executions(in: execution.conversationID).map(\.id) == [execution.id])
+
+        #expect(await iterator.next().map { event in
+            if case .conversationChanged(let id) = event { return id == execution.conversationID }
+            return false
+        } == true)
+        await app.shutdown()
+    }
+
+    @Test func startConversationRejectsRouteAndWorkspaceBeforeCreatingRows() async throws {
+        let fixture = try RuntimeFixture()
+        defer { fixture.cleanup() }
+        let app = try MiraApplication(store: fixture.store, provider: fixture.provider)
+
+        await #expect(throws: MiraError.self) {
+            _ = try await app.startConversation(workspaceID: nil, text: "invalid route", routeID: .init())
+        }
+        #expect(try fixture.store.conversations(includeArchived: true).isEmpty)
+
+        await #expect(throws: MiraError.self) {
+            _ = try await app.startConversation(workspaceID: .init(), text: "invalid workspace", routeID: fixture.route.id)
+        }
+        #expect(try fixture.store.conversations(includeArchived: true).isEmpty)
+
+        let privateWorkspace = try await app.createWorkspace(name: "Private", background: "", allowsRemoteSend: false)
+        await #expect(throws: MiraError.self) {
+            _ = try await app.startConversation(workspaceID: privateWorkspace, text: "blocked", routeID: fixture.route.id)
+        }
+        #expect(try fixture.store.conversations(includeArchived: true).isEmpty)
+        await app.shutdown()
+    }
+
     @Test func failedFinalizationRetainsReplyAndCanBeRetriedWithoutCallingModel() async throws {
         let fixture = try RuntimeFixture()
         defer { fixture.cleanup() }
         let fault = FaultInjectingStore(fixture.store)
         let app = try MiraApplication(store: fault, provider: fixture.provider)
+        let events = await app.events()
         let conversationID = try await app.createConversation(workspaceID: nil)
         let id = try await app.send(conversationID: conversationID, text: "retain this", routeID: fixture.route.id)
         try await eventually { fixture.provider.requestCount == 1 }
@@ -21,6 +68,17 @@ struct MiraApplicationTests {
         let pending = try await app.conversation(conversationID)
         #expect(pending.pendingSaveIDs == [id])
         #expect(pending.drafts.first?.text == "complete but not saved")
+        for await event in events {
+            if case .conversationFailure(let origin, let error) = event {
+                #expect(origin == conversationID)
+                #expect(error.code == .storage)
+                break
+            }
+            if case .failure = event {
+                Issue.record("A background conversation failure must carry its originating conversation.")
+                break
+            }
+        }
         #expect(await app.shutdown() == false)
         fault.allowFinalization()
         try await app.retryPendingSave(id)

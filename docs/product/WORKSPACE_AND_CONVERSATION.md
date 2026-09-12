@@ -101,6 +101,10 @@ Conversation 表示一次相对连续的话题或任务上下文。
 - Workspace 的全部知识；
 - 结构化任务或日程的替代品。
 
+Conversation pages retain their input draft, explicit model selection, thinking expansion and reading position independently. Returning to a cached page activates it directly. The recent-page cache is bounded; evicted pages retain drafts and reading position for restoration. First entry defaults to the latest message. Background generation continues when another page is selected.
+
+Each window has one unsent New Conversation draft. Repeated New Conversation actions activate that same draft without adding history records or clearing its text. Choosing a workspace explicitly changes the draft's sending scope. The first successful message enqueue promotes the draft into a formal conversation; only then can another new draft be created. Validation or storage failure preserves the draft and creates no empty history record.
+
 <a id="s08-02"></a>
 
 ### 2.2 Workspace

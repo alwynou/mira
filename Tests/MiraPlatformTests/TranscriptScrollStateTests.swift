@@ -66,4 +66,65 @@ struct TranscriptScrollStateTests {
         #expect(TranscriptScrollState.isNearBottom(contentHeight: 1000, visibleBottom: 936))
         #expect(!TranscriptScrollState.isNearBottom(contentHeight: 1000, visibleBottom: 935))
     }
+
+    @Test func jumpVisibilityIsIndependentOfScrollingAndLatestState() {
+        var state = TranscriptScrollState()
+        state.updateJumpVisibility(distanceToLatest: 8)
+        #expect(state.showsJumpToLatest)
+
+        state.userScrollChanged(isScrolling: true, isNearBottom: false)
+        state.userScrollChanged(isScrolling: false, isNearBottom: true)
+        state.updateVisiblePosition(isNearLatest: true)
+        #expect(state.showsJumpToLatest)
+
+        state.updateJumpVisibility(distanceToLatest: 2)
+        #expect(!state.showsJumpToLatest)
+        state.revealHistory()
+        #expect(!state.isAtLatest)
+        #expect(!state.showsJumpToLatest)
+    }
+
+    @Test func jumpVisibilityUsesHysteresisAtBothThresholds() {
+        var state = TranscriptScrollState()
+        state.updateJumpVisibility(distanceToLatest: 7.9)
+        #expect(!state.showsJumpToLatest)
+        state.updateJumpVisibility(distanceToLatest: 8)
+        #expect(state.showsJumpToLatest)
+
+        for distance in [7.9, 4, 2.1] {
+            state.updateJumpVisibility(distanceToLatest: distance)
+            #expect(state.showsJumpToLatest)
+        }
+        state.updateJumpVisibility(distanceToLatest: 2)
+        #expect(!state.showsJumpToLatest)
+        state.updateJumpVisibility(distanceToLatest: 4)
+        #expect(!state.showsJumpToLatest)
+        state.updateJumpVisibility(distanceToLatest: 8)
+        #expect(state.showsJumpToLatest)
+    }
+
+    @Test func explicitJumpHidesTheButtonImmediately() {
+        var state = TranscriptScrollState()
+        state.updateJumpVisibility(distanceToLatest: 256)
+        #expect(state.showsJumpToLatest)
+
+        state.jumpToLatest()
+
+        #expect(!state.showsJumpToLatest)
+        #expect(state.hasPendingJumpToLatest)
+    }
+
+    @Test func invalidJumpGeometryDoesNotChangeVisibility() {
+        var state = TranscriptScrollState()
+        for distance in [Double.nan, .infinity, -.infinity] {
+            state.updateJumpVisibility(distanceToLatest: distance)
+            #expect(!state.showsJumpToLatest)
+        }
+        state.updateJumpVisibility(distanceToLatest: 8)
+        #expect(state.showsJumpToLatest)
+        for distance in [Double.nan, .infinity, -.infinity] {
+            state.updateJumpVisibility(distanceToLatest: distance)
+            #expect(state.showsJumpToLatest)
+        }
+    }
 }

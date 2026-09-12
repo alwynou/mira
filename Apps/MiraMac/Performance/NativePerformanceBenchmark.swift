@@ -76,18 +76,18 @@ enum NativePerformanceBenchmark {
                 let trace = [CanonicalMessage(role: .assistant, text: "", reasoning: .init(
                     format: .openAIContent, text: String(repeating: "Reviewing synthetic table, code, and paragraph layout. ", count: 32), isComplete: true
                 ))]
-                model.streamBuffer.receiveThinking(trace, for: executionID)
+                model.activePage.streamBuffer.receiveThinking(trace, for: executionID)
                 let characters = Array(text)
                 for end in stride(from: 50, to: characters.count + 50, by: 50) {
                     try Task.checkCancellation()
-                    model.streamBuffer.receiveDraft(String(characters.prefix(min(end, characters.count))), for: executionID)
+                    model.activePage.streamBuffer.receiveDraft(String(characters.prefix(min(end, characters.count))), for: executionID)
                     try await Task.sleep(for: .milliseconds(100))
                 }
-                model.streamBuffer.flush()
-                model.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
+                model.activePage.streamBuffer.flush()
+                model.activePage.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
                                             sequence: 102, role: .assistant, status: .committed, text: text, createdAt: Date(), trace: trace))
-                model.executions[0].status = .completed
-                model.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
+                model.activePage.executions[0].status = .completed
+                model.activePage.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
                 phase = "scrolling"
                 for index in 0..<30 {
                     try await Task.sleep(for: .milliseconds(500))
@@ -131,11 +131,11 @@ enum NativePerformanceBenchmark {
 
         /// An offline native layout fixture; it does not synthesize user input or measure performance.
         func verifyFloatingComposer(reportURL: URL) async {
-            model.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
+            model.activePage.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
                                         sequence: 102, role: .assistant, status: .committed,
                                         text: Self.section(99) + "\n\nFINAL VISIBLE LINE", createdAt: Date()))
-            model.executions[0].status = .completed
-            model.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
+            model.activePage.executions[0].status = .completed
+            model.activePage.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
             try? await Task.sleep(for: .seconds(2))
             func findList(_ view: NSView) -> ListView<NativeTranscriptToken>? {
                 if let list = view as? ListView<NativeTranscriptToken> { return list }
@@ -166,7 +166,7 @@ enum NativePerformanceBenchmark {
                 UserDefaults.standard.set(language, forKey: AppLanguage.preferenceKey)
                 UserDefaults.standard.set(appearance == .aqua ? "light" : "dark", forKey: AppDisplayMode.preferenceKey)
                 window.setContentSize(size)
-                model.composer = (1...lines).map { "Synthetic input line \($0)" }.joined(separator: "\n")
+                model.activePage.composer = (1...lines).map { "Synthetic input line \($0)" }.joined(separator: "\n")
                 try? await Task.sleep(for: .milliseconds(1200))
                 let rowBottom = list.rectForRow(at: list.content.count - 1).maxY - list.contentOffset.y
                 let clearBottom = list.bounds.height - list.contentInsets.bottom
@@ -181,28 +181,28 @@ enum NativePerformanceBenchmark {
                     "passed": gap >= -1 && list.contentInsets.bottom > 100 && list.bounds.height > 400,
                 ])
             }
-            model.messages.removeAll { $0.executionID == executionID && $0.role == .assistant }
-            model.executions[0].status = .waitingForModel
+            model.activePage.messages.removeAll { $0.executionID == executionID && $0.role == .assistant }
+            model.activePage.executions[0].status = .waitingForModel
             let initialText = Self.section(99)
-            model.streamBuffer.replace(drafts: [executionID: initialText], thinkingTraces: [:])
+            model.activePage.streamBuffer.replace(drafts: [executionID: initialText], thinkingTraces: [:])
             try? await Task.sleep(for: .seconds(1))
             list.setContentOffset(list.maximumContentOffset, animated: false)
             try? await Task.sleep(for: .seconds(1))
             // Receive the next stream snapshot while a composer resize is still settling.
-            model.composer = (1...8).map { "Synthetic input line \($0)" }.joined(separator: "\n")
+            model.activePage.composer = (1...8).map { "Synthetic input line \($0)" }.joined(separator: "\n")
             try? await Task.sleep(for: .milliseconds(100))
             let initialOffset = list.contentOffset.y
             let finalText = initialText + "\n\n" + Self.section(100) + "\n\nFINAL VISIBLE LINE"
-            model.streamBuffer.receiveDraft(finalText, for: executionID)
-            model.streamBuffer.flush()
+            model.activePage.streamBuffer.receiveDraft(finalText, for: executionID)
+            model.activePage.streamBuffer.flush()
             try? await Task.sleep(for: .seconds(1))
             let streamingOffset = list.contentOffset.y
             let streamingMaximum = list.maximumContentOffset.y
-            model.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
+            model.activePage.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
                                         sequence: 102, role: .assistant, status: .committed,
                                         text: finalText, createdAt: Date()))
-            model.executions[0].status = .completed
-            model.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
+            model.activePage.executions[0].status = .completed
+            model.activePage.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
             try? await Task.sleep(for: .seconds(1))
             let terminalOffset = list.contentOffset.y
             let streamPassed = abs(initialOffset - streamingOffset) < 1
@@ -283,9 +283,9 @@ enum NativePerformanceBenchmark {
                 UserDefaults.standard.set(language, forKey: AppLanguage.preferenceKey)
                 UserDefaults.standard.set(mode, forKey: AppDisplayMode.preferenceKey)
                 window.setContentSize(size)
-                model.messages.removeAll { $0.executionID == executionID && $0.role == .assistant }
-                model.executions[0].status = .waitingForModel
-                model.streamBuffer.replace(drafts: [executionID: prefix], thinkingTraces: [:])
+                model.activePage.messages.removeAll { $0.executionID == executionID && $0.role == .assistant }
+                model.activePage.executions[0].status = .waitingForModel
+                model.activePage.streamBuffer.replace(drafts: [executionID: prefix], thinkingTraces: [:])
                 try? await Task.sleep(for: .seconds(1))
                 let row = list.rectForRow(at: list.content.count - 1)
                 list.setContentOffset(CGPoint(x: 0, y: row.minY), animated: false)
@@ -328,18 +328,18 @@ enum NativePerformanceBenchmark {
                 }
                 inspect()
                 for end in stride(from: 48, to: suffix.count + 48, by: 48) {
-                    model.streamBuffer.receiveDraft(prefix + String(suffix.prefix(end)), for: executionID)
-                    model.streamBuffer.flush()
+                    model.activePage.streamBuffer.receiveDraft(prefix + String(suffix.prefix(end)), for: executionID)
+                    model.activePage.streamBuffer.flush()
                     try? await Task.sleep(for: .milliseconds(80))
                     inspect()
                 }
                 try? await Task.sleep(for: .milliseconds(800))
                 inspect()
-                model.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
+                model.activePage.messages.append(.init(id: .init(), conversationID: conversationID, executionID: executionID,
                                             sequence: 102, role: .assistant, status: .committed,
                                             text: prefix + String(suffix), createdAt: Date()))
-                model.executions[0].status = .completed
-                model.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
+                model.activePage.executions[0].status = .completed
+                model.activePage.streamBuffer.replace(drafts: [:], thinkingTraces: [:])
                 try? await Task.sleep(for: .milliseconds(800))
                 inspect()
                 results.append(["scenario": name, "samples": sampleCount, "overlaps": overlapCount,
@@ -362,9 +362,9 @@ enum NativePerformanceBenchmark {
 
         func installHistory() {
             let now = Date()
-            model.selectedConversationID = conversationID
+            model.activePage.conversationID = conversationID
             model.conversations = [.init(id: conversationID, workspaceID: nil, title: "Synthetic rendering benchmark", createdAt: now, updatedAt: now)]
-            model.messages = (1...50).flatMap { index in
+            model.activePage.messages = (1...50).flatMap { index in
                 [Message(id: .init(), conversationID: conversationID, executionID: nil, sequence: index * 2 - 1,
                          role: .user, status: .committed, text: "Synthetic history turn \(index).", createdAt: now),
                  Message(id: .init(), conversationID: conversationID, executionID: nil, sequence: index * 2,
@@ -372,13 +372,13 @@ enum NativePerformanceBenchmark {
             }
             let trigger = Message(id: .init(), conversationID: conversationID, executionID: nil, sequence: 101,
                                   role: .user, status: .committed, text: "Render the synthetic long response.", createdAt: now)
-            model.messages.append(trigger)
+            model.activePage.messages.append(trigger)
             let route = ResolvedModelRouteSnapshot(name: "Synthetic benchmark", providerKind: .openAICompatible,
                                                   baseURL: "https://benchmark.invalid/v1", modelID: "synthetic",
                                                   credentialReference: "benchmark", contextWindow: 131_072)
-            model.executions = [.init(id: executionID, conversationID: conversationID, triggerMessageID: trigger.id,
+            model.activePage.executions = [.init(id: executionID, conversationID: conversationID, triggerMessageID: trigger.id,
                                       status: .waitingForModel, route: route, createdAt: now, updatedAt: now)]
-            model.streamBuffer.replace(drafts: [executionID: ""], thinkingTraces: [:])
+            model.activePage.streamBuffer.replace(drafts: [executionID: ""], thinkingTraces: [:])
         }
 
         func recordProbe(enqueued: ContinuousClock.Instant) {
@@ -394,7 +394,7 @@ enum NativePerformanceBenchmark {
                                  serviceMilliseconds: seconds(enqueued.duration(to: serviced)) * 1_000,
                                  residentBytes: status == KERN_SUCCESS ? info.resident_size : nil,
                                  appActive: NSApp.isActive, windowVisible: NSApp.windows.contains { $0.occlusionState.contains(.visible) }))
-            if phase == "streaming" { model.composer = "Synthetic unsent input \(samples.count)" }
+            if phase == "streaming" { model.activePage.composer = "Synthetic unsent input \(samples.count)" }
         }
 
         func scroll(index: Int) {

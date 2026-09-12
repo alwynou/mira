@@ -1,21 +1,6 @@
 import Foundation
 import Observation
 
-/// Window-local geometry only; no message bodies or rendered documents are retained.
-@MainActor
-final class ConversationReadingStore {
-    private var states: [UUID: ConversationReadingState] = [:]
-    private let empty = ConversationReadingState()
-
-    func state(for id: UUID?) -> ConversationReadingState {
-        guard let id else { return empty }
-        if let state = states[id] { return state }
-        let state = ConversationReadingState()
-        states[id] = state
-        return state
-    }
-}
-
 /// Retains reading intent when the transcript leaves the window's detail column.
 @MainActor @Observable
 final class ConversationReadingState {

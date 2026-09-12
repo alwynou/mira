@@ -28,4 +28,8 @@ enum TranscriptViewportLayout {
             visibleBottom: list.contentOffset.y + list.bounds.height - list.contentInsets.bottom
         )
     }
+
+    static func distanceToLatest(in list: ListScrollView) -> CGFloat {
+        list.contentSize.height - (list.contentOffset.y + list.bounds.height - list.contentInsets.bottom)
+    }
 }

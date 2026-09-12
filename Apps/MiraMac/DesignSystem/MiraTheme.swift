@@ -116,6 +116,7 @@ enum MiraTheme {
         static let composerShadowRadius: CGFloat = 4
         static let composerShadowOffset: CGFloat = 2
         static let controlHeight: CGFloat = 30
+        static let floatingControlSize: CGFloat = 36
         static let selectMinWidth: CGFloat = 100
         static let selectMaxWidth: CGFloat = 200
         static let rowHeight: CGFloat = 34

@@ -26,7 +26,11 @@ final class SourceCitationModel {
         let events = await application.events()
         for await event in events {
             guard current == generation, !Task.isCancelled else { return }
-            guard case .changed = event else { continue }
+            switch event {
+            case .changed, .conversationContentInvalidated: break
+            case .conversationChanged(let id) where id == conversationID: break
+            default: continue
+            }
             detail = nil
             error = nil
             do {

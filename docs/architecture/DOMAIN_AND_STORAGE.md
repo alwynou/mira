@@ -278,6 +278,7 @@ Before enqueue, resolution selects the first matching binding in explicit, conve
 
 以下必须在同一事务内：
 
+- 新建 Conversation + 首条 User Message + queued Execution；
 - User Message + Conversation sequence 更新 + queued Execution；
 - Assistant Message 提交 + Draft 终止 + Execution 终态；
 - Tool Result + ToolInvocation 状态；

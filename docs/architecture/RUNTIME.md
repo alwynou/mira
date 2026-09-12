@@ -94,6 +94,8 @@ MessagePart 是有序内容，不使用一个 `content: String` 覆盖全部多�
 
 用户消息先作为规范 Message 提交，再启动 Execution；两者的创建在同一事务完成，避免只有消息没有可追踪执行的空隙。
 
+新建会话的首条消息通过 `MiraApplication.startConversation(workspaceID:text:routeID:)` 完成。应用层先校验输入、执行容量、Workspace 远程发送策略和冻结的路由快照；Data 层在一个 SQLite 事务中创建 Conversation、首条 User Message 和 queued Execution。入队任一步失败都会回滚整个新会话，不留下空 Conversation。
+
 Assistant 流式输出先进入 AssistantDraft，完成或中断后原子提交为一个 Message。
 
 <a id="s09-06"></a>
@@ -106,6 +108,10 @@ Assistant 流式输出先进入 AssistantDraft，完成或中断后原子提交�
 - 重试建立新的 Prefix Series。旧中断回复仍可在 UI / 审计中查看，但不与新回复一起作为成功 Assistant 历史注入。
 - 用户选择继续一个中断回复时，新回合可带入明确标记的部分内容；这不是自动续传同一个模型请求。
 - Conversation 移动 Workspace 前需终止活动 Execution；移动后刷新基线和隐私策略，既有 Memory 的 Scope 不随 Conversation 自动修改。
+
+### 1.7 应用事件边界
+
+`ApplicationEvent.changed` 表示配置、库列表或其他全局失效，订阅建立时也先发出一次。运行时 Execution 的启动、Model Attempt、Tool 和终态变化通过带 `ConversationID` 的 `conversationChanged` 发送，使页面只刷新对应会话。流式 Draft / Thinking 仍按 `ExecutionID` 单独发送；定时 checkpoint 不触发完整会话重读。会话保存失败通过 `conversationFailure(ConversationID, MiraError)` 归属到原会话，关闭应用等全局错误继续使用 `failure`。会影响保留会话正文或引用隐私的 Forget、Source 清理和远程使用策略收紧先发送无 payload 的 `conversationContentInvalidated`，再执行其他异步清理；收到事件的缓存必须立即丢弃敏感内容，随后可用 `changed` 重读权威数据。
 
 ---
 

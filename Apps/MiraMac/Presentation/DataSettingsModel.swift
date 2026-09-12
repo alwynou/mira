@@ -21,7 +21,11 @@ final class DataSettingsModel {
         let stream = await application.events()
         for await event in stream {
             guard !Task.isCancelled else { return }
-            if case .changed = event { await refreshDiagnostics() }
+            switch event {
+            case .changed, .conversationChanged, .conversationContentInvalidated:
+                await refreshDiagnostics()
+            default: break
+            }
         }
     }
 

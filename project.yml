@@ -85,6 +85,7 @@ targets:
       - Apps/MiraMac/Presentation/ProviderConnectionSettingsModel.swift
       - Apps/MiraMac/Presentation/ProviderConnectionTestModel.swift
       - Apps/MiraMac/Presentation/ConversationModel.swift
+      - Apps/MiraMac/Presentation/ConversationPageState.swift
       - Tests/MiraSettingsTests
       - Apps/MiraMac/Features/Conversation/NativeTranscriptRow.swift
       - Apps/MiraMac/Features/Conversation/MessageRow.swift

@@ -99,11 +99,13 @@
 		AB7F1E09B01C9793F855E60F /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE219F5AD13AB33DDF639BD /* MessageRow.swift */; };
 		AB843816272874F979AF0731 /* MiraBrandMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDC593F360243EBDD2CB20E /* MiraBrandMark.swift */; };
 		AEAB6E28924E38D53E84758A /* MemorySettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD065CAF0C050F79CC4D9843 /* MemorySettingsModel.swift */; };
+		B211C21EB621794AFB57230F /* ConversationPageState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22566FD997EBC31000CBB304 /* ConversationPageState.swift */; };
 		B38C6089D06D325082314E26 /* MiraData in Frameworks */ = {isa = PBXBuildFile; productRef = EEB28E75FC8A07BD9B1491B3 /* MiraData */; };
 		B954BFD513020A24D6B72B70 /* MemorySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40BF1595EDAFC35D927D3E9 /* MemorySettingsView.swift */; };
 		B9E1D3E8B7DD51B842E5A10F /* ConversationStreamBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E39516AF4613C11AC41445D5 /* ConversationStreamBuffer.swift */; };
 		BA3D5B3609EC9CF0C6993CC0 /* MiraTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142B8CB1666AEFE507570C80 /* MiraTheme.swift */; };
 		BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
+		BAC7E771C66D2C74E701B22A /* ConversationPageState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22566FD997EBC31000CBB304 /* ConversationPageState.swift */; };
 		BC127E7F72B73E2B32236DEB /* Litext in Frameworks */ = {isa = PBXBuildFile; productRef = F719CCF33D44556434DCB7A9 /* Litext */; };
 		C1E5545D4ED0356CD5040991 /* ConversationSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7BD77787865BF5E7934447C /* ConversationSelectionTests.swift */; };
 		C3B2191D8745302C447AB9C6 /* MemoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03AC927AAD07459E44A6846 /* MemoryEditorView.swift */; };
@@ -151,6 +153,7 @@
 		142B8CB1666AEFE507570C80 /* MiraTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraTheme.swift; sourceTree = "<group>"; };
 		1D20CEE815F6160A93EC3FCF /* MiraComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraComponents.swift; sourceTree = "<group>"; };
 		20D1C59A07F0D139BA5017CE /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
+		22566FD997EBC31000CBB304 /* ConversationPageState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationPageState.swift; sourceTree = "<group>"; };
 		22AF29C5271787E4E8DC17CF /* UsageCostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCostView.swift; sourceTree = "<group>"; };
 		2824EFB7442C6F4AF52C6FBE /* Mira.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mira.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		28C354CD341C70BA8EAE5D58 /* MiraHostTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiraHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -353,6 +356,7 @@
 			isa = PBXGroup;
 			children = (
 				7414ED665B7697D8DE9FC89A /* ConversationModel.swift */,
+				22566FD997EBC31000CBB304 /* ConversationPageState.swift */,
 				11575F212B8B6A6AE9D54D1C /* ConversationReadingState.swift */,
 				E39516AF4613C11AC41445D5 /* ConversationStreamBuffer.swift */,
 				6E4C06F3A7B58D34FC0B7AC8 /* DataSettingsModel.swift */,
@@ -780,6 +784,7 @@
 				778C34C8B488F1AD4B652544 /* AppDisplayMode.swift in Sources */,
 				4B6A5168DDFC7823C27AE225 /* AppLanguage.swift in Sources */,
 				28EECC3B307F65286511CD3E /* ConversationModel.swift in Sources */,
+				B211C21EB621794AFB57230F /* ConversationPageState.swift in Sources */,
 				22CAA2551479A04D2B6C1DF5 /* ConversationReadingState.swift in Sources */,
 				B9E1D3E8B7DD51B842E5A10F /* ConversationStreamBuffer.swift in Sources */,
 				A8E6B33FFC9598743C234B72 /* ConversationSwitchBenchmark.swift in Sources */,
@@ -840,6 +845,7 @@
 				3ECBB50F396D33D504817151 /* AppDisplayModeTests.swift in Sources */,
 				7115754E493BEBE18D9281FE /* AppLanguage.swift in Sources */,
 				0EB049C6E3316118724FB3DD /* ConversationModel.swift in Sources */,
+				BAC7E771C66D2C74E701B22A /* ConversationPageState.swift in Sources */,
 				DACB5C5C146F72B6F0FD46E9 /* ConversationReadingState.swift in Sources */,
 				886CCBF5FD04813C5D8A0870 /* ConversationReadingStateTests.swift in Sources */,
 				C1E5545D4ED0356CD5040991 /* ConversationSelectionTests.swift in Sources */,

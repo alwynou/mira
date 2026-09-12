@@ -4,15 +4,15 @@ import MiraCore
 struct ExecutionInspector: View {
     @Environment(\.locale) private var locale
     @Bindable var model: ConversationModel
-    @State private var selectedID: ExecutionID?
+    @Bindable var page: ConversationPageState
     @State private var loadedAttempts: [ModelAttempt] = []
     @State private var loadedInvocations: [ToolInvocation] = []
     @State private var auditExecutionID: ExecutionID?
     @State private var auditError: MiraError?
-    private var execution: Execution? { model.executions.first { $0.id == selectedID } ?? model.executions.last }
+    private var execution: Execution? { page.executions.first { $0.id == page.inspectedExecutionID } ?? page.executions.last }
     private var attempts: [ModelAttempt] { auditExecutionID == execution?.id ? loadedAttempts : [] }
     private var invocations: [ToolInvocation] { auditExecutionID == execution?.id ? loadedInvocations : [] }
-    private var refreshID: String { "\(execution?.id.rawValue.uuidString ?? "none")-\(model.inspectionRevision)" }
+    private var refreshID: String { "\(execution?.id.rawValue.uuidString ?? "none")-\(page.inspectionRevision)" }
 
     private func selectionTitle(_ source: RouteSelectionSource) -> String {
         switch source {
@@ -27,10 +27,10 @@ struct ExecutionInspector: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Execution details").font(.headline)
-                if model.executions.count > 1 {
-                    Picker("Turn", selection: $selectedID) {
+                if page.executions.count > 1 {
+                    Picker("Turn", selection: $page.inspectedExecutionID) {
                         Text("Latest turn").tag(nil as ExecutionID?)
-                        ForEach(model.executions) { item in
+                        ForEach(page.executions) { item in
                             Text(item.createdAt, format: .dateTime.hour().minute().second()).tag(Optional(item.id))
                         }
                     }
@@ -103,15 +103,18 @@ struct ExecutionInspector: View {
         .accessibilityIdentifier("conversation.executionInspector")
         .task(id: refreshID) {
             let id = execution?.id
+            let revision = page.inspectionRevision
             auditExecutionID = nil; loadedAttempts = []; loadedInvocations = []; auditError = nil
             guard let id else { return }
             do {
                 let audit = try await model.application.audit(for: id)
-                guard !Task.isCancelled, execution?.id == id else { return }
+                guard !Task.isCancelled, model.activePage === page,
+                      page.inspectionRevision == revision, execution?.id == id else { return }
                 loadedAttempts = audit.attempts; loadedInvocations = audit.invocations; auditExecutionID = id
             } catch {
-                if !Task.isCancelled, execution?.id == id {
-                    auditError = MiraError.safe(error); model.error = auditError
+                if !Task.isCancelled, model.activePage === page,
+                   page.inspectionRevision == revision, execution?.id == id {
+                    auditError = MiraError.safe(error); page.error = auditError
                 }
             }
         }
