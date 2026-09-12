@@ -34,94 +34,91 @@ struct MemorySettingsView: View {
 
     var body: some View {
         MiraSettingsPage {
-            MiraSettingsHeader(title: "Memory", subtitle: "Configure automatic memory and daily extraction limits.")
+            Group {
+                MiraSettingsSection("Automatic memory") {
+                    MiraSettingsRow("Capture mode", subtitle: LocalizedStringKey(modeDescriptionKey(model.mode))) {
+                        MiraSettingsSelect(
+                            title: "Capture mode",
+                            selection: modeSelectionBinding,
+                            options: MemoryCaptureMode.allCases.map {
+                                .init(id: $0.rawValue, title: LocalizedStringResource(stringLiteral: modeKey($0)))
+                            },
+                            identifier: "settings.memory.mode",
+                            maximumWidth: MiraTheme.Layout.selectMaxWidth
+                        )
+                    }
+                    .disabled(model.isSaving)
 
-            MiraSettingsSection("Automatic memory") {
-                MiraSettingsRow("Capture mode", subtitle: LocalizedStringKey(modeDescriptionKey(model.mode))) {
-                    MiraSettingsSelect(
-                        title: "Capture mode",
-                        selection: modeSelectionBinding,
-                        options: MemoryCaptureMode.allCases.map {
-                            .init(id: $0.rawValue, title: LocalizedStringResource(stringLiteral: modeKey($0)))
-                        },
-                        identifier: "settings.memory.mode",
-                        maximumWidth: MiraTheme.Layout.selectMaxWidth
-                    )
-                }
-                .disabled(model.isSaving)
-
-                if model.mode != .manualOnly {
-                    Text("Automatic capture uses extra tokens. Sensitive memories stay local.")
-                        .font(MiraTheme.Typography.caption)
-                        .foregroundStyle(MiraTheme.Colors.settingsDescription)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                if model.mode != .manualOnly && !hasMemoryExtractionRoute {
-                    MiraSettingsDivider()
-                    HStack(alignment: .firstTextBaseline, spacing: MiraTheme.Spacing.md) {
-                        Text("Choose a memory extraction model in Models.")
-                            .font(MiraTheme.Typography.caption)
-                            .foregroundStyle(MiraTheme.Colors.secondaryText)
+                    if model.mode != .manualOnly {
+                        Text("Automatic capture uses extra tokens. Sensitive memories stay local.")
+                            .font(MiraTheme.Settings.caption)
+                            .foregroundStyle(MiraTheme.Settings.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: MiraTheme.Spacing.sm)
-                        Button("Models") { onManageModels() }
-                            .buttonStyle(MiraSettingsButtonStyle())
-                            .fixedSize()
+                    }
+
+                    if model.mode != .manualOnly && !hasMemoryExtractionRoute {
+                        HStack(alignment: .firstTextBaseline, spacing: MiraTheme.Spacing.md) {
+                            Text("Choose a memory extraction model in Models.")
+                                .font(MiraTheme.Settings.caption)
+                                .foregroundStyle(MiraTheme.Settings.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: MiraTheme.Spacing.sm)
+                            Button("Models") { onManageModels() }
+                                .buttonStyle(MiraSettingsButtonStyle())
+                                .fixedSize()
+                                .disabled(model.isSaving)
+                        }
+                    }
+                }
+
+                MiraSettingsSection("Daily extraction budget") {
+                    MiraSettingsFormRow("Daily token limit", subtitle: "Daily token budget for automatic memory. Resets at 00:00 UTC.") {
+                        TextField("Daily token limit", text: tokenLimitBinding)
+                            .textFieldStyle(.roundedBorder)
                             .disabled(model.isSaving)
+                            .frame(width: 150)
+                            .accessibilityIdentifier("settings.memory.tokenLimit")
+                    }
+                    if let budget = model.budget {
+                        MiraSettingsRow("Remaining today") {
+                            Text(L10n.format("%lld", locale: locale, Int64(budget.remainingTokens)))
+                        }
+                    }
+                    HStack {
+                        if model.isSaving { ProgressView().controlSize(.small) }
+                        Spacer(minLength: 0)
+                        if model.isDirty {
+                            Button("Discard Changes") { model.discardAndReload() }
+                                .buttonStyle(MiraSettingsButtonStyle())
+                                .disabled(model.isSaving)
+                                .accessibilityIdentifier("settings.memory.discard")
+                        }
+                        Button("Save") { model.startSave() }
+                            .buttonStyle(MiraSettingsButtonStyle(isPrimary: true))
+                            .keyboardShortcut(.defaultAction)
+                            .disabled(!model.isDirty || model.isSaving || model.container.isDemo)
+                            .accessibilityIdentifier("settings.memory.save")
+                    }
+                    .controlSize(.small)
+
+                    if let key = model.statusKey {
+                        Text(L10n.string(key, locale: locale))
+                            .font(MiraTheme.Settings.body)
+                            .foregroundStyle(MiraTheme.Settings.secondaryText)
+                    }
+                    if let error = model.error {
+                        Text(L10n.error(error, locale: locale))
+                            .font(MiraTheme.Settings.body)
+                            .foregroundStyle(.red)
+                            .textSelection(.enabled)
+                    }
+                    if let startupError = model.container.startupError {
+                        Text(L10n.error(startupError, locale: locale))
+                            .font(MiraTheme.Settings.body)
+                            .foregroundStyle(.red)
+                            .textSelection(.enabled)
                     }
                 }
-            }
-
-            MiraSettingsSection("Daily extraction budget") {
-                MiraSettingsRow("Daily token limit", subtitle: "Daily token budget for automatic memory. Resets at 00:00 UTC.") {
-                    TextField("Daily token limit", text: tokenLimitBinding)
-                        .textFieldStyle(MiraSettingsTextFieldStyle())
-                        .disabled(model.isSaving)
-                        .frame(width: 150)
-                        .accessibilityIdentifier("settings.memory.tokenLimit")
-                }
-                if let budget = model.budget {
-                    MiraSettingsDivider()
-                    MiraSettingsRow("Remaining today") {
-                        Text(L10n.format("%lld", locale: locale, Int64(budget.remainingTokens)))
-                    }
-                }
-            }
-
-            HStack {
-                if model.isSaving { ProgressView().controlSize(.small) }
-                Spacer(minLength: 0)
-                if model.isDirty {
-                    Button("Discard Changes") { model.discardAndReload() }
-                        .buttonStyle(MiraSettingsButtonStyle())
-                        .disabled(model.isSaving)
-                        .accessibilityIdentifier("settings.memory.discard")
-                }
-                Button("Save") { model.startSave() }
-                    .buttonStyle(MiraSettingsButtonStyle(isPrimary: true))
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!model.isDirty || model.isSaving || model.container.isDemo)
-                    .accessibilityIdentifier("settings.memory.save")
-            }
-            .controlSize(.small)
-
-            if let key = model.statusKey {
-                Text(L10n.string(key, locale: locale))
-                    .font(MiraTheme.Typography.body)
-                    .foregroundStyle(MiraTheme.Colors.secondaryText)
-            }
-            if let error = model.error {
-                Text(L10n.error(error, locale: locale))
-                    .font(MiraTheme.Typography.body)
-                    .foregroundStyle(.red)
-                    .textSelection(.enabled)
-            }
-            if let startupError = model.container.startupError {
-                Text(L10n.error(startupError, locale: locale))
-                    .font(MiraTheme.Typography.body)
-                    .foregroundStyle(.red)
-                    .textSelection(.enabled)
             }
         }
         .task { await model.observe() }

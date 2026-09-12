@@ -33,7 +33,7 @@ struct PurposeRoutingView: View {
     @State private var scope: RoutingScopeChoice = .global
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
+        Group {
             if scopeChoices.count > 1 {
                 MiraSettingsSection {
                     MiraSettingsRow("Applies to") {
@@ -78,7 +78,7 @@ private struct PurposeModelCard: View {
     @State private var saving = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
+        Group {
             MiraSettingsSection {
                 MiraSettingsRow(purpose == .conversation ? "Conversation model" : "Memory extraction model",
                                 subtitle: purpose == .conversation ? "Used for new conversations." : "Used to organize memories in the background.") {
@@ -97,25 +97,25 @@ private struct PurposeModelCard: View {
                 }
                 if eligibleModels.isEmpty {
                     Text("Configure a compatible model in Providers.")
-                        .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+                        .font(MiraTheme.Settings.caption).foregroundStyle(MiraTheme.Settings.secondaryText)
                 }
-            }
-            if hasChanges || saving {
-                HStack {
-                    if saving { ProgressView().controlSize(.small) }
-                    Spacer()
-                    if hasChanges {
-                        Button("Discard Changes") { loadBinding() }
-                            .buttonStyle(MiraSettingsButtonStyle()).disabled(saving)
+                if hasChanges || saving {
+                    HStack {
+                        if saving { ProgressView().controlSize(.small) }
+                        Spacer()
+                        if hasChanges {
+                            Button("Discard Changes") { loadBinding() }
+                                .buttonStyle(MiraSettingsButtonStyle()).disabled(saving)
+                        }
+                        Button("Save") { saveBinding() }
+                            .buttonStyle(MiraSettingsButtonStyle(isPrimary: true))
+                            .disabled(saving || container.isDemo || !selectionAvailable || !hasChanges)
                     }
-                    Button("Save") { saveBinding() }
-                        .buttonStyle(MiraSettingsButtonStyle(isPrimary: true))
-                        .disabled(saving || container.isDemo || !selectionAvailable || !hasChanges)
                 }
-            }
-            if let error {
-                Text(L10n.error(error, locale: locale))
-                    .font(MiraTheme.Typography.caption).foregroundStyle(.red).textSelection(.enabled)
+                if let error {
+                    Text(L10n.error(error, locale: locale))
+                        .font(MiraTheme.Settings.caption).foregroundStyle(.red).textSelection(.enabled)
+                }
             }
         }
         .onAppear { loadBinding() }

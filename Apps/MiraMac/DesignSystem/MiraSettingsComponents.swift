@@ -1,98 +1,283 @@
 import SwiftUI
 import AppKit
 
-struct MiraSettingsHeader: View {
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-            Text(title)
-                .font(MiraTheme.Typography.title)
-                .foregroundStyle(MiraTheme.Colors.text)
-                .accessibilityAddTraits(.isHeader)
-            Text(subtitle)
-                .font(MiraTheme.Typography.caption)
-                .foregroundStyle(MiraTheme.Colors.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // Add to the page's 24 pt group spacing for a 32 pt content gap.
-        .padding(.bottom, MiraTheme.Spacing.sm)
-    }
-}
-
-/// Shared settings composition; controls retain native keyboard and accessibility behavior.
-struct MiraSettingsPage<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl, content: content)
-                .frame(maxWidth: MiraTheme.Layout.contentMax, alignment: .leading)
-                .padding(.horizontal, MiraTheme.Spacing.xxl)
-                .padding(.bottom, MiraTheme.Spacing.xxl)
-                .frame(maxWidth: .infinity, alignment: .top)
-        }
-        .padding(.top, MiraTheme.Layout.settingsPageTopInset)
-        .background(MiraTheme.Colors.canvas)
-        .ignoresSafeArea(.container, edges: .top)
-    }
-}
-
-struct MiraSettingsSplitPage<Sidebar: View, Detail: View>: View {
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
+struct MiraSettingsNavigation<Sidebar: View, Detail: View>: View {
     @ViewBuilder let sidebar: () -> Sidebar
     @ViewBuilder let detail: () -> Detail
 
     var body: some View {
-        MiraSettingsPage {
-            MiraSettingsHeader(title: title, subtitle: subtitle)
-            HStack(alignment: .top, spacing: MiraTheme.Spacing.xl) {
-                sidebar().frame(width: MiraTheme.Layout.providerListWidth, alignment: .leading)
-                detail().frame(maxWidth: .infinity, alignment: .leading)
+        NavigationSplitView(columnVisibility: .constant(.all)) {
+            sidebar()
+                .frame(width: MiraTheme.Settings.sidebarWidth)
+                .navigationSplitViewColumnWidth(
+                    min: MiraTheme.Settings.sidebarWidth,
+                    ideal: MiraTheme.Settings.sidebarWidth,
+                    max: MiraTheme.Settings.sidebarWidth)
+                .toolbar(removing: .sidebarToggle)
+        } detail: {
+            detail()
+        }
+        .navigationSplitViewStyle(.balanced)
+        .toolbar(removing: .sidebarToggle)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+    }
+}
+
+/// Keeps the native scroll-edge registration and title in one SwiftUI hierarchy.
+struct MiraSettingsTitlebar: ViewModifier {
+    let title: LocalizedStringKey
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            GeometryReader { geometry in
+                content
+                    .safeAreaBar(edge: .top, alignment: .leading, spacing: 0) {
+                        Text(title)
+                            .font(MiraTheme.Settings.title)
+                            .foregroundStyle(MiraTheme.Settings.text)
+                            .padding(.horizontal, MiraTheme.Settings.titleHorizontalInset)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(height: geometry.safeAreaInsets.top)
+                    }
+                    // Replace the native toolbar inset instead of adding a second row.
+                    .ignoresSafeArea(.container, edges: .top)
+            }
+            // Retain native toolbar chrome without adding a navigation control.
+            .toolbar { ToolbarSpacer(.flexible) }
+            .toolbar(removing: .title)
+        } else {
+            content.clipped()
+        }
+    }
+}
+
+/// Native forms own scrolling, grouped backgrounds, and control adaptation.
+struct MiraSettingsPage<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            form.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            form
+        }
+    }
+
+    private var form: some View {
+        Form(content: content)
+            .formStyle(.grouped)
+            .font(MiraTheme.Settings.body)
+            .foregroundStyle(MiraTheme.Settings.text)
+            .tint(MiraTheme.Settings.accent)
+    }
+}
+
+struct MiraSettingsSection<Content: View>: View {
+    private let title: LocalizedStringKey?
+    @ViewBuilder let content: () -> Content
+
+    init(_ title: LocalizedStringKey? = nil, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.content = content
+    }
+
+    var body: some View {
+        Section(content: {
+            // Grouped Form ignores List separator preferences on macOS. Keep a
+            // single native group and compose its rows through public subview APIs.
+            Group(subviews: content()) { rows in
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(rows) { row in
+                        row
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, row.id == rows.first?.id ? 0 : MiraTheme.Settings.rowVerticalInset)
+                            .padding(.bottom, row.id == rows.last?.id ? 0 : MiraTheme.Settings.rowVerticalInset)
+                        if row.id != rows.last?.id { MiraSettingsDivider() }
+                    }
+                }
+            }
+        }, header: {
+            if let title { Text(title).font(MiraTheme.Settings.section) }
+        })
+    }
+}
+
+/// Delegate both drawing and interaction to the platform button styles.
+struct MiraSettingsButtonStyle: PrimitiveButtonStyle {
+    var isPrimary = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        if isPrimary {
+            Button(configuration).buttonStyle(.borderedProminent)
+        } else {
+            Button(configuration).buttonStyle(.bordered)
+        }
+    }
+}
+
+struct MiraSettingsRow<Control: View>: View {
+    private let title: LocalizedStringKey
+    private let subtitle: LocalizedStringKey?
+    @ViewBuilder let control: () -> Control
+
+    init(_ title: LocalizedStringKey, subtitle: LocalizedStringKey? = nil,
+         @ViewBuilder control: @escaping () -> Control) {
+        self.title = title
+        self.subtitle = subtitle
+        self.control = control
+    }
+
+    var body: some View {
+        LabeledContent {
+            control().labelsHidden()
+        } label: {
+            Text(title)
+            if let subtitle {
+                Text(subtitle)
+                    .font(MiraTheme.Settings.caption)
+                    .foregroundStyle(MiraTheme.Settings.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 }
 
-struct MiraSettingsButtonStyle: ButtonStyle {
-    var isPrimary = false
+struct MiraSettingsFormRow<Control: View>: View {
+    private let title: LocalizedStringKey
+    private let subtitle: LocalizedStringKey?
+    @ViewBuilder let control: () -> Control
 
-    func makeBody(configuration: Configuration) -> some View {
-        MiraSettingsButtonLabel(configuration: configuration, isPrimary: isPrimary)
+    init(_ title: LocalizedStringKey, subtitle: LocalizedStringKey? = nil,
+         @ViewBuilder control: @escaping () -> Control) {
+        self.title = title
+        self.subtitle = subtitle
+        self.control = control
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MiraTheme.Settings.labelDescriptionGap) {
+            LabeledContent {
+                control().labelsHidden()
+            } label: {
+                Text(title)
+            }
+            .labeledContentStyle(MiraSettingsCenteredFieldStyle())
+            if let subtitle {
+                Text(subtitle)
+                    .font(MiraTheme.Settings.caption)
+                    .foregroundStyle(MiraTheme.Settings.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 
-private struct MiraSettingsButtonLabel: View {
-    let configuration: ButtonStyleConfiguration
-    let isPrimary: Bool
-    @Environment(\.isEnabled) private var isEnabled
+/// Keep native field semantics while aligning the label and control by their centers.
+private struct MiraSettingsCenteredFieldStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .center, spacing: MiraTheme.Spacing.lg) {
+            configuration.label
+                .frame(maxWidth: .infinity, alignment: .leading)
+            configuration.content
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+}
+
+struct MiraSettingsDivider: View {
     @Environment(\.colorSchemeContrast) private var contrast
-    @State private var isHovered = false
 
     var body: some View {
-        configuration.label
-            .font(MiraTheme.Typography.body.weight(.medium))
-            .foregroundStyle(isPrimary ? MiraTheme.Colors.onAccent : MiraTheme.Colors.text)
-            .padding(.horizontal, MiraTheme.Spacing.lg)
-            .frame(height: MiraTheme.Layout.settingsButtonHeight)
-            .background(fill, in: .rect(cornerRadius: MiraTheme.Radius.small))
-            .overlay {
-                if contrast == .increased {
-                    RoundedRectangle(cornerRadius: MiraTheme.Radius.small)
-                        .strokeBorder(MiraTheme.Colors.secondaryText, lineWidth: 1)
-                }
+        Rectangle()
+            .fill(contrast == .increased ? Color(nsColor: .separatorColor) : MiraTheme.Settings.separator)
+            .frame(height: MiraTheme.Settings.separatorHeight)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Typed option labels preserve model identifiers verbatim and resolve UI copy at display time.
+struct MiraSettingsSelect: View {
+    struct Option: Identifiable {
+        enum Title {
+            case localized(LocalizedStringResource)
+            case verbatim(String)
+        }
+        let id: String
+        let title: Title
+
+        init(id: String, title: LocalizedStringResource) {
+            self.id = id
+            self.title = .localized(title)
+        }
+
+        init(id: String, verbatimTitle: String) {
+            self.id = id
+            title = .verbatim(verbatimTitle)
+        }
+
+        func displayTitle(locale: Locale) -> String {
+            switch title {
+            case .localized(var resource):
+                resource.locale = locale
+                return String(localized: resource)
+            case .verbatim(let value):
+                return value
             }
-            .opacity(isEnabled ? (configuration.isPressed ? 0.72 : 1) : 0.45)
-            .contentShape(.rect(cornerRadius: MiraTheme.Radius.small))
-            .onHover { isHovered = $0 }
+        }
     }
 
-    private var fill: Color {
-        if isPrimary { return MiraTheme.Colors.accent }
-        return isEnabled && isHovered ? MiraTheme.Colors.hover : MiraTheme.Colors.inset
+    let title: LocalizedStringResource
+    @Binding var selection: String
+    let options: [Option]
+    let identifier: String
+    var placeholder: LocalizedStringResource = "Select an option"
+    var clearSelectionTitle: LocalizedStringResource? = nil
+    var minimumWidth: CGFloat = MiraTheme.Settings.selectMinWidth
+    var maximumWidth: CGFloat? = nil
+    @Environment(\.locale) private var locale
+
+    private var hasSelection: Bool { options.contains { $0.id == selection } }
+
+    var body: some View {
+        Picker(selection: Binding(
+            get: { hasSelection ? selection : "" },
+            set: { selection = $0 }
+        )) {
+            if !hasSelection {
+                Text(verbatim: localized(placeholder)).tag("")
+                    .disabled(true)
+            }
+            if options.isEmpty {
+                Text("No options available")
+                    .disabled(true)
+                    .accessibilityIdentifier("\(identifier).empty")
+            }
+            ForEach(options) { option in
+                Text(verbatim: option.displayTitle(locale: locale))
+                    .tag(option.id)
+                    .accessibilityIdentifier("\(identifier).option.\(option.id)")
+            }
+            if hasSelection, let clearSelectionTitle {
+                Divider()
+                Text(verbatim: localized(clearSelectionTitle)).tag("")
+                    .accessibilityIdentifier("\(identifier).clear")
+            }
+        } label: {
+            Text(verbatim: localized(title))
+        }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .disabled(options.isEmpty)
+        .frame(minWidth: minimumWidth, maxWidth: maximumWidth, alignment: .trailing)
+        .accessibilityLabel(Text(verbatim: localized(title)))
+        .accessibilityIdentifier(identifier)
+    }
+
+    private func localized(_ source: LocalizedStringResource) -> String {
+        var resource = source
+        resource.locale = locale
+        return String(localized: resource)
     }
 }
 
@@ -122,435 +307,5 @@ struct MiraProviderIcon: View {
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
-    }
-}
-
-struct MiraProviderRow: View {
-    let name: String
-    let providerID: String?
-    let state: LocalizedStringKey
-    var isSelected = false
-    var isActive = false
-
-    var body: some View {
-        MiraSidebarRow(isSelected: isSelected, minimumHeight: MiraTheme.Layout.providerRowHeight) {
-            HStack(spacing: MiraTheme.Spacing.sm) {
-                MiraProviderIcon(providerID: providerID)
-                Text(verbatim: name)
-                    .font(MiraTheme.Typography.caption.weight(.medium))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if isActive {
-                    Circle().fill(MiraTheme.Colors.active).frame(width: MiraTheme.Spacing.xs, height: MiraTheme.Spacing.xs)
-                }
-            }
-            .padding(.vertical, MiraTheme.Spacing.xs)
-        }
-        .help(Text(verbatim: name))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: name))
-        .accessibilityValue(Text(state))
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-struct MiraProviderGroup<Content: View>: View {
-    let title: LocalizedStringKey
-    @ViewBuilder let content: () -> Content
-
-    init(_ title: LocalizedStringKey, @ViewBuilder content: @escaping () -> Content) {
-        self.title = title
-        self.content = content
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-            Text(title)
-                .font(MiraTheme.Typography.caption.weight(.medium))
-                .foregroundStyle(MiraTheme.Colors.secondaryText)
-                .padding(.horizontal, MiraTheme.Spacing.md)
-                .accessibilityAddTraits(.isHeader)
-            VStack(spacing: MiraTheme.Spacing.xs, content: content)
-        }
-    }
-}
-
-struct MiraSettingsSection<Content: View>: View {
-    private let title: LocalizedStringKey?
-    @ViewBuilder let content: () -> Content
-
-    init(_ title: LocalizedStringKey? = nil, @ViewBuilder content: @escaping () -> Content) {
-        self.title = title
-        self.content = content
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-            if let title {
-                Text(title)
-                    .font(MiraTheme.Typography.section.weight(.medium))
-                    .foregroundStyle(MiraTheme.Colors.secondaryText)
-            }
-            MiraSurface(fill: MiraTheme.Colors.settingsSurface) {
-                VStack(alignment: .leading, spacing: MiraTheme.Spacing.lg, content: content)
-                    .padding(MiraTheme.Spacing.lg)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-}
-
-struct MiraSettingsRow<Control: View>: View {
-    @Environment(\.colorSchemeContrast) private var contrast
-    private let title: LocalizedStringKey
-    private let subtitle: LocalizedStringKey?
-    @ViewBuilder let control: () -> Control
-
-    init(_ title: LocalizedStringKey, subtitle: LocalizedStringKey? = nil,
-         @ViewBuilder control: @escaping () -> Control) {
-        self.title = title
-        self.subtitle = subtitle
-        self.control = control
-    }
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: MiraTheme.Spacing.xl) {
-                label
-                    .frame(idealWidth: MiraTheme.Layout.contentMax / 2, maxWidth: .infinity, alignment: .leading)
-                Spacer(minLength: MiraTheme.Spacing.lg)
-                control().fixedSize(horizontal: true, vertical: false)
-            }
-            VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
-                label
-                control()
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, MiraTheme.Spacing.xs)
-    }
-
-    private var label: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-            Text(title).font(MiraTheme.Typography.body.weight(.medium))
-            if let subtitle {
-                Text(subtitle)
-                    .font(MiraTheme.Typography.caption)
-                    .foregroundStyle(contrast == .increased ? MiraTheme.Colors.secondaryText : MiraTheme.Colors.settingsDescription)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-}
-
-/// Form labels and controls keep their columns; supporting text belongs below its own row.
-struct MiraSettingsFormRow<Control: View>: View {
-    @Environment(\.colorSchemeContrast) private var contrast
-    private let title: LocalizedStringKey
-    private let subtitle: LocalizedStringKey?
-    @ViewBuilder let control: () -> Control
-
-    init(_ title: LocalizedStringKey, subtitle: LocalizedStringKey? = nil,
-         @ViewBuilder control: @escaping () -> Control) {
-        self.title = title; self.subtitle = subtitle; self.control = control
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-            HStack(alignment: .center, spacing: MiraTheme.Spacing.md) {
-                Text(title)
-                    .font(MiraTheme.Typography.body)
-                    .foregroundStyle(MiraTheme.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(width: MiraTheme.Layout.settingsFormLabelWidth, alignment: .leading)
-                control().frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if let subtitle {
-                Text(subtitle)
-                    .font(MiraTheme.Typography.caption)
-                    .foregroundStyle(contrast == .increased ? MiraTheme.Colors.secondaryText : MiraTheme.Colors.settingsDescription)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-}
-
-struct MiraSettingsTextFieldStyle: TextFieldStyle {
-    @FocusState private var isFocused: Bool
-
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .textFieldStyle(.plain)
-            .font(MiraTheme.Typography.body)
-            .padding(.horizontal, MiraTheme.Spacing.md)
-            .frame(height: MiraTheme.Layout.settingsInputHeight)
-            .background(MiraTheme.Colors.surface, in: .rect(cornerRadius: MiraTheme.Radius.row))
-            .overlay {
-                RoundedRectangle(cornerRadius: MiraTheme.Radius.row)
-                    .stroke(isFocused ? MiraTheme.Colors.accent : MiraTheme.Colors.border, lineWidth: 1)
-            }
-            .focused($isFocused)
-    }
-}
-
-struct MiraSettingsDivider: View {
-    var body: some View {
-        Rectangle().fill(MiraTheme.Colors.border).frame(height: 1).accessibilityHidden(true)
-    }
-}
-
-/// A native pop-up button. The bridge only styles its closed control and observes menu lifecycle.
-struct MiraSettingsSelect: NSViewRepresentable {
-    struct Option: Identifiable {
-        enum Title {
-            case localized(LocalizedStringResource)
-            case verbatim(String)
-        }
-        let id: String
-        let title: Title
-
-        init(id: String, title: LocalizedStringResource) {
-            self.id = id; self.title = .localized(title)
-        }
-
-        init(id: String, verbatimTitle: String) {
-            self.id = id; title = .verbatim(verbatimTitle)
-        }
-    }
-
-    struct MenuEntry: Equatable {
-        let id: String?
-        let title: String
-        let isSeparator: Bool
-    }
-
-    let title: LocalizedStringResource
-    @Binding var selection: String
-    let options: [Option]
-    let identifier: String
-    var placeholder: LocalizedStringResource = "Select an option"
-    var clearSelectionTitle: LocalizedStringResource? = nil
-    var minimumWidth: CGFloat = MiraTheme.Layout.selectMinWidth
-    var maximumWidth: CGFloat? = nil
-    @Environment(\.locale) private var locale
-    @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var selectedOption: Option? { selection.isEmpty ? nil : options.first { $0.id == selection } }
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeNSView(context: Context) -> MiraSettingsPopUpButton {
-        let button = MiraSettingsPopUpButton(frame: .zero, pullsDown: false)
-        context.coordinator.button = button
-        return button
-    }
-
-    func updateNSView(_ button: MiraSettingsPopUpButton, context: Context) {
-        let coordinator = context.coordinator
-        coordinator.parent = self
-        var entries = options.map { MenuEntry(id: $0.id, title: optionTitle($0), isSeparator: false) }
-        if entries.isEmpty {
-            entries.append(MenuEntry(id: nil, title: localized("No options available"), isSeparator: false))
-        }
-        if selectedOption != nil, let clearSelectionTitle {
-            entries.append(MenuEntry(id: nil, title: "", isSeparator: true))
-            entries.append(MenuEntry(id: "", title: localized(clearSelectionTitle), isSeparator: false))
-        }
-        if coordinator.entries != entries {
-            button.menu?.cancelTracking()
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-            menu.delegate = coordinator
-            for entry in entries {
-                if entry.isSeparator {
-                    menu.addItem(.separator())
-                    continue
-                }
-                let item = NSMenuItem(title: entry.title, action: #selector(Coordinator.choose(_:)), keyEquivalent: "")
-                item.target = coordinator
-                item.representedObject = entry.id
-                item.isEnabled = entry.id != nil
-                let suffix = entry.id.map { $0.isEmpty ? "clear" : "option.\($0)" } ?? "empty"
-                item.setAccessibilityIdentifier("\(identifier).\(suffix)")
-                menu.addItem(item)
-            }
-            button.menu = menu
-            coordinator.entries = entries
-        }
-        if !isEnabled { button.menu?.cancelTracking() }
-        button.isEnabled = isEnabled
-        button.reduceMotion = reduceMotion
-        button.increasedContrast = contrast == .increased
-        let selectedItem = selectedOption.flatMap { option in
-            button.itemArray.first { ($0.representedObject as? String) == option.id }
-        }
-        button.select(selectedItem)
-        for item in button.itemArray { item.state = item === selectedItem ? .on : .off }
-        button.displayText = selectedOption.map(optionTitle) ?? localized(placeholder)
-        button.isPlaceholder = selectedOption == nil
-        button.setAccessibilityIdentifier(identifier)
-        button.setAccessibilityLabel(localized(title))
-        button.setAccessibilityValue(button.displayText)
-        button.needsDisplay = true
-        button.needsLayout = true
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: MiraSettingsPopUpButton, context: Context) -> CGSize? {
-        let text = selectedOption.map(optionTitle) ?? localized(placeholder)
-        let textWidth = (text as NSString).size(withAttributes: [.font: MiraTheme.Typography.appKitBody]).width
-        let idealWidth = ceil(textWidth) + MiraTheme.Spacing.md * 2 + MiraTheme.Spacing.sm
-            + MiraTheme.Typography.appKitCaption.pointSize
-        return CGSize(width: max(minimumWidth, min(idealWidth, maximumWidth ?? .infinity)),
-                      height: MiraTheme.Layout.selectHeight)
-    }
-
-    static func dismantleNSView(_ button: MiraSettingsPopUpButton, coordinator: Coordinator) {
-        button.menu?.cancelTracking()
-        button.menu?.delegate = nil
-    }
-
-    private func optionTitle(_ option: Option) -> String {
-        switch option.title {
-        case .localized(let resource): localized(resource)
-        case .verbatim(let value): value
-        }
-    }
-
-    private func localized(_ source: LocalizedStringResource) -> String {
-        var resource = source
-        resource.locale = locale
-        return String(localized: resource)
-    }
-
-    @MainActor
-    final class Coordinator: NSObject, NSMenuDelegate {
-        var parent: MiraSettingsSelect
-        var entries: [MenuEntry] = []
-        weak var button: MiraSettingsPopUpButton?
-
-        init(_ parent: MiraSettingsSelect) { self.parent = parent }
-
-        @objc func choose(_ item: NSMenuItem) {
-            guard let id = item.representedObject as? String else { return }
-            parent.selection = id
-        }
-
-        func menuWillOpen(_ menu: NSMenu) { button?.setMenuOpen(true) }
-        func menuDidClose(_ menu: NSMenu) { button?.setMenuOpen(false) }
-    }
-}
-
-/// Only control drawing is customized. NSPopUpButton retains all menu and input behavior.
-final class MiraSettingsPopUpButton: NSPopUpButton {
-    var displayText = ""
-    var isPlaceholder = false
-    var increasedContrast = false
-    var reduceMotion = false
-    private var isMenuOpen = false
-    private let arrowLayer = CALayer()
-
-    override init(frame buttonFrame: NSRect, pullsDown flag: Bool) {
-        super.init(frame: buttonFrame, pullsDown: flag)
-        isBordered = false
-        focusRingType = .none
-        font = MiraTheme.Typography.appKitBody
-        controlSize = .regular
-        if let popupCell = cell as? NSPopUpButtonCell {
-            popupCell.arrowPosition = .noArrow
-            popupCell.altersStateOfSelectedItem = false
-        }
-        wantsLayer = true
-        arrowLayer.contentsGravity = .resizeAspect
-        layer?.addSublayer(arrowLayer)
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
-                                  xRadius: MiraTheme.Radius.row, yRadius: MiraTheme.Radius.row)
-        NSColor(MiraTheme.Colors.surface).setFill()
-        outline.fill()
-        let focused = window?.firstResponder === self
-        NSColor(isEnabled && (isMenuOpen || focused) ? MiraTheme.Colors.accent : MiraTheme.Colors.border).setStroke()
-        outline.lineWidth = 1
-        outline.stroke()
-
-        let color = isPlaceholder
-            ? (increasedContrast ? MiraTheme.Colors.secondaryText : MiraTheme.Colors.tertiaryText)
-            : MiraTheme.Colors.text
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineBreakMode = .byTruncatingTail
-        let text = NSAttributedString(string: displayText, attributes: [
-            .font: MiraTheme.Typography.appKitBody,
-            .foregroundColor: NSColor(color).withAlphaComponent(isEnabled ? 1 : 0.45),
-            .paragraphStyle: paragraph
-        ])
-        let size = text.size()
-        let arrowWidth = MiraTheme.Typography.appKitCaption.pointSize
-        text.draw(in: NSRect(x: MiraTheme.Spacing.md, y: (bounds.height - size.height) / 2,
-                             width: max(0, bounds.width - MiraTheme.Spacing.md * 2 - MiraTheme.Spacing.sm - arrowWidth),
-                             height: size.height))
-    }
-
-    override func layout() {
-        super.layout()
-        let size = MiraTheme.Typography.appKitCaption.pointSize
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        arrowLayer.bounds = CGRect(x: 0, y: 0, width: size, height: size)
-        arrowLayer.position = CGPoint(x: bounds.maxX - MiraTheme.Spacing.md - size / 2, y: bounds.midY)
-        arrowLayer.opacity = isEnabled ? 1 : 0.45
-        arrowLayer.contentsScale = window?.backingScaleFactor ?? 2
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            let symbol = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .medium)
-                    .applying(NSImage.SymbolConfiguration(paletteColors: [NSColor(MiraTheme.Colors.secondaryText)])))
-            arrowLayer.contents = symbol?.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        }
-        CATransaction.commit()
-    }
-
-    func setMenuOpen(_ isOpen: Bool) {
-        guard isMenuOpen != isOpen else { return }
-        isMenuOpen = isOpen
-        let target = CATransform3DMakeRotation(isOpen ? .pi : 0, 0, 0, 1)
-        let current = arrowLayer.presentation()?.transform ?? arrowLayer.transform
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        arrowLayer.transform = target
-        CATransaction.commit()
-        if !reduceMotion {
-            let animation = CABasicAnimation(keyPath: "transform")
-            animation.fromValue = NSValue(caTransform3D: current)
-            animation.toValue = NSValue(caTransform3D: target)
-            animation.duration = 0.16
-            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            arrowLayer.add(animation, forKey: "menuRotation")
-        } else {
-            arrowLayer.removeAnimation(forKey: "menuRotation")
-        }
-        needsDisplay = true
-    }
-
-    override func becomeFirstResponder() -> Bool {
-        let result = super.becomeFirstResponder()
-        needsDisplay = true
-        return result
-    }
-
-    override func resignFirstResponder() -> Bool {
-        let result = super.resignFirstResponder()
-        needsDisplay = true
-        return result
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        needsDisplay = true
-        needsLayout = true
     }
 }

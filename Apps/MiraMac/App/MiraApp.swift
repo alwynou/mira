@@ -4,9 +4,16 @@ import SwiftUI
 @main
 struct MiraApp: App {
     @NSApplicationDelegateAdaptor(MiraAppDelegate.self) private var delegate
-    private let container = AppContainer()
+    private let container: AppContainer
+    @State private var settingsModel: SettingsModel
     @AppStorage(AppLanguage.preferenceKey) private var languagePreference = ""
     private var language: AppLanguage { .resolve(stored: languagePreference) }
+
+    init() {
+        let container = AppContainer()
+        self.container = container
+        _settingsModel = State(initialValue: SettingsModel(container: container))
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -32,6 +39,19 @@ struct MiraApp: App {
         .windowToolbarStyle(.unified)
         .commands { MiraSettingsCommands(locale: language.locale) }
         .commands { CommandGroup(replacing: .help) { Link(L10n.string("Mira Documentation", locale: language.locale), destination: URL(string: "https://github.com/alwynou/mira/tree/dev/docs")!) } }
+
+        Window("Settings", id: MiraSettingsWindow.id) {
+            MiraSettingsRoot(model: settingsModel)
+                .environment(\.locale, language.locale)
+                .modifier(MiraAppAppearance())
+                .containerBackground(MiraTheme.Settings.canvas, for: .window)
+        }
+        .defaultSize(width: MiraTheme.Settings.windowWidth, height: MiraTheme.Settings.windowHeight)
+        .windowResizability(.contentMinSize)
+        .windowToolbarStyle(.unified)
+        .windowManagerRole(.associated)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
     }
 }
 

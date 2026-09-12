@@ -56,8 +56,8 @@ struct MiraProviderModelRow: View {
             }
             if !information.isEmpty {
                 Text(verbatim: information)
-                    .font(MiraTheme.Typography.caption)
-                    .foregroundStyle(MiraTheme.Colors.secondaryText)
+                    .font(MiraTheme.Settings.caption)
+                    .foregroundStyle(MiraTheme.Settings.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(Text(verbatim: informationDescription))
                     .help(Text(verbatim: informationDescription))
@@ -67,15 +67,15 @@ struct MiraProviderModelRow: View {
 
     private var title: some View {
         Text(verbatim: name)
-            .font(MiraTheme.Typography.body.weight(.medium))
-            .foregroundStyle(MiraTheme.Colors.text)
+            .font(MiraTheme.Settings.body.weight(.medium))
+            .foregroundStyle(MiraTheme.Settings.text)
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private var modelIDChip: some View {
         Text(verbatim: modelID)
             .font(MiraTheme.Typography.composerModel)
-            .foregroundStyle(MiraTheme.Colors.secondaryText)
+            .foregroundStyle(MiraTheme.Settings.secondaryText)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, MiraTheme.Spacing.xs)
             .padding(.vertical, MiraTheme.Spacing.xs / 2)
@@ -134,39 +134,5 @@ struct MiraProviderModelRow: View {
         if value >= 1_000_000 { return "\((Double(value) / 1_000_000).formatted(.number.precision(.fractionLength(0...1)).locale(locale)))M" }
         if value >= 1_000 { return "\((Double(value) / 1_000).formatted(.number.precision(.fractionLength(0...1)).locale(locale)))K" }
         return String(value)
-    }
-}
-
-/// Model rows share a bounded scroll panel inside the settings page.
-struct MiraProviderModelList<Content: View>: View {
-    let rowCount: Int
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        MiraSurface(fill: MiraTheme.Colors.settingsSurface) {
-            Group {
-                // A minimum-height lower bound avoids eagerly laying out large catalogs.
-                // Small lists still use their actual wrapped content height to decide fit.
-                if CGFloat(rowCount) * MiraTheme.Layout.providerModelRowMinHeight > MiraTheme.Layout.providerModelListMaxHeight {
-                    scrollingRows
-                } else {
-                    ViewThatFits(in: .vertical) {
-                        VStack(spacing: 0, content: content)
-                            .fixedSize(horizontal: false, vertical: true)
-                        scrollingRows
-                    }
-                }
-            }
-            .frame(maxHeight: MiraTheme.Layout.providerModelListMaxHeight, alignment: .top)
-            .clipShape(.rect(cornerRadius: MiraTheme.Radius.panel))
-        }
-    }
-
-    private var scrollingRows: some View {
-        ScrollView {
-            LazyVStack(spacing: 0, content: content)
-        }
-        .frame(height: MiraTheme.Layout.providerModelListMaxHeight)
-        .scrollBounceBehavior(.basedOnSize)
     }
 }

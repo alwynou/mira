@@ -5,6 +5,15 @@ import ListViewKit
 @MainActor
 enum TranscriptViewportLayout {
     @discardableResult
+    static func setTopOverlayHeight(_ height: CGFloat, in list: ListScrollView) -> Bool {
+        let overlay = height.isFinite ? max(0, ceil(height)) : 0
+        let inset = overlay + MiraTheme.Spacing.xl
+        guard list.contentInsets.top != inset else { return false }
+        list.contentInsets.top = inset
+        return true
+    }
+
+    @discardableResult
     static func setBottomOverlayHeight(_ height: CGFloat, in list: ListScrollView, followingLatest: Bool) -> Bool {
         let inset = height.isFinite ? max(0, ceil(height)) : 0
         guard list.contentInsets.bottom != inset else { return false }

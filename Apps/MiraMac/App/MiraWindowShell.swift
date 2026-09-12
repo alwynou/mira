@@ -8,9 +8,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
     var inspector: AnyView
     var title: String
     var locale: Locale
-    var isSettings: Bool
     var canInspect: Bool
     @Binding var showsInspector: Bool
+    var titlebarInsets: Binding<MiraTitlebarInsets> = .constant(.init())
     var newConversation: () -> Void
 
     func makeNSViewController(context: Context) -> Controller { Controller(configuration: self) }
@@ -35,8 +35,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private var initialPositionSet = false
         private var updatingFromSwiftUI = false
         private var inspectorUpdate: Task<Void, Never>?
-        private var conversationSidebarWasCollapsed = false
-        private var conversationSidebarPosition = MiraTheme.Layout.sidebarIdeal
+        private var titlebarLayoutUpdate: Task<Void, Never>?
         private var inspectorObservation: NSKeyValueObservation?
         private let nativeToolbar = NSToolbar(identifier: "mira.window.toolbar")
         private var cachedItems: [NSToolbarItem.Identifier: NSToolbarItem] = [:]
@@ -48,14 +47,14 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         init(configuration: MiraWindowShell) {
             self.configuration = configuration
             sidebarHost = NSHostingController(rootView: Self.fitted(configuration.sidebar))
-            detailHost = NSHostingController(rootView: Self.fitted(configuration.detail))
+            detailHost = NSHostingController(rootView: Self.fittedDetail(configuration.detail))
             inspectorHost = NSHostingController(rootView: AnyView(EmptyView()))
             super.init(nibName: nil, bundle: nil)
             // The split items, not hosted content measurements, own all column widths.
             for host in [sidebarHost, detailHost, inspectorHost] { host.sizingOptions = [] }
             sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
             updateSidebarWidthLimits()
-            sidebarItem.canCollapse = !configuration.isSettings
+            sidebarItem.canCollapse = true
             sidebarItem.canCollapseFromWindowResize = false
             sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
             // Keep pane holding priorities below AppKit's divider-drag priority (490).
@@ -90,8 +89,31 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             installToolbar()
             if !initialPositionSet {
                 initialPositionSet = true
-                splitView.setPosition(configuration.isSettings ? MiraTheme.Layout.settingsSidebarWidth : conversationSidebarPosition,
-                                      ofDividerAt: 0)
+                splitView.setPosition(MiraTheme.Layout.sidebarIdeal, ofDividerAt: 0)
+            }
+        }
+
+        override func viewDidLayout() {
+            super.viewDidLayout()
+            guard #available(macOS 26.0, *), let window = installedWindow else { return }
+            let detail = detailHost.view
+            let leadingViews = [window.standardWindowButton(.closeButton),
+                                window.standardWindowButton(.miniaturizeButton),
+                                window.standardWindowButton(.zoomButton),
+                                nativeToolbar.items.first { $0.itemIdentifier == .toggleSidebar }?.view]
+                .compactMap { $0 }
+            let leadingEdge = leadingViews.filter { $0.window === window }
+                .map { detail.convert($0.bounds, from: $0).maxX }.max() ?? 0
+            let trailingEdge = cachedItems.values.compactMap(\.view).filter { $0.window === window }
+                .map { detail.convert($0.bounds, from: $0).minX }.min() ?? detail.bounds.maxX
+            let insets = MiraTitlebarInsets(
+                leading: max(MiraTheme.Spacing.lg, leadingEdge + MiraTheme.Spacing.sm),
+                trailing: max(MiraTheme.Spacing.lg, detail.bounds.maxX - trailingEdge + MiraTheme.Spacing.sm))
+            guard configuration.titlebarInsets.wrappedValue != insets else { return }
+            titlebarLayoutUpdate?.cancel()
+            titlebarLayoutUpdate = Task { @MainActor [weak self] in
+                guard !Task.isCancelled, let self else { return }
+                self.configuration.titlebarInsets.wrappedValue = insets
             }
         }
 
@@ -113,31 +135,20 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 .clipped())
         }
 
+        private static func fittedDetail(_ content: AnyView) -> AnyView {
+            // The transcript clips its own viewport, including the area beneath
+            // the native toolbar. An outer safe-area clip would cut that area off.
+            AnyView(content
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading))
+        }
+
         func update(_ configuration: MiraWindowShell) {
             updatingFromSwiftUI = true
             defer { updatingFromSwiftUI = false }
-            let settingsChanged = self.configuration.isSettings != configuration.isSettings
-            if settingsChanged && configuration.isSettings {
-                conversationSidebarWasCollapsed = sidebarItem.isCollapsed
-                if !sidebarItem.isCollapsed {
-                    // Native sidebar insets make its content width differ from the divider position.
-                    conversationSidebarPosition = sidebarHost.view.convert(sidebarHost.view.bounds, to: splitView).maxX
-                }
-            }
             self.configuration = configuration
             sidebarHost.rootView = Self.fitted(configuration.sidebar)
-            detailHost.rootView = Self.fitted(configuration.detail)
-            if settingsChanged {
-                sidebarItem.canCollapse = !configuration.isSettings
-                // Changing canCollapse also resets AppKit's window-resize policy.
-                sidebarItem.canCollapseFromWindowResize = false
-                updateSidebarWidthLimits()
-                sidebarItem.isCollapsed = false
-                splitView.setPosition(configuration.isSettings ? MiraTheme.Layout.settingsSidebarWidth : conversationSidebarPosition,
-                                      ofDividerAt: 0)
-                sidebarItem.isCollapsed = configuration.isSettings ? false : conversationSidebarWasCollapsed
-            }
-            let visible = configuration.showsInspector && !configuration.isSettings
+            detailHost.rootView = Self.fittedDetail(configuration.detail)
+            let visible = configuration.showsInspector
             inspectorHost.rootView = visible ? Self.fitted(configuration.inspector) : AnyView(EmptyView())
             inspectorUpdate?.cancel()
             if inspectorItem.isCollapsed == visible {
@@ -158,25 +169,18 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private func updateSidebarWidthLimits() {
-            // Widen the allowed interval first when returning to the conversation.
-            if configuration.isSettings {
-                sidebarItem.minimumThickness = MiraTheme.Layout.settingsSidebarWidth
-                sidebarItem.maximumThickness = MiraTheme.Layout.settingsSidebarWidth
-            } else {
-                sidebarItem.maximumThickness = MiraTheme.Layout.sidebarMax
-                sidebarItem.minimumThickness = MiraTheme.Layout.sidebarMin
-            }
+            sidebarItem.maximumThickness = MiraTheme.Layout.sidebarMax
+            sidebarItem.minimumThickness = MiraTheme.Layout.sidebarMin
         }
 
         private func observeCollapsedState() {
             inspectorObservation = inspectorItem.observe(\.isCollapsed, options: [.new]) { [weak self] _, change in
                 MainActor.assumeIsolated {
-                    guard let self, !self.updatingFromSwiftUI, !self.configuration.isSettings,
+                    guard let self, !self.updatingFromSwiftUI,
                           let collapsed = change.newValue else { return }
                     // A divider gesture is a presentation change too. Publish outside a SwiftUI update.
                     Task { @MainActor [weak self] in
                         guard let self, self.inspectorItem.isCollapsed == collapsed,
-                              !self.configuration.isSettings,
                               self.configuration.showsInspector == collapsed else { return }
                         self.configuration.showsInspector = !collapsed
                     }
@@ -185,15 +189,16 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private var desiredItems: [NSToolbarItem.Identifier] {
-            if configuration.isSettings {
-                return [Self.separator, .flexibleSpace]
-            }
             return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.inspectorID, Self.knowledge]
         }
 
         private func updateWindow() {
             installedWindow?.title = configuration.title
-            installedWindow?.titleVisibility = configuration.isSettings ? .hidden : .visible
+            if #available(macOS 26.0, *) {
+                installedWindow?.titleVisibility = .hidden
+            } else {
+                installedWindow?.titleVisibility = .visible
+            }
             let desired = desiredItems
             if nativeToolbar.items.map(\.itemIdentifier) != desired {
                 for i in nativeToolbar.items.indices.reversed() where !desired.contains(nativeToolbar.items[i].itemIdentifier) {
@@ -261,14 +266,5 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         @objc private func toggleExecutionInspector() { configuration.showsInspector.toggle() }
         @objc private func openKnowledge() {}
 
-        override func toggleSidebar(_ sender: Any?) {
-            guard !configuration.isSettings else { return }
-            super.toggleSidebar(sender)
-        }
-
-        override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
-            if configuration.isSettings && item.action == #selector(toggleSidebar(_:)) { return false }
-            return super.validateUserInterfaceItem(item)
-        }
     }
 }

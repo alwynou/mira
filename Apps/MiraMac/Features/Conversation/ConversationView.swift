@@ -4,30 +4,31 @@ import AppKit
 
 struct ConversationRoot: View {
     @Environment(\.locale) private var locale
+    @Environment(\.openWindow) private var openWindow
     @State private var model: ConversationModel
-    @State private var settings: SettingsModel
-    @State private var navigation = WindowNavigation()
+    @State private var readingState = ConversationReadingState()
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
+    @State private var titlebarInsets = MiraTitlebarInsets()
     @Environment(\.scenePhase) private var scenePhase
     let isDemo: Bool
 
     init(application: MiraApplication, container: AppContainer) {
         _model = State(initialValue: ConversationModel(application: application))
-        _settings = State(initialValue: SettingsModel(container: container))
         self.isDemo = container.isDemo
     }
 
     var body: some View {
         windowShell
-        .environment(navigation)
-        .focusedSceneValue(\.miraNavigation, navigation)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        .modifier(ConversationTitleVisibility())
+        .navigationTitle(displayedConversationTitle)
         .tint(MiraTheme.Colors.accent)
         .foregroundStyle(MiraTheme.Colors.text)
         .frame(minWidth: 850, minHeight: 620)
         .onChange(of: model.selectedConversationID) { _, _ in
-            navigation.readingState = ConversationReadingState()
+            readingState = ConversationReadingState()
         }
         .task {
             #if DEBUG
@@ -56,20 +57,20 @@ struct ConversationRoot: View {
 
     private var windowShell: some View {
         MiraWindowShell(
-            sidebar: AnyView(Group {
-                if navigation.showsSettings { SettingsSidebar(model: settings) }
-                else { sidebar }
-            }.environment(navigation).environment(\.locale, locale)
+            sidebar: AnyView(sidebar
+                .environment(\.locale, locale)
+                .environment(\.miraOpenSettingsWindow, openWindow)
                 .foregroundStyle(MiraTheme.Colors.text).tint(MiraTheme.Colors.accent)),
-            detail: AnyView(Group {
-                if navigation.showsSettings { SettingsView(model: settings) }
-                else { ConversationDetail(model: model, readingState: navigation.readingState, isDemo: isDemo) }
-            }.environment(navigation).environment(\.locale, locale)
+            detail: AnyView(ConversationDetail(model: model, readingState: readingState, isDemo: isDemo,
+                                               title: displayedConversationTitle, titlebarInsets: titlebarInsets)
+                .environment(\.locale, locale)
+                .environment(\.miraOpenSettingsWindow, openWindow)
                 .foregroundStyle(MiraTheme.Colors.text).tint(MiraTheme.Colors.accent)),
             inspector: AnyView(ExecutionInspector(model: model)
                 .environment(\.locale, locale)),
-            title: displayedConversationTitle, locale: locale, isSettings: navigation.showsSettings,
+            title: displayedConversationTitle, locale: locale,
             canInspect: !model.executions.isEmpty, showsInspector: $showsInspector,
+            titlebarInsets: $titlebarInsets,
             newConversation: { Task { await model.newConversation() } }
         )
         .ignoresSafeArea()
@@ -224,30 +225,41 @@ struct ConversationRoot: View {
 
 }
 
+private struct ConversationTitleVisibility: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.toolbar(removing: .title)
+        } else {
+            content
+        }
+    }
+}
+
 private struct ConversationDetail: View {
     @Bindable var model: ConversationModel
     let readingState: ConversationReadingState
     let isDemo: Bool
+    let title: String
+    let titlebarInsets: MiraTitlebarInsets
     @Environment(\.locale) private var locale
     @State private var rememberedMessage: Message?
     @State private var revealedMessageID: MessageID?
     @State private var bottomOverlayHeight: CGFloat = 0
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            if model.messages.isEmpty && model.activeExecution == nil {
-                welcome.padding(.bottom, bottomOverlayHeight).frame(maxHeight: .infinity)
-            }
-            else {
-                ConversationTranscript(model: model, readingState: readingState, bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
-                    .id(model.selectedConversationID)
-            }
-            bottomOverlay
-                .onGeometryChange(for: CGFloat.self) { geometry in
-                    ceil(geometry.size.height)
-                } action: { height in
-                    bottomOverlayHeight = height
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                MiraScrollEdgeViewport(title: title, topInset: geometry.safeAreaInsets.top, titleInsets: titlebarInsets) {
+                    conversation(topOverlayHeight: geometry.safeAreaInsets.top)
                 }
+                bottomOverlay
+                    .onGeometryChange(for: CGFloat.self) { geometry in
+                        ceil(geometry.size.height)
+                    } action: { height in
+                        bottomOverlayHeight = height
+                    }
+            }
+            .ignoresSafeArea(.container, edges: .top)
         }
         .background(MiraTheme.Colors.canvas)
         .sheet(item: $rememberedMessage) { message in
@@ -261,6 +273,18 @@ private struct ConversationDetail: View {
             NSWorkspace.shared.open(url)
             return .handled
         })
+    }
+
+    private func conversation(topOverlayHeight: CGFloat) -> some View {
+        ZStack(alignment: .bottom) {
+            if model.messages.isEmpty && model.activeExecution == nil {
+                welcome.padding(.top, topOverlayHeight).padding(.bottom, bottomOverlayHeight).frame(maxHeight: .infinity)
+            }
+            else {
+                ConversationTranscript(model: model, readingState: readingState, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
+                    .id(model.selectedConversationID)
+            }
+        }
     }
     private var bottomOverlay: some View {
         VStack(spacing: MiraTheme.Spacing.sm) {

@@ -15,18 +15,14 @@ struct MiraSettingsSelectTests {
 
         let button = try #require(popup(in: host))
         #expect(button.cell is NSPopUpButtonCell)
-        #expect(button.selectedItem == nil)
-        #expect(button.itemArray.allSatisfy { $0.state == .off })
-        #expect(button.isPlaceholder)
-        #expect(button.displayText == "Select an option")
+        #expect(button.title == "Select an option")
+        #expect(state.value.isEmpty)
 
         host.rootView = SelectFixture(state: state, options: [], locale: Locale(identifier: "en"))
         pump(host)
-        #expect(button.selectedItem == nil)
-        #expect(button.itemArray.count == 1)
-        #expect(button.itemArray[0].title == "No options available")
-        #expect(button.itemArray[0].isEnabled == false)
-        #expect(button.itemArray[0].state == .off)
+        #expect(button.title == "Select an option")
+        #expect(button.itemArray.contains { $0.title == "No options available" })
+        #expect(!button.isEnabled)
         #expect(state.value.isEmpty)
     }
 
@@ -38,22 +34,20 @@ struct MiraSettingsSelectTests {
         let (host, window) = try host(fixture)
         defer { window.close() }
         let button = try #require(popup(in: host))
-        let second = try #require(button.itemArray.first { ($0.representedObject as? String) == "second" })
+        let second = try #require(button.itemArray.first { $0.title == "Second" })
 
         try choose(second)
         #expect(state.value == "second")
 
         host.rootView = SelectFixture(state: state, options: options(), locale: Locale(identifier: "en"))
         pump(host)
-        #expect(button.selectedItem === second)
-        #expect(second.state == .on)
+        #expect(button.title == "Second")
 
         try choose(second)
         #expect(state.value == "second")
         host.rootView = SelectFixture(state: state, options: options(), locale: Locale(identifier: "en"))
         pump(host)
-        #expect(button.selectedItem?.representedObject as? String == "second")
-        #expect(button.itemArray.filter { $0.state == .on }.count == 1)
+        #expect(button.title == "Second")
     }
 
     @Test("clear selection is explicit and does not appear while unselected")
@@ -64,16 +58,16 @@ struct MiraSettingsSelectTests {
         let (host, window) = try host(fixture)
         defer { window.close() }
         let button = try #require(popup(in: host))
-        #expect(button.itemArray.contains { ($0.representedObject as? String) == "" })
+        #expect(button.itemArray.contains { $0.title == "Clear Selection" })
 
-        let clear = try #require(button.itemArray.first { ($0.representedObject as? String) == "" })
+        let clear = try #require(button.itemArray.first { $0.title == "Clear Selection" })
         try choose(clear)
         #expect(state.value.isEmpty)
 
         host.rootView = SelectFixture(state: state, options: options(), locale: Locale(identifier: "en"), clearTitle: "Clear Selection")
         pump(host)
-        #expect(button.selectedItem == nil)
-        #expect(button.itemArray.allSatisfy { ($0.representedObject as? String) != "" })
+        #expect(button.title == "Select an option")
+        #expect(button.itemArray.allSatisfy { $0.title != "Clear Selection" })
     }
 
     @Test("option removal, locale labels, and disabled state update the native control")
@@ -88,8 +82,9 @@ struct MiraSettingsSelectTests {
 
         host.rootView = SelectFixture(state: state, options: options().filter { $0.id == "first" }, locale: Locale(identifier: "en"))
         pump(host)
-        #expect(button.selectedItem == nil)
-        #expect(button.itemArray.map(\.title) == ["First"])
+        #expect(button.title == "Select an option")
+        #expect(button.itemArray.map(\.title).contains("First"))
+        #expect(!button.itemArray.map(\.title).contains("Second"))
         #expect(state.value == "second", "Removing an option must not silently rewrite the binding.")
 
         let localizedOptions = [
@@ -99,7 +94,7 @@ struct MiraSettingsSelectTests {
         ]
         host.rootView = SelectFixture(state: state, options: localizedOptions, locale: Locale(identifier: "zh-Hans"))
         pump(host)
-        #expect(button.itemArray.map(\.title) == ["English", "简体中文", "Model"]) // i18n-fixture: Localized option beside a verbatim model name.
+        #expect(button.itemArray.map(\.title).suffix(3) == ["English", "简体中文", "Model"]) // i18n-fixture: Localized option beside a verbatim model name.
 
         host.rootView = SelectFixture(state: state, options: localizedOptions, locale: Locale(identifier: "zh-Hans"), isEnabled: false)
         pump(host)
@@ -129,8 +124,8 @@ struct MiraSettingsSelectTests {
         return (host, window)
     }
 
-    private func popup(in view: NSView) -> MiraSettingsPopUpButton? {
-        if let button = view as? MiraSettingsPopUpButton { return button }
+    private func popup(in view: NSView) -> NSPopUpButton? {
+        if let button = view as? NSPopUpButton { return button }
         return view.subviews.lazy.compactMap(popup(in:)).first
     }
 

@@ -4,6 +4,7 @@ import MiraCore
 struct ConversationTranscript: View {
     let model: ConversationModel
     let readingState: ConversationReadingState
+    let topOverlayHeight: CGFloat
     let bottomOverlayHeight: CGFloat
     @Binding var rememberedMessage: Message?
     @Binding var revealedMessageID: MessageID?
@@ -13,11 +14,10 @@ struct ConversationTranscript: View {
     var body: some View {
         GeometryReader { _ in
             NativeConversationTranscript(items: transcriptItems, model: model, readingState: readingState,
-                                         locale: locale, reduceMotion: reduceMotion, bottomOverlayHeight: bottomOverlayHeight,
+                                         locale: locale, reduceMotion: reduceMotion, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight,
                                          rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .clipped()
         .overlay(alignment: .bottomTrailing) {
             if !readingState.scrollState.isAtLatest && !readingState.scrollState.isUserScrolling {
                 Button("Jump to latest", systemImage: "arrow.down") {

@@ -181,6 +181,96 @@ struct MiraComposerBarLayout: Layout {
     }
 }
 
+/// Gives an independently scrolling native viewport the system's scroll-edge effect.
+struct MiraScrollEdgeViewport<Content: View>: View {
+    let title: String
+    let topInset: CGFloat
+    var titleInsets = MiraTitlebarInsets()
+    @ViewBuilder let content: () -> Content
+    @State private var position = ScrollPosition(edge: .bottom)
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            GeometryReader { geometry in
+                ScrollView {
+                    content()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .background(MiraScrollEdgeHostConfiguration())
+                }
+                // The embedded native list owns scrolling and virtualization.
+                // This finite viewport registers its content with SwiftUI's edge effect.
+                .defaultScrollAnchor(.bottom)
+                .scrollPosition($position)
+                .onScrollGeometryChange(for: CGPoint.self) { $0.contentOffset } action: { _, _ in
+                    // Keep the host fixed; the embedded list owns the reading position.
+                    position.scrollTo(edge: .bottom)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollEdgeEffectStyle(.soft, for: .top)
+                .safeAreaBar(edge: .top, alignment: .leading, spacing: 0) {
+                    Text(verbatim: title)
+                        .font(MiraTheme.Typography.body.weight(.semibold))
+                        .foregroundStyle(MiraTheme.Colors.text)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, titleInsets.leading)
+                        .padding(.trailing, titleInsets.trailing)
+                        .frame(height: topInset)
+                }
+            }
+        } else {
+            content()
+                .overlay(alignment: .top) {
+                    MiraTheme.Colors.canvas.frame(height: topInset)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+        }
+    }
+}
+
+private struct MiraScrollEdgeHostConfiguration: NSViewRepresentable {
+    func makeNSView(context: Context) -> MiraScrollEdgeHostConfigurationView {
+        MiraScrollEdgeHostConfigurationView()
+    }
+
+    func updateNSView(_ view: MiraScrollEdgeHostConfigurationView, context: Context) {
+        view.configure()
+    }
+}
+
+private final class MiraScrollEdgeHostConfigurationView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        configure()
+    }
+
+    override func layout() {
+        super.layout()
+        configure()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func configure() {
+        guard let scrollView = enclosingScrollView else { return }
+        // Removing or hiding these views disables SwiftUI's native edge effect.
+        // Suppress their drawing and accessibility; the embedded list owns scrolling.
+        scrollView.verticalScroller?.alphaValue = 0
+        scrollView.horizontalScroller?.alphaValue = 0
+        scrollView.verticalScroller?.setAccessibilityHidden(true)
+        scrollView.horizontalScroller?.setAccessibilityHidden(true)
+        scrollView.verticalScrollElasticity = .none
+        scrollView.horizontalScrollElasticity = .none
+    }
+}
+
+/// Clearance measured from the native window controls and toolbar buttons.
+struct MiraTitlebarInsets: Equatable {
+    var leading: CGFloat = MiraTheme.Spacing.lg
+    var trailing: CGFloat = MiraTheme.Spacing.lg
+}
+
 /// A window-local material behind the composer and its controls.
 struct MiraComposerGlass: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency

@@ -1,54 +1,40 @@
 import SwiftUI
-import Observation
-import AppKit
 
-/// Navigation is local to a main window; commands target the focused scene.
-@MainActor @Observable
-final class WindowNavigation {
-    private(set) var showsSettings = false
-    var readingState = ConversationReadingState()
-
-    func openSettings() { setSettingsVisible(true) }
-    func returnToConversation() { setSettingsVisible(false) }
-
-    private func setSettingsVisible(_ visible: Bool) {
-        // Commit any marked text before its native editor leaves the view hierarchy.
-        guard visible != showsSettings else { return }
-        guard NSApp.keyWindow?.makeFirstResponder(nil) != false else { return }
-        if visible { readingState.leave() }
-        showsSettings = visible
-    }
+enum MiraSettingsWindow {
+    static let id = "mira.settings"
 }
 
-private struct WindowNavigationKey: FocusedValueKey {
-    typealias Value = WindowNavigation
-}
-
-extension FocusedValues {
-    var miraNavigation: WindowNavigation? {
-        get { self[WindowNavigationKey.self] }
-        set { self[WindowNavigationKey.self] = newValue }
-    }
+extension EnvironmentValues {
+    // Carry the scene action across the conversation's AppKit hosting boundary.
+    @Entry var miraOpenSettingsWindow: OpenWindowAction? = nil
 }
 
 struct MiraSettingsLink<Label: View>: View {
-    @Environment(WindowNavigation.self) private var navigation
+    @Environment(\.miraOpenSettingsWindow) private var openWindow
     @ViewBuilder let label: () -> Label
 
     var body: some View {
-        Button { navigation.openSettings() } label: { label() }
+        Button {
+            openWindow?(id: MiraSettingsWindow.id)
+        } label: {
+            label()
+        }
+        .disabled(openWindow == nil)
     }
 }
 
 struct MiraSettingsCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
     let locale: Locale
-    @FocusedValue(\.miraNavigation) private var navigation
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
-            Button(L10n.string("Settings…", locale: locale)) { navigation?.openSettings() }
-                .keyboardShortcut(",", modifiers: .command)
-                .disabled(navigation == nil)
+            Button {
+                openWindow(id: MiraSettingsWindow.id)
+            } label: {
+                Text(L10n.string("Settings…", locale: locale))
+            }
+            .keyboardShortcut(",", modifiers: .command)
         }
     }
 }

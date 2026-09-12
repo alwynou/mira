@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-`MiraWindowShell` is the production window shell. An `NSSplitViewController` owns the sidebar, conversation, and execution-inspector columns; SwiftUI hosting controllers render their content and retain the existing presentation models. There is no alternate production `NavigationSplitView` shell or experimental launch flag.
+`MiraWindowShell` is the production conversation window shell. An `NSSplitViewController` owns the sidebar, conversation, and execution-inspector columns; SwiftUI hosting controllers render their content and retain the existing presentation models. Settings now has a separate SwiftUI scene; the older same-window settings checks below are historical. The conversation's [native scroll-edge titlebar](CONVERSATION_TITLEBAR.md) supersedes the earlier clipping description for the detail pane. Sidebar and inspector remain clipped by their hosting roots; the transcript's native viewport clips the conversation, including content beneath the toolbar.
 
 - Sidebar bounds follow `MiraTheme`; the execution inspector is bounded to 180–480 pt and the conversation has no minimum width. Holding priorities are 250 for the sidebar and inspector and 249 for the conversation, below AppKit's divider-drag priority, so the conversation absorbs resizing first.
 - Hosted views use `sizingOptions = []` and clip to their allocated frame. `MiraWindowShell.sizeThatFits` returns the finite proposed parent viewport size, preventing live inspector dragging beyond 480 pt from shrinking or shifting the outer shell. Unspecified or infinite proposals retain default sizing.

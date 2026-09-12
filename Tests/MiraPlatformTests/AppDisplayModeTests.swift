@@ -27,7 +27,7 @@ final class AppDisplayModeTests: XCTestCase {
             sidebar: AnyView(AppearanceProbe(state: probe, pane: "sidebar")),
             detail: AnyView(AppearanceProbe(state: probe, pane: "detail")),
             inspector: AnyView(EmptyView()), title: "Appearance fixture", locale: Locale(identifier: "en"),
-            isSettings: true, canInspect: false, showsInspector: .constant(false), newConversation: {})
+            canInspect: false, showsInspector: .constant(false), newConversation: {})
         let host = NSHostingController(rootView: shell.modifier(MiraAppAppearance()).defaultAppStorage(defaults))
         let window = NSWindow(contentViewController: host)
         window.setContentSize(NSSize(width: 850, height: 620))

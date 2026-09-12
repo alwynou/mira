@@ -11,7 +11,7 @@ final class MiraWindowShellTests: XCTestCase {
             sidebar: AnyView(Color.clear),
             detail: AnyView(Text(verbatim: String(repeating: "Synthetic content ", count: 100)).frame(idealWidth: 1_600)),
             inspector: AnyView(Text(verbatim: String(repeating: "Synthetic audit ", count: 100)).frame(idealWidth: 1_600)),
-            title: "Mira", locale: Locale(identifier: "en"), isSettings: false, canInspect: true,
+            title: "Mira", locale: Locale(identifier: "en"), canInspect: true,
             showsInspector: Binding(get: { state.visible }, set: { state.visible = $0 }),
             newConversation: {}
         )
@@ -124,26 +124,6 @@ final class MiraWindowShellTests: XCTestCase {
         overshootTimer.invalidate()
         XCTAssertTrue(sampledWhileHeld, "The native divider must enter mouse tracking.")
 
-        shell.isSettings = true
-        controller.update(shell)
-        try await Task.sleep(for: .milliseconds(600))
-        XCTAssertTrue(inspector.isCollapsed)
-        XCTAssertTrue(state.visible, "Settings hides the inspector without discarding the conversation preference.")
-        XCTAssertFalse(sidebar.isCollapsed)
-        XCTAssertFalse(sidebar.canCollapse)
-        XCTAssertEqual(sidebar.minimumThickness, 180)
-        XCTAssertEqual(sidebar.maximumThickness, 180)
-        XCTAssertEqual(sidebar.viewController.view.frame.width, 180, accuracy: 1)
-        XCTAssertFalse(try XCTUnwrap(window.toolbar).items.contains { $0.itemIdentifier == .toggleSidebar })
-        controller.toggleSidebar(nil)
-        XCTAssertFalse(sidebar.isCollapsed, "Settings must ignore the sidebar command.")
-        shell.isSettings = false
-        controller.update(shell)
-        try await Task.sleep(for: .milliseconds(600))
-        XCTAssertFalse(inspector.isCollapsed)
-        XCTAssertEqual(sidebar.viewController.view.frame.width, sidebarFrame.width, accuracy: 1,
-                       "Leaving settings restores the conversation width.")
-
         // Native divider collapse must update the SwiftUI presentation binding.
         inspector.isCollapsed = true
         try await Task.sleep(for: .milliseconds(50))
@@ -155,23 +135,10 @@ final class MiraWindowShellTests: XCTestCase {
         XCTAssertFalse(sidebar.isCollapsed)
         XCTAssertEqual(window.frame.width, 850, accuracy: 1)
 
-        // Opening settings from a collapsed conversation must make navigation reachable.
-        sidebar.isCollapsed = true
-        shell.isSettings = true
-        controller.update(shell)
-        try await Task.sleep(for: .milliseconds(600))
-        XCTAssertFalse(sidebar.isCollapsed)
-        XCTAssertFalse(controller.splitView(controller.splitView, canCollapseSubview: sidebar.viewController.view))
-        let sidebarCommand = NSMenuItem(title: "Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "")
-        XCTAssertFalse(controller.validateUserInterfaceItem(sidebarCommand))
-        controller.update(shell)
-        shell.isSettings = false
-        controller.update(shell)
-        try await Task.sleep(for: .milliseconds(600))
-        XCTAssertTrue(sidebar.isCollapsed, "Returning restores the conversation sidebar preference.")
         XCTAssertTrue(sidebar.canCollapse)
         XCTAssertFalse(sidebar.canCollapseFromWindowResize)
         XCTAssertTrue(try XCTUnwrap(window.toolbar).items.contains { $0.itemIdentifier == .toggleSidebar })
+        sidebar.isCollapsed = true
         controller.toggleSidebar(nil)
         try await Task.sleep(for: .milliseconds(600))
         XCTAssertFalse(sidebar.isCollapsed, "Conversation sidebar controls must remain usable.")

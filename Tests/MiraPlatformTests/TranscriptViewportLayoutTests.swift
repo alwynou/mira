@@ -5,6 +5,22 @@ import Testing
 @MainActor
 @Suite("Transcript viewport layout", .serialized)
 struct TranscriptViewportLayoutTests {
+    @Test("the first row clears the native titlebar without moving historical reading")
+    func titlebarClearancePreservesHistory() {
+        let list = makeList(contentHeight: 1_200, viewportHeight: 760)
+        #expect(TranscriptViewportLayout.setTopOverlayHeight(52, in: list))
+        list.setContentOffset(list.minimumContentOffset, animated: false)
+        #expect(-list.contentOffset.y == 52 + MiraTheme.Spacing.xl)
+
+        list.setContentOffset(CGPoint(x: 0, y: 240), animated: false)
+        #expect(TranscriptViewportLayout.setTopOverlayHeight(64, in: list))
+        #expect(list.contentOffset.y == 240)
+        #expect(list.contentInsets.bottom == 0)
+
+        TranscriptViewportLayout.setBottomOverlayHeight(180, in: list, followingLatest: true)
+        #expect(list.contentOffset.y + list.bounds.height - list.contentInsets.bottom == 1_200)
+    }
+
     @Test("latest content clears a floating overlay")
     func latestContentClearsBottomOverlay() {
         let list = makeList(contentHeight: 1_200, viewportHeight: 300)

@@ -12,6 +12,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
     let readingState: ConversationReadingState
     let locale: Locale
     let reduceMotion: Bool
+    let topOverlayHeight: CGFloat
     let bottomOverlayHeight: CGFloat
     @Binding var rememberedMessage: Message?
     @Binding var revealedMessageID: MessageID?
@@ -59,7 +60,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             list.autoresizingMask = [.width, .height]
             list.frame = viewport.bounds
             list.clipsToBounds = true
-            list.contentInsets = NSEdgeInsets(top: 24, left: 0, bottom: 0, right: 0)
+            TranscriptViewportLayout.setTopOverlayHeight(parent.topOverlayHeight, in: list)
             list.setAccessibilityElement(true)
             list.setAccessibilityRole(.scrollArea)
             list.setAccessibilityIdentifier("conversation.transcript")
@@ -103,8 +104,16 @@ struct NativeConversationTranscript: NSViewRepresentable {
             if (event.type == .scrollWheel && event.scrollingDeltaY != 0 && isReadingPoint) || isScrollKey {
                 userStartedScrolling()
             }
+            if event.type == .scrollWheel, isReadingPoint,
+               abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
+                // Vertical transcript gestures belong to ListViewKit, not the
+                // enclosing SwiftUI viewport that supplies the scroll-edge effect.
+                list.scrollWheel(with: event)
+                wake()
+                return true
+            }
             if isScrollKey {
-                let step = max(40, (list.bounds.height - list.contentInsets.bottom) * 0.9)
+                let step = max(40, (list.bounds.height - parent.topOverlayHeight - list.contentInsets.bottom) * 0.9)
                 let y: CGFloat
                 switch event.keyCode {
                 case 115: y = list.minimumContentOffset.y
@@ -158,6 +167,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             let change = state.apply(parent.items)
             let contentChanged = change.structureChanged || !change.updated.isEmpty
             if contentChanged { bottomAlignmentUntil = 0 }
+            TranscriptViewportLayout.setTopOverlayHeight(parent.topOverlayHeight, in: list)
             let overlayChanged = TranscriptViewportLayout.setBottomOverlayHeight(
                 parent.bottomOverlayHeight, in: list,
                 followingLatest: !contentChanged && parent.readingState.scrollState.shouldKeepBottomAlignedDuringResize()
@@ -336,7 +346,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
                let label = list.window?.firstResponder as? TextLabelView, label.isDescendant(of: list),
                let location = list.window?.mouseLocationOutsideOfEventStream {
                 let point = list.convert(location, from: nil)
-                let top = list.bounds.minY + 16
+                let top = list.bounds.minY + parent.topOverlayHeight + 16
                 let bottom = max(top, list.bounds.maxY - list.contentInsets.bottom - 16)
                 let delta = point.y < top ? max(-32, point.y - top) : (point.y > bottom ? min(32, point.y - bottom) : 0)
                 if delta != 0 {

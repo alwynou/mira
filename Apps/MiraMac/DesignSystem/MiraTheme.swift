@@ -7,8 +7,6 @@ enum MiraTheme {
     enum Colors {
         static var canvas: Color { dynamic(light: 0xFFFFFF, dark: 0x1B1B1B) }
         static var surface: Color { dynamic(light: 0xFFFFFF, dark: 0x252525) }
-        static var settingsSurface: Color { dynamic(light: 0xF7F7F7, dark: 0x252525) }
-        static var settingsDescription: Color { dynamic(light: 0x7A7A78, dark: 0xA3A3A0) }
         static var active: Color { dynamic(light: 0x34C759, dark: 0x30D158) }
         static var modelVision: Color { dynamic(light: 0x1C64C7, dark: 0x70AFFF) }
         static var modelTools: Color { dynamic(light: 0xCE6A0F, dark: 0xFFAD5B) }
@@ -36,6 +34,43 @@ enum MiraTheme {
                 )
             })
         }
+    }
+
+    /// Settings follows macOS System Settings independently of the conversation palette.
+    /// Reference colors and dimensions are screenshot measurements, not Apple constants.
+    enum Settings {
+        static var canvas: Color { dynamic(light: 0xFFFFFF, dark: 0x2A2C2C) }
+        static var separator: Color { dynamic(light: 0xEBEBEB, dark: 0x3A3C3C) }
+
+        private static func dynamic(light: Int, dark: Int) -> Color {
+            Color(nsColor: NSColor(name: nil) { appearance in
+                let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                    ? dark : light
+                return NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+                               green: CGFloat((hex >> 8) & 0xFF) / 255,
+                               blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+            })
+        }
+        static var text: Color { Color(nsColor: .labelColor) }
+        static var secondaryText: Color { Color(nsColor: .secondaryLabelColor) }
+        static var accent: Color { Color(nsColor: .controlAccentColor) }
+        static let body: Font = .system(size: 13)
+        static let caption: Font = .system(size: 11)
+        static let title: Font = .system(size: 15, weight: .semibold)
+        static let section: Font = .system(size: 13, weight: .semibold)
+        static let windowWidth: CGFloat = 840
+        static let windowHeight: CGFloat = 720
+        static let minWidth: CGFloat = 760
+        static let minHeight: CGFloat = 560
+        static let sidebarWidth: CGFloat = 200
+        static let sidebarRowHeight: CGFloat = 32
+        static let sidebarIconSize: CGFloat = 20
+        static let titleHorizontalInset: CGFloat = 20
+        static let iconRadius: CGFloat = 5
+        static let selectMinWidth: CGFloat = 80
+        static let rowVerticalInset: CGFloat = 8
+        static let separatorHeight: CGFloat = 1
+        static let labelDescriptionGap: CGFloat = 2
     }
 
     enum Opacity {
@@ -72,22 +107,13 @@ enum MiraTheme {
         static let composerShadowRadius: CGFloat = 4
         static let composerShadowOffset: CGFloat = 2
         static let controlHeight: CGFloat = 30
-        static let selectHeight: CGFloat = 28
         static let selectMinWidth: CGFloat = 100
         static let selectMaxWidth: CGFloat = 200
         static let rowHeight: CGFloat = 34
-        static let settingsPageTopInset: CGFloat = 64
-        static let settingsFormLabelWidth: CGFloat = 88
-        static let settingsInputHeight: CGFloat = 32
-        static let settingsButtonHeight: CGFloat = 32
-        static let settingsSidebarWidth: CGFloat = 180
-        static let providerListWidth: CGFloat = 180
-        static let providerRowHeight: CGFloat = 32
         static let providerIconSize: CGFloat = 18
         static let providerHeadingIconSize: CGFloat = 36
         static let providerModelIconSize: CGFloat = 36
         static let providerModelRowMinHeight: CGFloat = 64
-        static let providerModelListMaxHeight: CGFloat = 480
     }
 
     enum Markdown {

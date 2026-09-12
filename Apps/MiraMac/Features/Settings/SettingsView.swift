@@ -39,7 +39,7 @@ enum SettingsDestination: Hashable {
     }
 }
 
-/// Owns settings state for the lifetime of its main window, independently of pages.
+/// Owns the standalone settings window state, independently of its active page.
 @MainActor @Observable
 final class SettingsModel {
     let providers: ProviderLibraryModel
@@ -62,37 +62,59 @@ final class SettingsModel {
 
 struct SettingsSidebar: View {
     let model: SettingsModel
-    @Environment(WindowNavigation.self) private var navigation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button { navigation.returnToConversation() } label: {
-                MiraSidebarRow {
-                    Label("Back to Mira", systemImage: "arrow.left")
-                        .foregroundStyle(MiraTheme.Colors.secondaryText)
+        List(selection: Binding<SettingsCategory?>(
+            get: { model.destination.category },
+            set: { if let category = $0 { model.navigate(.category(category)) } }
+        )) {
+            ForEach(SettingsCategory.allCases) { category in
+                Label {
+                    Text(category.title)
+                } icon: {
+                    Image(systemName: category.symbol)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: MiraTheme.Settings.sidebarIconSize, height: MiraTheme.Settings.sidebarIconSize)
+                        .background(category.iconColor, in: .rect(cornerRadius: MiraTheme.Settings.iconRadius))
                 }
+                .tag(category)
+                .accessibilityIdentifier("settings.category.\(category.rawValue)")
             }
-            .buttonStyle(MiraRowButtonStyle())
-            .padding(.horizontal, MiraTheme.Spacing.sm)
-            .padding(.bottom, MiraTheme.Spacing.lg)
-            .accessibilityIdentifier("settings.return")
-            ScrollView {
-                VStack(spacing: 2) {
-                    ForEach(SettingsCategory.allCases) { category in
-                        Button { model.navigate(.category(category)) } label: {
-                            MiraSidebarRow(isSelected: model.destination.category == category) {
-                                Label(category.title, systemImage: category.symbol)
-                            }
-                        }
-                        .buttonStyle(MiraRowButtonStyle())
-                        .accessibilityIdentifier("settings.category.\(category.rawValue)")
-                    }
-                }
-                .padding(.horizontal, MiraTheme.Spacing.sm)
-                .padding(.bottom, MiraTheme.Spacing.lg)
-            }
-            .scrollIndicators(.hidden)
         }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .font(MiraTheme.Settings.body)
+        .tint(MiraTheme.Settings.accent)
+        .environment(\.defaultMinListRowHeight, MiraTheme.Settings.sidebarRowHeight)
+        .accessibilityIdentifier("settings.sidebar")
+    }
+}
+
+private extension SettingsCategory {
+    var iconColor: Color {
+        switch self {
+        case .general: Color(nsColor: .systemGray)
+        case .providers, .models: Color(nsColor: .systemBlue)
+        case .memory: Color(nsColor: .systemPurple)
+        case .data: Color(nsColor: .systemGreen)
+        }
+    }
+}
+
+/// The SwiftUI window scene owns presentation; the app retains preference drafts.
+struct MiraSettingsRoot: View {
+    let model: SettingsModel
+
+    var body: some View {
+        MiraSettingsNavigation {
+            SettingsSidebar(model: model)
+        } detail: {
+            SettingsView(model: model)
+        }
+        .navigationTitle(model.destination.category.title)
+        .frame(minWidth: MiraTheme.Settings.minWidth, minHeight: MiraTheme.Settings.minHeight)
+        .accessibilityIdentifier("settings.root")
     }
 }
 
@@ -100,6 +122,10 @@ struct SettingsView: View {
     let model: SettingsModel
 
     var body: some View {
+        page.modifier(MiraSettingsTitlebar(title: model.destination.category.title))
+    }
+
+    private var page: some View {
         Group {
             switch model.destination.category {
             case .general:
@@ -114,9 +140,8 @@ struct SettingsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MiraTheme.Colors.canvas)
-        .font(MiraTheme.Typography.body)
-        .foregroundStyle(MiraTheme.Colors.text)
+        .font(MiraTheme.Settings.body)
+        .foregroundStyle(MiraTheme.Settings.text)
         .onDisappear { model.providers.stopRequests() }
     }
 }

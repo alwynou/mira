@@ -1,5 +1,7 @@
 # Settings layout verification
 
+This file is historical evidence for the former same-window settings design. The standalone native window supersedes it; current acceptance is recorded in [native settings verification](NATIVE_SETTINGS_VERIFICATION.md).
+
 ## Settings redesign acceptance (2026-09-10)
 
 The final design combines a 180 pt provider directory and inline details within the existing 760 pt content cap. Settings navigation is fixed at 180 pt. General, Providers, Models, and Memory share pale panels, muted explanations, 32 pt form fields/actions, and consistent radii. Provider models use model-family SVGs, context and arrow prices, colored capability symbols, and a panel that fits its content up to 480 pt before scrolling. The page owns both provider columns' scrolling. Models retains explicit purpose defaults and scope inheritance; Memory keeps capture mode, budget, and the relevant routing action.

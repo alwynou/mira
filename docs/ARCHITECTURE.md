@@ -125,7 +125,7 @@ API Key、OAuth Token 等凭据只保存在系统安全存储中。普通数据�
 
 SwiftUI View 不直接操作 GRDB、不直接调用 Provider、不持有 Agent Runtime 内部可变状态。
 
-The macOS window shell uses an AppKit split controller and toolbar to own native column sizing and window chrome. SwiftUI hosting controllers render sidebar, conversation, settings, and inspector content; they do not add content-derived minimum-width constraints. Window-owned presentation models retain navigation, drafts, and reading intent across mode changes. The conversation host embeds a clipped ListViewKit AppKit list with MarkdownView/Litext text views; its immutable snapshots and reading state remain presentation concerns. This platform bridge remains in `MiraMac` and does not change runtime or adapter boundaries.
+The macOS window shell uses an AppKit split controller and toolbar to own native column sizing and window chrome. SwiftUI hosting controllers render conversation-sidebar, conversation, and inspector content; they do not add content-derived minimum-width constraints. Conversation-window presentation models retain conversation drafts and reading intent. Settings is a separate SwiftUI Window scene with NavigationSplitView and an app-owned SettingsModel; native openWindow actions cross the conversation hosting boundary as typed environment values. Opening it never swaps the conversation hosts or changes their geometry. The conversation host embeds a clipped ListViewKit AppKit list with MarkdownView/Litext text views; its immutable snapshots and reading state remain presentation concerns. This platform bridge remains in `MiraMac` and does not change runtime or adapter boundaries.
 
 ```text
 View
