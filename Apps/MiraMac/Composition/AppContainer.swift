@@ -75,13 +75,13 @@ final class AppContainer: ProviderConnectionSettingsStore {
 
     func discoverModels(for connection: ProviderConnection) async throws -> [DiscoveredModel] {
         guard !isDemo, let application else { throw MiraError(.configuration, "Model discovery is unavailable in demo mode or without an open library.") }
-        let before = try await application.library().configuration
+        let before = try await application.modelConfiguration()
         guard before.connections.first(where: { $0.id == connection.id }) == connection, connection.isEnabled else {
             throw MiraError(.configuration, "Activate the current provider configuration before fetching models.")
         }
         let models = try await HTTPModelDiscovery(credentials: credentials).models(for: connection)
         try Task.checkCancellation()
-        let after = try await application.library().configuration
+        let after = try await application.modelConfiguration()
         guard after.connections.first(where: { $0.id == connection.id }) == connection else {
             throw MiraError(.conflict, "The provider changed while fetching models. Fetch the list again.")
         }
@@ -128,14 +128,14 @@ final class AppContainer: ProviderConnectionSettingsStore {
         try Task.checkCancellation()
         try await validateConnectionDraft(previous: previous, connection: connection, testModel: model)
         guard observation.state == .verified else {
-            throw observation.error ?? MiraError(.providerRejected, "The connection test failed. The provider was not enabled.")
+            throw observation.error ?? MiraError(.providerRejected, "The connection test failed.")
         }
     }
 
     private func validateConnectionDraft(previous: ProviderConnection?, connection: ProviderConnection,
                                          testModel: ProviderConnectionTestModel?) async throws {
         guard let application else { throw MiraError(.storage, "The library is not open.") }
-        let configuration = try await application.library().configuration
+        let configuration = try await application.modelConfiguration()
         guard configuration.connections.first(where: { $0.id == connection.id }) == previous else {
             throw MiraError(.conflict, "The provider configuration changed. Discard your draft and try again.")
         }
@@ -149,18 +149,12 @@ final class AppContainer: ProviderConnectionSettingsStore {
         try Task.checkCancellation()
     }
 
-    /// Only a transition to enabled requires a fresh connection check. Ordinary saves are local.
+    /// Saving and activation are local state changes; only an explicit test contacts the provider.
     /// Installs a new immutable credential version first; rolls it back if the DB commit fails.
-    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String,
-                        testModel: ProviderConnectionTestModel?) async throws -> ProviderConnection {
+    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String) async throws -> ProviderConnection {
         guard !isDemo, let application else { throw MiraError(.storage, "The library is not open.") }
         try route.validate()
-        let isActivation = route.isEnabled && previous?.isEnabled != true
-        if isActivation {
-            guard let testModel else { throw MiraError(.configuration, "Select a configured text model to test this provider.") }
-            try await testConnection(route, previous: previous, secret: secret, model: testModel)
-        }
-        try await validateConnectionDraft(previous: previous, connection: route, testModel: isActivation ? testModel : nil)
+        try await validateConnectionDraft(previous: previous, connection: route, testModel: nil)
         var updated = route
         let replacement = !secret.isEmpty
         if replacement {
@@ -186,7 +180,7 @@ final class AppContainer: ProviderConnectionSettingsStore {
     func retryCredentialCleanup() async {
         guard let application, !isDemo else { return }
         do {
-            let routes = try await application.library().configuration.connections
+            let routes = try await application.modelConfiguration().connections
             maintenanceMessage = try credentialCleanup.reconcile(retaining: routes, credentials: credentials)
         } catch { maintenanceMessage = MiraError.safe(error).message }
     }

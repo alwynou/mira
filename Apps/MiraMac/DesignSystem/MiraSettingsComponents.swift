@@ -600,17 +600,33 @@ struct MiraProviderSelectionCard: View {
 struct MiraSettingsCredentialField: View {
     @Binding private var text: String
     let hasStoredKey: Bool
+    let showsRequiredError: Bool
 
-    init(text: Binding<String>, hasStoredKey: Bool) {
+    init(text: Binding<String>, hasStoredKey: Bool, showsRequiredError: Bool = false) {
         self._text = text
         self.hasStoredKey = hasStoredKey
+        self.showsRequiredError = showsRequiredError
     }
 
     var body: some View {
-        SecureField("API Key", text: $text)
-            .multilineTextAlignment(.leading)
-            .textFieldStyle(.roundedBorder)
-            .accessibilityLabel(Text("API Key"))
-            .help(hasStoredKey ? Text("New API Key (leave blank to keep)") : Text("API Key"))
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
+            SecureField("API Key", text: $text)
+                .multilineTextAlignment(.leading)
+                .textFieldStyle(.roundedBorder)
+                .overlay {
+                    RoundedRectangle(cornerRadius: MiraTheme.Radius.small)
+                        .strokeBorder(showsRequiredError ? Color.red : .clear, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+                .accessibilityLabel(Text("API Key"))
+                .accessibilityHint(showsRequiredError ? Text("Enter an API key.") : Text(""))
+                .help(hasStoredKey ? Text("New API Key (leave blank to keep)") : Text("API Key"))
+            if showsRequiredError {
+                Text("Enter an API key.")
+                    .font(MiraTheme.Settings.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }

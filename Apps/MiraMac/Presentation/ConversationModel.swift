@@ -34,6 +34,7 @@ final class ConversationModel {
     @ObservationIgnored private var recentIDs: [UUID] = []
     @ObservationIgnored private var reloadTask: Task<Void, Never>?
     @ObservationIgnored private var reloadVersion = 0
+    @ObservationIgnored private var reloadIncludesLibrary = false
     @ObservationIgnored private(set) var snapshotLoadCount = 0
 
     init(application: MiraApplication, pageLimit: Int = 3) {
@@ -64,6 +65,8 @@ final class ConversationModel {
             case .changed:
                 requestReload()
                 for page in retainedPages where page.conversationID != nil { refresh(page) }
+            case .configurationChanged:
+                requestReload(includeLibrary: false)
             case .conversationChanged(let id):
                 requestReload()
                 if let page = pages[id], retainedPages.contains(where: { $0 === page }) { refresh(page) }
@@ -151,16 +154,24 @@ final class ConversationModel {
         retainedPages.first { $0.executions.contains { $0.id == executionID && !$0.status.isTerminal } }
     }
 
-    private func requestReload() {
+    private func requestReload(includeLibrary: Bool = true) {
         reloadVersion &+= 1
+        reloadIncludesLibrary = reloadIncludesLibrary || includeLibrary
         guard reloadTask == nil else { return }
         reloadTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { reloadTask = nil }
+            defer { reloadTask = nil; reloadIncludesLibrary = false }
             repeat {
                 let version = reloadVersion
                 let origin = activePage
                 do {
+                    if !reloadIncludesLibrary {
+                        let updated = try await application.modelConfiguration()
+                        guard version == reloadVersion else { continue }
+                        configuration = updated
+                        routes = updated.models(for: .conversation).map(\.route)
+                        break
+                    }
                     let library = try await application.library(includeArchived: true)
                     guard version == reloadVersion else { continue }
                     workspaces = library.workspaces; conversations = library.conversations

@@ -9,14 +9,18 @@ protocol ProviderConnectionSettingsStore: AnyObject {
     func credential(for connection: ProviderConnection) -> String?
     func testConnection(_ connection: ProviderConnection, previous: ProviderConnection?, secret: String,
                         model: ProviderConnectionTestModel) async throws
-    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String,
-                        testModel: ProviderConnectionTestModel?) async throws -> ProviderConnection
+    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String) async throws -> ProviderConnection
 }
 
 @MainActor @Observable
 final class ProviderConnectionSettingsModel {
     var baseURL: String { didSet { if oldValue != baseURL { invalidateDraftResult() } } }
-    var secret = "" { didSet { if oldValue != secret { invalidateDraftResult() } } }
+    var secret = "" {
+        didSet {
+            if oldValue != secret { invalidateDraftResult() }
+            if hasKey { requiresAPIKey = false }
+        }
+    }
     var selectedModelID = "" { didSet { if oldValue != selectedModelID { invalidateDraftResult() } } }
     private(set) var baseline: ProviderConnection?
     private(set) var testModels: [ProviderConnectionTestModel] = []
@@ -25,17 +29,22 @@ final class ProviderConnectionSettingsModel {
     private(set) var error: MiraError?
     private(set) var statusKey: String?
     private(set) var hasStoredKey = false
+    private(set) var requiresAPIKey = false
+    private var pendingEnabled: Bool?
     @ObservationIgnored private let container: any ProviderConnectionSettingsStore
     @ObservationIgnored private let template: CatalogProvider?
     @ObservationIgnored private let draftID: ConnectionID
     @ObservationIgnored private var latest: ProviderConnection?
     @ObservationIgnored private var didLoadCredentials = false
     @ObservationIgnored private var storedSecret = ""
+    @ObservationIgnored private var loadedCredentialReference: String?
+    @ObservationIgnored private var loadedCredentialVersion: Int?
     @ObservationIgnored private var operation: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var draftRevision = 0
     @ObservationIgnored private var optionsConnection: ProviderConnection?
     @ObservationIgnored private var optionsConfiguration: ModelConfiguration?
+    @ObservationIgnored private var latestConfiguration: ModelConfiguration?
 
     init(existing: ProviderConnection?, template: CatalogProvider?, container: any ProviderConnectionSettingsStore) {
         baseline = existing; latest = existing; self.template = template; self.container = container
@@ -48,7 +57,7 @@ final class ProviderConnectionSettingsModel {
         baseline.map { ProviderModelCatalog.bundled.displayName(for: $0) } ?? name
     }
     var providerID: String? { template?.id }
-    var isEnabled: Bool { baseline?.isEnabled ?? false }
+    var isEnabled: Bool { pendingEnabled ?? baseline?.isEnabled ?? false }
     var hasKey: Bool { !secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasStoredKey }
     var hasChanges: Bool {
         baseURL.trimmingCharacters(in: .whitespacesAndNewlines) != (baseline?.baseURL ?? template?.baseURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines) ||
@@ -63,11 +72,17 @@ final class ProviderConnectionSettingsModel {
     var canSave: Bool { !container.isDemo && !isWorking && hasKey && hasChanges }
 
     func update(existing: ProviderConnection?, configuration: ModelConfiguration) {
-        if !didLoadCredentials { refreshKeyAvailability(); didLoadCredentials = true }
+        latestConfiguration = configuration
+        if !didLoadCredentials { refreshKeyAvailability() }
         if existing != latest {
             latest = existing
-            invalidateDraftResult()
-            if !isWorking, !hasChanges {
+            clearResult()
+        }
+        // A save can publish its configuration event before the awaiting call returns.
+        // Defer reconciliation so that echo cannot invalidate this operation's draft.
+        guard !isWorking else { return }
+        if baseline != latest {
+            if !hasChanges {
                 baseline = existing
                 baseURL = existing?.baseURL ?? template?.baseURL ?? ""
                 refreshKeyAvailability()
@@ -79,7 +94,7 @@ final class ProviderConnectionSettingsModel {
             optionsConnection = connection
             optionsConfiguration = configuration
         }
-        if !isWorking, baseline != latest, hasChanges {
+        if baseline != latest, hasChanges {
             error = MiraError(.conflict, "The provider configuration changed. Discard your draft and try again.")
         }
     }
@@ -104,28 +119,34 @@ final class ProviderConnectionSettingsModel {
 
     func discardChanges() {
         cancel(); baseline = latest; secret = ""; baseURL = baseline?.baseURL ?? template?.baseURL ?? ""
-        refreshKeyAvailability(); clearResult()
+        refreshKeyAvailability(); clearResult(); requiresAPIKey = false
     }
 
     func test() { perform(.test) { _ in } }
-    func save(onSaved: @escaping @MainActor (ConnectionID) async -> Void) { perform(.save, onSaved: onSaved) }
-    func setEnabled(_ enabled: Bool, onSaved: @escaping @MainActor (ConnectionID) async -> Void) {
+    func save(onSaved: @escaping @MainActor (ProviderConnection) async -> Void) { perform(.save, onSaved: onSaved) }
+    func setEnabled(_ enabled: Bool, onSaved: @escaping @MainActor (ProviderConnection) async -> Void) {
+        guard !isWorking, !container.isDemo, enabled != isEnabled else { return }
+        guard !enabled || hasKey else { requiresAPIKey = true; return }
+        requiresAPIKey = false
         perform(enabled ? .enable : .disable, onSaved: onSaved)
     }
 
     func cancel() {
+        let wasWorking = isWorking
         generation = UUID(); operation?.cancel(); operation = nil
         if isWorking { statusKey = nil }
-        isWorking = false; isTesting = false
+        isWorking = false; isTesting = false; pendingEnabled = nil
+        if wasWorking, let latestConfiguration { update(existing: latest, configuration: latestConfiguration) }
     }
 
     func disappear() {
         cancel(); secret = ""; storedSecret = ""; hasStoredKey = false; didLoadCredentials = false
+        requiresAPIKey = false
     }
 
     private enum Action { case test, save, enable, disable }
 
-    private func perform(_ action: Action, onSaved: @escaping @MainActor (ConnectionID) async -> Void) {
+    private func perform(_ action: Action, onSaved: @escaping @MainActor (ProviderConnection) async -> Void) {
         guard !isWorking, !container.isDemo else { return }
         if action != .disable, !hasKey { return }
         let previous = baseline
@@ -139,27 +160,39 @@ final class ProviderConnectionSettingsModel {
         let frozenSecret = action == .disable ? "" : (replacementSecret ?? "")
         let token = UUID(); generation = token
         let frozenDraftRevision = draftRevision
-        isWorking = true; isTesting = action == .test || action == .enable
+        isWorking = true; isTesting = action == .test
+        if action == .enable || action == .disable { pendingEnabled = action == .enable }
         error = nil; statusKey = isTesting ? "Testing connection…" : nil
         operation = Task { @MainActor [weak self] in
             guard let self else { return }
             defer {
-                if generation == token { isWorking = false; isTesting = false; operation = nil }
+                if generation == token {
+                    isWorking = false; isTesting = false; operation = nil; pendingEnabled = nil
+                    let failure = error
+                    if let latestConfiguration { update(existing: latest, configuration: latestConfiguration) }
+                    if let failure { error = failure; statusKey = nil }
+                }
             }
             do {
                 if action == .test {
                     guard let testModel else { throw MiraError(.configuration, "Select a configured text model to test this provider.") }
                     try await container.testConnection(frozenConnection, previous: previous, secret: frozenSecret, model: testModel)
-                    guard isCurrent(token: token, draftRevision: frozenDraftRevision) else { return }
+                    guard isCurrent(token: token, draftRevision: frozenDraftRevision), latest == previous else { return }
+                    if testModel.isSaved, let configuration = latestConfiguration {
+                        guard configuration.models.contains(testModel.model), configuration.routes.contains(testModel.route) else { return }
+                    }
                     statusKey = "Connection successful"
                 } else {
-                    let updated = try await container.saveConnection(frozenConnection, previous: previous, secret: frozenSecret, testModel: testModel)
+                    let updated = try await container.saveConnection(frozenConnection, previous: previous, secret: frozenSecret)
                     guard isCurrent(token: token, draftRevision: frozenDraftRevision) else { return }
+                    guard latest == previous || latest == updated else {
+                        throw MiraError(.conflict, "The provider configuration changed. Discard your draft and try again.")
+                    }
                     baseline = updated; latest = updated
                     if action != .disable { secret = ""; baseURL = updated.baseURL }
                     refreshKeyAvailability(updateDraft: action != .disable)
-                    statusKey = action == .enable ? "Connection successful" : nil
-                    await onSaved(updated.id)
+                    statusKey = nil
+                    await onSaved(updated)
                 }
             } catch {
                 guard isCurrent(token: token, draftRevision: frozenDraftRevision) else { return }
@@ -178,7 +211,13 @@ final class ProviderConnectionSettingsModel {
     }
 
     private func refreshKeyAvailability(updateDraft: Bool = true) {
-        storedSecret = baseline.flatMap { container.isDemo ? nil : container.credential(for: $0) } ?? ""
+        let reference = baseline?.credentialReference
+        let version = baseline?.credentialVersion
+        if !didLoadCredentials || loadedCredentialReference != reference || loadedCredentialVersion != version {
+            storedSecret = baseline.flatMap { container.isDemo ? nil : container.credential(for: $0) } ?? ""
+            loadedCredentialReference = reference; loadedCredentialVersion = version
+            didLoadCredentials = true
+        }
         hasStoredKey = !storedSecret.isEmpty
         if updateDraft { secret = storedSecret }
     }

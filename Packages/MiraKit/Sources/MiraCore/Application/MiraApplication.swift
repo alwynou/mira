@@ -2,6 +2,7 @@ import Foundation
 
 public enum ApplicationEvent: Sendable {
     case changed
+    case configurationChanged
     case conversationChanged(ConversationID)
     case conversationFailure(ConversationID, MiraError)
     case conversationContentInvalidated
@@ -303,29 +304,29 @@ public actor MiraApplication {
         try connection.validate()
         try store.saveConnection(connection, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.connectionID == connection.id { tasks[execution.id]?.cancel() }
-        await invalidateMemoryExtraction(); emit(.changed)
+        await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func removeConnection(_ id: ConnectionID) async throws {
         try store.removeConnection(id)
         for execution in active.values where execution.route.connectionID == id { tasks[execution.id]?.cancel() }
-        await invalidateMemoryExtraction(); emit(.changed)
+        await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func saveModel(_ model: ModelDescriptor, expectedRevision: Int?) async throws {
         try model.validate()
         try store.saveModel(model, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.modelDescriptorID == model.id { tasks[execution.id]?.cancel() }
-        await invalidateMemoryExtraction(); emit(.changed)
+        await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func savePoolModel(_ model: ModelDescriptor, route: ModelRoute, expectedModelRevision: Int?, expectedRouteRevision: Int?) async throws {
         try model.validate(); try route.validate()
         try store.savePoolModel(model, route: route, expectedModelRevision: expectedModelRevision, expectedRouteRevision: expectedRouteRevision)
         for execution in active.values where execution.route.modelDescriptorID == model.id || execution.route.id == route.id { tasks[execution.id]?.cancel() }
-        await invalidateMemoryExtraction(); emit(.changed)
+        await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func removeModel(_ id: ModelDescriptorID) async throws {
         try store.removeModel(id)
         for execution in active.values where execution.route.modelDescriptorID == id { tasks[execution.id]?.cancel() }
-        await invalidateMemoryExtraction(); emit(.changed)
+        await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func saveProbe(_ observation: ProbeObservation, for snapshot: ResolvedModelRouteSnapshot) async throws {
         try Task.checkCancellation()
@@ -351,18 +352,18 @@ public actor MiraApplication {
         try route.validate()
         try store.saveRoute(route, expectedRevision: expectedRevision)
         for execution in active.values where execution.route.id == route.id { tasks[execution.id]?.cancel() }
-        await invalidateMemoryExtraction(); emit(.changed)
+        await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func removeRoute(_ id: RouteID) async throws {
         try store.removeRoute(id)
         for execution in active.values where execution.route.id == id { tasks[execution.id]?.cancel() }
-        await invalidateMemoryExtraction(); emit(.changed)
+        await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func saveRouteBinding(_ binding: RouteBinding, expectedRevision: Int?) async throws {
-        try store.saveRouteBinding(binding, expectedRevision: expectedRevision); await invalidateMemoryExtraction(); emit(.changed)
+        try store.saveRouteBinding(binding, expectedRevision: expectedRevision); await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func removeRouteBinding(_ binding: RouteBinding) async throws {
-        try store.removeRouteBinding(binding); await invalidateMemoryExtraction(); emit(.changed)
+        try store.removeRouteBinding(binding); await invalidateMemoryExtraction(); emit(.configurationChanged)
     }
     public func exportBackup(to destination: URL) throws { try store.exportBackup(to: destination) }
     public func restoreBackup(from source: URL, to directory: URL) throws { try store.restoreBackup(from: source, to: directory) }

@@ -30,7 +30,10 @@ final class MemorySettingsModel {
         let stream = await application.events()
         for await event in stream {
             guard !Task.isCancelled else { return }
-            if case .changed = event { await refreshIfClean() }
+            switch event {
+            case .changed, .configurationChanged: await refreshIfClean()
+            default: break
+            }
         }
     }
 

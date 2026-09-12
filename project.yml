@@ -83,6 +83,7 @@ targets:
       - Apps/MiraMac/DesignSystem/MiraModelIcon.swift
       - Apps/MiraMac/DesignSystem/MiraProviderModelRow.swift
       - Apps/MiraMac/Presentation/ProviderConnectionSettingsModel.swift
+      - Apps/MiraMac/Features/Settings/Configuration/ProviderConnectionEditor.swift
       - Apps/MiraMac/Presentation/ProviderConnectionTestModel.swift
       - Apps/MiraMac/Presentation/ConversationModel.swift
       - Apps/MiraMac/Presentation/ConversationPageState.swift

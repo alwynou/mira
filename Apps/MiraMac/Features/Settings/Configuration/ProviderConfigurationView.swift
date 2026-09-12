@@ -201,9 +201,9 @@ struct ProviderConfigurationView: View {
             let editingDestination = editorDestination
             ProviderConnectionEditor(settings: connectionEditor,
                                      isUnavailable: model.isWorking || model.container.isDemo,
-                                     onMutation: { model.stopRequests() }) { id in
-                await model.refresh()
-                if editorDestination == editingDestination { navigate(.provider(id)) }
+                                     onMutation: { model.stopRequests() }) { updated in
+                await model.refresh(ifMissing: updated)
+                if editorDestination == editingDestination { navigate(.provider(updated.id)) }
             }
             .id(editorDestination)
             #if DEBUG

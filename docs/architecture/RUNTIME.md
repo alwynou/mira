@@ -111,7 +111,7 @@ Assistant 流式输出先进入 AssistantDraft，完成或中断后原子提交�
 
 ### 1.7 应用事件边界
 
-`ApplicationEvent.changed` 表示配置、库列表或其他全局失效，订阅建立时也先发出一次。运行时 Execution 的启动、Model Attempt、Tool 和终态变化通过带 `ConversationID` 的 `conversationChanged` 发送，使页面只刷新对应会话。流式 Draft / Thinking 仍按 `ExecutionID` 单独发送；定时 checkpoint 不触发完整会话重读。会话保存失败通过 `conversationFailure(ConversationID, MiraError)` 归属到原会话，关闭应用等全局错误继续使用 `failure`。会影响保留会话正文或引用隐私的 Forget、Source 清理和远程使用策略收紧先发送无 payload 的 `conversationContentInvalidated`，再执行其他异步清理；收到事件的缓存必须立即丢弃敏感内容，随后可用 `changed` 重读权威数据。
+`ApplicationEvent.changed` 表示库列表或其他全局失效，订阅建立时也先发出一次。Provider、Model、Route 和 Binding 的配置变更单独发送 `configurationChanged`，仅刷新配置与可用路线，不重读会话正文。运行时 Execution 的启动、Model Attempt、Tool 和终态变化通过带 `ConversationID` 的 `conversationChanged` 发送，使页面只刷新对应会话。流式 Draft / Thinking 仍按 `ExecutionID` 单独发送；定时 checkpoint 不触发完整会话重读。会话保存失败通过 `conversationFailure(ConversationID, MiraError)` 归属到原会话，关闭应用等全局错误继续使用 `failure`。会影响保留会话正文或引用隐私的 Forget、Source 清理和远程使用策略收紧先发送无 payload 的 `conversationContentInvalidated`，再执行其他异步清理；收到事件的缓存必须立即丢弃敏感内容，随后可用 `changed` 重读权威数据。
 
 ---
 

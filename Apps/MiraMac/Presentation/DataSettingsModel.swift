@@ -22,7 +22,7 @@ final class DataSettingsModel {
         for await event in stream {
             guard !Task.isCancelled else { return }
             switch event {
-            case .changed, .conversationChanged, .conversationContentInvalidated:
+            case .changed, .configurationChanged, .conversationChanged, .conversationContentInvalidated:
                 await refreshDiagnostics()
             default: break
             }

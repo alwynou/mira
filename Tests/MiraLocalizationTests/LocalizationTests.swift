@@ -17,7 +17,7 @@ final class LocalizationTests: XCTestCase {
     func testExplicitLocaleOverridesProcessLanguageWithoutChangingTheMessage() {
         let error = MiraError(.credentialMissing, "Enter an API key.")
         XCTAssertEqual(L10n.error(error, locale: AppLanguage.english.locale, bundle: resources), "Enter an API key.")
-        let translated = "请输入 API Key。" // i18n-fixture: Expected Simplified Chinese validation message.
+        let translated = "请填写 API 密钥。" // i18n-fixture: Expected Simplified Chinese validation message.
         XCTAssertNotEqual(translated, error.message)
         XCTAssertEqual(L10n.error(error, locale: AppLanguage.simplifiedChinese.locale, bundle: resources), translated)
         XCTAssertEqual(L10n.error(error, locale: AppLanguage.english.locale, bundle: resources), "Enter an API key.")

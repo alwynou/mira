@@ -4,17 +4,20 @@ import MiraProviders
 
 struct ProviderConnectionEditor: View {
     @Environment(\.locale) private var locale
+    @FocusState private var isKeyFocused: Bool
     @Bindable var settings: ProviderConnectionSettingsModel
     let isUnavailable: Bool
     let onMutation: () -> Void
-    let onSaved: @MainActor (ConnectionID) async -> Void
+    let onSaved: @MainActor (ProviderConnection) async -> Void
 
     var body: some View {
         Group {
             MiraSettingsSection {
                 heading
                 MiraSettingsFormRow("API Key") {
-                    MiraSettingsCredentialField(text: $settings.secret, hasStoredKey: settings.hasStoredKey)
+                    MiraSettingsCredentialField(text: $settings.secret, hasStoredKey: settings.hasStoredKey,
+                                                showsRequiredError: settings.requiresAPIKey)
+                        .focused($isKeyFocused)
                         .accessibilityIdentifier("settings.provider.apiKey")
                 }
                 .disabled(settings.isWorking)
@@ -32,7 +35,7 @@ struct ProviderConnectionEditor: View {
                         .disabled(settings.isWorking)
                 }
                 VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-                    MiraSettingsFormRow("Test Connectivity", subtitle: "Testing sends a short request using the selected model. Enabling requires a successful test. A saved API key can be reused.") {
+                    MiraSettingsFormRow("Test Connectivity", subtitle: "Enabling only saves the provider state. The API key is checked when you use a model or choose Test.") {
                         testControls
                     }
                     if settings.error != nil || settings.statusKey != nil || settings.testModels.isEmpty {
@@ -60,6 +63,7 @@ struct ProviderConnectionEditor: View {
     private var heading: some View {
         Toggle(isOn: Binding(get: { settings.isEnabled }, set: { enabled in
             onMutation(); settings.setEnabled(enabled, onSaved: onSaved)
+            if settings.requiresAPIKey { isKeyFocused = true }
         })) {
             HStack(spacing: MiraTheme.Spacing.md) {
                 MiraProviderIcon(providerID: settings.providerID, size: MiraTheme.Layout.providerHeadingIconSize)
@@ -75,7 +79,7 @@ struct ProviderConnectionEditor: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .toggleStyle(.switch)
-        .disabled(isUnavailable || settings.isWorking || (!settings.isEnabled && !settings.canTest))
+        .disabled(isUnavailable || settings.isWorking)
         .accessibilityLabel("Active")
         .accessibilityIdentifier("settings.provider.active")
     }

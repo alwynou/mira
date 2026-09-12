@@ -2359,7 +2359,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请输入 API Key。"
+            "value": "请填写 API 密钥。"
           }
         }
       }
@@ -19123,19 +19123,19 @@
         }
       }
     },
-    "Testing sends a short request using the selected model. Enabling requires a successful test. A saved API key can be reused.": {
+    "Enabling only saves the provider state. The API key is checked when you use a model or choose Test.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Testing sends a short request using the selected model. Enabling requires a successful test. A saved API key can be reused."
+            "value": "Enabling only saves the provider state. The API key is checked when you use a model or choose Test."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "测试会使用所选模型发送简短请求，通过后才能启用服务商。已保存的 API Key 可直接复用。"
+            "value": "启用仅保存服务商状态，API 密钥是否有效会在使用模型或主动测试时检查。"
           }
         }
       }
@@ -19191,19 +19191,19 @@
         }
       }
     },
-    "The connection test failed. The provider was not enabled.": {
+    "The connection test failed.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The connection test failed. The provider was not enabled."
+            "value": "The connection test failed."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "连接测试失败，服务商未启用。"
+            "value": "连接测试失败。"
           }
         }
       }

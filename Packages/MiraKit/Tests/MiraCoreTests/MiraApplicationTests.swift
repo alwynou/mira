@@ -4,6 +4,26 @@ import MiraCore
 import MiraData
 
 struct MiraApplicationTests {
+    @Test func configurationMutationEmitsScopedConfigurationEvent() async throws {
+        let fixture = try RuntimeFixture()
+        defer { fixture.cleanup() }
+        let app = try MiraApplication(store: fixture.store, provider: fixture.provider)
+        let events = await app.events()
+        var iterator = events.makeAsyncIterator()
+        _ = await iterator.next() // Initial snapshot notification.
+
+        var model = fixture.configuration.model
+        model.revision += 1
+        model.modelID = "updated-model"
+        try await app.saveModel(model, expectedRevision: fixture.configuration.model.revision)
+
+        #expect(await iterator.next().map { event in
+            if case .configurationChanged = event { return true }
+            return false
+        } == true)
+        await app.shutdown()
+    }
+
     @Test func startConversationPrevalidatesAndEmitsConversationIdentity() async throws {
         let fixture = try RuntimeFixture()
         defer { fixture.cleanup() }

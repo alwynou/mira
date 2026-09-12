@@ -6,6 +6,40 @@ import MiraData
 @Suite("Conversation selection loading")
 @MainActor
 struct ConversationSelectionTests {
+    @Test func providerToggleRefreshesRoutesWithoutReloadingCachedHistory() async throws {
+        let fixture = try SelectionFixture()
+        defer { fixture.cleanup() }
+        _ = try fixture.installConversationRoute()
+        let first = try await fixture.application.createConversation(workspaceID: nil)
+        let second = try await fixture.application.createConversation(workspaceID: nil)
+        let model = ConversationModel(application: fixture.application)
+        await model.reload()
+        await model.selectConversation(first)
+        let firstPage = model.activePage
+        await model.selectConversation(second)
+        let secondPage = model.activePage
+        firstPage.composer = "Retained synthetic draft"
+        let loads = model.snapshotLoadCount
+        var connection = try #require(model.configuration.connections.first)
+        connection.isEnabled = false
+        connection.revision += 1
+        try await fixture.application.saveConnection(connection, expectedRevision: connection.revision - 1)
+
+        model.receive(.configurationChanged)
+        for _ in 0..<100 {
+            if model.configuration.connections.first?.isEnabled == false { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(model.configuration.connections.first?.isEnabled == false)
+        #expect(model.routes.isEmpty)
+        #expect(model.snapshotLoadCount == loads)
+        #expect(firstPage.loadTask == nil && secondPage.loadTask == nil)
+        #expect(firstPage.composer == "Retained synthetic draft")
+        #expect(model.activePage === secondPage)
+        await fixture.application.shutdown()
+    }
+
     @Test func repeatedSelectionPreservesComposerAndCurrentSnapshot() async throws {
         let fixture = try SelectionFixture()
         defer { fixture.cleanup() }

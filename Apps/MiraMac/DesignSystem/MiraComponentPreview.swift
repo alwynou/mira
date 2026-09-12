@@ -284,6 +284,9 @@ private struct MiraCredentialFieldsPreview: View {
             MiraSettingsFormRow("API Key") {
                 MiraSettingsCredentialField(text: $savedText, hasStoredKey: true)
             }
+            MiraSettingsFormRow("API Key") {
+                MiraSettingsCredentialField(text: .constant(""), hasStoredKey: false, showsRequiredError: true)
+            }
         }
         .padding(MiraTheme.Spacing.lg)
         .frame(width: 520, alignment: .leading)

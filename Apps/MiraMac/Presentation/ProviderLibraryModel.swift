@@ -24,6 +24,9 @@ final class ProviderLibraryModel {
     @ObservationIgnored private var probeSnapshot: ResolvedModelRouteSnapshot?
     @ObservationIgnored private var discoveryGeneration = UUID()
     @ObservationIgnored private var includesRoutingScopes = false
+    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var refreshVersion = 0
+    @ObservationIgnored private var refreshIncludesRoutingScopes = false
 
     init(container: AppContainer) { self.container = container }
 
@@ -44,23 +47,54 @@ final class ProviderLibraryModel {
         guard let application = container.application else { return }
         includesRoutingScopes = includeRoutingScopes
         let events = await application.events()
-        await refresh()
-        for await _ in events {
+        for await event in events {
             if Task.isCancelled { return }
-            await refresh()
+            switch event {
+            case .changed:
+                await refresh()
+            case .configurationChanged:
+                await refresh(configurationOnly: true)
+            case .conversationChanged, .conversationContentInvalidated:
+                if includeRoutingScopes { await refresh() }
+            default: break
+            }
         }
     }
 
-    func refresh() async {
+    func refresh(ifMissing savedConnection: ProviderConnection? = nil, configurationOnly: Bool = false) async {
+        if let savedConnection, configuration.connections.contains(where: {
+            $0.id == savedConnection.id && $0.revision >= savedConnection.revision
+        }) { return }
+        // Events can arrive while a query is suspended. Keep one reader and repeat
+        // only when another refresh was requested before its result was installed.
+        refreshVersion &+= 1
+        refreshIncludesRoutingScopes = refreshIncludesRoutingScopes || (includesRoutingScopes && !configurationOnly && savedConnection == nil)
+        if let refreshTask { await refreshTask.value; return }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { refreshTask = nil; refreshIncludesRoutingScopes = false }
+            repeat {
+                let version = refreshVersion
+                await loadConfiguration(includeRoutingScopes: refreshIncludesRoutingScopes)
+                if version == refreshVersion { break }
+            } while !Task.isCancelled
+        }
+        refreshTask = task
+        await task.value
+    }
+
+    private func loadConfiguration(includeRoutingScopes: Bool) async {
         guard let application = container.application else { return }
         do {
             let previous = selectedConnection
-            if includesRoutingScopes {
+            if includeRoutingScopes {
                 let library = try await application.library(includeArchived: true)
-                configuration = library.configuration
-                workspaces = library.workspaces; conversations = library.conversations
+                if configuration != library.configuration { configuration = library.configuration }
+                if workspaces != library.workspaces { workspaces = library.workspaces }
+                if conversations != library.conversations { conversations = library.conversations }
             } else {
-                configuration = try await application.modelConfiguration()
+                let updated = try await application.modelConfiguration()
+                if configuration != updated { configuration = updated }
             }
             if let probeSnapshot, (try? configuration.snapshot(routeID: probeSnapshot.id)) != probeSnapshot {
                 cancelProbe()
@@ -79,7 +113,7 @@ final class ProviderLibraryModel {
         isWorking = true; error = nil; statusKey = nil
         defer { isWorking = false }
         do {
-            let current = try await application.library().configuration
+            let current = try await application.modelConfiguration()
             guard current.connections.first(where: { $0.id == connection.id }) == connection, connection.isEnabled else {
                 throw MiraError(.conflict, "The provider configuration changed. Discard your draft and try again.")
             }

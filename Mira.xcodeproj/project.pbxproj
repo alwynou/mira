@@ -129,6 +129,7 @@
 		E35F50CDEF05CDB8EBADCD9B /* SettingsLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE628971CD7AD8E16A880588 /* SettingsLayoutUITests.swift */; };
 		E420DBF7125B2CE76D93CEBB /* scenarios.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F402A6D2655C83EF54B73DA /* scenarios.json */; };
 		E8A9BB49BF83A8FB2B18870F /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 380EE6141EC3FD69746566C8 /* Localizable.xcstrings */; };
+		EC625AEECAA1370D757AC34C /* ProviderConnectionEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7308A9BA3F54D51685ED562C /* ProviderConnectionEditor.swift */; };
 		F4765808764CC426DD76F4E0 /* ProviderConnectionSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3BFC98D6AB424143065DE3 /* ProviderConnectionSettingsModel.swift */; };
 		F8AC2325FA1F3FC7D3165C39 /* NativeTranscriptState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4754361E719850736737DAC /* NativeTranscriptState.swift */; };
 		F9254954A95ECC7DB12E5999 /* MarkdownParser in Frameworks */ = {isa = PBXBuildFile; productRef = 22B281C1FFFD9A2498B6964D /* MarkdownParser */; };
@@ -878,6 +879,7 @@
 				D6F840EECF4DF8FA84F9E3ED /* NativeTranscriptRowTests.swift in Sources */,
 				DC94ED326B12E8FE65768E55 /* NativeTranscriptState.swift in Sources */,
 				C903FC3CE8A56F6C4C5A5A82 /* NativeTranscriptStateTests.swift in Sources */,
+				EC625AEECAA1370D757AC34C /* ProviderConnectionEditor.swift in Sources */,
 				F4765808764CC426DD76F4E0 /* ProviderConnectionSettingsModel.swift in Sources */,
 				FB40DF136CF5EA95C60224F9 /* ProviderConnectionSettingsModelTests.swift in Sources */,
 				8A0497CEBA279F648375A3D7 /* ProviderConnectionTestModel.swift in Sources */,
