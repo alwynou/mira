@@ -162,10 +162,18 @@ private struct MiraNativeSettingsPreview: View {
                     Button("Save") {}.buttonStyle(MiraSettingsButtonStyle(isPrimary: true)).disabled(true)
                 }
             }
-            MiraSettingsSection("Provider Models") {
+            MiraSettingsSection("Provider Models", actions: {
+                Button("Fetch Models", systemImage: "arrow.clockwise") {}
+                    .labelStyle(.iconOnly)
+                Button("Add Manually", systemImage: "plus") {}
+                    .labelStyle(.iconOnly)
+            }) {
                 MiraProviderModelRow(name: "Example Model", modelID: "example/model-with-a-long-identifier",
                     providerID: "openai", supportsVision: true, supportsTools: true,
                     supportsThinking: true, contextWindow: 128_000, isEnabled: $enabled)
+                MiraProviderModelRow(name: "Example Model with a longer display name", modelID: "example/long-model-family-version",
+                    pricing: .init(input: "$0.50", output: "$1.20"),
+                    supportsTools: true, contextWindow: 1_000_000, isEnabled: $enabled)
             }
         }
     }
@@ -181,6 +189,111 @@ private struct MiraNativeSettingsPreview: View {
     MiraNativeSettingsPreview()
         .environment(\.locale, Locale(identifier: "zh-Hans")).preferredColorScheme(.dark)
         .frame(width: MiraTheme.Settings.minWidth - MiraTheme.Settings.sidebarWidth, height: MiraTheme.Settings.minHeight)
+}
+
+private struct MiraProviderSelectionRailPreview: View {
+    private struct Provider: Identifiable {
+        let id: String
+        let name: String
+    }
+
+    @State private var selectedProviderID = "openai"
+
+    private let providers = [
+        Provider(id: "openai", name: "OpenAI"),
+        Provider(id: "anthropic", name: "Anthropic"),
+        Provider(id: "kimi-for-coding", name: "Kimi Code"),
+        Provider(id: "moonshotai", name: "Moonshot"),
+        Provider(id: "deepseek", name: "DeepSeek"),
+        Provider(id: "openrouter", name: "OpenRouter")
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
+            Text("Providers")
+                .font(MiraTheme.Settings.section)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(providers) { provider in
+                        MiraProviderSelectionCard(
+                            name: provider.name,
+                            providerID: provider.id,
+                            isSelected: selectedProviderID == provider.id) {
+                                selectedProviderID = provider.id
+                            }
+                    }
+                }
+                .padding(.vertical, MiraTheme.Spacing.xs)
+            }
+            Text(verbatim: selectedProviderID)
+                .font(MiraTheme.Settings.caption)
+                .foregroundStyle(MiraTheme.Settings.secondaryText)
+        }
+        .padding(MiraTheme.Spacing.lg)
+        .frame(width: 520, alignment: .leading)
+        .foregroundStyle(MiraTheme.Settings.text)
+        .background(MiraTheme.Settings.canvas)
+    }
+}
+
+#Preview("Provider selector rail · Light") {
+    MiraProviderSelectionRailPreview()
+        .preferredColorScheme(.light)
+}
+
+#Preview("Provider selector rail · Dark") {
+    MiraProviderSelectionRailPreview()
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Lazy provider models · 1000 rows") {
+    MiraSettingsLazyPage {
+        MiraSettingsSection {
+            MiraSettingsFormRow("Test Model") {
+                MiraSettingsSelect(title: "Test Model", selection: .constant("example/model-0"),
+                                   options: (0..<1_000).map { .init(id: "example/model-\($0)", verbatimTitle: "Example Model \($0)") },
+                                   identifier: "preview.large-model-menu", maximumWidth: 220)
+            }
+        }
+        MiraSettingsSection("Provider Models", isCollection: true) {
+            ForEach(0..<1_000, id: \.self) { index in
+                MiraSettingsLazyRow(isFirst: index == 0, isLast: index == 999) {
+                    MiraProviderModelRow(name: "Example Model \(index)", modelID: "example/model-\(index)",
+                                         providerID: "openai", supportsTools: true, contextWindow: 128_000,
+                                         isEnabled: .constant(false))
+                }
+            }
+        }
+    }
+    .frame(width: MiraTheme.Settings.minWidth - MiraTheme.Settings.sidebarWidth,
+           height: MiraTheme.Settings.minHeight)
+    .environment(\.locale, Locale(identifier: "en"))
+}
+
+private struct MiraCredentialFieldsPreview: View {
+    @State private var unsavedText = ""
+    @State private var savedText = "synthetic-stored-key"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.lg) {
+            MiraSettingsFormRow("API Key") {
+                MiraSettingsCredentialField(text: $unsavedText, hasStoredKey: false)
+            }
+            MiraSettingsFormRow("API Key") {
+                MiraSettingsCredentialField(text: $savedText, hasStoredKey: true)
+            }
+        }
+        .padding(MiraTheme.Spacing.lg)
+        .frame(width: 520, alignment: .leading)
+        .foregroundStyle(MiraTheme.Settings.text)
+        .background(MiraTheme.Settings.canvas)
+    }
+}
+
+#Preview("Credential fields · Saved and unsaved") {
+    MiraCredentialFieldsPreview()
+        .environment(\.locale, Locale(identifier: "en"))
+        .preferredColorScheme(.light)
 }
 
 private struct MiraSettingsNavigationPreview: View {

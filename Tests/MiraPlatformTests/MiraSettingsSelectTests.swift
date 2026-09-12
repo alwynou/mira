@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Testing
+import Observation
 
 @MainActor
 @Suite("Native settings selection", .serialized)
@@ -43,7 +44,8 @@ struct MiraSettingsSelectTests {
         pump(host)
         #expect(button.title == "Second")
 
-        try choose(second)
+        let selectedAgain = try #require(button.itemArray.first { $0.title == "Second" })
+        try choose(selectedAgain)
         #expect(state.value == "second")
         host.rootView = SelectFixture(state: state, options: options(), locale: Locale(identifier: "en"))
         pump(host)
@@ -104,6 +106,51 @@ struct MiraSettingsSelectTests {
         #expect(button.isEnabled)
     }
 
+    @Test("large menus retain their native items across selection-only updates")
+    func largeMenusRetainItems() throws {
+        _ = NSApplication.shared
+        let state = SelectionState(value: "model-0")
+        let options = (0..<400).map { MiraSettingsSelect.Option(id: "model-\($0)", verbatimTitle: "Synthetic Model \($0)") }
+        let fixture = SelectFixture(state: state, options: options, locale: Locale(identifier: "en"))
+        let (host, window) = try host(fixture)
+        defer { window.close() }
+        let button = try #require(popup(in: host))
+        let menu = try #require(button.menu)
+        #expect(menu.items.count == 400)
+        let last = try #require(menu.items.last)
+        try choose(last)
+        #expect(state.value == "model-399")
+        host.rootView = fixture
+        pump(host)
+        #expect(button.menu === menu, "Selecting an option must preserve the native menu and its items.")
+        #expect(button.selectedItem === last)
+        #expect(button.title == "Synthetic Model 399")
+    }
+
+    @Test("popup width follows the selected title instead of the longest menu option")
+    func selectedTitleControlsWidth() throws {
+        _ = NSApplication.shared
+        let state = SelectionState(value: "short")
+        let options = [
+            MiraSettingsSelect.Option(id: "short", verbatimTitle: "English"),
+            MiraSettingsSelect.Option(id: "long", verbatimTitle: "An unusually long model identifier that should be constrained")
+        ]
+        let fixture = SelectFixture(state: state, options: options, locale: Locale(identifier: "en"), maximumWidth: 180)
+        let (host, window) = try host(fixture)
+        defer { window.close() }
+        let button = try #require(popup(in: host))
+        let shortWidth = button.frame.width
+        #expect(button.title == "English")
+
+        state.value = "long"
+        host.rootView = SelectFixture(state: state, options: options, locale: Locale(identifier: "en"), maximumWidth: 180)
+        pump(host)
+        let longWidth = button.frame.width
+        #expect(button.title == "An unusually long model identifier that should be constrained")
+        #expect(longWidth > shortWidth)
+        #expect(longWidth <= 180.5)
+    }
+
     private func options() -> [MiraSettingsSelect.Option] {
         [
             .init(id: "first", title: "First"),
@@ -143,6 +190,7 @@ struct MiraSettingsSelectTests {
 }
 
 @MainActor
+@Observable
 private final class SelectionState {
     var value: String
 
@@ -151,17 +199,19 @@ private final class SelectionState {
 
 @MainActor
 private struct SelectFixture: View {
-    let state: SelectionState
+    @Bindable var state: SelectionState
     let options: [MiraSettingsSelect.Option]
     let locale: Locale
     var clearTitle: LocalizedStringResource?
     var isEnabled = true
+    var maximumWidth: CGFloat?
 
     var body: some View {
         MiraSettingsSelect(title: "Display Language",
-                           selection: Binding(get: { state.value }, set: { state.value = $0 }),
+                           selection: $state.value,
                            options: options, identifier: "settings.select",
-                           clearSelectionTitle: clearTitle)
+                           clearSelectionTitle: clearTitle,
+                           maximumWidth: maximumWidth)
             .environment(\.locale, locale)
             .disabled(!isEnabled)
     }

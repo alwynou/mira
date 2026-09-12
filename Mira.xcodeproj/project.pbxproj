@@ -9,14 +9,18 @@
 /* Begin PBXBuildFile section */
 		00FFDDC5E0505AE3CB96D3F3 /* MiraModelIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14696E04A71A5E8E7E00E6C /* MiraModelIcon.swift */; };
 		02CDB3E3558F49BB662A734D /* MiraProviders in Frameworks */ = {isa = PBXBuildFile; productRef = 545D021B156C30245C6FA943 /* MiraProviders */; };
+		03CDE882AFA359F43F9B4657 /* MiraSettingsLazyLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380CFD856B7674B6A05EBCC5 /* MiraSettingsLazyLayoutTests.swift */; };
 		0400365C61EDDC4E0BAA5E8E /* scenarios.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F402A6D2655C83EF54B73DA /* scenarios.json */; };
 		04DDB66F188B8826C8BA12E3 /* TranscriptViewportLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66CA5BFA92B1B5844A0F70C2 /* TranscriptViewportLayout.swift */; };
 		050B4E6F84AF25DB8FCF8771 /* ConversationStreamBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E3D702C61C5B91AA3209DB3 /* ConversationStreamBufferTests.swift */; };
 		0621AFFE8E3B178B931C41CE /* MiraWindowShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD84A08C5C39E10979BA2CE3 /* MiraWindowShell.swift */; };
 		078F7318D6423EAEED8AF2ED /* MiraSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B19CD93642A8A48CC73F6B1 /* MiraSettingsComponents.swift */; };
+		08763DC222C68C37AD117EED /* MiraSettingsCredentialFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5025D9E72A56E0318BB0555 /* MiraSettingsCredentialFieldTests.swift */; };
 		08E618BEE710535CBA1FEDB8 /* ProviderLibraryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99490BB67E891054038B13E /* ProviderLibraryModel.swift */; };
 		097EBE7FE4859C6A04093FD1 /* ProviderConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3720ABBF862F199F70DC7FB3 /* ProviderConfigurationView.swift */; };
 		0BBBC3B6717484F878C1B247 /* KnowledgeCitationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 896C33BFC18AA2225A79BA30 /* KnowledgeCitationView.swift */; };
+		0EB049C6E3316118724FB3DD /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7414ED665B7697D8DE9FC89A /* ConversationModel.swift */; };
+		135942F84354A4BE1E4E12D0 /* MiraProviderModelRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46FE527A15528560B9838628 /* MiraProviderModelRow.swift */; };
 		1617CDCF50906E2B6ED4AEA8 /* PurposeRoutingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0F92FD3011932EC2D3C9E3D /* PurposeRoutingView.swift */; };
 		183AEEB1883EE1B4B3C71D0D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
 		19EABA37E329DA83B8EA3A4E /* SourceCitationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40C5301E85C5DA9801E56E32 /* SourceCitationModel.swift */; };
@@ -27,9 +31,11 @@
 		1B64F75571681B007F4337E7 /* EverydayMemoryBaselineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484D848A57F28E6E5850AC61 /* EverydayMemoryBaselineTests.swift */; };
 		1C441AC730240E409B811592 /* MiraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28A3E756EB962B0188361E5F /* MiraCore */; };
 		1C6E58FD13E8132025170DC8 /* TranscriptFollowSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5ACE0CADB9F0139FAC53E9E /* TranscriptFollowSchedulerTests.swift */; };
+		1DA2E46A8F133D1D328B889D /* MiraModelIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14696E04A71A5E8E7E00E6C /* MiraModelIcon.swift */; };
 		1DB7D8E6990B32F41D7E1274 /* NativePerformanceBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D66BA8C496C63E61EED5D3 /* NativePerformanceBenchmark.swift */; };
 		228A328F49D75A971DE6CE34 /* AppDisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3761B74C097DDEF8B7E0858 /* AppDisplayMode.swift */; };
 		22CAA2551479A04D2B6C1DF5 /* ConversationReadingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11575F212B8B6A6AE9D54D1C /* ConversationReadingState.swift */; };
+		23B5D856376E51DF5EB306E7 /* ConversationSwitchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D9B2BC30823727CDBDE69DB /* ConversationSwitchUITests.swift */; };
 		26BF3E066EBD2CDC5C9B7A9A /* DataSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860BC9435448461015227B5E /* DataSettingsView.swift */; };
 		2812D97A626ACDBEE65CE4E3 /* MiraMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F7652258A31A7F62B4327F /* MiraMarkdownView.swift */; };
 		28A1CF6504681C2FA6D7AA58 /* MiraBrandMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDC593F360243EBDD2CB20E /* MiraBrandMark.swift */; };
@@ -87,6 +93,7 @@
 		A449BB907206DBF025B16F52 /* NativeTranscriptRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EF78762CCC9BA7ADD41DC8 /* NativeTranscriptRow.swift */; };
 		A50A75A75A8FE176662D1527 /* SourceCitationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40C5301E85C5DA9801E56E32 /* SourceCitationModel.swift */; };
 		A7025808A771F4BA782FFCFF /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF930788F8A3480525C1F98 /* L10n.swift */; };
+		A8E6B33FFC9598743C234B72 /* ConversationSwitchBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D88BB330C5EBBC2DF28B0 /* ConversationSwitchBenchmark.swift */; };
 		A8F31209944BF4B88A7AD48A /* MiraWindowShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA139C52A05E4AEE89BCB12D /* MiraWindowShellTests.swift */; };
 		A940B6B88AC68E3D86BBB880 /* TranscriptScrollStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45B3975F061BD81A5D29E04F /* TranscriptScrollStateTests.swift */; };
 		AB7F1E09B01C9793F855E60F /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE219F5AD13AB33DDF639BD /* MessageRow.swift */; };
@@ -98,6 +105,7 @@
 		BA3D5B3609EC9CF0C6993CC0 /* MiraTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142B8CB1666AEFE507570C80 /* MiraTheme.swift */; };
 		BA8124BBEC4BAF98BA569E9D /* KeychainCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9F60D362F205EE5D5E7746 /* KeychainCredentials.swift */; };
 		BC127E7F72B73E2B32236DEB /* Litext in Frameworks */ = {isa = PBXBuildFile; productRef = F719CCF33D44556434DCB7A9 /* Litext */; };
+		C1E5545D4ED0356CD5040991 /* ConversationSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7BD77787865BF5E7934447C /* ConversationSelectionTests.swift */; };
 		C3B2191D8745302C447AB9C6 /* MemoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03AC927AAD07459E44A6846 /* MemoryEditorView.swift */; };
 		C405AEA632BD29DB81BAC2DF /* MiraWindowShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD84A08C5C39E10979BA2CE3 /* MiraWindowShell.swift */; };
 		C4C57BEA711036094A892C0A /* MiraSettingsSelectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742A63BDEE7C18F8882D76AE /* MiraSettingsSelectTests.swift */; };
@@ -151,10 +159,12 @@
 		34B177EF134ABDA547727E98 /* MiraComponentPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraComponentPreview.swift; sourceTree = "<group>"; };
 		35235F777F4B8BA4C02FCF66 /* NativeConversationTranscript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeConversationTranscript.swift; sourceTree = "<group>"; };
 		3720ABBF862F199F70DC7FB3 /* ProviderConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderConfigurationView.swift; sourceTree = "<group>"; };
+		380CFD856B7674B6A05EBCC5 /* MiraSettingsLazyLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraSettingsLazyLayoutTests.swift; sourceTree = "<group>"; };
 		380EE6141EC3FD69746566C8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		39AE577E52B05573AE20C8B2 /* ConversationTranscript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationTranscript.swift; sourceTree = "<group>"; };
 		3A66C7CA4606934E113CDF94 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3AF55273DE92E33D4AE636F5 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		3D9B2BC30823727CDBDE69DB /* ConversationSwitchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSwitchUITests.swift; sourceTree = "<group>"; };
 		3F7CC6F2F307BA7D8745123F /* MemoryToolApprovalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryToolApprovalView.swift; sourceTree = "<group>"; };
 		40C5301E85C5DA9801E56E32 /* SourceCitationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceCitationModel.swift; sourceTree = "<group>"; };
 		45B3975F061BD81A5D29E04F /* TranscriptScrollStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptScrollStateTests.swift; sourceTree = "<group>"; };
@@ -164,6 +174,7 @@
 		484D848A57F28E6E5850AC61 /* EverydayMemoryBaselineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EverydayMemoryBaselineTests.swift; sourceTree = "<group>"; };
 		4B33B878F8A325859FD21031 /* CredentialCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialCleanup.swift; sourceTree = "<group>"; };
 		5B19CD93642A8A48CC73F6B1 /* MiraSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraSettingsComponents.swift; sourceTree = "<group>"; };
+		637D88BB330C5EBBC2DF28B0 /* ConversationSwitchBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSwitchBenchmark.swift; sourceTree = "<group>"; };
 		66CA5BFA92B1B5844A0F70C2 /* TranscriptViewportLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptViewportLayout.swift; sourceTree = "<group>"; };
 		6CF930788F8A3480525C1F98 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		6E4C06F3A7B58D34FC0B7AC8 /* DataSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSettingsModel.swift; sourceTree = "<group>"; };
@@ -190,6 +201,7 @@
 		996150BE0E9829A046D0BAE6 /* MiraMarkdownViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraMarkdownViewTests.swift; sourceTree = "<group>"; };
 		9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
+		A7BD77787865BF5E7934447C /* ConversationSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSelectionTests.swift; sourceTree = "<group>"; };
 		AE628971CD7AD8E16A880588 /* SettingsLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLayoutUITests.swift; sourceTree = "<group>"; };
 		B2D66BA8C496C63E61EED5D3 /* NativePerformanceBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePerformanceBenchmark.swift; sourceTree = "<group>"; };
 		B8F7652258A31A7F62B4327F /* MiraMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraMarkdownView.swift; sourceTree = "<group>"; };
@@ -215,6 +227,7 @@
 		EB989EFFEC2CDE956AA80EE4 /* ConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationView.swift; sourceTree = "<group>"; };
 		EE62386B15C9CB939F347D87 /* NativeTranscriptStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeTranscriptStateTests.swift; sourceTree = "<group>"; };
 		F4754361E719850736737DAC /* NativeTranscriptState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeTranscriptState.swift; sourceTree = "<group>"; };
+		F5025D9E72A56E0318BB0555 /* MiraSettingsCredentialFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraSettingsCredentialFieldTests.swift; sourceTree = "<group>"; };
 		F5ACE0CADB9F0139FAC53E9E /* TranscriptFollowSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFollowSchedulerTests.swift; sourceTree = "<group>"; };
 		F8F5D5EE06EC762F437235FC /* ProviderConnectionTestModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderConnectionTestModel.swift; sourceTree = "<group>"; };
 		FA139C52A05E4AEE89BCB12D /* MiraWindowShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraWindowShellTests.swift; sourceTree = "<group>"; };
@@ -258,6 +271,7 @@
 		16A51D458501C6E7EF5D9109 /* MiraUITests */ = {
 			isa = PBXGroup;
 			children = (
+				3D9B2BC30823727CDBDE69DB /* ConversationSwitchUITests.swift */,
 				8B6587B57835118180B936C5 /* EverydayConversationUITests.swift */,
 				AE628971CD7AD8E16A880588 /* SettingsLayoutUITests.swift */,
 			);
@@ -277,12 +291,15 @@
 			children = (
 				D5FAE0D4A1F9A5F8B3F8AF95 /* AppDisplayModeTests.swift */,
 				4822CA2D1700DDA4BCE9EF33 /* ConversationReadingStateTests.swift */,
+				A7BD77787865BF5E7934447C /* ConversationSelectionTests.swift */,
 				8E3D702C61C5B91AA3209DB3 /* ConversationStreamBufferTests.swift */,
 				484D848A57F28E6E5850AC61 /* EverydayMemoryBaselineTests.swift */,
 				2ADFCF2A3B5335244EDE137D /* EverydayMemoryLiveTests.swift */,
 				D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */,
 				FFAAFC0E43209EB3F054F89C /* MiraComposerSurfaceTests.swift */,
 				996150BE0E9829A046D0BAE6 /* MiraMarkdownViewTests.swift */,
+				F5025D9E72A56E0318BB0555 /* MiraSettingsCredentialFieldTests.swift */,
+				380CFD856B7674B6A05EBCC5 /* MiraSettingsLazyLayoutTests.swift */,
 				742A63BDEE7C18F8882D76AE /* MiraSettingsSelectTests.swift */,
 				FA139C52A05E4AEE89BCB12D /* MiraWindowShellTests.swift */,
 				0C21840564DADD9DCDED1838 /* NativeTranscriptRowTests.swift */,
@@ -308,6 +325,7 @@
 		2942F5573FCF27C135958D77 /* Performance */ = {
 			isa = PBXGroup;
 			children = (
+				637D88BB330C5EBBC2DF28B0 /* ConversationSwitchBenchmark.swift */,
 				B2D66BA8C496C63E61EED5D3 /* NativePerformanceBenchmark.swift */,
 			);
 			path = Performance;
@@ -748,6 +766,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				23B5D856376E51DF5EB306E7 /* ConversationSwitchUITests.swift in Sources */,
 				CD83450B5F8104AF38E69ED8 /* EverydayConversationUITests.swift in Sources */,
 				E35F50CDEF05CDB8EBADCD9B /* SettingsLayoutUITests.swift in Sources */,
 			);
@@ -763,6 +782,7 @@
 				28EECC3B307F65286511CD3E /* ConversationModel.swift in Sources */,
 				22CAA2551479A04D2B6C1DF5 /* ConversationReadingState.swift in Sources */,
 				B9E1D3E8B7DD51B842E5A10F /* ConversationStreamBuffer.swift in Sources */,
+				A8E6B33FFC9598743C234B72 /* ConversationSwitchBenchmark.swift in Sources */,
 				3C37870059413C6A3F7EF809 /* ConversationTranscript.swift in Sources */,
 				1B547271AFD1F2FE409828CD /* ConversationView.swift in Sources */,
 				DABB39FF64C311B5242A3912 /* CredentialCleanup.swift in Sources */,
@@ -819,8 +839,10 @@
 				228A328F49D75A971DE6CE34 /* AppDisplayMode.swift in Sources */,
 				3ECBB50F396D33D504817151 /* AppDisplayModeTests.swift in Sources */,
 				7115754E493BEBE18D9281FE /* AppLanguage.swift in Sources */,
+				0EB049C6E3316118724FB3DD /* ConversationModel.swift in Sources */,
 				DACB5C5C146F72B6F0FD46E9 /* ConversationReadingState.swift in Sources */,
 				886CCBF5FD04813C5D8A0870 /* ConversationReadingStateTests.swift in Sources */,
+				C1E5545D4ED0356CD5040991 /* ConversationSelectionTests.swift in Sources */,
 				5EFF5D7E2C71A6977544417A /* ConversationStreamBuffer.swift in Sources */,
 				050B4E6F84AF25DB8FCF8771 /* ConversationStreamBufferTests.swift in Sources */,
 				432B160E0A3E9BE9F8AAA196 /* CostPresentationTests.swift in Sources */,
@@ -837,7 +859,11 @@
 				32C07BEA243A0356E07A90C3 /* MiraComposerSurfaceTests.swift in Sources */,
 				62D47372F8FF3AF0E46299B7 /* MiraMarkdownView.swift in Sources */,
 				5DBD8BD0B24D72978A9F6B62 /* MiraMarkdownViewTests.swift in Sources */,
+				1DA2E46A8F133D1D328B889D /* MiraModelIcon.swift in Sources */,
+				135942F84354A4BE1E4E12D0 /* MiraProviderModelRow.swift in Sources */,
 				078F7318D6423EAEED8AF2ED /* MiraSettingsComponents.swift in Sources */,
+				08763DC222C68C37AD117EED /* MiraSettingsCredentialFieldTests.swift in Sources */,
+				03CDE882AFA359F43F9B4657 /* MiraSettingsLazyLayoutTests.swift in Sources */,
 				C4C57BEA711036094A892C0A /* MiraSettingsSelectTests.swift in Sources */,
 				BA3D5B3609EC9CF0C6993CC0 /* MiraTheme.swift in Sources */,
 				0621AFFE8E3B178B931C41CE /* MiraWindowShell.swift in Sources */,

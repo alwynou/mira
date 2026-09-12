@@ -3,18 +3,23 @@ import MiraCore
 
 struct ConversationTranscript: View {
     let model: ConversationModel
-    let readingState: ConversationReadingState
+    let readingStates: ConversationReadingStore
     let topOverlayHeight: CGFloat
     let bottomOverlayHeight: CGFloat
     @Binding var rememberedMessage: Message?
     @Binding var revealedMessageID: MessageID?
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var readingState: ConversationReadingState {
+        readingStates.state(for: model.selectedConversationID?.rawValue)
+    }
 
     var body: some View {
         GeometryReader { _ in
-            NativeConversationTranscript(items: transcriptItems, model: model, readingState: readingState,
-                                         locale: locale, reduceMotion: reduceMotion, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight,
+            NativeConversationTranscript(items: transcriptItems, model: model, conversationID: model.selectedConversationID, readingState: readingState,
+                                         locale: locale, colorScheme: colorScheme, reduceMotion: reduceMotion, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight,
                                          rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

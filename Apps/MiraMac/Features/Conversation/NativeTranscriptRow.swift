@@ -19,11 +19,15 @@ final class NativeTranscriptRow: ListRowView {
     private var expanded = false
     private var measurement = false
     private var footerEstimate: CGFloat = 0
+    private var hasFixedMeasurementHeader = false
     var onHeightChange: ((CGFloat) -> Void)?
     var onToggleThinking: (() -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
+        // The row owns its frames; only intrinsic height participates in measurement.
+        header.sizingOptions = [.intrinsicContentSize]
+        footer.sizingOptions = [.intrinsicContentSize]
         [header, disclosure, thinking, answer, footer].forEach { addSubview($0) }
         disclosure.bezelStyle = .inline
         disclosure.isBordered = false
@@ -56,6 +60,7 @@ final class NativeTranscriptRow: ListRowView {
         self.expanded = expanded
         self.measurement = measurement
         let assistant = item.role == .assistant && item.bodyPurgedAt == nil
+        hasFixedMeasurementHeader = measurement && assistant && !item.text.isEmpty
         let hasThinking = assistant && item.trace.contains { $0.reasoning != nil }
         let activeThinking = item.isStreaming && item.trace.last?.reasoning?.isComplete == false
         disclosure.isHidden = !hasThinking
@@ -73,7 +78,9 @@ final class NativeTranscriptRow: ListRowView {
                            isStreaming: activeThinking && !measurement, reduceMotion: reduceMotion)
         } else { thinking.prepareForReuse() }
 
-        if item.bodyPurgedAt != nil {
+        if hasFixedMeasurementHeader {
+            headerContent = AnyView(EmptyView())
+        } else if item.bodyPurgedAt != nil {
             headerContent = AnyView(Label("Reply content cleared after forgetting a memory", systemImage: "eye.slash")
                 .font(.callout).foregroundStyle(.secondary).environment(\.locale, locale))
         } else if assistant {
@@ -103,6 +110,10 @@ final class NativeTranscriptRow: ListRowView {
         footerEstimate = assistant ? CGFloat(MemoryCitationReference.references(in: item.text).count
             + SourceCitationReference.references(in: item.text).count) * 24 + (item.memoryNotices.isEmpty ? 0 : 28) : 0
         footerContent = auxiliary
+        if footerEstimate == 0 {
+            footer.rootView = AnyView(EmptyView())
+            footer.isHidden = true
+        }
         hostingWidth = -1
         needsLayout = true
     }
@@ -124,7 +135,7 @@ final class NativeTranscriptRow: ListRowView {
         guard hostingWidth != width else { return }
         hostingWidth = width
         header.rootView = AnyView(headerContent.frame(width: width, alignment: .leading).fixedSize(horizontal: false, vertical: true))
-        if !measurement {
+        if !measurement, footerEstimate > 0 {
             footer.rootView = AnyView(footerContent.frame(width: max(1, width - 40), alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .background(GeometryReader { proxy in
@@ -140,7 +151,7 @@ final class NativeTranscriptRow: ListRowView {
         let x = (width - contentWidth) / 2
         let bodyWidth = max(1, contentWidth - 40)
         updateHosting(width: contentWidth)
-        var y = ceil(header.fittingSize.height)
+        var y: CGFloat = hasFixedMeasurementHeader ? 24 : ceil(header.fittingSize.height)
         if place { header.frame = NSRect(x: x, y: 0, width: contentWidth, height: y) }
         if !disclosure.isHidden {
             y += 9
@@ -157,7 +168,7 @@ final class NativeTranscriptRow: ListRowView {
             if place { answer.frame = NSRect(x: x + 40, y: y + 9, width: bodyWidth, height: height) }
             y += height + 9
         }
-        let footerHeight = measurement ? footerEstimate : ceil(footer.fittingSize.height)
+        let footerHeight = measurement ? footerEstimate : (footerEstimate > 0 ? ceil(footer.fittingSize.height) : 0)
         if footerHeight > 0 {
             if place { footer.frame = NSRect(x: x + 40, y: y + 10, width: bodyWidth, height: footerHeight) }
             y += footerHeight + 10

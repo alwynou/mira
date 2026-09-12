@@ -15,7 +15,7 @@ final class SettingsLayoutUITests: XCTestCase {
     private func exerciseSettings(language: String, appearance: String) throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-NativeSettings-UI-\(UUID())", isDirectory: true)
         let app = XCUIApplication()
-        app.launchArguments = ["--demo", "--data-directory", directory.path,
+        app.launchArguments = ["--demo", "--profile-provider-settings", "--data-directory", directory.path,
                                "-app.language", language, "-app.displayMode", appearance, "-AppleLanguages", "(en)"]
         defer {
             app.terminate()
@@ -50,6 +50,7 @@ final class SettingsLayoutUITests: XCTestCase {
         languagePicker.click()
         app.typeKey(.escape, modifierFlags: [])
         XCTAssertEqual(languagePicker.value as? String, before)
+        XCTAssertLessThan(languagePicker.frame.width, 180, "Short selectors should not fill the detail column.")
         capture(settings, name: "General-\(language)-\(appearance)")
 
         resize(settings, to: CGSize(width: 760, height: 560))
@@ -67,6 +68,7 @@ final class SettingsLayoutUITests: XCTestCase {
             item.click()
             XCTAssertEqual(settings.frame, compactFrame, "Changing pages must not resize the window")
             if category == "providers" {
+                try exerciseProviderCards(settings, app: app, language: language, appearance: appearance)
                 XCTAssertTrue(settings.secureTextFields["settings.provider.apiKey"].isHittable)
                 XCTAssertTrue(settings.textFields["settings.provider.baseURL"].isHittable)
                 XCTAssertTrue(settings.popUpButtons["settings.provider.testModel"].isHittable)
@@ -85,12 +87,21 @@ final class SettingsLayoutUITests: XCTestCase {
         limit.click()
         limit.typeKey("a", modifierFlags: .command)
         paste("12000", into: limit)
+        settings.descendants(matching: .any).matching(identifier: "settings.category.general").firstMatch.click()
+        settings.descendants(matching: .any).matching(identifier: "settings.category.memory").firstMatch.click()
+        XCTAssertEqual(limit.value as? String, "12000", "Navigation preserves the unsaved memory draft.")
         settings.buttons[XCUIIdentifierCloseWindow].click()
         XCTAssertTrue(composer.exists)
         XCTAssertEqual(composer.value as? String, "SyntheticDraft42")
         app.buttons["sidebar.settings"].click()
         XCTAssertTrue(settings.waitForExistence(timeout: 5))
-        XCTAssertEqual(limit.value as? String, "12000")
+        XCTAssertTrue(settings.popUpButtons["settings.language"].waitForExistence(timeout: 5), "Reopening starts a fresh settings session.")
+        settings.descendants(matching: .any).matching(identifier: "settings.category.memory").firstMatch.click()
+        XCTAssertTrue(limit.waitForExistence(timeout: 5))
+        XCTAssertEqual(limit.value as? String, "10000", "Closing discards unsaved settings drafts.")
+        settings.descendants(matching: .any).matching(identifier: "settings.category.providers").firstMatch.click()
+        XCTAssertTrue(settings.buttons["settings.catalog.openai"].isSelected)
+        XCTAssertEqual(settings.secureTextFields["settings.provider.apiKey"].value as? String, "")
         XCTAssertEqual(app.windows.count, 2)
 
         // Settings can be opened from the app menu without an existing conversation window.
@@ -99,6 +110,69 @@ final class SettingsLayoutUITests: XCTestCase {
         openSettingsFromMenu(app, language: language)
         XCTAssertTrue(settings.waitForExistence(timeout: 5))
         XCTAssertEqual(app.windows.count, 1)
+    }
+
+    private func exerciseProviderCards(_ settings: XCUIElement, app: XCUIApplication, language: String, appearance: String) throws {
+        let cards = settings.scrollViews["settings.providers.cards"]
+        XCTAssertTrue(cards.waitForExistence(timeout: 5))
+        let openAI = settings.buttons["settings.catalog.openai"]
+        let anthropic = settings.buttons["settings.catalog.anthropic"]
+        XCTAssertTrue(openAI.isSelected)
+        anthropic.hover()
+        capture(settings, name: "provider-hover-\(language)-\(appearance)")
+        let key = settings.secureTextFields["settings.provider.apiKey"]
+        key.click()
+        paste("synthetic-unsaved-key", into: key)
+        // A plain button must also accept the padded region outside its icon and name.
+        anthropic.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.08)).click()
+        XCTAssertTrue(anthropic.isSelected)
+        XCTAssertTrue((settings.textFields["settings.provider.baseURL"].value as? String)?.contains("anthropic.com") == true)
+        XCTAssertEqual(settings.secureTextFields["settings.provider.apiKey"].value as? String, "")
+
+        cards.scroll(byDeltaX: -600, deltaY: 0)
+        let openRouter = settings.buttons["settings.catalog.openrouter"]
+        XCTAssertTrue(openRouter.isHittable)
+        openRouter.click()
+        XCTAssertTrue(openRouter.isSelected)
+        XCTAssertTrue((settings.textFields["settings.provider.baseURL"].value as? String)?.contains("openrouter.ai") == true)
+        XCTAssertFalse(settings.descendants(matching: .any)["settings.providers.status"].exists)
+        capture(settings, name: "provider-cards-end-\(language)-\(appearance)")
+
+        // Keep a transient draft while the lazy collection scrolls its editor offscreen.
+        let openRouterKey = settings.secureTextFields["settings.provider.apiKey"]
+        openRouterKey.click()
+        paste("synthetic-scrolling-draft", into: openRouterKey)
+        // The system input-source indicator is transient and may expose a stale
+        // dialog snapshot immediately after entering a native secure field.
+        XCTAssertTrue(app.dialogs.firstMatch.waitForNonExistence(timeout: 5))
+        let vertical = settings.scrollViews["settings.providers.page"]
+        vertical.scroll(byDeltaX: 0, deltaY: -600)
+        let scrolled = vertical.scrollBars.firstMatch.value as? String
+        settings.descendants(matching: .any).matching(identifier: "settings.category.general").firstMatch.click()
+        settings.descendants(matching: .any).matching(identifier: "settings.category.providers").firstMatch.click()
+        XCTAssertTrue(openRouter.isSelected, "The provider selection survives category navigation.")
+        XCTAssertEqual(vertical.scrollBars.firstMatch.value as? String, scrolled, "The scroll position survives category navigation.")
+        for _ in 0..<3 {
+            vertical.scroll(byDeltaX: 0, deltaY: -360)
+            vertical.scroll(byDeltaX: 0, deltaY: 360)
+        }
+        capture(settings, name: "provider-scroll-retained-\(language)-\(appearance)")
+        vertical.scroll(byDeltaX: 0, deltaY: 2400)
+        XCTAssertFalse((settings.secureTextFields["settings.provider.apiKey"].value as? String)?.isEmpty ?? true)
+
+        let deepSeek = settings.buttons["settings.catalog.deepseek"]
+        for _ in 0..<3 {
+            deepSeek.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.92)).click()
+            XCTAssertTrue(deepSeek.isSelected)
+            openRouter.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.08)).click()
+            XCTAssertTrue(openRouter.isSelected)
+        }
+
+        cards.scroll(byDeltaX: 600, deltaY: 0)
+        openAI.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.92)).click()
+        XCTAssertTrue(openAI.isSelected)
+        XCTAssertFalse((settings.secureTextFields["settings.provider.apiKey"].value as? String)?.isEmpty ?? true,
+                       "Switching providers preserves each provider's key draft until the window closes.")
     }
 
     private func openSettingsFromMenu(_ app: XCUIApplication, language: String) {
@@ -136,7 +210,11 @@ final class SettingsLayoutUITests: XCTestCase {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         field.typeKey("v", modifierFlags: .command)
-        XCTAssertEqual(field.value as? String, text)
+        if field.elementType == .secureTextField {
+            XCTAssertFalse((field.value as? String)?.isEmpty ?? true)
+        } else {
+            XCTAssertEqual(field.value as? String, text)
+        }
     }
 
     private func capture(_ window: XCUIElement, name: String) {

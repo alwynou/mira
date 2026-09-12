@@ -28,6 +28,10 @@ enum NativePerformanceBenchmark {
     static func run(model: ConversationModel) async {
         guard isRequested, let path = argument("--benchmark-report"),
               !FileManager.default.fileExists(atPath: path) else { return }
+        if ProcessInfo.processInfo.arguments.contains("--verify-conversation-switching") {
+            await ConversationSwitchBenchmark.run(model: model)
+            return
+        }
         await Run(model: model).perform(reportURL: URL(fileURLWithPath: path))
     }
 
@@ -135,7 +139,10 @@ enum NativePerformanceBenchmark {
             try? await Task.sleep(for: .seconds(2))
             func findList(_ view: NSView) -> ListView<NativeTranscriptToken>? {
                 if let list = view as? ListView<NativeTranscriptToken> { return list }
-                return view.subviews.lazy.compactMap(findList).first
+                for child in view.subviews {
+                    if let list = findList(child) { return list }
+                }
+                return nil
             }
             guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }),
                   let root = window.contentView, let list = findList(root) else { return }

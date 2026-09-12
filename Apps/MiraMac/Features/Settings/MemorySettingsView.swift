@@ -3,6 +3,7 @@ import MiraCore
 
 @MainActor
 struct MemorySettingsView: View {
+    @Environment(\.miraSettingsPageActive) private var isActive
     @Environment(\.locale) private var locale
     @Bindable var model: MemorySettingsModel
     let onManageModels: () -> Void
@@ -121,7 +122,7 @@ struct MemorySettingsView: View {
                 }
             }
         }
-        .task { await model.observe() }
+        .task(id: isActive) { if isActive { await model.observe() } }
     }
 
     private func isDisplayedScope(_ scope: RouteScope) -> Bool {

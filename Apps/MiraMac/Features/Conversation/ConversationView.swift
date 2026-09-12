@@ -6,7 +6,7 @@ struct ConversationRoot: View {
     @Environment(\.locale) private var locale
     @Environment(\.openWindow) private var openWindow
     @State private var model: ConversationModel
-    @State private var readingState = ConversationReadingState()
+    @State private var readingStates = ConversationReadingStore()
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
@@ -27,9 +27,6 @@ struct ConversationRoot: View {
         .tint(MiraTheme.Colors.accent)
         .foregroundStyle(MiraTheme.Colors.text)
         .frame(minWidth: 850, minHeight: 620)
-        .onChange(of: model.selectedConversationID) { _, _ in
-            readingState = ConversationReadingState()
-        }
         .task {
             #if DEBUG
             if NativePerformanceBenchmark.isRequested {
@@ -61,7 +58,8 @@ struct ConversationRoot: View {
                 .environment(\.locale, locale)
                 .environment(\.miraOpenSettingsWindow, openWindow)
                 .foregroundStyle(MiraTheme.Colors.text).tint(MiraTheme.Colors.accent)),
-            detail: AnyView(ConversationDetail(model: model, readingState: readingState, isDemo: isDemo,
+            detail: AnyView(ConversationDetail(model: model,
+                                               readingStates: readingStates, isDemo: isDemo,
                                                title: displayedConversationTitle, titlebarInsets: titlebarInsets)
                 .environment(\.locale, locale)
                 .environment(\.miraOpenSettingsWindow, openWindow)
@@ -237,7 +235,7 @@ private struct ConversationTitleVisibility: ViewModifier {
 
 private struct ConversationDetail: View {
     @Bindable var model: ConversationModel
-    let readingState: ConversationReadingState
+    let readingStates: ConversationReadingStore
     let isDemo: Bool
     let title: String
     let titlebarInsets: MiraTitlebarInsets
@@ -277,12 +275,13 @@ private struct ConversationDetail: View {
 
     private func conversation(topOverlayHeight: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
-            if model.messages.isEmpty && model.activeExecution == nil {
-                welcome.padding(.top, topOverlayHeight).padding(.bottom, bottomOverlayHeight).frame(maxHeight: .infinity)
+            if model.selectedConversationID != nil {
+                ConversationTranscript(model: model, readingStates: readingStates, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
             }
-            else {
-                ConversationTranscript(model: model, readingState: readingState, topOverlayHeight: topOverlayHeight, bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage, revealedMessageID: $revealedMessageID)
-                    .id(model.selectedConversationID)
+            if model.messages.isEmpty && model.activeExecution == nil {
+                if !model.isLoadingConversation {
+                    welcome.padding(.top, topOverlayHeight).padding(.bottom, bottomOverlayHeight).frame(maxHeight: .infinity)
+                }
             }
         }
     }

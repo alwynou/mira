@@ -33,6 +33,7 @@ final class ConversationStreamBuffer {
 
     func replace(drafts: [ExecutionID: String], thinkingTraces: [ExecutionID: [CanonicalMessage]]) {
         cancelPendingFlush(clearPending: true)
+        guard self.drafts != drafts || self.thinkingTraces != thinkingTraces else { return }
         self.drafts = drafts
         self.thinkingTraces = thinkingTraces
     }

@@ -92,7 +92,7 @@ private struct PurposeModelCard: View {
                             error = nil
                         }), options: modelOptions, identifier: "settings.models.default.\(purpose.rawValue)",
                         placeholder: "Select a model", clearSelectionTitle: scope == .global ? "Clear Selection" : "Use Inherited Model",
-                        minimumWidth: 160, maximumWidth: 240)
+                        maximumWidth: 240)
                         .disabled(saving)
                 }
                 if eligibleModels.isEmpty {

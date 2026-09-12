@@ -43,24 +43,19 @@ struct MiraProviderModelRow: View {
 
     private var identityBlock: some View {
         VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: MiraTheme.Spacing.sm) {
-                    title
-                    modelIDChip
-                }
-                .fixedSize(horizontal: true, vertical: false)
-                VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
-                    title
-                    modelIDChip
-                }
+            MiraModelIdentityLayout {
+                title
+                modelIDChip
             }
+            let information = information
             if !information.isEmpty {
+                let description = informationDescription
                 Text(verbatim: information)
                     .font(MiraTheme.Settings.caption)
                     .foregroundStyle(MiraTheme.Settings.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel(Text(verbatim: informationDescription))
-                    .help(Text(verbatim: informationDescription))
+                    .accessibilityLabel(Text(verbatim: description))
+                    .help(Text(verbatim: description))
             }
         }
     }
@@ -134,5 +129,70 @@ struct MiraProviderModelRow: View {
         if value >= 1_000_000 { return "\((Double(value) / 1_000_000).formatted(.number.precision(.fractionLength(0...1)).locale(locale)))M" }
         if value >= 1_000 { return "\((Double(value) / 1_000).formatted(.number.precision(.fractionLength(0...1)).locale(locale)))K" }
         return String(value)
+    }
+}
+
+/// Reflows the same two text views instead of measuring duplicate horizontal and
+/// vertical hierarchies for each newly visible model. Measurements survive the
+/// repeated width proposals made while the lazy collection is scrolling.
+private struct MiraModelIdentityLayout: Layout {
+    struct Measurement {
+        let size: CGSize
+        let titleSize: CGSize
+        let identifierSize: CGSize
+        let titleOrigin: CGPoint
+        let identifierOrigin: CGPoint
+    }
+
+    struct Cache {
+        var measurements: [CGFloat: Measurement] = [:]
+    }
+
+    func makeCache(subviews: Subviews) -> Cache { Cache() }
+
+    func updateCache(_ cache: inout Cache, subviews: Subviews) {
+        cache.measurements.removeAll(keepingCapacity: true)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
+        measurement(proposal: proposal, subviews: subviews, cache: &cache).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
+        let layout = measurement(proposal: proposal, subviews: subviews, cache: &cache)
+        subviews[0].place(at: CGPoint(x: bounds.minX + layout.titleOrigin.x, y: bounds.minY + layout.titleOrigin.y),
+                          anchor: .topLeading, proposal: ProposedViewSize(layout.titleSize))
+        subviews[1].place(at: CGPoint(x: bounds.minX + layout.identifierOrigin.x, y: bounds.minY + layout.identifierOrigin.y),
+                          anchor: .topLeading, proposal: ProposedViewSize(layout.identifierSize))
+    }
+
+    private func measurement(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Measurement {
+        let width = max(0, proposal.width ?? .infinity)
+        if let cached = cache.measurements[width] { return cached }
+        let title = subviews[0].dimensions(in: .unspecified)
+        let identifier = subviews[1].dimensions(in: .unspecified)
+        let inlineWidth = title.width + MiraTheme.Spacing.sm + identifier.width
+        let result: Measurement
+        if inlineWidth <= width {
+            let baseline = max(title[.firstTextBaseline], identifier[.firstTextBaseline])
+            let titleY = baseline - title[.firstTextBaseline]
+            let identifierY = baseline - identifier[.firstTextBaseline]
+            result = Measurement(
+                size: CGSize(width: inlineWidth, height: max(titleY + title.height, identifierY + identifier.height)),
+                titleSize: CGSize(width: title.width, height: title.height),
+                identifierSize: CGSize(width: identifier.width, height: identifier.height),
+                titleOrigin: CGPoint(x: 0, y: titleY), identifierOrigin: CGPoint(x: title.width + MiraTheme.Spacing.sm, y: identifierY))
+        } else {
+            let titleSize = subviews[0].sizeThatFits(.init(width: width, height: nil))
+            let identifierSize = subviews[1].sizeThatFits(.init(width: width, height: nil))
+            result = Measurement(
+                size: CGSize(width: max(titleSize.width, identifierSize.width), height: titleSize.height + MiraTheme.Spacing.xs + identifierSize.height),
+                titleSize: titleSize, identifierSize: identifierSize, titleOrigin: .zero,
+                identifierOrigin: CGPoint(x: 0, y: titleSize.height + MiraTheme.Spacing.xs))
+        }
+        // Window resizing must not accumulate every historical width.
+        if cache.measurements.count >= 4 { cache.measurements.removeAll(keepingCapacity: true) }
+        cache.measurements[width] = result
+        return result
     }
 }

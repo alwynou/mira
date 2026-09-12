@@ -111,8 +111,8 @@ final class AppContainer: ProviderConnectionSettingsStore {
         }
     }
 
-    func hasCredential(for connection: ProviderConnection) -> Bool {
-        (try? credentials.read(reference: connection.credentialReference, version: connection.credentialVersion)) != nil
+    func credential(for connection: ProviderConnection) -> String? {
+        try? credentials.read(reference: connection.credentialReference, version: connection.credentialVersion)
     }
 
     /// Tests the exact draft with synthetic content, without saving its key or changing model capabilities.

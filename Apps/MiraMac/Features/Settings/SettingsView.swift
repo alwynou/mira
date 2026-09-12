@@ -42,23 +42,90 @@ enum SettingsDestination: Hashable {
 /// Owns the standalone settings window state, independently of its active page.
 @MainActor @Observable
 final class SettingsModel {
-    let providers: ProviderLibraryModel
-    let memory: MemorySettingsModel
-    let data: DataSettingsModel
+    private(set) var providers: ProviderLibraryModel
+    private(set) var routing: ProviderLibraryModel
+    private(set) var memory: MemorySettingsModel
+    private(set) var data: DataSettingsModel
+    private(set) var sessionID = UUID()
+    private(set) var visited: Set<SettingsCategory> = [.general]
     var destination = SettingsDestination.category(.general)
+    private var destinations: [SettingsCategory: SettingsDestination] = [:]
+    @ObservationIgnored private let container: AppContainer
 
     init(container: AppContainer) {
+        self.container = container
         providers = ProviderLibraryModel(container: container)
+        routing = ProviderLibraryModel(container: container)
         memory = MemorySettingsModel(container: container)
         data = DataSettingsModel(container: container)
     }
 
+    func destination(for category: SettingsCategory) -> SettingsDestination {
+        destinations[category] ?? .category(category)
+    }
+
     func navigate(_ next: SettingsDestination) {
-        guard next != destination else { return }
-        providers.stopRequests()
-        destination = next
+        let resolved: SettingsDestination
+        if case .category(let category) = next { resolved = destination(for: category) }
+        else { resolved = next }
+        guard resolved != destination else { return }
+        #if DEBUG
+        ProviderSettingsTiming.begin(resolved, entering: destination.category != .providers)
+        #endif
+        destinations[resolved.category] = resolved
+        visited.insert(resolved.category)
+        destination = resolved
+    }
+
+    func navigate(_ next: SettingsDestination, from category: SettingsCategory) {
+        if destination.category == category { navigate(next) }
+        else { destinations[next.category] = next }
+    }
+
+    /// A window session owns transient navigation, drafts and scroll positions.
+    func close() {
+        providers.stopRequests(); routing.stopRequests()
+        providers = ProviderLibraryModel(container: container)
+        routing = ProviderLibraryModel(container: container)
+        memory = MemorySettingsModel(container: container)
+        if data.isWorking {
+            // Keep the active maintenance owner and its duplicate-action guard,
+            // while clearing results left by an earlier operation in this session.
+            data.status = ""; data.statusError = nil
+            data.restoredPath = nil; data.cleanupReport = nil
+        } else {
+            data = DataSettingsModel(container: container)
+        }
+        destination = .category(.general)
+        destinations = [:]; visited = [.general]
+        sessionID = UUID()
+    }
+
+}
+
+#if DEBUG
+/// Opt-in offline diagnostic: action delivery to the selected editor's first layout.
+/// It records durations only, never provider configuration or credentials.
+@MainActor
+enum ProviderSettingsTiming {
+    private static var pending: (destination: SettingsDestination, start: ContinuousClock.Instant, phase: String)?
+
+    static func begin(_ destination: SettingsDestination, entering: Bool) {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("--demo"), arguments.contains("--profile-provider-settings"),
+              destination.category == .providers else { pending = nil; return }
+        pending = (destination, .now, entering ? "entry" : "switch")
+    }
+
+    static func didLayout(_ destination: SettingsDestination?) {
+        guard let pending, pending.destination == destination || pending.destination == .category(.providers) else { return }
+        let elapsed = pending.start.duration(to: .now).components
+        let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
+        print("Provider settings \(pending.phase) layout milliseconds: \(milliseconds)")
+        self.pending = nil
     }
 }
+#endif
 
 struct SettingsSidebar: View {
     let model: SettingsModel
@@ -102,7 +169,7 @@ private extension SettingsCategory {
     }
 }
 
-/// The SwiftUI window scene owns presentation; the app retains preference drafts.
+/// Retains visited pages for this window session, then resets when the window closes.
 struct MiraSettingsRoot: View {
     let model: SettingsModel
 
@@ -112,7 +179,9 @@ struct MiraSettingsRoot: View {
         } detail: {
             SettingsView(model: model)
         }
+        .id(model.sessionID)
         .navigationTitle(model.destination.category.title)
+        .onDisappear { model.close() }
         .frame(minWidth: MiraTheme.Settings.minWidth, minHeight: MiraTheme.Settings.minHeight)
         .accessibilityIdentifier("settings.root")
     }
@@ -126,22 +195,42 @@ struct SettingsView: View {
     }
 
     private var page: some View {
-        Group {
-            switch model.destination.category {
-            case .general:
-                GeneralSettingsView()
-            case .memory:
-                MemorySettingsView(model: model.memory, onManageModels: { model.navigate(.category(.models)) })
-            case .data:
-                DataSettingsView(model: model.data)
-            case .providers, .models:
-                ProviderConfigurationView(model: model.providers, destination: model.destination, navigate: model.navigate)
-                    .task { await model.providers.observe() }
+        ZStack {
+            ForEach(SettingsCategory.allCases.filter { model.visited.contains($0) }) { category in
+                retainedPage(category)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .opacity(model.destination.category == category ? 1 : 0)
+                    .allowsHitTesting(model.destination.category == category)
+                    .disabled(model.destination.category != category)
+                    .accessibilityHidden(model.destination.category != category)
+                    .environment(\.miraSettingsPageActive, model.destination.category == category)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .font(MiraTheme.Settings.body)
         .foregroundStyle(MiraTheme.Settings.text)
-        .onDisappear { model.providers.stopRequests() }
     }
+
+    @ViewBuilder private func retainedPage(_ category: SettingsCategory) -> some View {
+        switch category {
+        case .general:
+            GeneralSettingsView()
+        case .memory:
+            MemorySettingsView(model: model.memory, onManageModels: { model.navigate(.category(.models)) })
+        case .data:
+            DataSettingsView(model: model.data)
+        case .providers, .models:
+            let library = category == .providers ? model.providers : model.routing
+            ProviderConfigurationView(model: library, destination: model.destination(for: category),
+                                      navigate: { model.navigate($0, from: category) })
+                .task(id: model.destination.category == category) {
+                    guard model.destination.category == category else { return }
+                    await library.observe(includeRoutingScopes: category == .models)
+                }
+        }
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var miraSettingsPageActive = true
 }

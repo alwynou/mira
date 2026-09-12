@@ -4,29 +4,17 @@ import MiraProviders
 
 struct ProviderConnectionEditor: View {
     @Environment(\.locale) private var locale
-    let existing: ProviderConnection?
-    let configuration: ModelConfiguration
+    @Bindable var settings: ProviderConnectionSettingsModel
     let isUnavailable: Bool
     let onMutation: () -> Void
     let onSaved: @MainActor (ConnectionID) async -> Void
-    @State private var settings: ProviderConnectionSettingsModel
-
-    init(existing: ProviderConnection?, template: CatalogProvider?, library: ProviderLibraryModel,
-         onMutation: @escaping () -> Void, onSaved: @escaping @MainActor (ConnectionID) async -> Void) {
-        self.existing = existing; configuration = library.configuration
-        isUnavailable = library.isWorking || library.container.isDemo
-        self.onMutation = onMutation; self.onSaved = onSaved
-        _settings = State(initialValue: ProviderConnectionSettingsModel(existing: existing, template: template, container: library.container))
-    }
 
     var body: some View {
         Group {
             MiraSettingsSection {
                 heading
                 MiraSettingsFormRow("API Key") {
-                    SecureField(LocalizedStringKey(settings.hasStoredKey ? "New API Key (leave blank to keep)" : "API Key"), text: $settings.secret)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("API Key")
+                    MiraSettingsCredentialField(text: $settings.secret, hasStoredKey: settings.hasStoredKey)
                         .accessibilityIdentifier("settings.provider.apiKey")
                 }
                 .disabled(settings.isWorking)
@@ -43,11 +31,13 @@ struct ProviderConnectionEditor: View {
                         maximumWidth: 220)
                         .disabled(settings.isWorking)
                 }
-                MiraSettingsFormRow("Test Connectivity", subtitle: "Testing sends a short request using the selected model. Enabling requires a successful test. A saved API key can be reused.") {
-                    testControls
-                }
-                if settings.error != nil || settings.statusKey != nil || settings.testModels.isEmpty {
-                    feedback
+                VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+                    MiraSettingsFormRow("Test Connectivity", subtitle: "Testing sends a short request using the selected model. Enabling requires a successful test. A saved API key can be reused.") {
+                        testControls
+                    }
+                    if settings.error != nil || settings.statusKey != nil || settings.testModels.isEmpty {
+                        feedback
+                    }
                 }
                 HStack {
                     if settings.isWorking && !settings.isTesting { ProgressView().controlSize(.small) }
@@ -65,8 +55,6 @@ struct ProviderConnectionEditor: View {
                 .controlSize(.small)
             }
         }
-        .onChange(of: configuration, initial: true) { _, next in settings.update(existing: existing, configuration: next) }
-        .onDisappear { settings.disappear() }
     }
 
     private var heading: some View {
@@ -77,13 +65,14 @@ struct ProviderConnectionEditor: View {
                 MiraProviderIcon(providerID: settings.providerID, size: MiraTheme.Layout.providerHeadingIconSize)
                 VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
                     Text(verbatim: settings.displayName).font(MiraTheme.Settings.body.weight(.semibold))
-                    Text(verbatim: existing?.baseURL ?? settings.baseURL)
+                    Text(verbatim: settings.baseline?.baseURL ?? settings.baseURL)
                         .font(MiraTheme.Settings.caption)
                         .foregroundStyle(MiraTheme.Settings.secondaryText)
                         .textSelection(.enabled)
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .toggleStyle(.switch)
         .disabled(isUnavailable || settings.isWorking || (!settings.isEnabled && !settings.canTest))

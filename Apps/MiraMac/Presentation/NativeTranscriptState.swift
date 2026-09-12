@@ -12,6 +12,23 @@ struct TranscriptItem: Identifiable, Equatable {
     var executionID: ExecutionID? = nil
     var trace: [CanonicalMessage] = []
     var memoryNotices: [MemoryContextNotice] = []
+
+    /// A process-local measurement key avoids retaining historical plaintext in geometry caches.
+    func measurementSignature(expanded: Bool) -> Int {
+        var hasher = Hasher()
+        hasher.combine(role.rawValue)
+        hasher.combine(text)
+        hasher.combine(status?.rawValue)
+        hasher.combine(isStreaming)
+        hasher.combine(bodyPurgedAt)
+        hasher.combine(expanded)
+        hasher.combine(memoryNotices)
+        for entry in trace {
+            hasher.combine(entry.reasoning != nil)
+            if expanded { hasher.combine(entry.reasoning?.text) }
+        }
+        return hasher.finalize()
+    }
 }
 
 /// Lightweight list identity. A draft and its committed reply share the execution ID.

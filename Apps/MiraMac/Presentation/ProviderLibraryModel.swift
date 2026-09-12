@@ -23,6 +23,7 @@ final class ProviderLibraryModel {
     @ObservationIgnored private var probeGeneration = UUID()
     @ObservationIgnored private var probeSnapshot: ResolvedModelRouteSnapshot?
     @ObservationIgnored private var discoveryGeneration = UUID()
+    @ObservationIgnored private var includesRoutingScopes = false
 
     init(container: AppContainer) { self.container = container }
 
@@ -39,8 +40,9 @@ final class ProviderLibraryModel {
         return ProviderModelCatalog.bundled.models(for: selectedConnection).filter { !existingIDs.contains($0.id) }
     }
 
-    func observe() async {
+    func observe(includeRoutingScopes: Bool) async {
         guard let application = container.application else { return }
+        includesRoutingScopes = includeRoutingScopes
         let events = await application.events()
         await refresh()
         for await _ in events {
@@ -52,10 +54,14 @@ final class ProviderLibraryModel {
     func refresh() async {
         guard let application = container.application else { return }
         do {
-            let library = try await application.library(includeArchived: true)
             let previous = selectedConnection
-            configuration = library.configuration
-            workspaces = library.workspaces; conversations = library.conversations
+            if includesRoutingScopes {
+                let library = try await application.library(includeArchived: true)
+                configuration = library.configuration
+                workspaces = library.workspaces; conversations = library.conversations
+            } else {
+                configuration = try await application.modelConfiguration()
+            }
             if let probeSnapshot, (try? configuration.snapshot(routeID: probeSnapshot.id)) != probeSnapshot {
                 cancelProbe()
             }
@@ -120,7 +126,7 @@ final class ProviderLibraryModel {
                 let models = try await container.discoverModels(for: connection)
                 guard !Task.isCancelled, discoveryGeneration == generation, selectedConnection == connection else { return }
                 discoveredModels = models
-                statusKey = models.isEmpty ? "The provider returned no models. You can add a model manually." : "Model list loaded. Select models to add to your pool."
+                statusKey = models.isEmpty ? "The provider returned no models. You can add a model manually." : nil
             } catch {
                 guard !Task.isCancelled, discoveryGeneration == generation else { return }
                 self.error = MiraError.safe(error)

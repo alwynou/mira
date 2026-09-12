@@ -5,11 +5,12 @@ import MiraCore
 /// package resource and never performs network access.
 public struct ProviderModelCatalog: Sendable {
     public let providers: [CatalogProvider]
+    private let providerIndex: [ProviderLookupKey: [Int]]
+    private let directoryProviderIndexes: [Int]
 
     /// One settings entry per service. Regional metadata remains endpoint-specific.
     public var directoryProviders: [CatalogProvider] {
-        var seen = Set<String>()
-        return providers.filter { seen.insert($0.directoryID).inserted }
+        directoryProviderIndexes.map { providers[$0] }
     }
 
     public func displayName(for connection: ProviderConnection) -> String {
@@ -32,7 +33,10 @@ public struct ProviderModelCatalog: Sendable {
         do {
             let document = try JSONDecoder().decode(CatalogDocument.self, from: data)
             try document.validate()
-            self.providers = document.providers.map(CatalogProvider.init)
+            let providers = document.providers.map(CatalogProvider.init)
+            self.providers = providers
+            self.providerIndex = Self.makeProviderIndex(providers)
+            self.directoryProviderIndexes = Self.makeDirectoryProviderIndexes(providers)
         } catch let error as ProviderModelCatalogError {
             throw error
         } catch {
@@ -41,19 +45,11 @@ public struct ProviderModelCatalog: Sendable {
     }
 
     public func matchingProvider(for connection: ProviderConnection) -> CatalogProvider? {
-        providers.first { provider in
-            guard provider.providerKind == connection.providerKind,
-                  let connectionAddress = CanonicalAddress(connection.baseURL),
-                  let providerAddress = CanonicalAddress(provider.baseURL) else { return false }
-            if provider.id == "deepseek" {
-                guard connectionAddress.scheme == providerAddress.scheme,
-                      connectionAddress.host == providerAddress.host,
-                      connectionAddress.port == providerAddress.port else { return false }
-                return connectionAddress.path == providerAddress.path ||
-                    connectionAddress.path == providerAddress.path + "/v1"
-            }
-            return connectionAddress == providerAddress
+        guard let connectionAddress = CanonicalAddress(connection.baseURL),
+              let indexes = providerIndex[ProviderLookupKey(providerKind: connection.providerKind, address: connectionAddress)] else {
+            return nil
         }
+        return indexes.first.map { providers[$0] }
     }
 
     public func models(for connection: ProviderConnection) -> [CatalogModel] {
@@ -61,7 +57,28 @@ public struct ProviderModelCatalog: Sendable {
     }
 
     public func model(for connection: ProviderConnection, modelID: String) -> CatalogModel? {
-        matchingProvider(for: connection)?.models.first { $0.id == modelID }
+        matchingProvider(for: connection)?.model(id: modelID)
+    }
+
+    private static func makeProviderIndex(_ providers: [CatalogProvider]) -> [ProviderLookupKey: [Int]] {
+        var index: [ProviderLookupKey: [Int]] = [:]
+        for (providerIndex, provider) in providers.enumerated() {
+            guard let address = CanonicalAddress(provider.baseURL) else { continue }
+            append(providerIndex, to: &index, key: ProviderLookupKey(providerKind: provider.providerKind, address: address))
+            if provider.id == "deepseek" {
+                append(providerIndex, to: &index, key: ProviderLookupKey(providerKind: provider.providerKind, address: address.withPath(address.path + "/v1")))
+            }
+        }
+        return index
+    }
+
+    private static func makeDirectoryProviderIndexes(_ providers: [CatalogProvider]) -> [Int] {
+        var seen = Set<String>()
+        return providers.indices.filter { seen.insert(providers[$0].directoryID).inserted }
+    }
+
+    private static func append(_ index: Int, to indexByKey: inout [ProviderLookupKey: [Int]], key: ProviderLookupKey) {
+        indexByKey[key, default: []].append(index)
     }
 }
 
@@ -72,6 +89,7 @@ public struct CatalogProvider: Identifiable, Sendable {
     public let documentationURL: String
     public let providerKind: ProviderKind
     public let models: [CatalogModel]
+    private let modelIndex: [String: Int]
 
     public var directoryID: String { id == "moonshotai" ? "moonshotai-cn" : id }
 
@@ -89,7 +107,13 @@ public struct CatalogProvider: Identifiable, Sendable {
         baseURL = value.baseURL
         documentationURL = value.documentationURL
         providerKind = value.providerKind
-        models = value.models.map(CatalogModel.init)
+        let models = value.models.map(CatalogModel.init)
+        self.models = models
+        self.modelIndex = Dictionary(uniqueKeysWithValues: models.enumerated().map { ($0.element.id, $0.offset) })
+    }
+
+    public func model(id: String) -> CatalogModel? {
+        modelIndex[id].map { models[$0] }
     }
 }
 
@@ -181,11 +205,32 @@ private struct CatalogDocument: Decodable {
     }
 }
 
-private struct CanonicalAddress: Equatable {
+private struct ProviderLookupKey: Hashable {
+    let providerKind: ProviderKind.RawValue
+    let address: CanonicalAddress
+
+    init(providerKind: ProviderKind, address: CanonicalAddress) {
+        self.providerKind = providerKind.rawValue
+        self.address = address
+    }
+}
+
+private struct CanonicalAddress: Hashable {
     let scheme: String
     let host: String
     let port: Int?
     let path: String
+
+    func withPath(_ path: String) -> CanonicalAddress {
+        CanonicalAddress(scheme: scheme, host: host, port: port, path: path)
+    }
+
+    private init(scheme: String, host: String, port: Int?, path: String) {
+        self.scheme = scheme
+        self.host = host
+        self.port = port
+        self.path = path
+    }
 
     init?(_ rawValue: String) {
         guard let components = URLComponents(string: rawValue),

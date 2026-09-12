@@ -4,10 +4,33 @@ import MiraProviders
 
 @MainActor
 final class ProviderConnectionSettingsModelTests: XCTestCase {
+    func testCatalogOptionsStayStableOnUnchangedRefresh() throws {
+        let fake = FakeProviderConnectionStore()
+        let template = try XCTUnwrap(ProviderModelCatalog.bundled.directoryProviders.first { $0.id == "openrouter" })
+        let configuration = ModelConfiguration(connections: [], models: [], routes: [], bindings: [])
+        var times: [Double] = []
+        for _ in 0..<10 {
+            let model = ProviderConnectionSettingsModel(existing: nil, template: template, container: fake)
+            let start = ContinuousClock.now
+            model.update(existing: nil, configuration: configuration)
+            let elapsed = start.duration(to: .now).components
+            times.append(Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15)
+            XCTAssertGreaterThan(model.testModels.count, 300)
+            let previous = model.testModels
+            model.update(existing: nil, configuration: configuration)
+            XCTAssertEqual(model.testModels, previous, "A refresh must not reconstruct unchanged candidate routes.")
+        }
+        print("OpenRouter candidate preparation milliseconds: \(times)")
+        XCTAssertEqual(fake.testCalls, 0)
+        XCTAssertEqual(fake.saveCalls, 0)
+    }
+
     func testSaveDoesNotTestConnection() async {
         let fake = FakeProviderConnectionStore()
         let connection = makeConnection()
         let model = makeModel(fake: fake, connection: connection)
+        XCTAssertTrue(model.hasStoredKey)
+        XCTAssertEqual(model.secret, "synthetic-stored-key")
         model.baseURL = "https://changed.example/v1"
 
         model.save { _ in }
@@ -15,7 +38,45 @@ final class ProviderConnectionSettingsModelTests: XCTestCase {
 
         XCTAssertEqual(fake.saveCalls, 1)
         XCTAssertEqual(fake.testCalls, 0)
+        XCTAssertEqual(fake.savedSecrets, [""], "Displaying the saved key must not rotate its credential version on an unrelated save.")
+        XCTAssertEqual(model.secret, "synthetic-stored-key")
         XCTAssertEqual(model.baseline?.baseURL, "https://changed.example/v1")
+    }
+
+    func testWindowClosureClearsStoredAndReplacementKeyState() async {
+        let fake = FakeProviderConnectionStore()
+        let connection = makeConnection()
+        let model = makeModel(fake: fake, connection: connection)
+        model.secret = "synthetic-replacement-key"
+        model.test()
+        await waitUntil { fake.testCalls == 1 && !model.isWorking }
+
+        XCTAssertEqual(fake.testedSecrets, ["synthetic-replacement-key"])
+        XCTAssertEqual(fake.saveCalls, 0)
+        model.disappear()
+        XCTAssertTrue(model.secret.isEmpty)
+        XCTAssertFalse(model.hasStoredKey)
+        XCTAssertFalse(model.hasChanges)
+        XCTAssertNil(model.statusKey)
+    }
+
+    func testDisablePreservesUnsavedEndpointAndKeyDraft() async {
+        let fake = FakeProviderConnectionStore()
+        var connection = makeConnection()
+        connection.isEnabled = true
+        let model = makeModel(fake: fake, connection: connection)
+        model.secret = "synthetic-replacement-key"
+        model.baseURL = "https://draft.example/v1"
+
+        model.setEnabled(false) { _ in }
+        await waitUntil { fake.saveCalls == 1 && !model.isWorking }
+
+        XCTAssertFalse(model.isEnabled)
+        XCTAssertEqual(model.baseline?.baseURL, connection.baseURL)
+        XCTAssertEqual(model.baseURL, "https://draft.example/v1")
+        XCTAssertEqual(model.secret, "synthetic-replacement-key")
+        XCTAssertEqual(fake.savedSecrets, [""])
+        XCTAssertEqual(fake.testCalls, 0)
     }
 
     func testFailedEnableDoesNotUpdateBaseline() async {
@@ -130,15 +191,18 @@ private final class FakeProviderConnectionStore: ProviderConnectionSettingsStore
     var storedCredential = true
     var testCalls = 0
     var saveCalls = 0
+    var savedSecrets: [String] = []
+    var testedSecrets: [String] = []
     var blockTests = false
     var testError: Error?
     private var pendingTest: CheckedContinuation<Void, Error>?
 
-    func hasCredential(for connection: ProviderConnection) -> Bool { storedCredential }
+    func credential(for connection: ProviderConnection) -> String? { storedCredential ? "synthetic-stored-key" : nil }
 
     func testConnection(_ connection: ProviderConnection, previous: ProviderConnection?, secret: String,
                         model: ProviderConnectionTestModel) async throws {
         testCalls += 1
+        testedSecrets.append(secret)
         if let testError { throw testError }
         guard blockTests else { return }
         try await withTaskCancellationHandler(operation: {
@@ -156,6 +220,7 @@ private final class FakeProviderConnectionStore: ProviderConnectionSettingsStore
     func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String,
                         testModel: ProviderConnectionTestModel?) async throws -> ProviderConnection {
         saveCalls += 1
+        savedSecrets.append(secret)
         if route.isEnabled && previous?.isEnabled != true {
             let model = try XCTUnwrap(testModel)
             try await testConnection(route, previous: previous, secret: secret, model: model)

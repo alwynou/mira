@@ -1,6 +1,21 @@
 import Foundation
 import Observation
 
+/// Window-local geometry only; no message bodies or rendered documents are retained.
+@MainActor
+final class ConversationReadingStore {
+    private var states: [UUID: ConversationReadingState] = [:]
+    private let empty = ConversationReadingState()
+
+    func state(for id: UUID?) -> ConversationReadingState {
+        guard let id else { return empty }
+        if let state = states[id] { return state }
+        let state = ConversationReadingState()
+        states[id] = state
+        return state
+    }
+}
+
 /// Retains reading intent when the transcript leaves the window's detail column.
 @MainActor @Observable
 final class ConversationReadingState {
@@ -12,23 +27,28 @@ final class ConversationReadingState {
     @ObservationIgnored var expandedThinkingIDs: Set<String> = []
     var scrollState = TranscriptScrollState()
     @ObservationIgnored private var isVisible = true
+    @ObservationIgnored private(set) var hasSavedPosition = false
     @ObservationIgnored var visibleOffset: CGFloat = 0
     @ObservationIgnored private(set) var pendingRestoreOffset: CGFloat?
+    struct RowMeasurement {
+        let signature: Int
+        let width: CGFloat
+        let height: CGFloat
+    }
+    @ObservationIgnored var rowMeasurements: [String: RowMeasurement] = [:]
+    @ObservationIgnored var measurementStyle: String?
 
     func prepareForDisplay() {
-        pendingRestoreOffset = scrollState.isAtLatest ? nil : visibleOffset
+        pendingRestoreOffset = hasSavedPosition ? visibleOffset : nil
         isVisible = true
     }
 
-    func takeRestorationOffset(maximumOffset: CGFloat) -> CGFloat? {
-        guard let offset = pendingRestoreOffset, maximumOffset >= offset else { return nil }
-        pendingRestoreOffset = nil
-        return offset
-    }
+    func completeRestoration() { pendingRestoreOffset = nil }
 
     func recordOffset(_ offset: CGFloat) {
         guard isVisible, pendingRestoreOffset == nil else { return }
-        visibleOffset = max(0, offset)
+        hasSavedPosition = true
+        visibleOffset = offset
     }
 
     func userStartedScrolling() { pendingRestoreOffset = nil }

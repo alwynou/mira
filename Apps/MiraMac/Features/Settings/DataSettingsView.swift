@@ -3,6 +3,7 @@ import MiraCore
 
 @MainActor
 struct DataSettingsView: View {
+    @Environment(\.miraSettingsPageActive) private var isActive
     @Environment(\.locale) private var locale
     @Bindable var model: DataSettingsModel
 
@@ -53,6 +54,6 @@ struct DataSettingsView: View {
                 }
             }
         }
-        .task { await model.observe() }
+        .task(id: isActive) { if isActive { await model.observe() } }
     }
 }

@@ -41,6 +41,7 @@ enum MiraTheme {
     enum Settings {
         static var canvas: Color { dynamic(light: 0xFFFFFF, dark: 0x2A2C2C) }
         static var separator: Color { dynamic(light: 0xEBEBEB, dark: 0x3A3C3C) }
+        static var groupSurface: Color { dynamic(light: 0xF7F7F7, dark: 0x303232) }
 
         private static func dynamic(light: Int, dark: Int) -> Color {
             Color(nsColor: NSColor(name: nil) { appearance in
@@ -67,8 +68,16 @@ enum MiraTheme {
         static let sidebarIconSize: CGFloat = 20
         static let titleHorizontalInset: CGFloat = 20
         static let iconRadius: CGFloat = 5
-        static let selectMinWidth: CGFloat = 80
+        static let selectMinWidth: CGFloat = 0
+        static let providerCardWidth: CGFloat = 108
+        static let providerCardMinHeight: CGFloat = 96
+        static let providerCardRadius: CGFloat = 8
+        static let providerCardSelectionOpacity: Double = 0.10
         static let rowVerticalInset: CGFloat = 8
+        static let groupInset: CGFloat = 10
+        static let groupRadius: CGFloat = 10
+        static let groupGap: CGFloat = 10
+        static let sectionTopInset: CGFloat = 28
         static let separatorHeight: CGFloat = 1
         static let labelDescriptionGap: CGFloat = 2
     }

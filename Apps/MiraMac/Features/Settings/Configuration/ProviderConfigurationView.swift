@@ -9,6 +9,9 @@ struct ProviderConfigurationView: View {
     let navigate: (SettingsDestination) -> Void
     @State private var modelEditor: ModelEditorSelection?
     @State private var removal: ModelDescriptor?
+    @State private var connectionEditor: ProviderConnectionSettingsModel?
+    @State private var editorDestination: SettingsDestination?
+    @State private var connectionEditors: [SettingsDestination: ProviderConnectionSettingsModel] = [:]
     private struct ModelEditorSelection: Identifiable {
         let id = UUID()
         let connection: ProviderConnection
@@ -18,25 +21,14 @@ struct ProviderConfigurationView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if destination.category == .models {
-                MiraSettingsPage { models }
+                MiraSettingsPage {
+                    models
+                    if hasModelFeedback { MiraSettingsSection { modelFeedback } }
+                }
             } else {
                 providers
-            }
-            if model.error != nil || model.statusKey != nil {
-                Divider()
-                VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
-                    status
-                    if model.isProbing {
-                        Button("Cancel Test") { model.cancelProbe() }.buttonStyle(MiraSettingsButtonStyle())
-                    }
-                }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, MiraTheme.Spacing.xxl)
-                    .padding(.vertical, MiraTheme.Spacing.md)
-                    .background(MiraTheme.Settings.canvas)
-                    .accessibilityIdentifier("settings.providers.status")
             }
         }
         .onChange(of: selectedProviderDestination, initial: true) { _, next in
@@ -45,8 +37,13 @@ struct ProviderConfigurationView: View {
             } else {
                 model.selectedConnectionID = nil
             }
+            updateConnectionEditor()
         }
-        .onDisappear { model.stopRequests() }
+        .onChange(of: model.configuration) { updateConnectionEditor() }
+        .onDisappear {
+            for editor in connectionEditors.values { editor.disappear() }
+            model.stopRequests()
+        }
         .sheet(item: $modelEditor) { selection in
             PoolModelEditor(existing: selection.existing, connection: selection.connection, route: selection.route,
                             initialModelID: selection.initialModelID, container: model.container,
@@ -65,51 +62,59 @@ struct ProviderConfigurationView: View {
     }
 
     private var providers: some View {
-        MiraSettingsPage {
-            Group {
-                MiraSettingsSection("Provider") {
-                    MiraSettingsRow("Provider", subtitle: "Manage provider connections and models.") {
-                        providerPicker
-                    }
-                }
-                selectedProviderContent
+        MiraSettingsLazyPage(header: {
+            MiraSettingsSection("Provider") {
+                providerCards
             }
+            connectionFields
+        }) {
+            selectedProviderContent
         }
-        .id(selectedProviderDestination)
+        .accessibilityIdentifier("settings.providers.page")
     }
 
-    private var providerPicker: some View {
-        Picker("Provider", selection: Binding<SettingsDestination?>(
-            get: { selectedProviderDestination },
-            set: { if let destination = $0 { navigate(destination) } }
-        )) {
-            if !activeConnections.isEmpty {
-                Section("Active Providers") {
-                    ForEach(activeConnections) { connection in
-                        Text(verbatim: ProviderModelCatalog.bundled.displayName(for: connection))
-                            .tag(Optional(SettingsDestination.provider(connection.id)))
-                    }
-                }
+    private struct ProviderChoice: Identifiable {
+        let id: SettingsDestination
+        let name: String
+        let providerID: String
+        let accessibilityIdentifier: String
+    }
+
+    private var providerChoices: [ProviderChoice] {
+        ProviderModelCatalog.bundled.directoryProviders.flatMap { provider in
+            let connections = listedConnections.filter { directoryProvider(for: $0)?.directoryID == provider.directoryID }
+            if connections.isEmpty {
+                return [ProviderChoice(id: .catalogProvider(provider.id), name: provider.name, providerID: provider.id,
+                                       accessibilityIdentifier: "settings.catalog.\(provider.id)")]
             }
-            if !inactiveConnections.isEmpty || !unconfiguredProviders.isEmpty {
-                Section("Inactive Providers") {
-                    ForEach(inactiveConnections) { connection in
-                        Text(verbatim: ProviderModelCatalog.bundled.displayName(for: connection))
-                            .tag(Optional(SettingsDestination.provider(connection.id)))
-                    }
-                    ForEach(unconfiguredProviders) { provider in
-                        Text(verbatim: provider.name)
-                            .tag(Optional(SettingsDestination.catalogProvider(provider.id)))
-                    }
-                }
+            return connections.map { connection in
+                ProviderChoice(id: .provider(connection.id), name: ProviderModelCatalog.bundled.displayName(for: connection),
+                               providerID: provider.id, accessibilityIdentifier: "settings.provider.\(connection.id)")
             }
         }
-        .pickerStyle(.menu)
-        .labelsHidden()
-        .frame(minWidth: MiraTheme.Layout.selectMinWidth,
-               maxWidth: MiraTheme.Layout.selectMaxWidth,
-               alignment: .trailing)
-        .accessibilityIdentifier("settings.providers.picker")
+    }
+
+    private var providerCards: some View {
+        ScrollViewReader { reader in
+            ScrollView(.horizontal) {
+                HStack(spacing: 0) {
+                    ForEach(providerChoices) { choice in
+                        MiraProviderSelectionCard(name: choice.name, providerID: choice.providerID,
+                                                  isSelected: selectedProviderDestination == choice.id) {
+                            navigate(choice.id)
+                        }
+                        .id(choice.id)
+                        .accessibilityIdentifier(choice.accessibilityIdentifier)
+                    }
+                }
+                .padding(MiraTheme.Spacing.xs)
+            }
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            .onChange(of: selectedProviderDestination, initial: true) { _, selected in
+                if let selected { reader.scrollTo(selected, anchor: .center) }
+            }
+        }
+        .accessibilityIdentifier("settings.providers.cards")
     }
 
     @ViewBuilder private var selectedProviderContent: some View {
@@ -125,6 +130,7 @@ struct ProviderConfigurationView: View {
         default:
             MiraSettingsSection {
                 ContentUnavailableView("Connection unavailable", systemImage: "cloud")
+                if hasModelFeedback { modelFeedback }
             }
         }
     }
@@ -166,17 +172,14 @@ struct ProviderConfigurationView: View {
 
     private func catalogDetail(_ provider: CatalogProvider) -> some View {
         Group {
-            ProviderConnectionEditor(existing: nil, template: provider, library: model,
-                                     onMutation: { model.stopRequests() }) { id in
-                await model.refresh()
-                navigate(.provider(id))
-            }
-            MiraSettingsSection("Provider Models") {
-                providerModelsDescription
+            MiraSettingsSection("Provider Models", isCollection: true) {
+                modelListIntroduction(isEmpty: provider.models.isEmpty)
                 ForEach(provider.models) { item in
-                    modelRow(id: item.id, name: item.metadata.displayName, metadata: item.metadata,
-                             providerID: provider.id, isEnabled: .constant(false))
-                        .disabled(true)
+                    MiraSettingsLazyRow(isFirst: false, isLast: item.id == provider.models.last?.id) {
+                        modelRow(id: item.id, name: item.metadata.displayName, metadata: item.metadata,
+                                 providerID: provider.id, isEnabled: .constant(false))
+                            .disabled(true)
+                    }
                 }
             }
         }
@@ -184,32 +187,74 @@ struct ProviderConfigurationView: View {
 
     private func providerDetail(_ connection: ProviderConnection) -> some View {
         Group {
-            ProviderConnectionEditor(existing: connection,
-                                     template: ProviderModelCatalog.bundled.matchingProvider(for: connection), library: model,
-                                     onMutation: { navigate(.provider(connection.id)); model.stopRequests() }) { id in
-                await model.refresh()
-                navigate(.provider(id))
-            }
-            MiraSettingsSection("Provider Models") {
-                HStack {
-                    Spacer(minLength: 0)
-                    if model.isDiscovering {
-                        ProgressView().controlSize(.small)
-                        Button("Cancel") { model.cancelDiscovery() }
-                    } else {
-                        Button { model.discoverModels() } label: { Image(systemName: "arrow.clockwise") }
-                            .help("Fetch Models").accessibilityLabel("Fetch Models")
-                            .disabled(!connection.isEnabled || model.isWorking || model.container.isDemo)
-                    }
-                    Button { editModel(nil, connection: connection) } label: { Image(systemName: "plus") }
-                        .help("Add Manually").accessibilityLabel("Add Manually")
-                        .disabled(model.isWorking || model.container.isDemo)
-                }
-                .controlSize(.small)
-                providerModelsDescription
+            MiraSettingsSection("Provider Models", isCollection: true, actions: {
+                providerModelActions(connection)
+            }) {
+                modelListIntroduction(isEmpty: false)
                 providerModelRows(connection)
             }
         }
+    }
+
+    @ViewBuilder private var connectionFields: some View {
+        if let connectionEditor, editorDestination == selectedProviderDestination {
+            let editingDestination = editorDestination
+            ProviderConnectionEditor(settings: connectionEditor,
+                                     isUnavailable: model.isWorking || model.container.isDemo,
+                                     onMutation: { model.stopRequests() }) { id in
+                await model.refresh()
+                if editorDestination == editingDestination { navigate(.provider(id)) }
+            }
+            .id(editorDestination)
+            #if DEBUG
+            .onAppear { ProviderSettingsTiming.didLayout(editorDestination) }
+            #endif
+        }
+    }
+
+    /// Ownership stays above the lazy rows so scrolling cannot discard a key draft or cancel a test.
+    private func updateConnectionEditor() {
+        let destination = selectedProviderDestination
+        let connection: ProviderConnection?
+        let template: CatalogProvider?
+        switch destination {
+        case .provider(let id):
+            connection = model.configuration.connections.first { $0.id == id }
+            template = connection.flatMap { ProviderModelCatalog.bundled.matchingProvider(for: $0) }
+        case .catalogProvider(let id):
+            connection = nil
+            template = ProviderModelCatalog.bundled.directoryProviders.first { $0.id == id }
+        default:
+            connectionEditor = nil; editorDestination = nil
+            return
+        }
+        if let destination, editorDestination != destination {
+            let editor = connectionEditors[destination] ?? ProviderConnectionSettingsModel(existing: connection, template: template, container: model.container)
+            connectionEditors[destination] = editor
+            connectionEditor = editor
+            editorDestination = destination
+        }
+        connectionEditor?.update(existing: connection, configuration: model.configuration)
+    }
+
+    private func providerModelActions(_ connection: ProviderConnection) -> some View {
+        HStack(spacing: MiraTheme.Spacing.sm) {
+            if model.isDiscovering {
+                ProgressView().controlSize(.small)
+                Button("Cancel") { model.cancelDiscovery() }
+            } else {
+                Button { model.discoverModels() } label: { Image(systemName: "arrow.clockwise") }
+                    .help("Fetch Models").accessibilityLabel("Fetch Models")
+                    .accessibilityIdentifier("settings.provider.models.refresh")
+                    .disabled(!connection.isEnabled || model.isWorking || model.container.isDemo)
+            }
+            Button { editModel(nil, connection: connection) } label: { Image(systemName: "plus") }
+                .help("Add Manually").accessibilityLabel("Add Manually")
+                .accessibilityIdentifier("settings.provider.models.add")
+                .disabled(model.isWorking || model.container.isDemo)
+        }
+        .buttonStyle(MiraSettingsButtonStyle())
+        .controlSize(.small)
     }
 
     private var providerModelsDescription: some View {
@@ -219,39 +264,59 @@ struct ProviderConfigurationView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    private func modelListIntroduction(isEmpty: Bool) -> some View {
+        MiraSettingsLazyRow(isFirst: true, isLast: isEmpty) {
+            VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+                providerModelsDescription
+                if hasModelFeedback { modelFeedback }
+            }
+        }
+    }
+
     @ViewBuilder private func providerModelRows(_ connection: ProviderConnection) -> some View {
         let providerID = ProviderModelCatalog.bundled.matchingProvider(for: connection)?.id
-        ForEach(model.providerModels) { descriptor in
-            modelRow(id: descriptor.modelID, name: descriptor.catalogMetadata?.displayName,
-                     metadata: descriptor.catalogMetadata, providerID: providerID,
-                     contextWindow: descriptor.contextWindow,
-                     supportsTools: descriptor.toolCapability == .declared || descriptor.toolCapability == .verified,
-                     isEnabled: Binding(get: { descriptor.isEnabled }, set: { enabled in
-                         Task { await model.setModelEnabled(enabled, model: descriptor) }
-                     }))
-                .disabled(!connection.isEnabled || model.isWorking || model.container.isDemo)
-                .contextMenu {
-                    Button("Configure") { editModel(descriptor, connection: connection) }
-                        .disabled(model.isWorking || model.container.isDemo)
-                    Menu("Test Capabilities") {
-                        Button("Test Text") { model.probe(descriptor, kind: .text) }
-                        Button("Test Tools") { model.probe(descriptor, kind: .tools) }
-                        Button("Test JSON Extraction") { model.probe(descriptor, kind: .jsonExtraction) }
+        let saved = model.providerModels
+        let discovered = model.newDiscoveredModels
+        let catalog = model.newCatalogModels
+        ForEach(saved) { descriptor in
+            MiraSettingsLazyRow(isFirst: false, isLast: discovered.isEmpty && catalog.isEmpty && descriptor.id == saved.last?.id) {
+                modelRow(id: descriptor.modelID, name: descriptor.catalogMetadata?.displayName,
+                         metadata: descriptor.catalogMetadata, providerID: providerID,
+                         contextWindow: descriptor.contextWindow,
+                         supportsTools: descriptor.toolCapability == .declared || descriptor.toolCapability == .verified,
+                         isEnabled: Binding(get: { descriptor.isEnabled }, set: { enabled in
+                             Task { await model.setModelEnabled(enabled, model: descriptor) }
+                         }))
+                    .disabled(!connection.isEnabled || model.isWorking || model.container.isDemo)
+                    .contextMenu {
+                        Button("Configure") { editModel(descriptor, connection: connection) }
+                            .disabled(model.isWorking || model.container.isDemo)
+                        Menu("Test Capabilities") {
+                            Button("Test Text") { model.probe(descriptor, kind: .text) }
+                            Button("Test Tools") { model.probe(descriptor, kind: .tools) }
+                            Button("Test JSON Extraction") { model.probe(descriptor, kind: .jsonExtraction) }
+                        }
+                        .disabled(!connection.isEnabled || model.isWorking || model.isProbing || model.container.isDemo)
+                        Button("Remove", role: .destructive) { removal = descriptor }
+                            .disabled(model.isWorking || model.container.isDemo)
                     }
-                    .disabled(!connection.isEnabled || model.isWorking || model.isProbing || model.container.isDemo)
-                    Button("Remove", role: .destructive) { removal = descriptor }
-                        .disabled(model.isWorking || model.container.isDemo)
-                }
+            }
         }
-        ForEach(model.newDiscoveredModels) { discovered in
-            availableModelRow(id: discovered.id, name: discovered.displayName, connection: connection)
+        ForEach(discovered) { item in
+            MiraSettingsLazyRow(isFirst: false, isLast: catalog.isEmpty && item.id == discovered.last?.id) {
+                availableModelRow(id: item.id, name: item.displayName, connection: connection)
+            }
         }
-        ForEach(model.newCatalogModels) { item in
-            availableModelRow(id: item.id, name: item.metadata.displayName, connection: connection)
+        ForEach(catalog) { item in
+            MiraSettingsLazyRow(isFirst: false, isLast: item.id == catalog.last?.id) {
+                availableModelRow(id: item.id, name: item.metadata.displayName, connection: connection)
+            }
         }
-        if model.providerModels.isEmpty && model.newDiscoveredModels.isEmpty && model.newCatalogModels.isEmpty {
-            ContentUnavailableView("No Models Selected", systemImage: "cube.transparent",
-                                   description: Text("Fetch the model list or add a Model ID manually, then configure the models you want to use."))
+        if saved.isEmpty && discovered.isEmpty && catalog.isEmpty {
+            MiraSettingsLazyRow(isFirst: false, isLast: true) {
+                ContentUnavailableView("No Models Selected", systemImage: "cube.transparent",
+                                       description: Text("Fetch the model list or add a Model ID manually, then configure the models you want to use."))
+            }
         }
     }
 
@@ -309,8 +374,20 @@ struct ProviderConfigurationView: View {
         modelEditor = ModelEditorSelection(connection: connection, existing: descriptor, route: route, initialModelID: modelID)
     }
 
-    @ViewBuilder private var status: some View {
-        if let error = model.error { Text(L10n.error(error, locale: locale)).font(MiraTheme.Settings.body).foregroundStyle(.red).textSelection(.enabled) }
-        else if let key = model.statusKey { Text(L10n.string(key, locale: locale)).font(MiraTheme.Settings.body).foregroundStyle(MiraTheme.Settings.secondaryText) }
+    private var hasModelFeedback: Bool { model.error != nil || model.statusKey != nil }
+
+    private var modelFeedback: some View {
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
+            if let error = model.error {
+                Text(L10n.error(error, locale: locale)).foregroundStyle(.red).textSelection(.enabled)
+            } else if let key = model.statusKey {
+                Text(L10n.string(key, locale: locale)).foregroundStyle(MiraTheme.Settings.secondaryText)
+            }
+            if model.isProbing {
+                Button("Cancel Test") { model.cancelProbe() }.buttonStyle(MiraSettingsButtonStyle())
+            }
+        }
+        .font(MiraTheme.Settings.caption)
+        .accessibilityIdentifier("settings.provider.models.status")
     }
 }

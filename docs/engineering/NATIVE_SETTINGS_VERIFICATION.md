@@ -34,3 +34,9 @@ Separator pixel evidence from 2026-09-11 remains in `.build/native-settings-qa/s
 ## Limits
 
 macOS 15 runtime, physical trackpad behavior, fullscreen/multiple displays, VoiceOver, Reduce Transparency and Increase Contrast remain unverified for the final scene. Runtime evidence on macOS 26 does not close those checks. End-to-end streaming/reading-position behavior and credential cleanup on close were not re-exercised after the scene migration. Live provider connectivity and stored-key interactions were not tested with real credentials. Native material and accent rendering remain system-owned.
+
+## Provider navigation and scrolling, 2026-09-12
+
+The final follow-up adds continuous borderless provider choices, selected-title popup sizing, leading field content, populated native secure fields, inline test feedback and model actions in the section header. Provider model rows use a shared lazy scroll surface and cached adaptive layout. Visited pages retain selection, drafts and scroll positions until settings closes; an active library-maintenance operation retains its owner.
+
+English/light and Chinese/dark native UI runs pass at minimum window size, including padded provider clicks, repeated switching, synthetic key retention, scrolling, category changes and close/reopen reset. Synthetic native-field and presentation tests verify saved/replacement values and unchanged-key reuse without credential rotation. Final hover screenshots were reviewed. Detailed measurements, result bundles and remaining platform checks are recorded in [Provider settings responsiveness](PROVIDER_SETTINGS_PERFORMANCE.md).

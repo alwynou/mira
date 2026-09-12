@@ -45,6 +45,20 @@ struct ConversationStreamBufferTests {
         #expect(buffer.thinkingTraces.isEmpty)
     }
 
+    @Test func identicalAuthoritativeReplaceCancelsPendingFlush() async throws {
+        let buffer = ConversationStreamBuffer(interval: .milliseconds(50))
+        let id = ExecutionID()
+        buffer.receiveDraft("stale", for: id)
+
+        // The authoritative snapshot is already empty. Replacing with equal published
+        // values must still discard the queued event before its delayed flush runs.
+        buffer.replace(drafts: [:], thinkingTraces: [:])
+        try await Task.sleep(for: .milliseconds(120))
+
+        #expect(buffer.drafts.isEmpty)
+        #expect(buffer.thinkingTraces.isEmpty)
+    }
+
     @Test func executionsRemainIsolatedAndThinkingOnlyCreatesEmptyDraft() async throws {
         let buffer = ConversationStreamBuffer(interval: .milliseconds(20))
         let first = ExecutionID(), second = ExecutionID()

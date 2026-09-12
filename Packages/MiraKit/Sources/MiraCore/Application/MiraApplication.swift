@@ -125,6 +125,10 @@ public actor MiraApplication {
         .init(workspaces: try store.workspaces(), conversations: try store.conversations(includeArchived: includeArchived), configuration: try store.modelConfiguration())
     }
 
+    public func modelConfiguration() throws -> ModelConfiguration {
+        try store.modelConfiguration()
+    }
+
     public func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int = 100) throws -> MemorySearchResult {
         try store.memoryList(workspaceID: workspaceID, states: states, query: query, limit: limit)
     }

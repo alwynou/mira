@@ -29,6 +29,22 @@ struct NativeTranscriptRowTests {
         #expect(wide > short)
     }
 
+    @Test("assistant measurement matches the displayed row without measuring a fixed header")
+    func measuredAndDisplayedAssistantHeightsAgree() {
+        _ = NSApplication.shared
+        let measured = NativeTranscriptRow(frame: .zero)
+        let displayed = NativeTranscriptRow(frame: .zero)
+        let source = "## A heading\n\nA synthetic paragraph with enough words to wrap in a narrow conversation."
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            let theme = theme(appearance)
+            configure(measured, id: "answer", text: source, theme: theme, measurement: true)
+            configure(displayed, id: "answer", text: source, theme: theme)
+            for width: CGFloat in [360, 640, 900] {
+                #expect(abs(measured.fittingHeight(width: width) - displayed.fittingHeight(width: width)) < 1)
+            }
+        }
+    }
+
     @Test("same-ID updates preserve an answer selection")
     func sameIDConfigurationPreservesSelection() throws {
         _ = NSApplication.shared
@@ -80,7 +96,8 @@ struct NativeTranscriptRowTests {
         id: String,
         text: String,
         bodyPurged: Bool = false,
-        theme: MarkdownTheme
+        theme: MarkdownTheme,
+        measurement: Bool = false
     ) {
         let locale = Locale(identifier: "en")
         let item = TranscriptItem(
@@ -101,7 +118,7 @@ struct NativeTranscriptRowTests {
             theme: theme,
             locale: locale,
             reduceMotion: false,
-            measurement: false,
+            measurement: measurement,
             auxiliary: AnyView(EmptyView()),
             remember: { _ in }
         )
