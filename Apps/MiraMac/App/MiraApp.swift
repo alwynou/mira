@@ -39,7 +39,7 @@ struct MiraApp: App {
             CommandGroup(replacing: .help) {
                 Link(
                     L10n.string("Mira Documentation", locale: language.locale),
-                    destination: URL(string: "https://github.com/alwynou/mira/tree/dev/docs")!)
+                    destination: URL(string: "https://github.com/alwynou/mira/tree/main/docs")!)
             }
         }
 

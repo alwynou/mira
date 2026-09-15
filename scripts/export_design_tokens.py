@@ -51,9 +51,9 @@ def export() -> None:
                 "windowBackground": "colors.canvas",
             },
             "conversationTitlebar": {
-                "owner": "SwiftUI ScrollView and safeAreaBar",
-                "style": "scrollEdgeEffectStyle soft on macOS 26 and later",
-                "height": "native toolbar top safe-area inset",
+                "owner": "AppKit NSSplitViewItemAccessoryViewController",
+                "style": "preferredScrollEdgeEffectStyle soft on macOS 26.1 and later",
+                "height": "layout.conversationHeaderHeight",
                 "accessibility": "system accessibility preferences",
                 "earlierSystemFallback": "colors.canvas with native window title",
                 "source": "Apps/MiraMac/DesignSystem/MiraComponents.swift",

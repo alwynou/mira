@@ -286,7 +286,7 @@ public struct JournalSessionReader: Sendable {
         var sourceCount = 0
         for id in executionIDs {
             try Task.checkCancellation()
-            guard let completion = state.executions[id]?.completion, completion.status == .completed,
+            guard let execution = state.executions[id], let completion = execution.completion, completion.status == .completed,
                   completion.assistantMessageID != nil, let answer = completion.answer,
                   state.references[answer.id] == answer,
                   !state.invalidatedRetentionGroups.contains(answer.retentionGroup) else { continue }
@@ -294,6 +294,20 @@ public struct JournalSessionReader: Sendable {
                 _ = try await payloads.read(answer)
                 retained.insert(id)
             } else {
+                // A completed local-driver reply has no model route or dispatched
+                // context request. It is valid history, but it cannot contribute
+                // memory source notices; keep the context empty and continue.
+                _ = try await payloads.read(answer)
+                guard state.references[execution.admission.plan.id] == execution.admission.plan,
+                      !state.invalidatedRetentionGroups.contains(execution.admission.plan.retentionGroup) else {
+                    throw Self.invalidPrefix
+                }
+                let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
+                if plan.route == nil {
+                    guard execution.attemptIDs.isEmpty else { throw Self.invalidPrefix }
+                    result[id] = .init(connectionID: nil, sources: [])
+                    continue
+                }
                 let evidence = try await recordedContextEvidence(in: snapshot, executionID: id)
                 sourceCount += evidence.sources.count
                 guard sourceCount <= 65_536 else { throw Self.invalidPrefix }

@@ -1,37 +1,95 @@
 # Conversation scroll-edge titlebar
 
-Date: 2026-09-11. Host: macOS 26.6.2, Apple Silicon, macOS 26.5 SDK. Deployment target remains macOS 15.
+Date: 2026-09-15. Host: macOS 26.6.2, Apple Silicon, macOS 26.5 SDK. Deployment target remains macOS 15.
 
-## Implementation
+## Native scroll integration — 2026-09-15
 
-On macOS 26, `MiraScrollEdgeViewport` uses a finite SwiftUI `ScrollView`, a real title in `safeAreaBar`, and `.scrollEdgeEffectStyle(.soft, for: .top)`. This is the same system effect used by the native settings form. No private blur filter or native glass hierarchy manipulation is used.
+The conversation uses one native scroll container for virtualization, progressive
+header blur, and a floating composer. The isolated prototype, its launch scripts,
+and generated artifacts have been removed; acceptance uses the production app.
 
-ListViewKit's scrolling viewport is a custom `NSView`, not a SwiftUI scroll view. It still owns message virtualization, reading position, selection, and the transcript scrollbar. The enclosing SwiftUI viewport registers that content with the system edge effect and remains anchored to its bottom. The composer is outside this host so the host cannot shift it. Vertical transcript wheel events go directly to ListViewKit through the existing window-local event monitor; horizontal-dominant gestures keep their existing path for code and tables.
+- `Vendor/ListViewKit` contains the pinned virtualizer with a native `NSScrollView`
+  backend. Its `NSClipView` owns scrolling and its flipped document hosts only
+  virtual rows. The local fork and license are documented in `README.mira.md`.
+- The conversation no longer has an outer SwiftUI ScrollView, host scroller
+  suppression, or wheel forwarding. The existing key/selection monitor remains
+  scoped to navigation keys and Litext selection; it does not handle wheel input.
+- On macOS 26.1+, a real 52 pt split accessory contains `MiraConversationHeaderView`
+  and selects AppKit's `.soft` scroll edge. The owned split root cancels the inherited
+  titlebar inset. Sidebar and inspector content restore that clearance; their
+  native glass ancestors and materials are untouched.
+- Native controls and title occupy one row. Title layout uses public control frames
+  and detail safe-area bounds on each layout pass and after window resizing. It
+  does not depend on a binary sidebar-collapse inset or publish SwiftUI padding.
+- Rows use effective clip viewport width. Virtual document size is `listContentSize`,
+  leaving the native meaning of `NSScrollView.contentSize` intact. Height compensation
+  applies after document size changes, and unchanged layouts leave native elastic
+  offsets alone.
+- Native gesture/scrollbar notifications cancel pending reading restoration.
+  Programmatic scroll animation has explicit cancellation; native wheel motion
+  remains AppKit-owned. First placement, cached-page identity, thinking, citations,
+  composer clearance and execution ownership retain their existing contracts.
+- macOS 15 through 26.0 retain the native window title and opaque canvas treatment;
+  the soft split-accessory API is availability-gated.
 
-To prevent a second scrollbar during overpull, `MiraScrollEdgeHostConfiguration` suppresses the outer scrollers' drawing and accessibility and sets the outer scroll elasticity to `.none`, using the public `enclosingScrollView` and scroller properties. It leaves the transcript's own scroller intact. On this host, `.scrollIndicators(.hidden)`, `.scrollDisabled(true)`, removing the native scroller, or setting its `isHidden` also removed the progressive effect. The scroller views therefore remain installed with zero alpha. This OS-specific integration should be rechecked when upgrading the SDK/runtime.
+### Integration corrections and verification
 
-The native top safe-area inset controls the title height and first-row clearance. AppKit still owns window controls, toolbar actions, split panes, and the native window name. macOS 26 removes only the duplicate native title; the SwiftUI title reserves space measured from the public native button views. Earlier systems retain the native title over the shared canvas. The transcript clips at the full window-height viewport, not at the toolbar's lower edge. Existing first-row spacing, page-key and selection-edge calculations account for the covered area; the composer retains its measured bottom clearance. Provider, storage, thinking, and execution behavior did not change.
+- The top native inset is explicit: AppKit automatic content adjustment must not
+  overwrite the measured header clearance. The later floating-composer correction
+  uses measured document-tail padding for its bottom clearance; see
+  [floating composer](FLOATING_COMPOSER.md). A top-inset change retains the
+  historical offset, or the top anchor if already at the beginning.
+- Cancelling the root titlebar inset also requires restoring sidebar/inspector
+  content clearance. This keeps the sidebar label below the native window buttons.
+- The benchmark now waits for stable native geometry, chooses a real middle user
+  row, and measures actual cached-list identity, draft and snapshot-load retention.
+  It waits for history notices and rejects presentation errors before interaction.
+- Acceptance exposed a pre-existing local-driver history error: a completed reply
+  with no model route was incorrectly treated as dispatched model context.
+  `historyContexts` validates its answer and plan, requires no attempts, and returns
+  empty sources. Routed evidence remains strict. The owning contract is
+  [memory history](../architecture/AGENT_MEMORY_HISTORY.md).
+- The jump action is retained for its opacity transition and disabled at latest.
+  XCTest's existence/hittability proxy does not describe that SwiftUI lifetime.
+  The UI test checks enabled state, performs an actual click, and independently
+  verifies the native scroller reaches the bottom, then checks re-enabling in history.
 
-## Focused verification — 2026-09-11
+Focused results on macOS 26.6.2:
 
-- The final Debug app build passed with the documented resolved-package build command. Log: `/tmp/mira-native-scroll-edge-build.log`.
-- Earlier in this task, only `MiraHostTests/TranscriptViewportLayoutTests` ran: 6 passed. Log: `/tmp/mira-titlebar-viewport-tests.log`; result: `.build/xcode/Logs/Test/Test-Mira-2026.09.11_16-00-49-+0800.xcresult`. The inset calculations did not change after that run. The later scroller correction was checked in the native app rather than rerunning unrelated suites.
-- Native checks used the existing offline synthetic conversation in `/tmp/Mira-Titlebar-QA`. Repeated upward scrolling at the top and subsequent downward scrolling exercised the affected path. Light-mode scrolling showed one transcript scrollbar, progressive blur behind the title, and the composer in its fixed position. Dark mode also showed progressive blur with the execution inspector open; the final response marker remained above the composer.
-- Token export and whitespace validation passed. Self-contained light/dark titlebar previews were updated. No package-wide, full host, or full UI test suite and no paid endpoint was run for this correction.
+| Boundary | Evidence |
+| --- | --- |
+| Native scroll backend and virtual anchors | 16 tests passed after dynamic composer clearance; `/tmp/mira-composer-overlay-backend.log` |
+| Header geometry and native sidebar motion | 2 window-shell tests passed; `/tmp/mira-native-header-host-final.log` |
+| Header/composer inset and reading position | All 6 viewport tests passed after dynamic composer clearance; `/tmp/mira-composer-overlay-host.log` |
+| Chinese dark/minimum and English light conversation switching | Both UI cases passed with real wheel, jump-to-latest, reading-anchor restoration and draft reuse; `/tmp/mira-composer-overlay-ui-settled.log` |
+| Final Debug app build | Required resolved-package build passed; `/tmp/mira-composer-overlay-build.log` |
+| Local and routed history notices | 2 `MemoryHistoryWorkflowTests` passed |
+| Capped code scrolling and cancel/continue | Both native UI cases passed; `/tmp/mira-native-header-ui-tests.log` |
 
-Current native evidence is in `.build/native-titlebar-qa/scroll-edge-captures/`:
+Native captures under `.build/native-header-qa/` show the actual conversation,
+progressive text defocus below the header, one title row, native controls, and the
+floating composer: `conversation-en-light.png` and
+`conversation-zh-CN-dark-minimum.png`. The latter uses Chinese UI at the 850 pt
+minimum width. Fixture text is intentionally synthetic English in both locales.
+`conversation-zh-CN-light-collapsed.png` additionally verifies the collapsed
+sidebar: the title stays in the native button row with visible progressive blur.
+The header fixture used a fresh, isolated synthetic library;
+`.build/native-header-qa/final/report.json` passed. Final floating-composer geometry
+and native captures are recorded in [floating composer](FLOATING_COMPOSER.md).
 
-| File | Original capture | Evidence |
-| --- | --- | --- |
-| `conversation-zh-CN-light.png` | 16:59:48 | One visible transcript scrollbar, progressive blur over code behind the title, fixed composer |
-| `conversation-en-dark-inspector.png` | 17:02:17 | Progressive dark blur, clear title, inspector open, final marker above composer |
+Token export, bilingual language policy (2,037 strings) and `git diff --check` passed.
+Unverified: physical trackpad momentum/rebound, VoiceOver, Reduce Transparency,
+Increase Contrast, fullscreen/multiple displays, older macOS runtime, and rendered
+frame timing with a realistic unique-content corpus. macOS 15 compilation is not
+macOS 15 runtime evidence. No provider requests or credentials were used.
 
-The light capture predates only the subsequent accessibility-hidden flags on the outer scroller; the dark capture uses the final binary. English/dark used process arguments without changing saved preferences. The app was relaunched without those overrides after verification.
+## Commit cleanup verification
 
-## Commit preparation — 2026-09-12
-
-The final Debug build and full host suite passed after removing unused shell state and a redundant override. This includes all six viewport-layout cases, native split-window checks and appearance transitions. Result: `.build/xcode/Logs/Test/Run-Mira-2026.09.12_12-04-41-+0800.xcresult`. The package suite also passed all 389 cases. This cleanup preserves titlebar layout and scrolling behavior; conversation screenshot evidence remains the native captures above.
-
-## Remaining checks
-
-Physical trackpad momentum/elasticity can differ from the UI automation's scroll gestures. No macOS 15 runtime, exact minimum-size, fullscreen, multiple-display, Reduce Transparency, Increase Contrast, or VoiceOver acceptance is claimed for this final implementation. The final scrollbar fix was not subjected to a new performance benchmark, IME test, or quantitative streaming-position test. System blur and tint remain OS-dependent.
+The independent scroll prototype, its tooling and generated bundle were removed.
+The source vendor omits obsolete tests for its replaced custom scroll backend and
+an unused wheel-event counter. Production geometry and interaction fixtures remain.
+After cleanup, the resolved-package Debug build passed
+(`/tmp/mira-native-scroll-cleanup-build.log`) and all 16 native backend/anchor tests
+passed (`/tmp/mira-native-scroll-cleanup-backend.log`). Project generation, token
+export, language policy and whitespace checks passed. The accepted UI behavior was
+unchanged; native visual acceptance remains the production evidence above.

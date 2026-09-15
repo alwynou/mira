@@ -107,6 +107,7 @@ enum MiraTheme {
     }
 
     enum Layout {
+        static let conversationHeaderHeight: CGFloat = 52
         static let sidebarMin: CGFloat = 220
         static let sidebarIdeal: CGFloat = 248
         static let sidebarMax: CGFloat = 300

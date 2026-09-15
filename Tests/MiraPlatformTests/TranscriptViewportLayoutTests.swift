@@ -15,10 +15,10 @@ struct TranscriptViewportLayoutTests {
         list.setContentOffset(CGPoint(x: 0, y: 240), animated: false)
         #expect(TranscriptViewportLayout.setTopOverlayHeight(64, in: list))
         #expect(list.contentOffset.y == 240)
-        #expect(list.contentInsets.bottom == 0)
+        #expect(list.bottomContentPadding == 0)
 
         TranscriptViewportLayout.setBottomOverlayHeight(180, in: list, followingLatest: true)
-        #expect(list.contentOffset.y + list.bounds.height - list.contentInsets.bottom == 1_200)
+        #expect(list.contentOffset.y + list.viewportSize.height - list.bottomContentPadding == 1_200)
     }
 
     @Test("latest content clears a floating overlay")
@@ -26,9 +26,13 @@ struct TranscriptViewportLayoutTests {
         let list = makeList(contentHeight: 1_200, viewportHeight: 300)
 
         #expect(TranscriptViewportLayout.setBottomOverlayHeight(160, in: list, followingLatest: true))
-        #expect(list.contentInsets.bottom == 160)
+        #expect(list.bottomContentPadding == 160)
+        #expect(list.contentInsets.bottom == 0)
+        #expect(list.contentView.frame.height == 300)
+        #expect(list.rowContainer.frame.height == 1_360)
+        #expect(list.listContentSize.height == 1_200)
         #expect(list.contentOffset.y == list.maximumContentOffset.y)
-        #expect(list.contentOffset.y + list.bounds.height - list.contentInsets.bottom == 1_200)
+        #expect(list.contentOffset.y + list.viewportSize.height - list.bottomContentPadding == 1_200)
         #expect(TranscriptViewportLayout.isNearLatest(in: list))
     }
 
@@ -88,14 +92,14 @@ struct TranscriptViewportLayoutTests {
         list.setContentOffset(list.maximumContentOffset, animated: false)
 
         #expect(list.contentOffset.y == 860)
-        #expect(list.contentOffset.y + list.bounds.height - list.contentInsets.bottom == 1_200)
+        #expect(list.contentOffset.y + list.viewportSize.height - list.bottomContentPadding == 1_200)
         #expect(TranscriptViewportLayout.isNearLatest(in: list))
     }
 
     private func makeList(contentHeight: CGFloat, viewportHeight: CGFloat) -> ListScrollView {
         _ = NSApplication.shared
         let list = ListScrollView(frame: CGRect(x: 0, y: 0, width: 640, height: viewportHeight))
-        list.contentSize = CGSize(width: 640, height: contentHeight)
+        list.listContentSize = CGSize(width: 640, height: contentHeight)
         list.layoutSubtreeIfNeeded()
         return list
     }

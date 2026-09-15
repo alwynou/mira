@@ -125,28 +125,62 @@
             }
 
             private func verifyFloatingComposer(reportURL: URL) async {
-                guard let first = conversationIDs.first, let list = NativePerformanceBenchmark.findList(for: first)
-                else {
+                var mountedList: ListView<NativeTranscriptToken>?
+                for _ in 0..<100 {
+                    if let first = conversationIDs.first,
+                       let list = NativePerformanceBenchmark.findList(for: first),
+                       !list.content.isEmpty, list.viewportSize.height > 0 {
+                        mountedList = list
+                        break
+                    }
+                    try? await Task.sleep(for: .milliseconds(50))
+                }
+                guard let list = mountedList else {
                     NativePerformanceBenchmark.write(
                         ["schema": 2, "passed": false, "error": "The native transcript did not mount."], to: reportURL)
                     return
                 }
+                model.activePage.readingState.scrollState.jumpToLatest()
+                try? await Task.sleep(for: .milliseconds(600))
                 let window = NSApp.windows.first(where: { $0.isVisible })
                 var scenarios: [[String: Any]] = []
                 for (name, size, lines) in [
-                    ("short-light-en", CGSize(width: 1_100, height: 760), 1),
-                    ("multiline-light-en", CGSize(width: 1_100, height: 760), 8),
+                    ("short-input", CGSize(width: 1_100, height: 760), 1),
+                    ("multiline-input", CGSize(width: 1_100, height: 760), 8),
+                    ("shrink-input", CGSize(width: 1_100, height: 760), 1),
                     ("minimum-narrow", CGSize(width: 850, height: 620), 8),
                 ] {
                     window?.setContentSize(size)
                     model.activePage.composer = (1...lines).map { "Synthetic input line \($0)" }.joined(separator: "\n")
-                    try? await Task.sleep(for: .milliseconds(200))
+                    try? await Task.sleep(for: .milliseconds(600))
                     let row = list.content.isEmpty ? .zero : list.rectForRow(at: list.content.count - 1)
-                    let clearBottom = list.bounds.height - list.contentInsets.bottom
+                    let scrollFrame = list.convert(list.bounds, to: nil)
+                    let clipFrame = list.contentView.convert(list.contentView.bounds, to: nil)
+                    func backdrops(in view: NSView) -> [MiraComposerBackdropView] {
+                        if let surface = view as? MiraComposerBackdropView { return [surface] }
+                        return view.subviews.flatMap { backdrops(in: $0) }
+                    }
+                    // The cached empty draft may retain a shorter backdrop. Use
+                    // the uppermost surface so it cannot understate occlusion.
+                    let surface = window?.contentView.flatMap { root in
+                        backdrops(in: root).max { lhs, rhs in
+                            lhs.convert(lhs.bounds, to: nil).maxY < rhs.convert(rhs.bounds, to: nil).maxY
+                        }
+                    }
+                    let surfaceFrame = surface.map { $0.convert($0.bounds, to: nil) } ?? .zero
+                    let lastRowFrame = list.rowContainer.convert(row, to: nil)
+                    let fullViewport = scrollFrame.contains(surfaceFrame) && abs(clipFrame.height - scrollFrame.height) < 1
+                    let lastRowClearance = lastRowFrame.minY - surfaceFrame.maxY
+                    let clearBottom = list.bounds.height - list.bottomContentPadding
                     let gap = clearBottom - (row.maxY - list.contentOffset.y)
                     scenarios.append([
-                        "scenario": name, "clearance": gap, "overlayHeight": list.contentInsets.bottom,
-                        "passed": list.bounds.height > 400 && list.contentInsets.bottom > 100 && gap >= -1,
+                        "scenario": name, "clearance": gap, "overlayHeight": list.bottomContentPadding,
+                        "fullViewportBehindComposer": fullViewport,
+                        "lastRowClearanceAboveSurface": lastRowClearance,
+                        "nativeBottomInset": list.contentInsets.bottom,
+                        "passed": surface != nil && fullViewport && list.contentInsets.bottom == 0
+                            && list.bounds.height > 400 && list.bottomContentPadding > 100
+                            && gap >= -1 && lastRowClearance >= 0,
                     ])
                 }
                 NativePerformanceBenchmark.write(

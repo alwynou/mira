@@ -84,7 +84,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             list.setAccessibilityRole(.scrollArea)
             list.setAccessibilityIdentifier("conversation.transcript")
             list.setAccessibilityLabel(L10n.string("Conversation", locale: parent.locale))
-            list.postsBoundsChangedNotifications = true
+            list.contentView.postsBoundsChangedNotifications = true
             viewport.onLayout = { [weak self] in self?.layoutViewport() }
             list.rows {
                 ListRow(NativeTranscriptRow.self)
@@ -110,7 +110,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             isMounted = true
             parent.readingState.prepareForDisplay()
             boundsObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification,
-                                                                    object: list, queue: .main) { [weak self] _ in
+                                                                    object: list.contentView, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     if let self, self.hasInstalledSnapshot, !self.isPositioning, self.viewport.window != nil,
                        self.list.bounds.width > 0, self.list.bounds.height > 0 {
@@ -120,7 +120,14 @@ struct NativeConversationTranscript: NSViewRepresentable {
                     self?.wake()
                 }
             }
-            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .leftMouseDown, .leftMouseDragged, .leftMouseUp, .keyDown]) { [weak self] event in
+            list.onUserScroll = { [weak self] in
+                guard let self, parent.isActive, parent.page.isActive else { return }
+                userStartedScrolling()
+                wake()
+            }
+            // Text selection and page keys need window-level routing while Litext
+            // owns first responder. Wheel input stays entirely in NSScrollView.
+            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .keyDown]) { [weak self] event in
                 let handled = MainActor.assumeIsolated { self?.handle(event) ?? false }
                 return handled ? nil : event
             }
@@ -129,38 +136,12 @@ struct NativeConversationTranscript: NSViewRepresentable {
 
         private func handle(_ event: NSEvent) -> Bool {
             guard parent.isActive, parent.page.isActive, event.window === list.window else { return false }
-            if event.type == .scrollWheel, let content = list.window?.contentView {
-                let vertical = abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX)
-                var hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
-                while let view = hit, view !== content {
-                    if let scroll = view as? NSScrollView,
-                       ["conversation.toolIO", "conversation.codeBlock"].contains(scroll.accessibilityIdentifier()),
-                       ((vertical && event.scrollingDeltaY != 0 && (scroll.documentView?.bounds.height ?? 0) > scroll.contentView.bounds.height) ||
-                        (!vertical && event.scrollingDeltaX != 0 && (scroll.documentView?.bounds.width ?? 0) > scroll.contentView.bounds.width)) {
-                        return false
-                    }
-                    hit = view.superview
-                }
-            }
-            let point = list.convert(event.locationInWindow, from: nil)
             let isScrollKey = event.type == .keyDown && [115, 116, 119, 121, 125, 126].contains(event.keyCode)
                 && event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty
                 && ((list.window?.firstResponder as? NSView).map { $0 === viewport || $0 === list || $0.isDescendant(of: list) } ?? false)
-            // Wheel input inside the floating composer belongs to its text field.
-            let isReadingPoint = list.bounds.contains(point) && point.y < list.bounds.maxY - list.contentInsets.bottom
-            if (event.type == .scrollWheel && event.scrollingDeltaY != 0 && isReadingPoint) || isScrollKey {
-                userStartedScrolling()
-            }
-            if event.type == .scrollWheel, isReadingPoint,
-               abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
-                // Vertical transcript gestures belong to ListViewKit, not the
-                // enclosing SwiftUI viewport that supplies the scroll-edge effect.
-                list.scrollWheel(with: event)
-                wake()
-                return true
-            }
             if isScrollKey {
-                let step = max(40, (list.bounds.height - parent.topOverlayHeight - list.contentInsets.bottom) * 0.9)
+                userStartedScrolling()
+                let step = max(40, (list.bounds.height - parent.topOverlayHeight - list.bottomContentPadding) * 0.9)
                 let y: CGFloat
                 switch event.keyCode {
                 case 115: y = list.minimumContentOffset.y
@@ -192,6 +173,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             if let eventMonitor { NSEvent.removeMonitor(eventMonitor) }
             boundsObserver = nil
             eventMonitor = nil
+            list.onUserScroll = nil
             // Bounds changes record the last visible position. Teardown may already
             // have collapsed the viewport or clamped its offset to zero.
             parent.readingState.expandedActivityIDs = state.expandedActivity
@@ -436,16 +418,16 @@ struct NativeConversationTranscript: NSViewRepresentable {
                     } else if let offset = reading.pendingRestoreOffset { y = offset }
                     else { y = list.maximumContentOffset.y }
                     list.setContentOffset(CGPoint(x: 0, y: min(list.maximumContentOffset.y, max(list.minimumContentOffset.y, y))), animated: false)
-                    let previousSize = list.contentSize
+                    let previousSize = list.listContentSize
                     list.layoutSubtreeIfNeeded()
-                    if previousSize == list.contentSize, abs(list.contentOffset.y - y) < 0.5 { break }
+                    if previousSize == list.listContentSize, abs(list.contentOffset.y - y) < 0.5 { break }
                 }
                 hasInstalledSnapshot = true
                 reading.completeRestoration()
                 bottomAlignmentUntil = restoring || sourceID != nil ? 0 : ProcessInfo.processInfo.systemUptime + 0.5
                 restorationUntil = restoring ? ProcessInfo.processInfo.systemUptime + 0.5 : 0
                 reading.scrollState.updateVisiblePosition(isNearLatest: TranscriptViewportLayout.isNearLatest(in: list))
-                lastViewportSize = list.bounds.size
+                lastViewportSize = list.viewportSize
                 recordAnchor()
                 revealMessageIfNeeded()
             }
@@ -611,7 +593,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
                let location = list.window?.mouseLocationOutsideOfEventStream {
                 let point = list.convert(location, from: nil)
                 let top = list.bounds.minY + parent.topOverlayHeight + 16
-                let bottom = max(top, list.bounds.maxY - list.contentInsets.bottom - 16)
+                let bottom = max(top, list.bounds.maxY - list.bottomContentPadding - 16)
                 let delta = point.y < top ? max(-32, point.y - top) : (point.y > bottom ? min(32, point.y - bottom) : 0)
                 if delta != 0 {
                     userStartedScrolling()
@@ -626,7 +608,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 reading.scrollState.userScrollChanged(isScrolling: false,
                     isNearBottom: TranscriptViewportLayout.isNearLatest(in: list))
             }
-            let viewportChanged = lastViewportSize != .zero && list.bounds.size != lastViewportSize
+            let viewportChanged = lastViewportSize != .zero && list.viewportSize != lastViewportSize
             let shouldJumpToLatest = reading.scrollState.consumePendingJumpToLatest()
             if shouldJumpToLatest {
                 bottomAlignmentUntil = ProcessInfo.processInfo.systemUptime + 0.5
@@ -639,7 +621,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             alignRestorationIfNeeded()
             reading.scrollState.updateVisiblePosition(isNearLatest: TranscriptViewportLayout.isNearLatest(in: list))
             reading.scrollState.updateJumpVisibility(distanceToLatest: Double(TranscriptViewportLayout.distanceToLatest(in: list)))
-            lastViewportSize = list.bounds.size
+            lastViewportSize = list.viewportSize
             recordAnchor()
         }
 

@@ -22,8 +22,7 @@ packages:
   MarkdownView:
     path: Vendor/MarkdownView
   ListViewKit:
-    url: https://github.com/Lakr233/ListViewKit
-    revision: c6a067ba837758a50612f88dd1d6bb025175df6c
+    path: Vendor/ListViewKit
   Litext:
     url: https://github.com/Lakr233/Litext
     revision: 130b4eef642d76a3d2dcf07ab966f32f08e14b90

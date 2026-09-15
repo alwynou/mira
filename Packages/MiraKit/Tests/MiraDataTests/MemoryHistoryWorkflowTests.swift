@@ -7,6 +7,51 @@ import Testing
 
 @Suite("Historical memory status from journal provenance", .timeLimit(.minutes(1)))
 struct MemoryHistoryWorkflowTests {
+    @Test func localCompletedReplyWithoutModelRouteHasNoMemoryNoticeError() async throws {
+        try await withTaskWorkflow(memoryEnabled: true) { f in
+            let sessionID = ConversationID()
+            let executionID = ExecutionID()
+            let runtime = try await SessionRuntime.open(id: sessionID, journal: f.library, payloads: f.library)
+            defer { Task { await runtime.close() } }
+            let admitted = await runtime.commit(id: UUID()) { context in
+                let title = try await context.stageBytes(Data("Local fixture".utf8), kind: .title, retentionGroup: UUID())
+                let body = try await context.stageBytes(Data("Synthetic local question".utf8), kind: .userText, retentionGroup: UUID())
+                let plan = try await context.stage(AgentExecutionPlan(
+                    runtimeID: UUID(), catalogGeneration: 0, driverID: "local.fixture", driverRevision: 1,
+                    instructions: "Synthetic local reply", limits: .init(), priority: .foreground, route: nil),
+                    kind: .executionPlan, retentionGroup: UUID())
+                return [.opened(.init(workspaceID: nil, title: title)),
+                        .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: body,
+                                       plan: plan, hasModelRoute: false, authorizationEpoch: 0,
+                                       timeZoneIdentifier: "UTC"))]
+            }
+            try taskRequireCommitted(admitted)
+            let completed = await runtime.commit(id: UUID()) { context in
+                let answer = try await context.stageBytes(Data("Synthetic local answer".utf8), kind: .visibleAnswer,
+                                                          retentionGroup: UUID())
+                let replay = try await context.stage(AgentReplayRecord(messages: [
+                    .init(role: .assistant, blocks: [.init(id: "answer", content: .text("Synthetic local answer"))])
+                ], sources: []), kind: .replay, retentionGroup: UUID())
+                return [.phaseChanged(executionID: executionID, phase: .settling),
+                        .finished(.init(executionID: executionID, status: .completed,
+                                       assistantMessageID: MessageID(), answer: answer, replay: replay))]
+            }
+            try taskRequireCommitted(completed)
+
+            let memory = try #require(f.memory)
+            let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
+            let privacy = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
+            let app = MemoryApplication(store: memory, capturePolicyStore: memory,
+                extractionBudgetReader: extraction, extractionStatusReader: extraction,
+                reader: .init(journal: f.library, payloads: f.library), privacyHistory: privacy,
+                access: f.access, scope: f.scope)
+            defer {
+                Task { await app.close(); await extraction.close(); await privacy.close() }
+            }
+            #expect(try await app.contextNotices(sessionID: sessionID, executionIDs: [executionID], workspaceID: nil).isEmpty)
+        }
+    }
+
     @Test func noticesUseOnlySelectedCompletedRepliesAndRecordedRevisions() async throws {
         let call = CanonicalToolCall(id: "search", name: "memory.search", arguments: "{\"query\":\"synthetic tea\"}")
         try await withTaskWorkflow(

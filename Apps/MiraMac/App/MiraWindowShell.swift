@@ -10,7 +10,6 @@ struct MiraWindowShell: NSViewControllerRepresentable {
     var locale: Locale
     var canInspect: Bool
     @Binding var showsInspector: Bool
-    var titlebarInsets: Binding<MiraTitlebarInsets> = .constant(.init())
     var newConversation: () -> Void
 
     func makeNSViewController(context: Context) -> Controller { Controller(configuration: self) }
@@ -35,10 +34,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private var initialPositionSet = false
         private var updatingFromSwiftUI = false
         private var inspectorUpdate: Task<Void, Never>?
-        private var titlebarLayoutUpdate: Task<Void, Never>?
         private var inspectorObservation: NSKeyValueObservation?
-        private var sidebarObservation: NSKeyValueObservation?
         private let nativeToolbar = NSToolbar(identifier: "mira.window.toolbar")
+        private let titleHeader = MiraConversationHeaderView()
         private var cachedItems: [NSToolbarItem.Identifier: NSToolbarItem] = [:]
         private static let separator = NSToolbarItem.Identifier("mira.sidebar.separator")
         private static let newItem = NSToolbarItem.Identifier("conversation.new")
@@ -63,7 +61,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             let detailItem = NSSplitViewItem(viewController: detailHost)
             detailItem.minimumThickness = 0
             detailItem.holdingPriority = NSLayoutConstraint.Priority(rawValue: NSLayoutConstraint.Priority.defaultLow.rawValue - 1)
-            detailItem.titlebarSeparatorStyle = .none
+            detailItem.titlebarSeparatorStyle = .automatic
             if #available(macOS 26.0, *) {
                 detailItem.automaticallyAdjustsSafeAreaInsets = true
             }
@@ -77,6 +75,15 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             addSplitViewItem(sidebarItem)
             addSplitViewItem(detailItem)
             addSplitViewItem(inspectorItem)
+            if #available(macOS 26.1, *) {
+                let accessory = NSSplitViewItemAccessoryViewController()
+                accessory.automaticallyAppliesContentInsets = false
+                accessory.preferredScrollEdgeEffectStyle = .soft
+                accessory.view = titleHeader
+                titleHeader.detailView = detailHost.view
+                titleHeader.heightAnchor.constraint(equalToConstant: MiraTheme.Layout.conversationHeaderHeight).isActive = true
+                detailItem.addTopAlignedAccessoryViewController(accessory)
+            }
             nativeToolbar.delegate = self
             nativeToolbar.displayMode = .iconOnly
             nativeToolbar.allowsUserCustomization = false
@@ -96,37 +103,25 @@ struct MiraWindowShell: NSViewControllerRepresentable {
 
         override func viewDidLayout() {
             super.viewDidLayout()
-            updateTitlebarInsets()
+            layoutTitleHeader()
         }
 
-        private func updateTitlebarInsets() {
-            guard #available(macOS 26.0, *), let window = installedWindow else { return }
-            let detail = detailHost.view
-            let trailingEdge = cachedItems.values.compactMap(\.view).filter { $0.window === window }
-                .map { detail.convert($0.bounds, from: $0).minX }.min() ?? detail.bounds.maxX
-            var leading = MiraTheme.Spacing.lg
-            if sidebarItem.isCollapsed {
-                let controls = [window.standardWindowButton(.closeButton),
-                                window.standardWindowButton(.miniaturizeButton),
-                                window.standardWindowButton(.zoomButton),
-                                nativeToolbar.items.first { $0.itemIdentifier == .toggleSidebar }?.view]
-                    .compactMap { $0 }.filter { $0.window === window }
-                // The collapsed conversation spans the window. The hosted
-                // view can retain its expanded-pane origin during animation.
-                let occupiedEdge = controls.map { $0.convert($0.bounds, to: nil).maxX }.max() ?? 0
-                leading = max(leading, occupiedEdge + MiraTheme.Spacing.sm)
+        private func layoutTitleHeader() {
+            guard #available(macOS 26.1, *), let window = installedWindow else { return }
+            // The real split accessory owns the header height. Cancel the inherited
+            // window-titlebar inset so the two heights do not form separate rows.
+            let frameInWindow = view.convert(view.bounds, to: nil)
+            let overlap = max(0, frameInWindow.maxY - window.contentLayoutRect.maxY)
+            if view.additionalSafeAreaInsets.top != -overlap {
+                view.additionalSafeAreaInsets.top = -overlap
             }
-            let insets = MiraTitlebarInsets(
-                // Only a collapsed sidebar places native leading controls over
-                // the detail pane. Expanded panes use their own leading margin.
-                leading: leading,
-                trailing: max(MiraTheme.Spacing.lg, detail.bounds.maxX - trailingEdge + MiraTheme.Spacing.sm))
-            guard configuration.titlebarInsets.wrappedValue != insets else { return }
-            titlebarLayoutUpdate?.cancel()
-            titlebarLayoutUpdate = Task { @MainActor [weak self] in
-                guard !Task.isCancelled, let self else { return }
-                self.configuration.titlebarInsets.wrappedValue = insets
+            // Only the conversation has a replacement top accessory. Preserve
+            // the other panes' content clearance without changing their material.
+            for host in [sidebarHost, inspectorHost] where host.view.additionalSafeAreaInsets.top != overlap {
+                host.view.additionalSafeAreaInsets.top = overlap
             }
+            titleHeader.needsLayout = true
+            titleHeader.layoutSubtreeIfNeeded()
         }
 
         private func installToolbar() {
@@ -139,7 +134,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 window.titlebarAppearsTransparent = true
             }
             updateWindow()
-            updateTitlebarInsets()
+            layoutTitleHeader()
         }
 
         private static func fitted(_ content: AnyView) -> AnyView {
@@ -187,9 +182,6 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private func observeCollapsedState() {
-            sidebarObservation = sidebarItem.observe(\.isCollapsed, options: [.new]) { [weak self] _, _ in
-                Task { @MainActor [weak self] in self?.updateTitlebarInsets() }
-            }
             inspectorObservation = inspectorItem.observe(\.isCollapsed, options: [.new]) { [weak self] _, change in
                 MainActor.assumeIsolated {
                     guard let self, !self.updatingFromSwiftUI,
@@ -210,7 +202,8 @@ struct MiraWindowShell: NSViewControllerRepresentable {
 
         private func updateWindow() {
             installedWindow?.title = configuration.title
-            if #available(macOS 26.0, *) {
+            titleHeader.title = configuration.title
+            if #available(macOS 26.1, *) {
                 installedWindow?.titleVisibility = .hidden
             } else {
                 installedWindow?.titleVisibility = .visible

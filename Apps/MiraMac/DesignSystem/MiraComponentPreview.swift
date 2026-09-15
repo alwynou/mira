@@ -216,15 +216,14 @@ private struct MiraComponentPreview: View {
 
 private struct MiraTitlebarMaterialPreview: View {
     var body: some View {
-        MiraScrollEdgeViewport(title: "Mira", topInset: 52) {
-            if #available(macOS 26.0, *) {
-                sampleScrollView.scrollEdgeEffectHidden()
-            } else {
-                sampleScrollView
-            }
-        }
-        .background(MiraTheme.Colors.canvas)
-        .frame(width: 600, height: 420)
+        MiraWindowShell(
+            sidebar: AnyView(Text("Mira").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding()),
+            detail: AnyView(sampleScrollView), inspector: AnyView(EmptyView()),
+            title: "Mira", locale: Locale(identifier: "en"), canInspect: false,
+            showsInspector: .constant(false), newConversation: {})
+            .ignoresSafeArea()
+            .background(MiraTheme.Colors.canvas)
+            .frame(width: 850, height: 620)
     }
 
     private var sampleScrollView: some View {
@@ -237,7 +236,6 @@ private struct MiraTitlebarMaterialPreview: View {
                 }
             }
             .padding(MiraTheme.Spacing.xl)
-            .padding(.top, 52)
         }
     }
 }

@@ -9,7 +9,6 @@ struct ConversationRoot: View {
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
-    @State private var titlebarInsets = MiraTitlebarInsets()
     @Environment(\.scenePhase) private var scenePhase
     let isDemo: Bool
 
@@ -74,7 +73,6 @@ struct ConversationRoot: View {
                     ForEach(model.retainedPages) { page in
                         ConversationDetail(
                             model: model, page: page, isDemo: isDemo,
-                            title: title(for: page), titlebarInsets: titlebarInsets,
                             inspect: { executionID in
                                 page.inspectedExecutionID = executionID
                                 showsInspector = true
@@ -94,7 +92,6 @@ struct ConversationRoot: View {
                     .environment(\.locale, locale)),
             title: displayedConversationTitle, locale: locale,
             canInspect: !model.activePage.executions.isEmpty, showsInspector: $showsInspector,
-            titlebarInsets: $titlebarInsets,
             newConversation: { Task { await model.newConversation() } }
         )
         .ignoresSafeArea()
@@ -287,7 +284,7 @@ struct ConversationRoot: View {
 
 private struct ConversationTitleVisibility: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.1, *) {
             content.toolbar(removing: .title)
         } else {
             content
@@ -299,8 +296,6 @@ private struct ConversationDetail: View {
     @Bindable var model: ConversationModel
     @Bindable var page: ConversationPageState
     let isDemo: Bool
-    let title: String
-    let titlebarInsets: MiraTitlebarInsets
     let inspect: (ExecutionID) -> Void
     @Environment(\.locale) private var locale
     @State private var rememberedMessage: SessionQueryMessage?
@@ -311,19 +306,23 @@ private struct ConversationDetail: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ZStack(alignment: .bottom) {
-                MiraScrollEdgeViewport(title: title, topInset: geometry.safeAreaInsets.top, titleInsets: titlebarInsets)
-                {
-                    conversation(topOverlayHeight: geometry.safeAreaInsets.top)
-                }
-                bottomOverlay
-                    .onGeometryChange(for: CGFloat.self) { geometry in
-                        ceil(geometry.size.height)
-                    } action: { height in
-                        bottomOverlayHeight = height
+            conversation(topOverlayHeight: geometry.safeAreaInsets.top)
+                .overlay(alignment: .top) {
+                    if #unavailable(macOS 26.1) {
+                        MiraTheme.Colors.canvas.frame(height: geometry.safeAreaInsets.top)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                     }
-            }
-            .ignoresSafeArea(.container, edges: .top)
+                }
+                .overlay(alignment: .bottom) {
+                    bottomOverlay
+                        .onGeometryChange(for: CGFloat.self) { geometry in
+                            ceil(geometry.size.height)
+                        } action: { height in
+                            bottomOverlayHeight = height
+                        }
+                }
+                .ignoresSafeArea(.container, edges: .top)
         }
         .background(MiraTheme.Colors.canvas)
         .sheet(item: $rememberedMessage) { message in
