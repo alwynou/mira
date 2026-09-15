@@ -1,0 +1,13 @@
+{
+  "englishPrefixes": [
+    "remember that ",
+    "remember: ",
+    "please remember that "
+  ],
+  "chinesePrefixes": [
+    "记住，",
+    "记住：",
+    "请记住，",
+    "请记住："
+  ]
+}

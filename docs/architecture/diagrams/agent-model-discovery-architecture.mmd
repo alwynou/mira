@@ -1,0 +1,14 @@
+flowchart TB
+  Host[宿主设置用例] --> Service[AgentModelDiscoveryService]
+  Service --> Settings[通用连接配置端口]
+  Service --> Registry[冻结能力目录与作用域租约]
+  Service --> Access[库访问租约与资源所有权]
+  Registry --> Provider[AgentModelDiscoveryProvider]
+  Provider --> HTTP[HTTP 发现模块]
+  Provider --> Custom[其他共享或平台发现模块]
+  HTTP --> Transport[凭据读取与实际 HTTP 传输]
+  HTTP --> Advice[有界模型标识与显示名称]
+  Custom --> Advice
+  Advice --> Service
+  Service --> Result[携带原连接快照的建议结果]
+  Result --> Host

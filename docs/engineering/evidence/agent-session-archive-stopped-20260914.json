@@ -1,0 +1,27 @@
+{
+  "archivePublished": true,
+  "build": "SwiftPM Release; record dirty source revisions separately",
+  "completedCheckpoints": [
+    "export beforePublication",
+    "independent validate: 202001 files, 231967 root manifest bytes",
+    "restore afterCopy",
+    "restore afterPreparation",
+    "restore afterSettlement"
+  ],
+  "format": "mira-session-archive-measurement-v1",
+  "gitCommit": "fbd21b479bb9a71314c96047a033fba962ecb089",
+  "messages": 100000,
+  "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "outputRemoved": true,
+  "probeSHA256": "92053c232eca0ecb23f8a04c7bbd478809a27a7ae42f7ba845fb39fbd5241057",
+  "processWallMs": 1036481.4890840207,
+  "restoredPublished": false,
+  "returnCode": -15,
+  "scope": "single observation; settled sessions and minimal business schema; no native UI or provider",
+  "sessions": 1000,
+  "sourceChanges": "Format 2 bounded catalog, lazy directory iterator, exact path comparison including case, and checkpoint progress in the probe.",
+  "sourceCorpusRemoved": true,
+  "status": "Stopped by SIGTERM after the user narrowed the Goal; not a completed final-scale round trip and not a fault-recovery acceptance test.",
+  "timestampUTC": "2026-09-14T00:22:06Z",
+  "toolchain": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0"
+}

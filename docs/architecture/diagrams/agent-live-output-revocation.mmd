@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Host as 宿主／库维护
+    participant Runtime as 会话运行时
+    participant Lease as 库访问租约
+    participant Executor as 模型执行器
+    participant Model as 实际模型生产者
+    Host->>Runtime: 用户取消意图
+    Runtime->>Runtime: 撤销写入者并清空可见值
+    Runtime-->>Host: 空快照；持久状态另行结算
+    Host->>Lease: 或者开始资料库维护
+    Lease->>Lease: 撤销当前访问许可
+    Lease->>Runtime: 排空独立可见输出资源
+    Runtime->>Runtime: 清空值，旧写入者不能再次发布
+    Lease->>Executor: 取消执行与实际模型资源
+    Executor->>Model: 关闭并等待生产者退出
+    Model-->>Executor: 实际清理完成
+    Executor->>Runtime: 按日志与已确认草稿结算
+    Runtime-->>Host: 持久状态通知
+    Note over Runtime,Host: 实时空值不伪造完成、失败或成功终态

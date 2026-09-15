@@ -1,0 +1,83 @@
+{
+  "composerBottomGaps" : [
+    14
+  ],
+  "materialOpacities" : [
+    1
+  ],
+  "nativeSurfaceConfigured" : true,
+  "passed" : true,
+  "scenarios" : [
+    {
+      "atLatest" : true,
+      "clearance" : 0,
+      "clearBottom" : 528,
+      "overlayHeight" : 180,
+      "passed" : true,
+      "rowBottom" : 528,
+      "scenario" : "short-light-en",
+      "userOwnsOffset" : false,
+      "viewportHeight" : 708,
+      "wheelEventCount" : 0
+    },
+    {
+      "atLatest" : true,
+      "clearance" : 0,
+      "clearBottom" : 443,
+      "overlayHeight" : 265,
+      "passed" : true,
+      "rowBottom" : 443,
+      "scenario" : "multiline-light-en",
+      "userOwnsOffset" : false,
+      "viewportHeight" : 708,
+      "wheelEventCount" : 0
+    },
+    {
+      "atLatest" : true,
+      "clearance" : 0,
+      "clearBottom" : 528,
+      "overlayHeight" : 180,
+      "passed" : true,
+      "rowBottom" : 528,
+      "scenario" : "shrink-light-en",
+      "userOwnsOffset" : false,
+      "viewportHeight" : 708,
+      "wheelEventCount" : 0
+    },
+    {
+      "atLatest" : true,
+      "clearance" : 0,
+      "clearBottom" : 355,
+      "overlayHeight" : 265,
+      "passed" : true,
+      "rowBottom" : 355,
+      "scenario" : "minimum-dark-zh",
+      "userOwnsOffset" : false,
+      "viewportHeight" : 620,
+      "wheelEventCount" : 0
+    },
+    {
+      "atLatest" : true,
+      "clearance" : 0,
+      "clearBottom" : 440,
+      "overlayHeight" : 180,
+      "passed" : true,
+      "rowBottom" : 440,
+      "scenario" : "minimum-short-dark-zh",
+      "userOwnsOffset" : false,
+      "viewportHeight" : 620,
+      "wheelEventCount" : 0
+    }
+  ],
+  "streamingScroll" : {
+    "initialOffset" : 27868,
+    "passed" : true,
+    "streamingMaximum" : 28335,
+    "streamingOffset" : 27868,
+    "terminalOffset" : 27868
+  },
+  "surfaceTypes" : [
+    "MiraComposerBackdropView"
+  ],
+  "wheelEventCount" : 0
+}

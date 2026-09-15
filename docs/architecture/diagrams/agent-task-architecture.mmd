@@ -1,0 +1,19 @@
+flowchart TB
+  Host[平台组合根与任务界面] --> App[TaskApplication 人工用例]
+  Host --> Reminder[ReminderScheduler 提醒协调]
+  Kernel[平台无关 Agent 执行内核] --> Module[TaskModule 作用域工具]
+  Module --> Read[TaskReadStore 读取端口]
+  App --> Store[TaskStore 领域记录端口]
+  App --> Reader[JournalSessionReader 原始证据]
+  Kernel --> Effects[业务副作用与回执关口]
+  Effects --> Handler[SQLiteTaskCommandHandler]
+  Handler --> DB[共享业务库：任务／工作区／模型配置／回执]
+  Read --> DB
+  Store --> DB
+  Reader --> Journal[权威 JSONL 与正文]
+  Reminder --> Store
+  Reminder --> Port[LocalNotificationPort]
+  Port --> Mac[macOS 通知适配器]
+  Access[库授权与作用域租约] -.-> App
+  Access -.-> Kernel
+  Access -.-> Reminder

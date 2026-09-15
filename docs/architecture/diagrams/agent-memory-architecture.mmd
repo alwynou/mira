@@ -1,0 +1,16 @@
+flowchart TD
+    Host[macOS 宿主与展示模型] --> Application[MemoryApplication\n明确用户操作与实际任务所有权]
+    Host --> Runtime[AgentApplicationRuntime\n新执行内核]
+    Runtime --> Module[MemoryModule\n读取工具、保存提案、上下文贡献]
+    Module --> Policy[模块固有策略 + 宿主策略\n一次审批与当前状态复核]
+    Module --> Read[MemoryReadStore\n绑定目标的有界召回]
+    Application --> Reader[JournalSessionReader\n原始用户证据、历史来源证明]
+    Application --> Write[MemoryStore\n操作标识、修订 CAS、库授权]
+    Runtime --> Effects[业务提交\n回执与 outbox 同一事务]
+    Policy --> Effects
+    Effects --> Handler[SQLiteMemoryRememberHandler]
+    Handler --> DB[(业务数据库\n记忆、证据、修订、抑制)]
+    Read --> DB
+    Write --> DB
+    Reader --> Journal[(会话 journal 与正文)]
+    Runtime --> Journal

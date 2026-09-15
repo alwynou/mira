@@ -1,0 +1,42 @@
+---
+title: Mira Agent 应用运行时 · 当前核心
+config:
+  theme: base
+  fontFamily: PingFang SC, Hiragino Sans GB, sans-serif
+  themeVariables:
+    fontSize: 22px
+    lineColor: '#78899d'
+    primaryTextColor: '#17283e'
+    edgeLabelBackground: '#ffffff'
+    clusterBkg: '#f7f9fc'
+    clusterBorder: '#c8d3e0'
+    titleColor: '#173b67'
+  flowchart:
+    htmlLabels: false
+    curve: basis
+    nodeSpacing: 28
+    rankSpacing: 40
+    padding: 18
+    wrappingWidth: 360
+    useMaxWidth: false
+---
+flowchart TB
+  Host[平台组合根<br/>打开资料库并注入端口] --> App[AgentApplicationRuntime<br/>应用命令、启动恢复与任务所有权]
+  UI[展示模型 / 窗口] -->|命令与查询| App
+  App -->|合并的状态通知| UI
+  App --> Modules[RuntimeModuleHost<br/>应用作用域与模块激活]
+  Modules --> Registry[类型化能力注册表]
+  Registry -->|冻结代次与租约| Catalog[AgentRuntimeCatalog]
+  App -->|原子接纳| Session[SessionRuntime<br/>每会话命令通道]
+  Session --> Journal[SessionJournal / SessionPayloadStore<br/>日志与独立正文]
+  App -->|持有任务| Kernel[AgentExecutionKernel]
+  Catalog --> Kernel
+  Kernel --> Driver[精确版本的 AgentDriver]
+  Kernel --> Executors[模型与工具执行器]
+  Kernel --> Finalizer[唯一终态结算]
+  Executors --> Session
+  Finalizer --> Session
+  App --> Recovery[AgentExecutionRecovery<br/>只核对与中断结算]
+  Recovery --> Session
+  Executors --> Business[业务事务 / 来源授权端口]
+  Recovery --> Business

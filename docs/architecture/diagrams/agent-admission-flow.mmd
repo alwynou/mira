@@ -1,0 +1,38 @@
+---
+title: Mira Agent 接纳与结算 · 当前流程
+config:
+  theme: base
+  fontFamily: PingFang SC, Hiragino Sans GB, sans-serif
+  themeVariables:
+    fontSize: 22px
+    lineColor: '#78899d'
+    primaryTextColor: '#17283e'
+    edgeLabelBackground: '#ffffff'
+    clusterBkg: '#f7f9fc'
+    clusterBorder: '#c8d3e0'
+    titleColor: '#173b67'
+  flowchart:
+    htmlLabels: false
+    curve: basis
+    nodeSpacing: 28
+    rankSpacing: 40
+    padding: 18
+    wrappingWidth: 360
+    useMaxWidth: false
+---
+flowchart TD
+  A[调用方提交稳定命令 ID 与执行选项] --> B{应用已就绪且会话可预留}
+  B -->|否| Reject[明确未接纳]
+  B -->|是| C[应用持有接纳任务<br/>核对重复命令内容]
+  C --> D[冻结能力目录并验证完整计划]
+  D --> E[同批发布新会话与用户消息<br/>执行计划与排队状态]
+  E --> Outcome{原批次提交结果}
+  Outcome -->|确定未提交| Release[释放预留和目录租约]
+  Outcome -->|结果不确定| Hold[保留原命令、会话预留和租约<br/>不运行驱动器]
+  Hold -->|核对原批次| Outcome
+  Outcome -->|已提交| F[应用持有单次执行内核任务]
+  F --> G[驱动器经内核调用模型与工具]
+  G --> H[封锁新操作、排空并结算]
+  H -->|已提交| Done[释放执行任务与目录租约]
+  H -->|未提交或不确定| Retry[公开结算失败<br/>保留原结算所有者]
+  Retry -->|只重试结算| H

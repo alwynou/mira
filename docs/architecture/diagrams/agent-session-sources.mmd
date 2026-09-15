@@ -1,0 +1,14 @@
+flowchart TB
+    Past[历史成功执行 A] --> Replay[读取有效隐藏重放]
+    Replay --> Sources[合并 A 的执行身份与继承来源]
+    Sources --> Limit{完整交换符合来源上限}
+    Limit -->|否| Omit[舍弃整个交换]
+    Limit -->|是| Gate[按来源类型请求当前授权]
+    Gate --> Domain[领域来源：业务权威]
+    Gate --> Session[执行来源：固定日志前缀]
+    Domain --> Allowed{校验通过}
+    Session --> Allowed
+    Allowed -->|否| Reject[拒绝继续构建]
+    Allowed -->|是| Request[冻结后续执行 B 的请求]
+    Request --> Result[B 的重放保存传递来源]
+    Result --> Later[后续 C 继承 B 及其依赖]

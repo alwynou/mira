@@ -1,0 +1,101 @@
+{
+  "revision": "c5d9706864ec096aadaba60ac66052b8befa9ea4",
+  "zip": {
+    "byteCount": 11631572,
+    "file": "Mira-0.1.0-c5d9706864ec-unsigned.zip",
+    "sha256": "c9247c48b9a6a372fd2997a9ad7fbb02ad1e0d74326bf04197163dbb5a44131a"
+  },
+  "bundleSHA256": "aefbbb3182fee8f7250c283c2a1d2931dee5a80410e44c0d7832bd08e33b69e6",
+  "app": {
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "build": "1",
+    "minimumOS": "15.0",
+    "resources": {
+      "english": true,
+      "simplifiedChinese": true,
+      "thirdPartyLicenses": true
+    },
+    "version": "0.1.0"
+  },
+  "signing": {
+    "classification": "adhoc",
+    "developerID": false,
+    "notarized": false
+  },
+  "packagingChecks": {
+    "architecture": true,
+    "exactRevisionArchive": true,
+    "licenseResource": true,
+    "localizationResources": true,
+    "minimumOS": true,
+    "noProviderLaunch": true,
+    "releaseBuild": true,
+    "runtimeUI": "not_run_by_this_helper",
+    "unsignedOrAdHoc": true,
+    "zipExtractionParity": true
+  },
+  "toolchain": {
+    "cpu": "Apple M1 Pro",
+    "developerDir": "",
+    "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "macOS": "26.6.2",
+    "machine": "arm64",
+    "memoryBytes": "17179869184",
+    "python": "3.14.7",
+    "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+    "xcodeSelect": "/Applications/Xcode.app/Contents/Developer",
+    "xcodebuild": "Xcode 26.6\nBuild version 17F113"
+  },
+  "processSmoke": {
+    "revision": "c5d9706864ec096aadaba60ac66052b8befa9ea4",
+    "artifactSHA256": "c9247c48b9a6a372fd2997a9ad7fbb02ad1e0d74326bf04197163dbb5a44131a",
+    "observations": [
+      {
+        "stage": "fresh",
+        "library": "library-a",
+        "schema": 8,
+        "workspaceCount": 0,
+        "configuredProviders": 0,
+        "processAlive": true,
+        "integrity": "ok"
+      },
+      {
+        "stage": "reopen",
+        "library": "library-a",
+        "schema": 8,
+        "workspaceCount": 1,
+        "configuredProviders": 0,
+        "processAlive": true,
+        "integrity": "ok"
+      },
+      {
+        "stage": "separate",
+        "library": "library-b",
+        "schema": 8,
+        "workspaceCount": 0,
+        "configuredProviders": 0,
+        "processAlive": true,
+        "integrity": "ok"
+      }
+    ],
+    "scope": "Process startup and SIGTERM/reopen in isolated synthetic libraries; no native UI or real provider acceptance."
+  },
+  "projectRegenerationMatchesArchive": true,
+  "localOutput": ".build/local-delivery-provider-pool-c5d9706",
+  "ci": {
+    "runID": 34011674174,
+    "headSha": "c5d9706864ec096aadaba60ac66052b8befa9ea4",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/alwynou/mira/actions/runs/34011674174",
+    "checks": [
+      "Package tests",
+      "Language policy",
+      "macOS app and localization tests",
+      "Extracted UI string coverage"
+    ]
+  }
+}

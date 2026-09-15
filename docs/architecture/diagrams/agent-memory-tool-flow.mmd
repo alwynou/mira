@@ -1,0 +1,12 @@
+flowchart TD
+    Input[模型提出 memory.remember] --> Evidence[解析原始 journal 证据]
+    Evidence --> Prepare[校验精确引用与有界参数\n准备不可变提案]
+    Prepare --> Decision{模块策略与宿主策略}
+    Decision -->|拒绝| Denied[持久失败结果\n无记忆写入]
+    Decision -->|需要审批| Review[展示完整有界提案\n一次宿主审批]
+    Decision -->|允许| Check[复核当前策略、来源与库授权]
+    Review --> Check
+    Check --> Intent[持久 effect intent 与派发事实]
+    Intent --> Transaction[同一业务事务\n当前路线、工作区、记忆策略复核]
+    Transaction --> Commit[记忆 / 去重结果 + 业务回执 + outbox]
+    Commit --> Result[持久工具结果\n报告实际提交的发送策略]

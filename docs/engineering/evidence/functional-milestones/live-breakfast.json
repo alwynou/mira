@@ -1,0 +1,69 @@
+{
+  "aggregate" : {
+    "activeMemoryCount" : 1,
+    "approvalDenialCount" : 0,
+    "candidateMemoryCount" : 0,
+    "casesMeasured" : 1,
+    "casesWithErrors" : 0,
+    "prefetchedMemoryCount" : 1,
+    "referencedMemoryCount" : 1,
+    "verifiedCitationCount" : 1
+  },
+  "cases" : [
+    {
+      "active" : [
+        {
+          "content" : "I usually go for a savory breakfast; a sweet pastry first thing leaves me hungry again before noon.",
+          "evidenceIDs" : [
+            "db25cbd5-e825-4c6d-91c0-01dcc287162f"
+          ],
+          "state" : "active"
+        }
+      ],
+      "activeCapturePassed" : true,
+      "activeCount" : 1,
+      "actual" : "active",
+      "answer" : "Based on your preference for savory breakfasts that keep you full [memory:9903d384-585d-4b86-9df5-9799a3844eb7@1], I'd steer you toward protein-and-fiber-forward options rather than sweet pastries. Good fits for a long morning:\n\n- **Eggs + whole grain toast + avocado** — balanced protein and slow carbs.\n- **Savory oatmeal or grits** with cheese, egg, or sausage.\n- **Breakfast burrito or sandwich** with eggs, veggies, and a lean protein.\n- **Greek yogurt bowl done savory** (olive oil, herbs, cucumber, tomato) or plain with nuts.\n- **Smoked salmon or turkey with whole wheat** and some fruit on the side.\n- **Leftover grain bowl** — rice or quinoa with roasted veggies and protein is an easy, filling option.\n\nSince the morning is long, aim for something with protein plus fiber and a little healthy fat—that combo should hold you well past noon. Want suggestions for something quick to grab, or a make-ahead option?",
+      "approvalDenialCount" : 0,
+      "candidateCount" : 0,
+      "candidates" : [
+
+      ],
+      "expectationMet" : true,
+      "expected" : "active",
+      "extractionState" : "completed",
+      "forbiddenTerms" : [
+
+      ],
+      "id" : "en-savory-breakfast",
+      "keywordHeuristicsPass" : true,
+      "mismatchReasons" : [
+
+      ],
+      "prefetchedMemoryCount" : 1,
+      "referencedMemoryCount" : 1,
+      "requiredTerms" : [
+        {
+          "basis" : "keyword heuristic; not semantic correctness",
+          "observed" : true,
+          "term" : "savory breakfast"
+        }
+      ],
+      "verifiedCitationCount" : 1
+    }
+  ],
+  "conversationModelID" : "deepseek-v4-flash",
+  "conversationProtocol" : "deepSeek",
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-06T19:53:23Z",
+  "extractionModelID" : "deepseek-v4-flash",
+  "extractionProtocol" : "deepSeek",
+  "providerDispatchCap" : 4,
+  "providerDispatchCount" : 3,
+  "qualification" : "none",
+  "selectedCaseIDs" : [
+    "en-savory-breakfast"
+  ],
+  "status" : "completed",
+  "version" : 1
+}

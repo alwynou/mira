@@ -1,0 +1,25 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "Contour Silver": {
+      "versions": [
+        {
+          "path": "final/preview.html",
+          "createdAt": "2026-09-07T09:36:54.503Z",
+          "status": "approved"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-07T09:10:20.256Z",
+  "updatedAt": "2026-09-07T11:09:33.513Z",
+  "selectedDesign": {
+    "name": "Contour Silver",
+    "path": "final/Mira-Silver.svg",
+    "status": "approved",
+    "canonicalSource": "../../Apps/MiraMac/Resources/MiraAppIcon.icon",
+    "finalPreview": "final/preview.html"
+  }
+}

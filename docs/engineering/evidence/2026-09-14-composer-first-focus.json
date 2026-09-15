@@ -1,0 +1,45 @@
+{
+  "date": "2026-09-14",
+  "macOS": "26.6.2",
+  "fixture": "Fresh disposable offline demo library; no provider or credentials",
+  "before": {
+    "firstFocusAXResult": 0,
+    "secondFocusAXResult": 0,
+    "transientWindowOwner": "Mira",
+    "windowLevel": 101,
+    "widthPoints": 312,
+    "heightPoints": 237,
+    "observedAppearSeconds": 3.358,
+    "observedDisappearSeconds": 3.368,
+    "subsequentFocusWindowCount": 0,
+    "diagnosticClass": "SPRoundedWindow",
+    "diagnosticContent": "NSRemoteView",
+    "origin": "SafariPlatformSupport displayOTPAutoFillRelativeToRect:ofView:oneTimeCodeMode:completionHandler:"
+  },
+  "after": {
+    "bundleKey": "NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac",
+    "bundleValue": true,
+    "instrumentedAutoFillTraceCount": 0,
+    "finalBuildInstrumentationRemoved": true,
+    "firstFocusAXResult": 0,
+    "secondFocusAXResult": 0,
+    "syntheticTextAccepted": true,
+    "elevatedVisibleWindowCountAfterFirstFocus": 0,
+    "firstFocusSeconds": 3.006,
+    "observationSeconds": 12,
+    "samplingIntervalApproxMs": 8,
+    "setup": "The native File > New Window menu was used before the first-focus observation; its expected menu window closed before 3 seconds."
+  },
+  "verificationScope": [
+    "first focus",
+    "focus away and refocus",
+    "synthetic text insertion",
+    "built bundle property",
+    "Debug build"
+  ],
+  "limits": [
+    "Current macOS host only",
+    "Window sampling does not prove absence below the sampling interval",
+    "Full IME and accessibility matrices not run"
+  ]
+}

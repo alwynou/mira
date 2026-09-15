@@ -1,0 +1,112 @@
+{
+  "archiveFootprint": {
+    "Business.sqlite": {
+      "allocatedBytes": 73728,
+      "bytes": 73728,
+      "files": 1
+    },
+    "Catalog": {
+      "allocatedBytes": 48410624,
+      "bytes": 47754299,
+      "files": 198
+    },
+    "Sessions/payloads": {
+      "allocatedBytes": 823296000,
+      "bytes": 183720890,
+      "files": 201000
+    },
+    "Sessions/sessions": {
+      "allocatedBytes": 135168000,
+      "bytes": 133802000,
+      "files": 1000
+    },
+    "manifest.json": {
+      "allocatedBytes": 233472,
+      "bytes": 231967,
+      "files": 1
+    }
+  },
+  "archivePublished": true,
+  "build": "SwiftPM Release; record dirty source revisions separately",
+  "format": "mira-session-archive-measurement-v1",
+  "gitCommit": "fbd21b479bb9a71314c96047a033fba962ecb089",
+  "measurement": {
+    "details": {
+      "catalogBytes": 47754299,
+      "catalogChunks": 198,
+      "fileCount": 202001,
+      "manifestBytes": 231967,
+      "verifiedVisibleBodies": 100000
+    },
+    "messages": 100000,
+    "milliseconds": {
+      "export": 342214.043,
+      "journalOpen": 3545.80275,
+      "restore": 613123.789083,
+      "total": 1172413.456291,
+      "validate": 94899.6465,
+      "verification": 118609.640042
+    },
+    "operation": "archive",
+    "peakRSSBytes": 2006597632,
+    "sessions": 1000,
+    "systemCPUSeconds": 538.112545,
+    "userCPUSeconds": 391.824047
+  },
+  "messages": 100000,
+  "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "outputRemoved": true,
+  "probeSHA256": "e8c2f5a79bf215e2a30584bb15368f588ecd9951c960b17f016b8fe54b6302a2",
+  "processWallMs": 1172550.9962909855,
+  "restoredFootprintAfterVerification": {
+    "Business.sqlite": {
+      "allocatedBytes": 73728,
+      "bytes": 73728,
+      "files": 1
+    },
+    "Projections": {
+      "allocatedBytes": 218705920,
+      "bytes": 212520960,
+      "files": 1
+    },
+    "Sessions/.cache-authentication": {
+      "allocatedBytes": 4096,
+      "bytes": 32,
+      "files": 1
+    },
+    "Sessions/.lock": {
+      "allocatedBytes": 0,
+      "bytes": 0,
+      "files": 1
+    },
+    "Sessions/checkpoints": {
+      "allocatedBytes": 225280000,
+      "bytes": 220114000,
+      "files": 2000
+    },
+    "Sessions/indexes": {
+      "allocatedBytes": 94208000,
+      "bytes": 93726000,
+      "files": 1000
+    },
+    "Sessions/payloads": {
+      "allocatedBytes": 823296000,
+      "bytes": 183720890,
+      "files": 201000
+    },
+    "Sessions/sessions": {
+      "allocatedBytes": 135168000,
+      "bytes": 133802000,
+      "files": 1000
+    }
+  },
+  "restoredPublished": true,
+  "returnCode": 0,
+  "sampling": "No sample captured: attempted after the probe had exited.",
+  "scope": "single observation; settled sessions and minimal business schema; no native UI or provider",
+  "sessions": 1000,
+  "sourceChanges": "Initial format 2 chunk catalog with count-based inventory, before exact path comparison; probe added on top of gitCommit.",
+  "status": "Round trip succeeded; not final acceptance because a case-insensitive path alias bypass was identified afterward.",
+  "timestampUTC": "2026-09-13T23:53:59Z",
+  "toolchain": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0"
+}

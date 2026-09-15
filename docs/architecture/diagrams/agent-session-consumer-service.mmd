@@ -1,0 +1,15 @@
+flowchart TD
+    Open[维护 / 执行 / 领域恢复完成] --> Lease[库租约 + 作用域关闭回调]
+    Lease --> Page[读取下一页权威会话 ID]
+    Page --> Prefix[每会话捕获一个完整 head]
+    Prefix --> Pass[轮转已注册消费者<br/>每次消费有限批次]
+    Pass --> Commit[领域事实 + 消费检查点<br/>同一业务事务]
+    Commit --> Hint[发布可合并提示<br/>领域工作器检查持久队列]
+    Hint --> Delay[保留页间调度间隔]
+    Delay --> More{还有页或整轮积压?}
+    More -->|有| Page
+    More -->|无| Idle[等待唤醒或定期补扫]
+    Idle --> Page
+    Lease --> Revoke[关闭 / 库撤权]
+    Revoke --> Drain[取消并排空真实消费者<br/>等待扫描与读取返回]
+    Drain --> Release[释放库租约<br/>宿主随后关闭模块与存储]

@@ -1,0 +1,11 @@
+{
+  "sourceCues": [
+    "notes", "note", "document", "documents", "file", "files", "markdown", "guide", "reference", "笔记", "文档", "资料", "文件", "指南", "说明"
+  ],
+  "referenceCues": [
+    "according to", "in my", "what does", "what did I write", "from the", "based on", "里面", "其中", "写了什么", "根据", "关于", "提到"
+  ],
+  "queryStopWords": [
+    "my", "what", "does", "did", "write", "from", "the", "based", "on", "about", "say", "this", "please", "to", "in", "我的", "什么", "怎么", "如何", "了", "的"
+  ]
+}

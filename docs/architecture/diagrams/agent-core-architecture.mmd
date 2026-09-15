@@ -1,0 +1,79 @@
+---
+title: Mira Agent 核心架构 · 目标设计
+config:
+  theme: base
+  fontFamily: PingFang SC, Hiragino Sans GB, sans-serif
+  themeVariables:
+    fontSize: 22px
+    lineColor: '#78899d'
+    primaryTextColor: '#17283e'
+    edgeLabelBackground: '#ffffff'
+    clusterBkg: '#f7f9fc'
+    clusterBorder: '#c8d3e0'
+    titleColor: '#173b67'
+  flowchart:
+    htmlLabels: false
+    curve: basis
+    nodeSpacing: 28
+    rankSpacing: 40
+    padding: 18
+    wrappingWidth: 360
+    useMaxWidth: false
+---
+flowchart TB
+    subgraph HOST["原生宿主 · MiraMac"]
+        UI["原生界面<br/>输入 / 审批 / 对话展示"]
+        COMPOSE["模块组装<br/>依赖 / 作用域 / 激活与释放"]
+    end
+
+    subgraph CORE["Swift 核心 · MiraCore 仅依赖 Foundation"]
+        API["应用命令与查询"]
+        DRIVER["可替换执行驱动器<br/>AgentDriver · 决定迭代策略"]
+        K["内核与会话运行时<br/>状态机 / 授权 / 调度 / 取消<br/>持久化顺序 / 唯一结算 / 恢复"]
+        CTX["上下文管线<br/>来源 / 生命周期 / 预算"]
+        MODEL["模型调用管线<br/>冻结请求 / 尝试 / 续接"]
+        TOOL["工具与审批管线<br/>校验 / 授权 / 有序执行"]
+        JP["SessionJournal 端口<br/>批次 / 序号 / 持久游标"]
+        API --> K
+        DRIVER -->|受控操作| K
+        K --> CTX
+        K --> MODEL
+        K --> TOOL
+        K --> JP
+    end
+
+    subgraph EXT["按契约接入的能力实现"]
+        CONTRIB["上下文贡献模块<br/>记忆召回 / 知识预取"]
+        ADAPTER["模型适配器 · MiraProviders<br/>配置描述 / 编解码 / 流式输出"]
+        DOMAIN["工具与领域模块<br/>Memory / Knowledge / Task"]
+    end
+
+    JOURNAL[("会话权威事实 · MiraData<br/>JSONL + 可清理正文")]
+    EVENTS["持久事件消费<br/>游标补读 / 幂等处理"]
+    DB[("SQLite 业务权威事实<br/>记忆 / 任务 / 作业 / 回执 / 配置")]
+    PROJ[("SQLite 会话查询投影<br/>列表 / 索引 / 摘要 · 可重建")]
+    LIVE["实时观察 → 原生界面<br/>正文 / 思考 / 状态 · 可合并"]
+
+    UI --> API
+    CTX --> CONTRIB
+    MODEL -->|先落盘再派发| ADAPTER
+    TOOL -->|先落盘再执行| DOMAIN
+    DOMAIN -->|业务与回执同事务| DB
+    JP --> JOURNAL --> EVENTS
+    EVENTS --> PROJ
+    EVENTS -->|合格作业去重入队| DB
+    API -->|读取投影| PROJ
+    K -.->|实时通知| LIVE
+    COMPOSE -.->|注册| DRIVER
+    COMPOSE -.->|注册| EXT
+
+    classDef host fill:#eff3f8,stroke:#8b9aac,color:#17283e,stroke-width:1.5px;
+    classDef kernel fill:#193b63,stroke:#193b63,color:#ffffff,stroke-width:2px;
+    classDef capability fill:#edf4ff,stroke:#7198cc,color:#173b67,stroke-width:1.5px;
+    classDef durable fill:#eaf5ee,stroke:#73a888,color:#234d35,stroke-width:1.5px;
+    classDef projection fill:#faf3e6,stroke:#c5a66a,color:#654b1f,stroke-width:1.5px;
+    class UI,API,COMPOSE,LIVE host;
+    class K kernel;
+    class DRIVER,CTX,MODEL,TOOL,CONTRIB,ADAPTER,DOMAIN capability;
+    class JP,JOURNAL,DB,EVENTS durable;
+    class PROJ projection;

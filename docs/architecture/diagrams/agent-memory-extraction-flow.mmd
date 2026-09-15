@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant W as 后台工作器
+    participant J as journal 证据读取器
+    participant D as 业务库
+    participant S as 共享调度器
+    participant M as 模型适配器
+    W->>J: 重新解析完整原始证据
+    W->>D: 领取作业，冻结专用用途路线和策略
+    W->>M: 纯准备（30 秒期限）
+    M-->>W: 有界 AgentPreparedModelRequest
+    W->>J: 再读当前证据
+    W->>D: 保存精确请求并预留预算
+    W->>S: 请求后台模型额度
+    S-->>W: 模型租约
+    W->>J: 调度后重验来源
+    W->>D: 原子复核当前路线、抑制、策略和租约并标记派发
+    W->>M: 开始有所有权的流（90 秒期限）
+    M-->>W: 文本 / thinking / 用量 / 完成
+    W->>M: 取消并排空实际生产者
+    W->>S: 释放模型额度
+    W->>J: 最终来源复核
+    W->>D: 同事务验证结构化结果、写记忆、结算预算和作业

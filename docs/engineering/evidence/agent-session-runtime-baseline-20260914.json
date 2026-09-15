@@ -1,0 +1,536 @@
+{
+  "build": "SwiftPM release; record dirty source revisions separately",
+  "cache": "new process per sample; warm OS filesystem cache; no purge or native UI measurement",
+  "corpora": [
+    {
+      "afterSamples": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 221184000,
+          "bytes": 219748000,
+          "files": 1000
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 94208000,
+          "bytes": 93726000,
+          "files": 1000
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 823296000,
+          "bytes": 183720890,
+          "files": 201000
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 135168000,
+          "bytes": 133802000,
+          "files": 1000
+        },
+        "projection.sqlite": {
+          "allocatedBytes": 218435584,
+          "bytes": 212520960,
+          "files": 1
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 92,
+          "files": 1
+        }
+      },
+      "afterSeed": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 221184000,
+          "bytes": 219748000,
+          "files": 1000
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 94208000,
+          "bytes": 93726000,
+          "files": 1000
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 823296000,
+          "bytes": 183720890,
+          "files": 201000
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 135168000,
+          "bytes": 133802000,
+          "files": 1000
+        },
+        "projection.sqlite": {
+          "allocatedBytes": 218435584,
+          "bytes": 212520960,
+          "files": 1
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 92,
+          "files": 1
+        }
+      },
+      "corpusRemoved": false,
+      "messages": 100000,
+      "p95Milliseconds": {
+        "applicationRuntimeOpen": 4805.993709,
+        "journalOpen": 2234.21875,
+        "runtimeReady": 6996.546541
+      },
+      "p95ProcessWallMs": 7056.5922079840675,
+      "samples": [
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4778.673792,
+            "journalOpen": 2158.149584,
+            "runtimeReady": 6939.297584
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 297320448,
+          "processWallMs": 6999.429457995575,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.511,
+          "userCPUSeconds": 6.410691
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4821.663584,
+            "journalOpen": 2172.5075,
+            "runtimeReady": 6996.546541
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 298172416,
+          "processWallMs": 7056.5922079840675,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.516173,
+          "userCPUSeconds": 6.450395
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4756.45425,
+            "journalOpen": 2164.385,
+            "runtimeReady": 6923.367875
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 295976960,
+          "processWallMs": 6983.254665974528,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.509763,
+          "userCPUSeconds": 6.398014
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4713.246875,
+            "journalOpen": 2168.803666,
+            "runtimeReady": 6884.517625
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296157184,
+          "processWallMs": 6943.576082994696,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.523075,
+          "userCPUSeconds": 6.3445
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4786.242708,
+            "journalOpen": 2179.408792,
+            "runtimeReady": 6968.112417
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 297238528,
+          "processWallMs": 7027.314417005982,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.514826,
+          "userCPUSeconds": 6.436228
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4725.689625,
+            "journalOpen": 2166.950125,
+            "runtimeReady": 6895.169541
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296812544,
+          "processWallMs": 6955.410583002958,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.513893,
+          "userCPUSeconds": 6.363024
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4753.698083,
+            "journalOpen": 2168.771542,
+            "runtimeReady": 6924.96325
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 295796736,
+          "processWallMs": 6984.109457989689,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.51855,
+          "userCPUSeconds": 6.384351
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4774.085333,
+            "journalOpen": 2234.21875,
+            "runtimeReady": 7010.907583
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296943616,
+          "processWallMs": 7069.562166987453,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.500395,
+          "userCPUSeconds": 6.471901
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4754.122375,
+            "journalOpen": 2197.810625,
+            "runtimeReady": 6954.422625
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 297467904,
+          "processWallMs": 7013.4604170161765,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.523009,
+          "userCPUSeconds": 6.412953
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4728.479625,
+            "journalOpen": 2181.131459,
+            "runtimeReady": 6912.062042
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 297107456,
+          "processWallMs": 6973.046250001062,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.524326,
+          "userCPUSeconds": 6.371014
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4790.195,
+            "journalOpen": 2167.807083,
+            "runtimeReady": 6960.518958
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296173568,
+          "processWallMs": 7020.67212498514,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.52122,
+          "userCPUSeconds": 6.422373
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4775.55075,
+            "journalOpen": 2171.979541,
+            "runtimeReady": 6950.196291
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296189952,
+          "processWallMs": 7010.100667015649,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.519986,
+          "userCPUSeconds": 6.412684
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4762.341708,
+            "journalOpen": 2188.547042,
+            "runtimeReady": 6953.4412919999995
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 295878656,
+          "processWallMs": 7012.374790996546,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.527217,
+          "userCPUSeconds": 6.4072569999999995
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4756.823917,
+            "journalOpen": 2237.008583,
+            "runtimeReady": 6996.3545
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 295878656,
+          "processWallMs": 7054.986542003462,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.522391,
+          "userCPUSeconds": 6.421348
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4774.423458,
+            "journalOpen": 2185.043833,
+            "runtimeReady": 6961.961375
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296927232,
+          "processWallMs": 7021.841333014891,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.520406,
+          "userCPUSeconds": 6.42321
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4791.280542,
+            "journalOpen": 2194.4535,
+            "runtimeReady": 6988.129459
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 294649856,
+          "processWallMs": 7047.298666991992,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.526415,
+          "userCPUSeconds": 6.443248
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4805.993709,
+            "journalOpen": 2175.671584,
+            "runtimeReady": 6984.087959
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 298139648,
+          "processWallMs": 7044.1605410014745,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.508085,
+          "userCPUSeconds": 6.438827
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4763.58625,
+            "journalOpen": 2176.530125,
+            "runtimeReady": 6942.700708
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296927232,
+          "processWallMs": 7002.696917013964,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.522119,
+          "userCPUSeconds": 6.403355
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4697.410708,
+            "journalOpen": 2173.019833,
+            "runtimeReady": 6872.8762910000005
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296108032,
+          "processWallMs": 6930.996957991738,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.504701,
+          "userCPUSeconds": 6.352711
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4764.468958,
+            "journalOpen": 2187.5915,
+            "runtimeReady": 6954.645541
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296058880,
+          "processWallMs": 7014.593833009712,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.522523,
+          "userCPUSeconds": 6.415266
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4751.402958,
+            "journalOpen": 2182.443792,
+            "runtimeReady": 6936.305834
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 295157760,
+          "processWallMs": 7000.19654200878,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.518035,
+          "userCPUSeconds": 6.400823
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4727.573292,
+            "journalOpen": 2184.080041,
+            "runtimeReady": 6914.217916
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 294584320,
+          "processWallMs": 6974.4859999918845,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.519324,
+          "userCPUSeconds": 6.379137
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4762.554625,
+            "journalOpen": 2186.885458,
+            "runtimeReady": 6952.014083
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296255488,
+          "processWallMs": 7012.401999993017,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.516749,
+          "userCPUSeconds": 6.416822
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4776.159375,
+            "journalOpen": 2201.197042,
+            "runtimeReady": 6979.927167
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 294699008,
+          "processWallMs": 7039.605833007954,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.525162,
+          "userCPUSeconds": 6.436768
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4781.816125,
+            "journalOpen": 2198.054083,
+            "runtimeReady": 6982.507
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296157184,
+          "processWallMs": 7043.684457981726,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.528332,
+          "userCPUSeconds": 6.436445
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4752.5835,
+            "journalOpen": 2229.248209,
+            "runtimeReady": 6984.135834
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296796160,
+          "processWallMs": 7041.791291994741,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.515153,
+          "userCPUSeconds": 6.429992
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4757.83975,
+            "journalOpen": 2183.479625,
+            "runtimeReady": 6943.816583
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 294764544,
+          "processWallMs": 7005.010042019421,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.521715,
+          "userCPUSeconds": 6.405035
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4772.400792,
+            "journalOpen": 2192.533,
+            "runtimeReady": 6967.529583
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 295944192,
+          "processWallMs": 7026.407041994389,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.525044,
+          "userCPUSeconds": 6.425361
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4741.962584,
+            "journalOpen": 2178.988958,
+            "runtimeReady": 6923.509916
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 296681472,
+          "processWallMs": 6982.513416995062,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.521634,
+          "userCPUSeconds": 6.383249
+        },
+        {
+          "messages": 100000,
+          "milliseconds": {
+            "applicationRuntimeOpen": 4758.4791669999995,
+            "journalOpen": 2186.0525,
+            "runtimeReady": 6947.086667
+          },
+          "operation": "runtime",
+          "peakRSSBytes": 297467904,
+          "processWallMs": 7007.3728330025915,
+          "sessions": 1000,
+          "systemCPUSeconds": 0.524377,
+          "userCPUSeconds": 6.405943
+        }
+      ],
+      "sessions": 1000
+    }
+  ],
+  "cpu": "Apple M1 Pro",
+  "format": "mira-session-scale-measurement-v1",
+  "gitCommit": "29d2db4a711d265431ffbd0c6b8aefa6ddb01eba",
+  "measurementScope": "Real Core application runtime open on settled synthetic sessions; no native host, providers, domain database, or projection startup.",
+  "memoryBytes": 17179869184,
+  "operation": "runtime",
+  "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "probeSHA256": "57c979ef2e619d7a472d1c04832af662e2fc09cb4400a778683ebad37bf9fa38",
+  "projectionRebuildIncluded": false,
+  "sourceChanges": "Production at 29d2db4; only standalone runtime probe and script instrumentation added before this baseline build.",
+  "timestampUTC": "2026-09-13T23:10:21Z",
+  "toolchain": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "warmups": 5
+}

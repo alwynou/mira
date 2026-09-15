@@ -1,0 +1,480 @@
+import SwiftUI
+import AppKit
+
+/// A native disclosure whose trailing affordance appears without moving its text.
+final class MiraHoverDisclosureButton: NSButton {
+    var isExpanded = false { didSet { needsDisplay = true } }
+    private(set) var isPointerInside = false
+    private var hoverTracking: NSTrackingArea?
+
+    var showsChevron: Bool { isEnabled && (isPointerInside || window?.firstResponder === self) }
+    var symbolSize: CGFloat { font?.pointSize ?? 13 }
+    var textOriginX: CGFloat { image == nil ? 0 : symbolSize + 7 }
+    var textOverflows: Bool { textOriginX + attributedTitle.size().width + 8 + symbolSize > bounds.width }
+    var chevronFrame: NSRect {
+        let x = min(textOriginX + attributedTitle.size().width + 8, max(0, bounds.width - symbolSize - 2))
+        return NSRect(x: x, y: (bounds.height - symbolSize) / 2, width: symbolSize, height: symbolSize)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        hoverTracking = area
+        if let window {
+            isPointerInside = bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        }
+        needsDisplay = true
+    }
+
+    override func mouseEntered(with event: NSEvent) { isPointerInside = true; needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { isPointerInside = false; needsDisplay = true }
+    override func becomeFirstResponder() -> Bool { let value = super.becomeFirstResponder(); needsDisplay = true; return value }
+    override func resignFirstResponder() -> Bool { let value = super.resignFirstResponder(); needsDisplay = true; return value }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let color = attributedTitle.length > 0
+            ? attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor ?? .secondaryLabelColor
+            : NSColor.secondaryLabelColor
+        NSGraphicsContext.saveGraphicsState()
+        bounds.clip()
+        if let image {
+            drawSymbol(image, in: NSRect(x: 0, y: (bounds.height - symbolSize) / 2, width: symbolSize, height: symbolSize), color: color)
+        }
+        attributedTitle.draw(at: NSPoint(x: textOriginX, y: (bounds.height - attributedTitle.size().height) / 2))
+        if showsChevron {
+            let frame = chevronFrame
+            if textOverflows {
+                let background = NSColor(MiraTheme.Colors.canvas)
+                let fade = NSRect(x: max(0, frame.minX - 24), y: 0, width: frame.minX - max(0, frame.minX - 24), height: bounds.height)
+                NSGradient(starting: background.withAlphaComponent(0), ending: background)?.draw(in: fade, angle: 0)
+                background.setFill()
+                NSRect(x: frame.minX, y: 0, width: bounds.width - frame.minX, height: bounds.height).fill()
+            }
+            if let symbol = NSImage(systemSymbolName: isExpanded ? "chevron.down" : "chevron.right", accessibilityDescription: nil) {
+                drawSymbol(symbol, in: frame, color: NSColor(MiraTheme.Colors.secondaryText))
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        if window?.firstResponder === self {
+            NSGraphicsContext.saveGraphicsState()
+            NSFocusRingPlacement.only.set()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4).fill()
+            NSGraphicsContext.restoreGraphicsState()
+        }
+    }
+
+    private func drawSymbol(_ image: NSImage, in frame: NSRect, color: NSColor) {
+        let configuration = NSImage.SymbolConfiguration(pointSize: symbolSize, weight: .regular)
+            .applying(.preferringMonochrome())
+        let configured = image.withSymbolConfiguration(configuration) ?? image
+        let size = configured.size
+        guard size.width > 0, size.height > 0 else { return }
+        let scale = min(frame.width / size.width, frame.height / size.height)
+        let destination = NSRect(x: frame.midX - size.width * scale / 2,
+                                 y: frame.midY - size.height * scale / 2,
+                                 width: size.width * scale, height: size.height * scale)
+        let tinted = NSImage(size: size, flipped: false) { rect in
+            configured.draw(in: rect)
+            color.setFill()
+            rect.fill(using: .sourceIn)
+            return true
+        }
+        tinted.draw(in: destination, from: .zero, operation: .sourceOver,
+                    fraction: 1, respectFlipped: true, hints: nil)
+    }
+}
+
+struct MiraModelPickerGroup: Identifiable {
+    struct Option: Identifiable {
+        let id: String
+        let title: String
+    }
+    let id: String
+    let title: String
+    let options: [Option]
+}
+
+/// Native menu rows retain system typography, spacing, selection and keyboard navigation.
+struct MiraModelPickerItems: View {
+    let groups: [MiraModelPickerGroup]
+    let selectedID: String?
+    let select: (String) -> Void
+
+    var body: some View {
+        ForEach(groups) { group in
+            Section {
+                ForEach(group.options) { option in
+                    Toggle(isOn: Binding(get: { selectedID == option.id }, set: { enabled in
+                        if enabled { select(option.id) }
+                    })) {
+                        Text(verbatim: option.title)
+                    }
+                    .accessibilityIdentifier("conversation.modelOption." + option.id)
+                }
+            } header: {
+                Text(verbatim: group.title)
+            }
+        }
+        if groups.isEmpty {
+            Text("Configure a compatible model in Providers.")
+        }
+    }
+}
+
+private extension EnvironmentValues {
+    @Entry var miraSidebarIsPressed = false
+}
+
+struct MiraSidebarRow<Content: View>: View {
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.miraSidebarIsPressed) private var isPressed
+    @State private var isHovered = false
+    let isSelected: Bool
+    let minimumHeight: CGFloat
+    @ViewBuilder let content: () -> Content
+
+    init(isSelected: Bool = false,
+         minimumHeight: CGFloat = MiraTheme.Layout.rowHeight, @ViewBuilder content: @escaping () -> Content) {
+        self.isSelected = isSelected
+        self.minimumHeight = minimumHeight
+        self.content = content
+    }
+
+    var body: some View {
+        content()
+            .font(MiraTheme.Typography.sidebar)
+            .foregroundStyle(MiraTheme.Colors.text)
+            .frame(maxWidth: .infinity, minHeight: minimumHeight, alignment: .leading)
+            .padding(.horizontal, MiraTheme.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: MiraTheme.Radius.row, style: .continuous)
+                    .fill(isHighlighted ? highlightFill : .clear)
+            )
+            .overlay {
+                if isSelected && contrast == .increased {
+                    RoundedRectangle(cornerRadius: MiraTheme.Radius.row)
+                        .strokeBorder(MiraTheme.Colors.secondaryText, lineWidth: 1)
+                }
+            }
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .contentShape(RoundedRectangle(cornerRadius: MiraTheme.Radius.row, style: .continuous))
+            .onHover { isHovered = $0 }
+    }
+
+    private var isHighlighted: Bool {
+        isSelected || (isEnabled && (isHovered || isPressed))
+    }
+
+    private var highlightFill: Color {
+        if reduceTransparency || contrast == .increased { return MiraTheme.Colors.sidebarHighlight }
+        return MiraTheme.Colors.sidebarOverlay.opacity(MiraTheme.Opacity.sidebarHighlight)
+    }
+}
+
+struct MiraRowButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        // The row draws one shared highlight, including when selection and hover overlap.
+        configuration.label
+            .environment(\.miraSidebarIsPressed, configuration.isPressed)
+            .opacity(isEnabled ? 1 : 0.45)
+    }
+}
+
+struct MiraIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        MiraInteractiveLabel(configuration: configuration, shape: RoundedRectangle(cornerRadius: MiraTheme.Radius.small, style: .continuous), size: MiraTheme.Layout.controlHeight)
+    }
+}
+
+struct MiraPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(MiraTheme.Typography.body.weight(.medium))
+            .foregroundStyle(MiraTheme.Colors.onAccent)
+            .padding(.horizontal, MiraTheme.Spacing.lg)
+            .frame(minHeight: MiraTheme.Layout.controlHeight)
+            .background(MiraTheme.Colors.accent, in: RoundedRectangle(cornerRadius: MiraTheme.Radius.small, style: .continuous))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.72 : 1) : 0.45)
+    }
+}
+
+struct MiraCircleButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(MiraTheme.Colors.onAccent)
+            .frame(width: MiraTheme.Layout.controlHeight, height: MiraTheme.Layout.controlHeight)
+            .background(MiraTheme.Colors.accent, in: Circle())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.72 : 1) : 0.38)
+            .contentShape(Circle())
+    }
+}
+
+/// A neutral floating action with native Liquid Glass where available.
+struct MiraGlassCircleButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func makeBody(configuration: Configuration) -> some View {
+        let label = configuration.label
+            .font(MiraTheme.Typography.body.weight(.semibold))
+            .foregroundStyle(MiraTheme.Colors.text)
+            .frame(width: MiraTheme.Layout.floatingControlSize, height: MiraTheme.Layout.floatingControlSize)
+            .contentShape(Circle())
+        Group {
+            if reduceTransparency || contrast == .increased {
+                label
+                    .background(MiraTheme.Colors.surface, in: Circle())
+                    .overlay { Circle().strokeBorder(MiraTheme.Colors.secondaryText, lineWidth: 1) }
+            } else if #available(macOS 26.0, *) {
+                label.glassEffect(.regular.interactive(), in: .circle)
+            } else {
+                label
+                    .background(.regularMaterial, in: Circle())
+                    .overlay { Circle().strokeBorder(MiraTheme.Colors.border, lineWidth: 1) }
+            }
+        }
+        .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.45)
+    }
+}
+
+struct MiraSurface<Content: View>: View {
+    let cornerRadius: CGFloat
+    let fill: Color
+    @ViewBuilder let content: () -> Content
+
+    init(cornerRadius: CGFloat = MiraTheme.Radius.panel, fill: Color = MiraTheme.Colors.surface,
+         @ViewBuilder content: @escaping () -> Content) {
+        self.cornerRadius = cornerRadius
+        self.fill = fill
+        self.content = content
+    }
+
+    var body: some View {
+        content()
+            .background(fill, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(MiraTheme.Colors.border, lineWidth: 1)
+            }
+    }
+}
+
+private struct MiraInteractiveLabel<Shape: InsettableShape>: View {
+    let configuration: ButtonStyleConfiguration
+    let shape: Shape
+    var size: CGFloat? = nil
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorSchemeContrast) private var contrast
+    @State private var isHovered = false
+
+    var body: some View {
+        configuration.label
+            .frame(width: size, height: size)
+            .foregroundStyle(MiraTheme.Colors.text)
+            .background {
+                shape.fill(interactionFill)
+            }
+            .opacity(isEnabled ? 1 : 0.45)
+            .overlay {
+                if contrast == .increased {
+                    shape.stroke(MiraTheme.Colors.border, lineWidth: 1)
+                }
+            }
+            .contentShape(shape)
+            .onHover { isHovered = $0 }
+    }
+
+    private var interactionFill: Color {
+        guard isEnabled, configuration.isPressed || isHovered else { return .clear }
+        return configuration.isPressed ? MiraTheme.Colors.selected : MiraTheme.Colors.hover
+    }
+}
+
+/// Centers the hint without letting either control group overlap it.
+struct MiraComposerBarLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? MiraTheme.Layout.composerMax
+        let sizes = measuredSizes(width: width, subviews: subviews)
+        return CGSize(width: width, height: max(MiraTheme.Layout.controlHeight, sizes.map(\.height).max() ?? 0))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = measuredSizes(width: bounds.width, subviews: subviews)
+        guard sizes.count == 3 else { return }
+        for index in 0..<3 {
+            let x = index == 0 ? bounds.minX + sizes[index].width / 2
+                : (index == 1 ? bounds.midX : bounds.maxX - sizes[index].width / 2)
+            subviews[index].place(at: CGPoint(x: x, y: bounds.midY), anchor: .center,
+                                  proposal: ProposedViewSize(sizes[index]))
+        }
+    }
+
+    private func measuredSizes(width: CGFloat, subviews: Subviews) -> [CGSize] {
+        guard subviews.count == 3 else { return [] }
+        let sideWidth = max(0, width * 0.4)
+        let leading = subviews[0].sizeThatFits(.init(width: sideWidth, height: nil))
+        let trailing = subviews[2].sizeThatFits(.init(width: sideWidth, height: nil))
+        let centerWidth = max(0, width - 2 * (max(leading.width, trailing.width) + MiraTheme.Spacing.sm))
+        let center = subviews[1].sizeThatFits(.init(width: centerWidth, height: nil))
+        return [leading, center, trailing]
+    }
+}
+
+/// Gives an independently scrolling native viewport the system's scroll-edge effect.
+struct MiraScrollEdgeViewport<Content: View>: View {
+    let title: String
+    let topInset: CGFloat
+    var titleInsets = MiraTitlebarInsets()
+    @ViewBuilder let content: () -> Content
+    @State private var position = ScrollPosition(edge: .bottom)
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            GeometryReader { geometry in
+                ScrollView {
+                    content()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .background(MiraScrollEdgeHostConfiguration())
+                }
+                // The embedded native list owns scrolling and virtualization.
+                // This finite viewport registers its content with SwiftUI's edge effect.
+                .defaultScrollAnchor(.bottom)
+                .scrollPosition($position)
+                .onScrollGeometryChange(for: CGPoint.self) { $0.contentOffset } action: { _, _ in
+                    // Keep the host fixed; the embedded list owns the reading position.
+                    position.scrollTo(edge: .bottom)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollEdgeEffectStyle(.soft, for: .top)
+                .safeAreaBar(edge: .top, alignment: .leading, spacing: 0) {
+                    Text(verbatim: title)
+                        .accessibilityIdentifier("conversation.title")
+                        .font(MiraTheme.Typography.body.weight(.semibold))
+                        .foregroundStyle(MiraTheme.Colors.text)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, titleInsets.leading)
+                        .padding(.trailing, titleInsets.trailing)
+                        .frame(height: topInset)
+                }
+            }
+        } else {
+            content()
+                .overlay(alignment: .top) {
+                    MiraTheme.Colors.canvas.frame(height: topInset)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+        }
+    }
+}
+
+private struct MiraScrollEdgeHostConfiguration: NSViewRepresentable {
+    func makeNSView(context: Context) -> MiraScrollEdgeHostConfigurationView {
+        MiraScrollEdgeHostConfigurationView()
+    }
+
+    func updateNSView(_ view: MiraScrollEdgeHostConfigurationView, context: Context) {
+        view.configure()
+    }
+}
+
+private final class MiraScrollEdgeHostConfigurationView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        configure()
+    }
+
+    override func layout() {
+        super.layout()
+        configure()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func configure() {
+        guard let scrollView = enclosingScrollView else { return }
+        // Removing or hiding these views disables SwiftUI's native edge effect.
+        // Suppress their drawing and accessibility; the embedded list owns scrolling.
+        scrollView.verticalScroller?.alphaValue = 0
+        scrollView.horizontalScroller?.alphaValue = 0
+        scrollView.verticalScroller?.setAccessibilityHidden(true)
+        scrollView.horizontalScroller?.setAccessibilityHidden(true)
+        scrollView.verticalScrollElasticity = .none
+        scrollView.horizontalScrollElasticity = .none
+    }
+}
+
+/// Clearance measured from the native window controls and toolbar buttons.
+struct MiraTitlebarInsets: Equatable {
+    var leading: CGFloat = MiraTheme.Spacing.lg
+    var trailing: CGFloat = MiraTheme.Spacing.lg
+}
+
+/// A window-local material behind the composer and its controls.
+struct MiraComposerGlass: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content.background {
+            let shape = RoundedRectangle(cornerRadius: MiraTheme.Radius.composer, style: .continuous)
+            Group {
+                if reduceTransparency || contrast == .increased {
+                    shape.fill(MiraTheme.Colors.surface)
+                } else {
+                    MiraComposerBackdrop()
+                        .clipShape(shape)
+                }
+            }
+            .overlay {
+                shape.strokeBorder(MiraTheme.Colors.border.opacity(contrast == .increased ? 1 : MiraTheme.Opacity.composerBorder), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(MiraTheme.Opacity.composerShadow),
+                    radius: MiraTheme.Layout.composerShadowRadius, y: MiraTheme.Layout.composerShadowOffset)
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+private struct MiraComposerBackdrop: NSViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeNSView(context: Context) -> MiraComposerBackdropView {
+        let view = MiraComposerBackdropView()
+        updateNSView(view, context: context)
+        return view
+    }
+
+    func updateNSView(_ nsView: MiraComposerBackdropView, context: Context) {
+        // Adjust only the backdrop; input text, controls, and the border stay fully opaque.
+        nsView.alphaValue = colorScheme == .light ? MiraTheme.Opacity.composerMaterialLight : 1
+    }
+}
+
+@MainActor
+final class MiraComposerBackdropView: NSVisualEffectView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        blendingMode = .withinWindow
+        material = .headerView
+        state = .active
+        isEmphasized = false
+        setAccessibilityElement(false)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}

@@ -1,0 +1,111 @@
+{
+  "archiveFootprint": {
+    "Business.sqlite": {
+      "allocatedBytes": 73728,
+      "bytes": 73728,
+      "files": 1
+    },
+    "Catalog": {
+      "allocatedBytes": 98304,
+      "bytes": 95636,
+      "files": 1
+    },
+    "Sessions/payloads": {
+      "allocatedBytes": 1646592,
+      "bytes": 367438,
+      "files": 402
+    },
+    "Sessions/sessions": {
+      "allocatedBytes": 270336,
+      "bytes": 267604,
+      "files": 2
+    },
+    "manifest.json": {
+      "allocatedBytes": 4096,
+      "bytes": 768,
+      "files": 1
+    }
+  },
+  "archivePublished": true,
+  "build": "SwiftPM Release; record dirty source revisions separately",
+  "format": "mira-session-archive-measurement-v1",
+  "gitCommit": "fbd21b479bb9a71314c96047a033fba962ecb089",
+  "measurement": {
+    "details": {
+      "catalogBytes": 95636,
+      "catalogChunks": 1,
+      "fileCount": 405,
+      "manifestBytes": 768,
+      "verifiedVisibleBodies": 200
+    },
+    "messages": 200,
+    "milliseconds": {
+      "export": 449.769417,
+      "journalOpen": 6.451916,
+      "restore": 932.51825,
+      "total": 1666.961125,
+      "validate": 119.388583,
+      "verification": 155.361208
+    },
+    "operation": "archive",
+    "peakRSSBytes": 25444352,
+    "sessions": 2,
+    "systemCPUSeconds": 0.815524,
+    "userCPUSeconds": 0.762634
+  },
+  "messages": 200,
+  "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "outputRemoved": true,
+  "probeSHA256": "e8c2f5a79bf215e2a30584bb15368f588ecd9951c960b17f016b8fe54b6302a2",
+  "processWallMs": 1680.9594579972327,
+  "restoredFootprintAfterVerification": {
+    "Business.sqlite": {
+      "allocatedBytes": 73728,
+      "bytes": 73728,
+      "files": 1
+    },
+    "Projections": {
+      "allocatedBytes": 499712,
+      "bytes": 499712,
+      "files": 1
+    },
+    "Sessions/.cache-authentication": {
+      "allocatedBytes": 4096,
+      "bytes": 32,
+      "files": 1
+    },
+    "Sessions/.lock": {
+      "allocatedBytes": 0,
+      "bytes": 0,
+      "files": 1
+    },
+    "Sessions/checkpoints": {
+      "allocatedBytes": 450560,
+      "bytes": 440228,
+      "files": 4
+    },
+    "Sessions/indexes": {
+      "allocatedBytes": 188416,
+      "bytes": 187452,
+      "files": 2
+    },
+    "Sessions/payloads": {
+      "allocatedBytes": 1646592,
+      "bytes": 367438,
+      "files": 402
+    },
+    "Sessions/sessions": {
+      "allocatedBytes": 270336,
+      "bytes": 267604,
+      "files": 2
+    }
+  },
+  "restoredPublished": true,
+  "returnCode": 0,
+  "scope": "single observation; settled sessions and minimal business schema; no native UI or provider",
+  "sessions": 2,
+  "sourceChanges": "Format 2 chunked archive catalog and bounded inventory; archive probe added on top of gitCommit.",
+  "sourceRemoved": true,
+  "timestampUTC": "2026-09-13T23:53:38Z",
+  "toolchain": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0"
+}

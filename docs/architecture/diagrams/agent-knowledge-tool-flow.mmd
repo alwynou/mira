@@ -1,0 +1,20 @@
+flowchart TB
+  Start["模型提出知识工具调用"] --> Input["校验封闭输入 schema<br/>作用域来自原始证据与冻结 route"]
+  Input --> Prepare["读取领域资料<br/>检查权限、ID 关系、大小与 blob"]
+  Prepare --> Plan["冻结工具结果与来源"]
+  Plan --> Kind{"读取内容类型"}
+  Kind -->|"目录元数据"| Meta["knowledge.sources<br/>来源 ID + revision"]
+  Kind -->|"搜索摘要或正文"| Chunk["knowledge.chunks<br/>不可变 chunk ID + revision 1"]
+  Meta --> Dispatch["通用工具执行管线<br/>策略与事务权限复核 · 持久派发"]
+  Chunk --> Dispatch
+  Dispatch --> Recheck{"当前权限和资料仍有效？"}
+  Recheck -->|"否"| Deny["拒绝输出，不放宽核心契约"]
+  Recheck -->|"是"| Output["返回已冻结的有界结果"]
+  Output --> Model["下一模型步骤实际使用上下文<br/>journal 保存精确来源与 route"]
+  Model --> Reply["完成且有可用回答"]
+  Reply --> Citation["用户打开精确 version + chunk 引用"]
+  Citation --> Evidence{"journal 证明使用过该 chunk？"}
+  Evidence -->|"否，或只有目录"| Reject["引用不可用"]
+  Evidence -->|"是"| Current["按原始 route 检查当前权限<br/>校验 source/version/chunk 和 blob 字节"]
+  Current -->|"有效"| Show["打开原版本正文<br/>后续更新不重定向引用"]
+  Current -->|"已撤权、删除或不匹配"| Reject

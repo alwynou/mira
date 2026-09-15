@@ -1,0 +1,77 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mira · macOS 26</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="tokens.css?v=3" />
+<style>
+  /* ============================================================
+     Mira — macOS 26 (Tahoe / Liquid Glass) native two-column UI
+     Restrained native + micro-glass. Black / white / graphite.
+     ============================================================ */
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--wallpaper);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-size: var(--font-body);
+    font-weight: var(--weight-normal);
+    line-height: var(--line-ui);
+    overflow: hidden;
+  }
+  [lang="zh"], .cjk { line-height: var(--line-reading); }
+
+  button, input, select, textarea { font-family: inherit; font-size: inherit; line-height: var(--line-ui); color: inherit; }
+  b, strong { font-weight: var(--weight-strong); }
+  ::selection { background: color-mix(in srgb, var(--focus-ring) 44%, transparent); }
+
+  /* thin native scrollbars */
+  .scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  .scroll::-webkit-scrollbar { width: 9px; height: 9px; }
+  .scroll::-webkit-scrollbar-thumb {
+    background: transparent; border-radius: var(--r-pill);
+    border: 3px solid transparent; background-clip: padding-box;
+  }
+  .scroll:hover::-webkit-scrollbar-thumb { background: var(--scroll-thumb); background-clip: padding-box; }
+
+  :focus-visible { outline: 2.5px solid var(--focus-ring); outline-offset: 1px; border-radius: var(--r-sm); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  #root { height: 100%; }
+</style>
+<link rel="stylesheet" href="styles.css?v=39" />
+
+<div id="root"></div>
+
+<script
+  src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+  integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+  crossorigin="anonymous"
+></script>
+<script
+  src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+  integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+  crossorigin="anonymous"
+></script>
+<script
+  src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+  integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+  crossorigin="anonymous"
+></script>
+
+<script type="text/babel" src="icons.jsx?v=9"></script>
+<script type="text/babel" src="data.jsx?v=4"></script>
+<script type="text/babel" src="ui.jsx?v=4"></script>
+<script type="text/babel" src="panes.jsx?v=20"></script>
+<script type="text/babel" src="provider-catalog.jsx?v=3"></script>
+<script type="text/babel" src="model-settings.jsx?v=10"></script>
+<script type="text/babel" src="settings.jsx?v=18"></script>
+<script type="text/babel" src="app.jsx?v=10"></script>

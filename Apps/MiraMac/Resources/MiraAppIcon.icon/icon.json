@@ -1,0 +1,33 @@
+{
+  "fill": {
+    "solid": "extended-srgb:0.04314,0.04314,0.04314,1.00000"
+  },
+  "groups": [
+    {
+      "name": "Contour Silver",
+      "layers": [
+        {
+          "image-name": "02-main-ribbon.svg",
+          "name": "Continuous ribbon",
+          "glass": true
+        },
+        {
+          "image-name": "01-back-loop.svg",
+          "name": "Returning loop",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.22
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.05
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

@@ -1,0 +1,13 @@
+flowchart TB
+  Host[平台组合根] --> Modules[共享或平台模块]
+  Modules --> Registry[作用域来源注册表]
+  Runtime[平台无关执行内核] --> Auth[JournalAgentSourceAuthorizer]
+  Auth --> Policy[AgentContextPolicy<br/>工作区与冻结目的地]
+  Auth --> Reader[JournalSessionReader<br/>会话与执行来源]
+  Auth --> Registry
+  Registry --> Domain[AgentDomainSourceAuthority<br/>按命名空间检查版本与披露策略]
+  Policy --> DB[业务 SQLite 当前事实]
+  Domain --> DB
+  Reader --> Journal[权威 JSONL 与正文]
+  Lease[库访问租约<br/>撤销与实际排空] -.-> Runtime
+  Lease -.-> Auth

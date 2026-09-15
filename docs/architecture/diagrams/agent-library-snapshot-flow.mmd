@@ -1,0 +1,13 @@
+flowchart TD
+  Ready[期望库授权与快照回调] --> Gate[关口进入 snapshotting\n拒绝新租约、撤销旧租约]
+  Gate --> Drain[关闭全部工作组\n等待真实任务、读取和资源退出]
+  Drain --> Proof[复核持久库授权\n代次不变且没有 pending]
+  Proof --> Copy[执行并等待快照回调\n存储适配器另持有写入屏障]
+  Copy --> Check[成功或导出失败后\n再次复核权威与关口状态]
+  Check --> Resume[恢复 ready\n宿主创建新的普通工作组]
+  Drain -.排空失败.-> Uncertain[保持 uncertain\n关闭并重新组装]
+  Proof -.权威不一致.-> Uncertain
+  Check -.复核失败.-> Uncertain
+  Copy -.关口关闭.-> Close[请求协作取消\n等待实际快照任务退出]
+  Check -.关口已在关闭.-> Close
+  Close --> Closed[closed\n绝不重新开放接纳]

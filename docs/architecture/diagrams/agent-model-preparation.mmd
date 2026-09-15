@@ -1,0 +1,9 @@
+flowchart TB
+    Start[模型步骤与冻结的准备期限] --> Prepare[内核 actor 外准备：历史、贡献、预算与编码]
+    Start --> Timer[独立准备计时任务]
+    Prepare --> Decision{准备成功且仍有资格}
+    Decision -->|是| Dispatch[排空准备计时任务后申请模型额度]
+    Timer -->|到期或错误| Latch[锁定执行失败并取消原操作]
+    Decision -->|否| Latch
+    Latch --> Drain[等待准备与计时任务退出]
+    Drain --> Settle[只结算终态并释放作用域]

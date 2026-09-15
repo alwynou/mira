@@ -1,0 +1,15 @@
+flowchart TD
+  Host[宿主设置展示／命令] --> Resolver[Core：路线解析与当前配置复核]
+  Host --> Forms[Core：通用设置描述符]
+  Module[平台或共享模型模块] --> Registry[有作用域的能力注册表]
+  Registry --> Catalog[冻结目录与模块租约]
+  Catalog --> Forms
+  Catalog --> Provider[设置提供者：纯校验与参数组装]
+  Catalog --> Adapter[执行适配器：prepare／stream／replay]
+  Resolver --> Catalog
+  Resolver --> Store[AgentModelSettingsStore]
+  Store --> SQL[Data：共享业务库中的当前配置]
+  Resolver --> Frozen[不可变 AgentModelRoute]
+  Frozen --> Journal[会话日志中的持久执行计划]
+  Journal --> Kernel[执行内核与强制授权边界]
+  Kernel --> Adapter

@@ -1,0 +1,14 @@
+flowchart TB
+    Adapter[模型适配器：有实际关闭操作的事件流] --> Channel[有界通道：一条模型事件]
+    LiveTimer[独立 100 ms 可见输出节拍] --> Channel
+    DraftTimer[独立 250 ms 持久草稿节拍] --> Channel
+    Channel --> Consumer[模型执行器：单一流归约者]
+    Consumer --> Visible[只提取累计回答与可见思考]
+    Visible --> Session[SessionRuntime：尝试身份与当前资格检查]
+    Lease[执行的库租约与独立可见输出资源] --> Session
+    Session --> Latest[最新快照：每个订阅缓冲一项]
+    Latest --> Host[平台展示层]
+    Consumer --> Draft[草稿补丁：含私人续接与工具状态]
+    Draft --> Journal[规范日志与独立正文]
+    Journal --> Query[带租约的持久查询与恢复]
+    Query --> Host
