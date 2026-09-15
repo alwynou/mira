@@ -332,95 +332,65 @@ struct MiraComposerBarLayout: Layout {
     }
 }
 
-/// Gives an independently scrolling native viewport the system's scroll-edge effect.
-struct MiraScrollEdgeViewport<Content: View>: View {
-    let title: String
-    let topInset: CGFloat
-    var titleInsets = MiraTitlebarInsets()
-    @ViewBuilder let content: () -> Content
-    @State private var position = ScrollPosition(edge: .bottom)
-
-    var body: some View {
-        if #available(macOS 26.0, *) {
-            GeometryReader { geometry in
-                ScrollView {
-                    content()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .background(MiraScrollEdgeHostConfiguration())
-                }
-                // The embedded native list owns scrolling and virtualization.
-                // This finite viewport registers its content with SwiftUI's edge effect.
-                .defaultScrollAnchor(.bottom)
-                .scrollPosition($position)
-                .onScrollGeometryChange(for: CGPoint.self) { $0.contentOffset } action: { _, _ in
-                    // Keep the host fixed; the embedded list owns the reading position.
-                    position.scrollTo(edge: .bottom)
-                }
-                .scrollBounceBehavior(.basedOnSize)
-                .scrollEdgeEffectStyle(.soft, for: .top)
-                .safeAreaBar(edge: .top, alignment: .leading, spacing: 0) {
-                    Text(verbatim: title)
-                        .accessibilityIdentifier("conversation.title")
-                        .font(MiraTheme.Typography.body.weight(.semibold))
-                        .foregroundStyle(MiraTheme.Colors.text)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, titleInsets.leading)
-                        .padding(.trailing, titleInsets.trailing)
-                        .frame(height: topInset)
-                }
-            }
-        } else {
-            content()
-                .overlay(alignment: .top) {
-                    MiraTheme.Colors.canvas.frame(height: topInset)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
-        }
+/// Real split accessory content. AppKit owns its scroll-edge material and layout.
+@MainActor
+final class MiraConversationHeaderView: NSView {
+    let label = NSTextField(labelWithString: "")
+    weak var detailView: NSView?
+    var title: String {
+        get { label.stringValue }
+        set { label.stringValue = newValue; label.toolTip = newValue; needsLayout = true }
     }
-}
+    override var mouseDownCanMoveWindow: Bool { true }
 
-private struct MiraScrollEdgeHostConfiguration: NSViewRepresentable {
-    func makeNSView(context: Context) -> MiraScrollEdgeHostConfigurationView {
-        MiraScrollEdgeHostConfigurationView()
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        label.font = .systemFont(ofSize: MiraTheme.Typography.appKitBody.pointSize, weight: .semibold)
+        label.textColor = NSColor(MiraTheme.Colors.text)
+        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 1
+        label.setAccessibilityIdentifier("conversation.title")
+        addSubview(label)
     }
-
-    func updateNSView(_ view: MiraScrollEdgeHostConfigurationView, context: Context) {
-        view.configure()
+    convenience init() {
+        self.init(frame: .init(x: 0, y: 0, width: 800, height: MiraTheme.Layout.conversationHeaderHeight))
     }
-}
+    required init?(coder: NSCoder) { fatalError("Storyboard initialization is unsupported.") }
 
-private final class MiraScrollEdgeHostConfigurationView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        configure()
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didResizeNotification, object: nil)
+        if let window {
+            NotificationCenter.default.addObserver(self, selector: #selector(windowDidResize(_:)),
+                name: NSWindow.didResizeNotification, object: window)
+        }
     }
-
+    @objc private func windowDidResize(_ notification: Notification) {
+        // Native toolbar frames settle after the split content's layout callback.
+        DispatchQueue.main.async { [weak self] in
+            self?.needsLayout = true
+            self?.layoutSubtreeIfNeeded()
+        }
+    }
     override func layout() {
         super.layout()
-        configure()
+        let windowButtons = [window?.standardWindowButton(.closeButton),
+                             window?.standardWindowButton(.miniaturizeButton),
+                             window?.standardWindowButton(.zoomButton)].compactMap { $0 }
+        let controls = windowButtons.map { convert($0.bounds, from: $0) }
+        let sidebar = window?.toolbar?.items.first { $0.itemIdentifier == .toggleSidebar }?.view
+        let occupiedEdge = max(controls.map(\.maxX).max() ?? 0,
+                               sidebar.map { convert($0.bounds, from: $0).maxX } ?? 0)
+        let detailRect = detailView.map { convert($0.safeAreaRect, from: $0) } ?? bounds
+        let leading = max(detailRect.minX + MiraTheme.Spacing.lg, occupiedEdge + MiraTheme.Spacing.md)
+        let actionIDs = ["conversation.new", "conversation.inspector", "conversation.knowledge"]
+        let actions = window?.toolbar?.items.filter { actionIDs.contains($0.itemIdentifier.rawValue) }
+            .compactMap(\.view).map { convert($0.bounds, from: $0).minX }
+        let trailing = min(detailRect.maxX, actions?.min() ?? bounds.maxX) - MiraTheme.Spacing.lg
+        let height = ceil(label.intrinsicContentSize.height)
+        label.frame = .init(x: leading, y: (controls.last?.midY ?? bounds.midY) - height / 2,
+                            width: max(0, trailing - leading), height: height)
     }
-
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-    func configure() {
-        guard let scrollView = enclosingScrollView else { return }
-        // Removing or hiding these views disables SwiftUI's native edge effect.
-        // Suppress their drawing and accessibility; the embedded list owns scrolling.
-        scrollView.verticalScroller?.alphaValue = 0
-        scrollView.horizontalScroller?.alphaValue = 0
-        scrollView.verticalScroller?.setAccessibilityHidden(true)
-        scrollView.horizontalScroller?.setAccessibilityHidden(true)
-        scrollView.verticalScrollElasticity = .none
-        scrollView.horizontalScrollElasticity = .none
-    }
-}
-
-/// Clearance measured from the native window controls and toolbar buttons.
-struct MiraTitlebarInsets: Equatable {
-    var leading: CGFloat = MiraTheme.Spacing.lg
-    var trailing: CGFloat = MiraTheme.Spacing.lg
 }
 
 /// A window-local material behind the composer and its controls.

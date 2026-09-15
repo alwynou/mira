@@ -304,6 +304,7 @@
 		22AF29C5271787E4E8DC17CF /* UsageCostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCostView.swift; sourceTree = "<group>"; };
 		24B3109E6FB1D411E1EA7B04 /* MacLibrarySelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLibrarySelectionTests.swift; sourceTree = "<group>"; };
 		25B507DC4CC48DDF578F80A0 /* MacNotificationRetirement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNotificationRetirement.swift; sourceTree = "<group>"; };
+		275727ADD7D8FFCE864D0465 /* ListViewKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ListViewKit; path = Vendor/ListViewKit; sourceTree = SOURCE_ROOT; };
 		2824EFB7442C6F4AF52C6FBE /* Mira.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mira.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		28C354CD341C70BA8EAE5D58 /* MiraHostTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiraHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2ADFCF2A3B5335244EDE137D /* EverydayMemoryLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EverydayMemoryLiveTests.swift; sourceTree = "<group>"; };
@@ -771,6 +772,7 @@
 		A05FECB38D4FE2B6CC88C82C /* Packages */ = {
 			isa = PBXGroup;
 			children = (
+				275727ADD7D8FFCE864D0465 /* ListViewKit */,
 				E2BC610A300A0BD831F1CC23 /* MarkdownView */,
 				E80A2536843B79B7161B2B7E /* MiraKit */,
 			);
@@ -1007,8 +1009,8 @@
 			mainGroup = 9F12A7678DA6DB07C4E15942;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3C7BB12B3769225F63301798 /* XCRemoteSwiftPackageReference "ListViewKit" */,
 				9A414BB0CB34741C37752C6C /* XCRemoteSwiftPackageReference "Litext" */,
+				E88BEDF654FA1C3A00A0502F /* XCLocalSwiftPackageReference "Vendor/ListViewKit" */,
 				6F5A8F5E89F8AB4D5A4DCBE8 /* XCLocalSwiftPackageReference "Vendor/MarkdownView" */,
 				3254A4E8215ABE50B8CDA036 /* XCLocalSwiftPackageReference "Packages/MiraKit" */,
 			);
@@ -1668,17 +1670,13 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Vendor/MarkdownView;
 		};
+		E88BEDF654FA1C3A00A0502F /* XCLocalSwiftPackageReference "Vendor/ListViewKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/ListViewKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		3C7BB12B3769225F63301798 /* XCRemoteSwiftPackageReference "ListViewKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Lakr233/ListViewKit";
-			requirement = {
-				kind = revision;
-				revision = c6a067ba837758a50612f88dd1d6bb025175df6c;
-			};
-		};
 		9A414BB0CB34741C37752C6C /* XCRemoteSwiftPackageReference "Litext" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Lakr233/Litext";
@@ -1692,12 +1690,10 @@
 /* Begin XCSwiftPackageProductDependency section */
 		18D4473155C8AAEC2336AF26 /* ListViewKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3C7BB12B3769225F63301798 /* XCRemoteSwiftPackageReference "ListViewKit" */;
 			productName = ListViewKit;
 		};
 		1DC7C707C67E1BE598C0B27B /* ListViewKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3C7BB12B3769225F63301798 /* XCRemoteSwiftPackageReference "ListViewKit" */;
 			productName = ListViewKit;
 		};
 		22B281C1FFFD9A2498B6964D /* MarkdownParser */ = {
@@ -1751,7 +1747,6 @@
 		};
 		B34FC844445ADE508A343E18 /* ListViewKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3C7BB12B3769225F63301798 /* XCRemoteSwiftPackageReference "ListViewKit" */;
 			productName = ListViewKit;
 		};
 		D775CBE22F52DB31659B7E2C /* MarkdownParser */ = {

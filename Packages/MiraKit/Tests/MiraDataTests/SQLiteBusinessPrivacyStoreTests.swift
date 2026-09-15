@@ -28,15 +28,16 @@ struct SQLiteBusinessPrivacyStoreTests {
             let reopened = try SQLiteBusinessPrivacyStore(
                 database: fixture.database, libraryID: fixture.authority.libraryID)
             try await reopened.verifySessionResultsPurged(plan: data.plan)
-            let row = try await fixture.database.read { db in
-                try Row.fetchOne(
+            let result = try await fixture.database.read { db -> (blob: Data?, purged: Int?) in
+                let row = try #require(try Row.fetchOne(
                     db,
                     sql:
                         "SELECT r.id, o.result_blob, o.result_purged FROM business_receipts AS r JOIN business_operations AS o ON o.namespace = r.operation_namespace AND o.business_key = r.operation_key WHERE r.invocation_id = ?",
-                    arguments: [data.proof.invocationID.uuidString])
+                    arguments: [data.proof.invocationID.uuidString]))
+                return (row["result_blob"], row["result_purged"])
             }
-            #expect(row?["result_blob"] == nil)
-            #expect(row?["result_purged"] as Int? == 1)
+            #expect(result.blob == nil)
+            #expect(result.purged == 1)
             let unrelated = try await fixture.database.read { db in
                 try Int.fetchOne(
                     db,

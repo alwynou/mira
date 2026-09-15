@@ -10,6 +10,8 @@
 
 正常历史只读取有可见回答的 completed 执行。`JournalSessionReader` 验证回答、执行计划和成功尝试的实际请求，核对会话、执行、步骤、工作区与冻结路线，再取得精确来源修订。失败、未完成及已清理可见回答不生成普通状态提示；缺失或损坏正文是读取错误，不能伪装成没有关联记忆。查询不依赖 SQL 会话投影，不增加使用记录或日志事实。
 
+Completed local-driver replies with no model route or model attempts have no recorded model-context sources. History notices validate their available answer and execution plan, then return an empty source set; the stricter citation-evidence API still requires a recorded model route. Missing bodies or inconsistent attempts remain errors.
+
 ```mermaid
 flowchart TB
     Page[macOS 会话页面] --> App[MemoryApplication\n作用域与库租约]

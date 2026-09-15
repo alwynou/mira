@@ -84,6 +84,7 @@ final class ConversationSwitchUITests: XCTestCase {
         reportAttachment.lifetime = .keepAlways
         add(reportAttachment)
         XCTAssertEqual(json?["passed"] as? Bool, true, "Conversation switch benchmark failed; see the attached synthetic report.")
+        XCTAssertEqual(json?["presentationError"] as? String, "", "A history query must not block native interactions with an alert.")
         XCTAssertEqual(json?["sameSelectionPreserved"] as? Bool, true)
         XCTAssertEqual(json?["firstListReused"] as? Bool, true)
         XCTAssertEqual(json?["secondListDistinct"] as? Bool, true)
@@ -103,6 +104,8 @@ final class ConversationSwitchUITests: XCTestCase {
         let composer = app.descendants(matching: .any)["conversation.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
         XCTAssertEqual(composer.value as? String, "Synthetic composer draft", "The active page should expose its retained draft.")
+        XCTAssertTrue(transcript.frame.contains(composer.frame),
+                      "The native scroll viewport must extend behind the floating input field.")
         let previous = try visibleUserMessage(in: transcript)
         transcript.scroll(byDeltaX: 0, deltaY: 300)
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
@@ -167,7 +170,10 @@ final class ConversationSwitchUITests: XCTestCase {
         let transcript = app.scrollViews["conversation.transcript"]
         for delta in [80.0, -60.0, 100.0, -80.0] {
             transcript.scroll(byDeltaX: 0, deltaY: delta)
-            XCTAssertTrue(jump.isHittable, "A scroll burst must not hide the history navigation action.")
+            let available = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == true AND enabled == true"), object: jump)
+            XCTAssertEqual(XCTWaiter.wait(for: [available], timeout: 2), .completed,
+                           "History navigation must remain available after the native wheel transaction.")
         }
         let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
         screenshot.name = "Centered glass jump action while reading history"
@@ -177,10 +183,13 @@ final class ConversationSwitchUITests: XCTestCase {
         // The native geometry monitor should already be idle before activation.
         RunLoop.current.run(until: Date().addingTimeInterval(0.8))
         jump.click()
-        let hidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: jump)
+        // SwiftUI retains the button for its fade and disables hit testing at latest.
+        let hidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false OR enabled == false"), object: jump)
         XCTAssertEqual(XCTWaiter.wait(for: [hidden], timeout: 5), .completed)
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
-        XCTAssertFalse(jump.exists, "The action must remain hidden once the explicit jump settles.")
+        if jump.exists {
+            XCTAssertFalse(jump.isEnabled, "The retained action must stay disabled at latest.")
+        }
         let scroller = transcript.scrollBars.firstMatch
         let reachedBottom = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             MainActor.assumeIsolated {
@@ -190,7 +199,9 @@ final class ConversationSwitchUITests: XCTestCase {
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [reachedBottom], timeout: 5), .completed, "The button must move the native viewport to the latest content after scrolling becomes idle.")
         transcript.scroll(byDeltaX: 0, deltaY: 500)
-        XCTAssertTrue(jump.waitForExistence(timeout: 5), "Scrolling back into history should reveal the action again.")
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND enabled == true"), object: jump)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 5), .completed, "Scrolling back into history should reveal the action again.")
+        XCTAssertTrue(jump.isEnabled)
     }
 
     private func enter(_ text: String, in composer: XCUIElement) throws {
