@@ -93,3 +93,10 @@ After cleanup, the resolved-package Debug build passed
 passed (`/tmp/mira-native-scroll-cleanup-backend.log`). Project generation, token
 export, language policy and whitespace checks passed. The accepted UI behavior was
 unchanged; native visual acceptance remains the production evidence above.
+
+The PR's Xcode 26.3 CI run exposed three pre-existing privacy-test queries that
+returned GRDB `Row` across an asynchronous read boundary. The tests now extract
+Sendable scalar tuples inside the database closure and require the row to exist.
+All nine `SQLiteBusinessPrivacyStoreTests` and `SQLiteMemoryPrivacyStoreTests`
+passed locally (`/tmp/mira-pr-2-privacy-tests.log`). Production storage behavior
+and the privacy assertions are unchanged.

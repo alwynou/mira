@@ -27,15 +27,16 @@ struct SQLiteMemoryPrivacyStoreTests {
             #expect(throws: MiraError.self) { try unrelatedScope.validate(for: operation) }
 
             try await fixture.store.purgeMemoryForget(scope, operation: operation)
-            let tombstone = try await fixture.database.read { db in
-                try Row.fetchOne(
+            let tombstone = try await fixture.database.read { db -> (revision: Int?, forgottenAt: Double?, scope: String?, workspaceID: String?) in
+                let row = try #require(try Row.fetchOne(
                     db, sql: "SELECT revision, forgotten_at, scope, workspace_id FROM memory_records WHERE id = ?",
-                    arguments: [revised.id.rawValue.uuidString.lowercased()])
+                    arguments: [revised.id.rawValue.uuidString.lowercased()]))
+                return (row["revision"], row["forgotten_at"], row["scope"], row["workspace_id"])
             }
-            #expect(tombstone?["revision"] as Int? == revised.revision + 1)
-            #expect(tombstone?["forgotten_at"] as Double? == fixture.date.timeIntervalSince1970)
-            #expect(tombstone?["scope"] as String? == "global")
-            #expect(tombstone?["workspace_id"] as String? == nil)
+            #expect(tombstone.revision == revised.revision + 1)
+            #expect(tombstone.forgottenAt == fixture.date.timeIntervalSince1970)
+            #expect(tombstone.scope == "global")
+            #expect(tombstone.workspaceID == nil)
             try await fixture.store.verifyMemoryForgotten(scope, operation: operation)
             let retryScope = try await fixture.store.memoryForgetScope(operation: operation)
             #expect(retryScope == scope)
@@ -176,13 +177,14 @@ struct SQLiteMemoryPrivacyStoreTests {
             try await fixture.store.purgeMemoryForget(scope, operation: operation)
             try await fixture.store.verifyMemoryForgotten(scope, operation: operation)
 
-            let persisted = try await fixture.database.read { db in
-                try Row.fetchOne(
+            let persisted = try await fixture.database.read { db -> (state: String?, json: Data?) in
+                let row = try #require(try Row.fetchOne(
                     db, sql: "SELECT state, json FROM memory_extraction_jobs WHERE id = ?",
-                    arguments: [job.id.rawValue.uuidString.lowercased()])
+                    arguments: [job.id.rawValue.uuidString.lowercased()]))
+                return (row["state"], row["json"])
             }
-            #expect(persisted?["state"] as String? == MemoryExtractionJobState.suppressed.rawValue)
-            #expect(persisted?["json"] as Data? != nil)
+            #expect(persisted.state == MemoryExtractionJobState.suppressed.rawValue)
+            #expect(persisted.json != nil)
         }
     }
 }
