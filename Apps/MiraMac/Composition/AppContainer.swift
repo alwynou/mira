@@ -1,295 +1,393 @@
 import Foundation
-import CryptoKit
 import MiraCore
-import MiraData
-import MiraProviders
 import Observation
 
-@MainActor @Observable
-final class AppContainer: ProviderConnectionSettingsStore {
-    let application: MiraApplication?
-    let startupError: MiraError?
+/// Launch policy is resolved before any library or platform adapter is opened.
+struct MacLibraryLaunchConfiguration: Sendable, Equatable {
     let directory: URL
     let isDemo: Bool
-    let credentials = KeychainCredentials()
-    let memoryApprovals = MemoryApprovalCoordinator()
-    private let provider: any ModelProviderPort
-    private let credentialCleanup: CredentialCleanup
-    var maintenanceMessage: String?
-    private var didSeedDemo = false
+    let stress: Bool
+    let benchmark: Bool
+    let selectionFile: URL?
+    let expectedLibraryID: UUID?
 
-    init() {
-        let arguments = ProcessInfo.processInfo.arguments
+    init(
+        directory: URL, isDemo: Bool, stress: Bool, benchmark: Bool = false,
+        selectionFile: URL? = nil, expectedLibraryID: UUID? = nil
+    ) {
+        self.directory = directory
+        self.isDemo = isDemo
+        self.stress = stress
+        self.benchmark = benchmark
+        self.selectionFile = selectionFile
+        self.expectedLibraryID = expectedLibraryID
+    }
+
+    static func resolve(
+        arguments: [String], bundleID: String?,
+        applicationSupport: URL, temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    ) throws -> Self {
         #if DEBUG
-        isDemo = arguments.contains("--demo")
+            let demo = arguments.contains("--demo")
         #else
-        isDemo = false
-        #endif
-        var argumentError: MiraError?
-        if let index = arguments.firstIndex(of: "--data-directory") {
-            if arguments.indices.contains(index + 1), arguments[index + 1].hasPrefix("/") {
-                directory = URL(fileURLWithPath: arguments[index + 1], isDirectory: true)
-            } else {
-                directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-Invalid-Launch")
-                argumentError = .init(.configuration, "--data-directory requires an absolute path. The default library was not opened.")
+            guard
+                !arguments.contains(where: { ["--demo", "--demo-stress", "--native-rendering-benchmark"].contains($0) })
+            else {
+                throw MiraError(.configuration, "Demo mode is unavailable in this build. No library was opened.")
             }
-        } else if isDemo {
-            directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-Demo-\(UUID().uuidString)", isDirectory: true)
-        } else {
-            directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Mira", isDirectory: true)
-        }
-        credentialCleanup = CredentialCleanup(directory: directory)
+            let demo = false
+        #endif
+        let explicitDirectory = try absoluteArgument("--data-directory", arguments: arguments)
+        let directory =
+            explicitDirectory.map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? (demo
+                ? temporaryDirectory.appendingPathComponent("Mira-Demo-\(UUID().uuidString)", isDirectory: true)
+                : applicationSupport.appendingPathComponent("Mira", isDirectory: true))
         #if DEBUG
-        if Bundle.main.bundleIdentifier?.hasPrefix("com.alwynou.mira.performance-check") == true, !isDemo {
-            argumentError = .init(.configuration, "The performance fixture requires explicit demo arguments. No library was opened.")
-        }
-        if arguments.contains("--native-rendering-benchmark"),
-           !NativePerformanceBenchmark.isRequested || FileManager.default.fileExists(atPath: directory.path) {
-            argumentError = .init(.configuration, "The rendering benchmark requires demo mode, absolute paths, and a new fixture directory. No library was opened.")
-        }
-        provider = isDemo ? DemoProvider(stress: arguments.contains("--demo-stress")) : HTTPModelProvider(credentials: credentials)
-        #else
-        provider = HTTPModelProvider(credentials: credentials)
+            if bundleID?.hasPrefix("com.alwynou.mira.performance-check") == true, !demo {
+                throw MiraError(
+                    .configuration, "The performance fixture requires explicit demo arguments. No library was opened.")
+            }
+            if arguments.contains("--demo-stress"), !demo {
+                throw MiraError(
+                    .configuration, "The rendering stress fixture requires demo mode. No library was opened.")
+            }
+            if arguments.contains("--native-rendering-benchmark") {
+                let report = try absoluteArgument("--benchmark-report", arguments: arguments)
+                guard demo, explicitDirectory != nil, let report,
+                    !FileManager.default.fileExists(atPath: directory.path),
+                    !FileManager.default.fileExists(atPath: report),
+                    FileManager.default.isWritableFile(
+                        atPath: URL(fileURLWithPath: report).deletingLastPathComponent().path)
+                else {
+                    throw MiraError(
+                        .configuration,
+                        "The rendering benchmark requires demo mode, absolute paths, and a new fixture directory. No library was opened."
+                    )
+                }
+            }
         #endif
-        if let argumentError {
-            application = nil; startupError = argumentError
-            return
-        }
-        do {
-            let store = try SQLiteMiraStore(directory: directory)
-            let notificationPort: any LocalNotificationPort = isDemo ? DemoLocalNotifications() : MacLocalNotifications()
-            let namespace = SHA256.hash(data: Data(directory.standardizedFileURL.path.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
-            let reminders = ReminderScheduler(store: store, notifications: notificationPort, namespace: namespace)
-            let memoryTools = MemoryTools.readOnly(store: store) + [MemoryRememberTool(store: store, approvals: memoryApprovals)] + KnowledgeTools.readOnly(store: store) + TaskTools.registered(store: store, scheduler: reminders)
-            application = try MiraApplication(store: store, provider: provider, tools: ToolRegistry(memoryTools), memoryApprovals: memoryApprovals, reminders: reminders)
-            startupError = nil
-            if let application { Task { await application.startBackgroundWork() } }
-            if !isDemo {
-                do { maintenanceMessage = try credentialCleanup.reconcile(retaining: store.modelConfiguration().connections, credentials: credentials) }
-                catch { maintenanceMessage = MiraError.safe(error).message }
-            }
-        } catch {
-            application = nil; startupError = MiraError.safe(error)
-        }
+        return .init(
+            directory: directory.standardizedFileURL, isDemo: demo, stress: demo && arguments.contains("--demo-stress"),
+            benchmark: demo && arguments.contains("--native-rendering-benchmark"),
+            selectionFile: explicitDirectory == nil && !demo
+                ? applicationSupport.appendingPathComponent("MiraHost", isDirectory: true)
+                    .appendingPathComponent("library-selection.json") : nil)
     }
 
-    func discoverModels(for connection: ProviderConnection) async throws -> [DiscoveredModel] {
-        guard !isDemo, let application else { throw MiraError(.configuration, "Model discovery is unavailable in demo mode or without an open library.") }
-        let before = try await application.modelConfiguration()
-        guard before.connections.first(where: { $0.id == connection.id }) == connection, connection.isEnabled else {
-            throw MiraError(.configuration, "Activate the current provider configuration before fetching models.")
+    private static func absoluteArgument(_ flag: String, arguments: [String]) throws -> String? {
+        let indices = arguments.indices.filter { arguments[$0] == flag }
+        guard !indices.isEmpty else { return nil }
+        guard indices.count == 1, let index = indices.first,
+            arguments.indices.contains(index + 1), arguments[index + 1].hasPrefix("/")
+        else {
+            throw MiraError(.configuration, "Launch paths must be absolute and specified once. No library was opened.")
         }
-        let models = try await HTTPModelDiscovery(credentials: credentials).models(for: connection)
-        try Task.checkCancellation()
-        let after = try await application.modelConfiguration()
-        guard after.connections.first(where: { $0.id == connection.id }) == connection else {
-            throw MiraError(.conflict, "The provider changed while fetching models. Fetch the list again.")
-        }
-        return models
-    }
-
-    func probe(_ route: ResolvedModelRouteSnapshot, kind: CapabilityProbeKind) async -> ProbeObservation {
-        await ProviderCapabilityProbe(provider: provider).run(route: route, kind: kind)
-    }
-
-    func saveProbe(_ observation: ProbeObservation, for route: ResolvedModelRouteSnapshot) async throws {
-        guard let application else { throw MiraError(.storage, "The library is not open.") }
-        try await application.saveProbe(observation, for: route)
-    }
-
-    func seedDemo() async throws {
-        guard isDemo, !didSeedDemo, let application else { return }
-        didSeedDemo = true
-        let library = try await application.library()
-        if library.configuration.connections.isEmpty {
-            let connection = ProviderConnection(name: "Local Demo", providerKind: .openAICompatible, baseURL: "https://demo.invalid/v1", credentialReference: "demo")
-            let model = ModelDescriptor(connectionID: connection.id, modelID: "mira-demo", contextWindow: 32_768, textCapability: .declared)
-            let route = ModelRoute(id: model.poolRouteID, name: "Local Demo", modelDescriptorID: model.id)
-            try await application.saveConnection(connection, expectedRevision: nil)
-            try await application.savePoolModel(model, route: route, expectedModelRevision: nil, expectedRouteRevision: nil)
-            try await application.saveRouteBinding(.init(scope: .global, purpose: .conversation, routeID: route.id), expectedRevision: nil)
-        }
-    }
-
-    func credential(for connection: ProviderConnection) -> String? {
-        try? credentials.read(reference: connection.credentialReference, version: connection.credentialVersion)
-    }
-
-    /// Tests the exact draft with synthetic content, without saving its key or changing model capabilities.
-    func testConnection(_ connection: ProviderConnection, previous: ProviderConnection?, secret: String,
-                        model: ProviderConnectionTestModel) async throws {
-        guard !isDemo else { throw MiraError(.configuration, "Connection testing is unavailable in demo mode.") }
-        try connection.validate()
-        try await validateConnectionDraft(previous: previous, connection: connection, testModel: model)
-        let reader: any CredentialReader = secret.isEmpty ? credentials : DraftConnectionCredentials(
-            reference: connection.credentialReference, version: connection.credentialVersion, secret: secret)
-        let observation = await ProviderCapabilityProbe(provider: HTTPModelProvider(credentials: reader))
-            .run(route: model.snapshot(for: connection), kind: .text)
-        try Task.checkCancellation()
-        try await validateConnectionDraft(previous: previous, connection: connection, testModel: model)
-        guard observation.state == .verified else {
-            throw observation.error ?? MiraError(.providerRejected, "The connection test failed.")
-        }
-    }
-
-    private func validateConnectionDraft(previous: ProviderConnection?, connection: ProviderConnection,
-                                         testModel: ProviderConnectionTestModel?) async throws {
-        guard let application else { throw MiraError(.storage, "The library is not open.") }
-        let configuration = try await application.modelConfiguration()
-        guard configuration.connections.first(where: { $0.id == connection.id }) == previous else {
-            throw MiraError(.conflict, "The provider configuration changed. Discard your draft and try again.")
-        }
-        if let testModel, testModel.isSaved {
-            guard testModel.model.connectionID == connection.id,
-                  configuration.models.first(where: { $0.id == testModel.model.id }) == testModel.model,
-                  configuration.routes.first(where: { $0.id == testModel.route.id }) == testModel.route else {
-                throw MiraError(.conflict, "The test model changed. Select the current model and try again.")
-            }
-        }
-        try Task.checkCancellation()
-    }
-
-    /// Saving and activation are local state changes; only an explicit test contacts the provider.
-    /// Installs a new immutable credential version first; rolls it back if the DB commit fails.
-    func saveConnection(_ route: ProviderConnection, previous: ProviderConnection?, secret: String) async throws -> ProviderConnection {
-        guard !isDemo, let application else { throw MiraError(.storage, "The library is not open.") }
-        try route.validate()
-        try await validateConnectionDraft(previous: previous, connection: route, testModel: nil)
-        var updated = route
-        let replacement = !secret.isEmpty
-        if replacement {
-            updated.credentialReference = UUID().uuidString
-            updated.credentialVersion = (previous?.credentialVersion ?? 0) + 1
-            // Write-ahead references let startup distinguish committed credentials from abandoned ones.
-            try credentialCleanup.enqueue([updated] + (previous.map { [$0] } ?? []))
-            do { try credentials.save(secret, reference: updated.credentialReference, version: updated.credentialVersion) }
-            catch { await retryCredentialCleanup(); throw error }
-        } else if previous == nil { throw MiraError(.credentialMissing, "A new connection requires an API key.") }
-        do {
-            try Task.checkCancellation()
-            try await application.saveConnection(updated, expectedRevision: previous?.revision)
-        }
-        catch {
-            if replacement { await retryCredentialCleanup() }
-            throw error
-        }
-        if replacement { await retryCredentialCleanup() }
-        return updated
-    }
-
-    func retryCredentialCleanup() async {
-        guard let application, !isDemo else { return }
-        do {
-            let routes = try await application.modelConfiguration().connections
-            maintenanceMessage = try credentialCleanup.reconcile(retaining: routes, credentials: credentials)
-        } catch { maintenanceMessage = MiraError.safe(error).message }
+        return arguments[index + 1]
     }
 }
 
-/// An unsaved API key is scoped to one explicit request and never written to disk or diagnostics.
-private struct DraftConnectionCredentials: CredentialReader {
-    let reference: String
-    let version: Int
-    let secret: String
+/// App-lifetime ownership only. Views use the current work group's domain services.
+@MainActor @Observable
+final class AppContainer {
+    typealias LibraryOpener = @Sendable (MacLibraryLaunchConfiguration) async throws -> MacLibrary
 
-    func read(reference: String, version: Int) throws -> String {
-        guard reference == self.reference, version == self.version, !secret.isEmpty else {
-            throw MiraError(.credentialMissing, "Enter an API key.")
+    private(set) var directory: URL
+    let isDemo: Bool
+    private(set) var status: MacLibraryStatus
+    private(set) var library: MacLibrary?
+    private(set) var workgroup: MacLibraryWorkloads?
+    private(set) var restoration: MacLibraryRestoration?
+    var startupError: MiraError? { status.failure }
+    @ObservationIgnored private let launch: MacLibraryLaunchConfiguration?
+    @ObservationIgnored private let opener: LibraryOpener
+    @ObservationIgnored private let makeRestoration: @Sendable () throws -> MacLibraryRestoration
+    @ObservationIgnored private let retireNotifications: @Sendable (String) async throws -> Void
+    @ObservationIgnored private var selection: MacLibrarySelectionStore?
+    @ObservationIgnored private var switching: Task<Void, any Error>?
+    @ObservationIgnored private var unsettledClose: MacLibraryCloseResult?
+    @ObservationIgnored private var started = false
+    @ObservationIgnored private var opening: Task<Void, Never>?
+    @ObservationIgnored private var observation: Task<Void, Never>?
+    @ObservationIgnored private var closing: Task<MacLibraryCloseResult, Never>?
+
+    init() {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        do {
+            let launch = try MacLibraryLaunchConfiguration.resolve(
+                arguments: ProcessInfo.processInfo.arguments, bundleID: Bundle.main.bundleIdentifier,
+                applicationSupport: support)
+            self.launch = launch
+            directory = launch.directory
+            isDemo = launch.isDemo
+            status = .init(phase: .starting, generation: 0, failure: nil)
+        } catch {
+            launch = nil
+            directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-Invalid-Launch")
+            isDemo = false
+            status = .init(phase: .failed, generation: 0, failure: MiraError.safe(error))
         }
-        return secret
+        opener = Self.openLibrary
+        makeRestoration = { try MacLibraryRestoration() }
+        retireNotifications = { try await MacLocalNotifications.retireNotificationNamespace($0) }
+    }
+
+    /// Tests explicitly inject the same production library with synthetic adapters.
+    init(
+        launch: MacLibraryLaunchConfiguration,
+        makeRestoration: @escaping @Sendable () throws -> MacLibraryRestoration = { try MacLibraryRestoration() },
+        retireNotifications: @escaping @Sendable (String) async throws -> Void = { _ in
+            throw MiraError(.unsupported, "Notification retirement requires an explicit host adapter.")
+        },
+        opener: @escaping LibraryOpener
+    ) {
+        self.launch = launch
+        self.opener = opener
+        self.makeRestoration = makeRestoration
+        self.retireNotifications = retireNotifications
+        directory = launch.directory
+        isDemo = launch.isDemo
+        status = .init(phase: .starting, generation: 0, failure: nil)
+    }
+
+    /// Once accepted, startup outlives any individual window's task.
+    func start() async {
+        if let opening {
+            await opening.value
+            return
+        }
+        guard !started, closing == nil, let launch else { return }
+        started = true
+        let task = Task {
+            defer { opening = nil }
+            do {
+                restoration = try makeRestoration()
+                var requested = launch
+                var pending: MacLibrarySelectionState?
+                if let file = launch.selectionFile {
+                    let store = try await Task.detached { try MacLibrarySelectionStore(fileURL: file) }.value
+                    selection = store
+                    switch try await store.state() {
+                    case .active(let selected): requested = configuration(for: selected)
+                    case .switching(let from, let to):
+                        pending = .switching(from: from, to: to)
+                        try await retireNotifications(Self.namespace(from))
+                        requested = configuration(for: to)
+                    case nil: break
+                    }
+                }
+                let value = try await openVerified(requested)
+                library = value
+                directory = value.directory
+                if let pending, case .switching(_, let to) = pending {
+                    try await selection?.complete(expected: pending, state: .active(to))
+                }
+                // Close owns any library that finishes opening after close was requested.
+                guard closing == nil else { return }
+                await receive(await value.status(), from: value)
+                guard closing == nil else { return }
+                observation = Task { [weak self, value] in
+                    for await state in await value.observe() {
+                        guard !Task.isCancelled else { break }
+                        await self?.receive(state, from: value)
+                    }
+                }
+            } catch {
+                await closeAndRecord(library)
+                library = nil
+                guard closing == nil else { return }
+                status = .init(phase: .failed, generation: 0, failure: MiraError.safe(error))
+            }
+        }
+        opening = task
+        await task.value
+    }
+
+    func close() async -> MacLibraryCloseResult {
+        if let closing { return await closing.value }
+        status = .init(phase: .closing, generation: status.generation, failure: status.failure)
+        workgroup = nil
+        let opening = opening
+        let switching = switching
+        opening?.cancel()
+        let task = Task {
+            await opening?.value
+            _ = await switching?.result
+            observation?.cancel()
+            await observation?.value
+            observation = nil
+            let current = library
+            library = nil
+            let libraryClose = Task { await current?.close() ?? .init(executionsSettled: true, storageError: nil) }
+            await restoration?.close()
+            restoration = nil
+            let currentResult = await libraryClose.value
+            let result = MacLibraryCloseResult(
+                executionsSettled: currentResult.executionsSettled && (unsettledClose?.executionsSettled ?? true),
+                storageError: unsettledClose?.storageError ?? currentResult.storageError)
+            await selection?.close()
+            selection = nil
+            status = .init(phase: .closed, generation: status.generation, failure: result.storageError)
+            return result
+        }
+        closing = task
+        return await task.value
+    }
+
+    var canActivateRestoredLibrary: Bool {
+        selection != nil && !isDemo && opening == nil && closing == nil && switching == nil && status.phase == .ready
+    }
+
+    /// The selection intent reaches disk before any old-library platform resource is retired.
+    /// An accepted switch outlives its caller and is drained by application close.
+    func activateRestoredLibrary(_ target: MacSelectedLibrary) async throws {
+        try Task.checkCancellation()
+        guard canActivateRestoredLibrary, let selection, let previous = library,
+            previous.directory.standardizedFileURL != target.directory.standardizedFileURL
+        else {
+            throw MiraError(.busy, "The library cannot be switched right now.")
+        }
+        let source = MacSelectedLibrary(directory: previous.directory, libraryID: previous.id)
+        status = .init(phase: .maintaining, generation: status.generation, failure: nil)
+        workgroup = nil
+        let oldObservation = observation
+        observation = nil
+        oldObservation?.cancel()
+        let task = Task {
+            defer { switching = nil }
+            await oldObservation?.value
+            do {
+                let pending = try await selection.begin(from: source, to: target)
+                let result = await previous.close()
+                recordClose(result)
+                library = nil
+                guard result.isSettled else {
+                    throw result.storageError
+                        ?? MiraError(.storage, "Library executions did not settle before switching.")
+                }
+                try await retireNotifications(Self.namespace(source))
+                let next = try await openVerified(configuration(for: target))
+                library = next
+                directory = next.directory
+                try await selection.complete(expected: pending, state: .active(target))
+                guard closing == nil else { return }
+                await receive(await next.status(), from: next)
+                guard closing == nil else { return }
+                observation = Task { [weak self, next] in
+                    for await state in await next.observe() {
+                        guard !Task.isCancelled else { break }
+                        await self?.receive(state, from: next)
+                    }
+                }
+            } catch {
+                await closeAndRecord(previous)
+                await closeAndRecord(library)
+                library = nil
+                workgroup = nil
+                let failure = MiraError.safe(error)
+                if closing == nil {
+                    status = .init(phase: .failed, generation: status.generation, failure: failure)
+                }
+                throw failure
+            }
+        }
+        switching = task
+        try await task.value
+    }
+
+    private func configuration(for selected: MacSelectedLibrary) -> MacLibraryLaunchConfiguration {
+        .init(
+            directory: selected.directory, isDemo: false, stress: false,
+            selectionFile: launch?.selectionFile, expectedLibraryID: selected.libraryID)
+    }
+
+    private func openVerified(_ configuration: MacLibraryLaunchConfiguration) async throws -> MacLibrary {
+        let opened = try await opener(configuration)
+        if let expected = configuration.expectedLibraryID, opened.id != expected {
+            await closeAndRecord(opened)
+            throw MiraError(.storage, "The selected library identity does not match its saved selection.")
+        }
+        return opened
+    }
+
+    private func closeAndRecord(_ library: MacLibrary?) async {
+        guard let library else { return }
+        recordClose(await library.close())
+    }
+
+    private func recordClose(_ result: MacLibraryCloseResult) {
+        guard !result.isSettled else { return }
+        unsettledClose = .init(
+            executionsSettled: result.executionsSettled && (unsettledClose?.executionsSettled ?? true),
+            storageError: unsettledClose?.storageError ?? result.storageError)
+    }
+
+    private static func namespace(_ selected: MacSelectedLibrary) -> String {
+        MacLibraryWorkloads.notificationNamespace(directory: selected.directory, libraryID: selected.libraryID)
+    }
+
+    private func receive(_ state: MacLibraryStatus, from library: MacLibrary) async {
+        guard closing == nil, self.library === library else { return }
+        if state.phase == .ready {
+            do {
+                let binding = try await library.binding()
+                guard closing == nil, self.library === library else { return }
+                workgroup = binding.workgroup
+                status = binding.status
+            } catch {
+                guard closing == nil else { return }
+                workgroup = nil
+                let current = await library.status()
+                guard closing == nil, self.library === library else { return }
+                status =
+                    current.phase == .ready
+                    ? .init(phase: .failed, generation: current.generation, failure: MiraError.safe(error)) : current
+            }
+        } else {
+            workgroup = nil
+            status = state
+        }
+    }
+
+    private nonisolated static func openLibrary(_ launch: MacLibraryLaunchConfiguration) async throws -> MacLibrary {
+        #if DEBUG
+            if launch.isDemo {
+                let library = try await MacLibrary.open(
+                    directory: launch.directory, expectedLibraryID: launch.expectedLibraryID,
+                    notifications: DemoLocalNotifications(),
+                    credentials: DemoCredentials(),
+                    modules: { registry in
+                        var modules: [any RuntimeModule] = [MacDemoModule(registry: registry, stress: launch.stress)]
+                        if launch.benchmark {
+                            modules.append(MacBenchmarkModule(registry: registry, stress: launch.stress))
+                        }
+                        return modules
+                    })
+                do {
+                    try await MacDemoModule.seed(in: library.workloads())
+                    return library
+                } catch {
+                    _ = await library.close()
+                    throw error
+                }
+            }
+        #endif
+        let credentials = KeychainCredentials()
+        return try await MacLibrary.open(
+            directory: launch.directory, expectedLibraryID: launch.expectedLibraryID,
+            notifications: MacLocalNotifications(), credentials: credentials,
+            modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
     }
 }
 
 #if DEBUG
-/// Explicit --demo only, with a separate temporary library. Never a network failure fallback.
-private struct DemoProvider: ModelProviderPort {
-    var stress = false
-    func stream(request: CanonicalModelRequest, route: ResolvedModelRouteSnapshot) -> AsyncThrowingStream<CanonicalStreamEvent, any Error> {
-        AsyncThrowingStream { continuation in
-            let task = Task {
-                do {
-                    let answer = stress ? Self.stressAnswer : """
-                    # Mira Local Demo
-
-                    Hello, I am Mira. This reply is generated locally to verify streaming Markdown, cancellation, and recovery after restarting.
-
-                    You sent:
-
-                    > \(request.messages.last?.text ?? "")
-
-                    ## Supported Content
-
-                    - Headings, lists, and quotes
-                    - **Emphasis**, `inline code`, and tables
-                    - Clickable `http(s)` links
-
-                    ```swift
-                    let message = "Hello, Mira!"
-                    print(message)
-                    ```
-
-                    | Capability | Status |
-                    | --- | --- |
-                    | Local streaming | Available |
-                    | Network requests | Disabled |
-
-                    [Learn about Swift](https://www.swift.org)
-
-                    Connect your own model to start a real conversation. Memory and source retrieval will follow in later milestones.
-                    """
-                    if stress {
-                        let thinking = "Reviewing the synthetic rendering fixture, its tables, lists, code, and final marker. "
-                        for count in 1...20 {
-                            try await Task.sleep(for: .milliseconds(25))
-                            continuation.yield(.reasoning(.init(format: .openAIContent, text: String(repeating: thinking, count: count))))
-                        }
-                        continuation.yield(.reasoning(.init(format: .openAIContent, text: String(repeating: thinking, count: 20), isComplete: true)))
-                    }
-                    let characters = Array(answer)
-                    let chunkSize = stress ? 12 : 1
-                    for start in stride(from: 0, to: characters.count, by: chunkSize) {
-                        try await Task.sleep(for: .milliseconds(stress ? 24 : 18))
-                        continuation.yield(.textDelta(String(characters[start..<min(start + chunkSize, characters.count)])))
-                    }
-                    continuation.yield(.finished(.stop)); continuation.finish()
-                } catch { continuation.finish(throwing: CancellationError()) }
-            }
-            continuation.onTermination = { _ in task.cancel() }
+    /// Demo mode has no path to the system credential store.
+    private struct DemoCredentials: MacCredentialStore {
+        func read(reference: String, version: Int) throws -> String { throw Self.unavailable }
+        func save(_ secret: String, reference: String, version: Int) throws { throw Self.unavailable }
+        func delete(reference: String, version: Int) throws { throw Self.unavailable }
+        private static var unavailable: MiraError {
+            .init(.unsupported, "Credentials are unavailable in demo mode.")
         }
     }
-
-    /// Deterministic, network-free stress content enabled only by --demo --demo-stress.
-    private static let stressAnswer: String = {
-        var result = "# Rendering stress fixture\n\n"
-        for index in 1...24 {
-            result += """
-            ## Section \(index)
-
-            This synthetic paragraph verifies stable Markdown measurement during streaming, resizing, selection, and rapid scrolling. **Emphasis**, `inline code`, and [a link](https://www.swift.org) remain available.
-
-            - First item with a longer explanation that wraps over several lines in a narrow window.
-                - Nested item with **strong text** and a detail to read.
-            - Second item with a short explanation.
-
-            > A block quote with sufficient text to wrap onto another line and exercise the paragraph layout cache.
-
-            ```swift
-            let section = \(index)
-            let values = (0..<8).map { $0 * section }
-            print(values)
-            ```
-
-            | Column A | Column B | Column C | Column D |
-            | --- | --- | --- | --- |
-            | A long wrapping value for section \(index) | Another wrapping value | Small | Complete |
-            | One | Two | Three | Four |
-
-            Inline math: $a^2 + b^2 = c^2$.
-
-            """ + "\n\n"
-        }
-        return result + "## End of rendering fixture\n\nThe final stream marker is visible.\n"
-    }()
-
-}
 #endif

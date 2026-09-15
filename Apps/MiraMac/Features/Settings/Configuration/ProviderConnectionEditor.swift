@@ -1,6 +1,6 @@
-import SwiftUI
 import MiraCore
 import MiraProviders
+import SwiftUI
 
 struct ProviderConnectionEditor: View {
     @Environment(\.locale) private var locale
@@ -8,68 +8,92 @@ struct ProviderConnectionEditor: View {
     @Bindable var settings: ProviderConnectionSettingsModel
     let isUnavailable: Bool
     let onMutation: () -> Void
-    let onSaved: @MainActor (ProviderConnection) async -> Void
+    let onSaved: @MainActor (AgentConfiguredConnection) async -> Void
 
     var body: some View {
         Group {
             MiraSettingsSection {
                 heading
-                MiraSettingsFormRow("API Key") {
-                    MiraSettingsCredentialField(text: $settings.secret, hasStoredKey: settings.hasStoredKey,
-                                                showsRequiredError: settings.requiresAPIKey)
+                if !settings.supportsEditing {
+                    Text("This connection cannot be edited with this form.")
+                        .font(MiraTheme.Settings.caption).foregroundStyle(MiraTheme.Settings.secondaryText)
+                } else {
+                    MiraSettingsFormRow("API Key") {
+                        MiraSettingsCredentialField(
+                            text: $settings.secret, hasStoredKey: settings.hasStoredKey,
+                            showsRequiredError: settings.requiresAPIKey
+                        )
                         .focused($isKeyFocused)
                         .accessibilityIdentifier("settings.provider.apiKey")
-                }
-                .disabled(settings.isWorking)
-                MiraSettingsFormRow("API Proxy URL") {
-                    TextField("API Proxy URL", text: $settings.baseURL)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("settings.provider.baseURL")
-                }
-                .disabled(settings.isWorking)
-                MiraSettingsFormRow("Test Model") {
-                    MiraSettingsSelect(title: "Test Model", selection: $settings.selectedModelID,
-                        options: settings.testModels.map { .init(id: $0.id, verbatimTitle: $0.id) },
-                        identifier: "settings.provider.testModel", placeholder: "Select a model",
-                        maximumWidth: 220)
-                        .disabled(settings.isWorking)
-                }
-                VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-                    MiraSettingsFormRow("Test Connectivity", subtitle: "Enabling only saves the provider state. The API key is checked when you use a model or choose Test.") {
-                        testControls
                     }
-                    if settings.error != nil || settings.statusKey != nil || settings.testModels.isEmpty {
-                        feedback
+                    .disabled(settings.isWorking)
+                    MiraSettingsFormRow("API Proxy URL") {
+                        TextField("API Proxy URL", text: $settings.baseURL)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("settings.provider.baseURL")
                     }
-                }
-                HStack {
-                    if settings.isWorking && !settings.isTesting { ProgressView().controlSize(.small) }
-                    Spacer(minLength: 0)
-                    if settings.hasChanges {
-                        Button("Discard Changes") { settings.discardChanges() }
-                            .buttonStyle(MiraSettingsButtonStyle())
-                            .disabled(settings.isWorking)
+                    .disabled(settings.isWorking)
+                    MiraSettingsFormRow("Protocol") {
+                        MiraSettingsSelect(
+                            title: "Protocol", selection: Binding(
+                                get: { settings.protocolID.rawValue },
+                                set: { settings.protocolID = HTTPProtocolID(rawValue: $0) ?? .chatCompletions }),
+                            options: [
+                                .init(id: HTTPProtocolID.chatCompletions.rawValue, title: "Chat Completions"),
+                                .init(id: HTTPProtocolID.anthropicMessages.rawValue, title: "Anthropic Messages"),
+                                .init(id: HTTPProtocolID.responses.rawValue, title: "OpenAI Responses"),
+                            ], identifier: "settings.provider.protocol", maximumWidth: 220)
+                            .disabled(settings.isWorking || settings.baseline != nil || settings.providerID != nil)
                     }
-                    Button("Save") { onMutation(); settings.save(onSaved: onSaved) }
+                    VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+                        MiraSettingsFormRow(
+                            "Test Connectivity",
+                            subtitle:
+                                "Enabling only saves the provider state. The API key is checked when you use a model or choose Test."
+                        ) {
+                            testControls
+                        }
+                        if settings.error != nil || settings.statusKey != nil {
+                            feedback
+                        }
+                    }
+                    HStack {
+                        if settings.isWorking && !settings.isTesting { ProgressView().controlSize(.small) }
+                        Spacer(minLength: 0)
+                        if settings.hasChanges {
+                            Button("Discard Changes") { settings.discardChanges() }
+                                .buttonStyle(MiraSettingsButtonStyle())
+                                .disabled(settings.isWorking)
+                        }
+                        Button("Save") {
+                            onMutation()
+                            settings.save(onSaved: onSaved)
+                        }
                         .buttonStyle(MiraSettingsButtonStyle(isPrimary: true))
                         .disabled(isUnavailable || !settings.canSave)
                         .accessibilityIdentifier("settings.provider.save")
+                    }
+                    .controlSize(.small)
                 }
-                .controlSize(.small)
             }
         }
     }
 
     private var heading: some View {
-        Toggle(isOn: Binding(get: { settings.isEnabled }, set: { enabled in
-            onMutation(); settings.setEnabled(enabled, onSaved: onSaved)
-            if settings.requiresAPIKey { isKeyFocused = true }
-        })) {
+        Toggle(
+            isOn: Binding(
+                get: { settings.isEnabled },
+                set: { enabled in
+                    onMutation()
+                    settings.setEnabled(enabled, onSaved: onSaved)
+                    if settings.requiresAPIKey { isKeyFocused = true }
+                })
+        ) {
             HStack(spacing: MiraTheme.Spacing.md) {
                 MiraProviderIcon(providerID: settings.providerID, size: MiraTheme.Layout.providerHeadingIconSize)
                 VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
-                    Text(verbatim: settings.displayName).font(MiraTheme.Settings.body.weight(.semibold))
-                    Text(verbatim: settings.baseline?.baseURL ?? settings.baseURL)
+                    Text(settings.localizedDisplayName(locale: locale)).font(MiraTheme.Settings.body.weight(.semibold))
+                    Text(verbatim: settings.persistedBaseURL)
                         .font(MiraTheme.Settings.caption)
                         .foregroundStyle(MiraTheme.Settings.secondaryText)
                         .textSelection(.enabled)
@@ -79,7 +103,7 @@ struct ProviderConnectionEditor: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .toggleStyle(.switch)
-        .disabled(isUnavailable || settings.isWorking)
+        .disabled(isUnavailable || settings.isWorking || !settings.supportsEditing)
         .accessibilityLabel("Active")
         .accessibilityIdentifier("settings.provider.active")
     }
@@ -103,10 +127,6 @@ struct ProviderConnectionEditor: View {
             } else if let key = settings.statusKey {
                 Label(LocalizedStringKey(key), systemImage: settings.isTesting ? "network" : "checkmark.circle")
                     .foregroundStyle(settings.isTesting ? MiraTheme.Settings.secondaryText : MiraTheme.Colors.active)
-            }
-            if settings.testModels.isEmpty {
-                Text("Add and configure a text model to test this provider.")
-                    .foregroundStyle(MiraTheme.Settings.secondaryText)
             }
         }
         .font(MiraTheme.Settings.caption)

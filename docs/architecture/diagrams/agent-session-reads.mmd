@@ -1,0 +1,16 @@
+flowchart TB
+    Commands[应用接纳与内核命令] --> Runtime[会话运行时：串行提交]
+    Runtime --> Journal[权威日志：已确认批次]
+    Runtime --> Payloads[正文存储：独立保留规则]
+    Journal --> Reader[权威读取器：固定前缀归约]
+    Reader --> State[权威会话状态]
+    Reader --> Evidence[原始用户证据与来源引用]
+    Payloads --> Evidence
+    Evidence --> Gate[业务事务内重新校验授权与来源]
+    Gate --> Business[业务事实与回执]
+    Journal --> CatchUp[投影协调器：有限追赶]
+    CatchUp --> Cache[查询投影：可删除的元数据]
+    Cache --> Query[SessionQueryService：可撤销的分页读取]
+    Payloads --> Query
+    Lease[库访问租约与工作组作用域] --> Query
+    Query --> Host[宿主：侧栏、消息页、执行摘要]

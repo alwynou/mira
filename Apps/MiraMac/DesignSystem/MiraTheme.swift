@@ -14,6 +14,7 @@ enum MiraTheme {
         static var inset: Color { dynamic(light: 0xF5F5F5, dark: 0x303030) }
         static var text: Color { dynamic(light: 0x202020, dark: 0xF2F2F2) }
         static var secondaryText: Color { dynamic(light: 0x666664, dark: 0xB8B8B5) }
+        static var failure: Color { dynamic(light: 0xC0362C, dark: 0xFF8278) }
         static var tertiaryText: Color { dynamic(light: 0x92928F, dark: 0x858582) }
         static var border: Color { dynamic(light: 0xE8E8E8, dark: 0x41413F) }
         static var hover: Color { dynamic(light: 0xE5E5E3, dark: 0x353534) }
@@ -127,6 +128,7 @@ enum MiraTheme {
     }
 
     enum Markdown {
+        static let maximumCodeBlockHeight: CGFloat = 320
         static let body: CGFloat = 14
         static let code: CGFloat = 12
         static let heading: CGFloat = 20

@@ -1,10 +1,11 @@
 import SwiftUI
 import MiraCore
+import MiraProviders
 
 struct UsageCostView: View {
     @Environment(\.locale) private var locale
     let usage: TokenUsage
-    let route: ResolvedModelRouteSnapshot
+    let route: AgentModelRoute?
     var isComplete = true
 
     var body: some View {
@@ -17,7 +18,7 @@ struct UsageCostView: View {
             LabeledContent("Cache read tokens", value: counter(usage.cacheReadTokens))
             LabeledContent("Cache write tokens", value: counter(usage.cacheWriteTokens))
             LabeledContent("Thinking tokens (included in output)", value: counter(usage.reasoningTokens))
-            switch ModelCostEstimate.estimate(usage: usage, route: route, isComplete: isComplete) {
+            switch estimate {
             case .available(let amount):
                 LabeledContent("Estimated cost (USD)", value: CostPresentation.amount(amount, locale: locale))
             case .unavailable(let reason):
@@ -28,6 +29,12 @@ struct UsageCostView: View {
         }.font(.caption)
     }
 
+    private var estimate: ModelCostEstimate {
+        guard isComplete else { return .unavailable(.incompleteCall) }
+        guard let route else { return .unavailable(.missingPricing) }
+        return .estimate(usage: usage, route: route)
+    }
+
     private func counter(_ value: Int?) -> String {
         value.map { $0.formatted(.number.locale(locale)) } ?? L10n.string("Service did not provide this", locale: locale)
     }
@@ -35,15 +42,13 @@ struct UsageCostView: View {
 
 struct CostSummaryView: View {
     @Environment(\.locale) private var locale
-    let calls: [ModelCallUsage]
-    let isBackground: Bool
-
-    private var summary: ModelCostSummary { .init(calls: calls) }
+    let summary: ModelCostSummary
+    let priority: RuntimePriority?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             LabeledContent {
-                if calls.isEmpty {
+                if summary.callCount == 0 {
                     Text("No recorded calls")
                 } else if let amount = summary.totalUSD {
                     Text(CostPresentation.amount(amount, locale: locale))
@@ -51,7 +56,7 @@ struct CostSummaryView: View {
                     Text("Unknown")
                 }
             } label: {
-                Text(LocalizedStringKey(isBackground ? "Background estimated cost (USD)" : "Foreground estimated cost (USD)"))
+                Text(LocalizedStringKey(titleKey))
             }
             if summary.unknownCalls > 0 {
                 Text(L10n.format("Known subtotal: %@ · Calls with unknown cost: %lld", locale: locale,
@@ -59,6 +64,14 @@ struct CostSummaryView: View {
             }
             Text("Estimates use the catalog frozen for each call. They are not the provider's bill.")
         }.font(.caption).foregroundStyle(.secondary)
+    }
+
+    private var titleKey: String {
+        switch priority {
+        case .background: "Background estimated cost (USD)"
+        case .foreground: "Foreground estimated cost (USD)"
+        case nil: "Estimated cost (USD)"
+        }
     }
 }
 

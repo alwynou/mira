@@ -92,10 +92,22 @@ The selected service retains activation, API key, proxy URL, test model, Test/Ca
 
 `MiraSettingsCredentialField` loads the saved value into the native SecureField for the open window session, producing the same populated, masked appearance as a newly entered key. It does not use placeholder dots. The presentation model compares the draft to the saved value so an unrelated save does not rotate the credential. An empty replacement still reuses the stored credential. Keys remain persisted only in Keychain and are released from the editor when settings closes. Test feedback sits directly below its Test control in the same row without an intervening divider. Model refresh and manual addition appear at the right of the Provider Models title for configured services. Successful list loading has no footer or success banner. Empty results, failures and capability-test feedback remain inline with the model section.
 
-Models retains conversation and memory-extraction purpose defaults, scope selection, explicit inheritance/clear actions, Save/Discard and Manage Providers. Memory retains capture mode, conditional model setup guidance, daily token budget, remaining budget and Save/Discard. Data & Privacy retains library diagnostics, backup/restore and cleanup actions with their existing semantics. This design change does not alter storage, provider contracts, prompts or schema.
+Models retains conversation and memory-extraction purpose defaults, scope selection, explicit inheritance/clear actions, Save/Discard and Manage Providers. Memory retains capture mode, conditional model setup guidance, daily token budget, remaining budget and Save/Discard. Data & Privacy exposes current library diagnostics, independent backup restoration, explicit restored-library activation and unreferenced-file cleanup. This design change does not alter storage, provider contracts, prompts or schema.
 
 ## Verification
 
 Current native evidence and unverified platform checks are recorded in [native settings verification](../engineering/NATIVE_SETTINGS_VERIFICATION.md). Regenerate tokens with `scripts/export_design_tokens.py`. The component gallery has self-contained English/light and Chinese/dark SwiftUI settings navigation examples without opening a library, using credentials or sending requests.
 
 Apple describes this grouped settings pattern in [What's new in AppKit](https://developer.apple.com/videos/play/wwdc2022/10074/?time=294). The implementation follows the public native pattern; the supplied screenshots do not reveal Apple's private source or exact material constants.
+
+## 新核心 Data 设置行为
+
+2026-09-14：Data 页面直接使用新资料库服务。导出等待活动工作暂停，恢复先验证并创建独立目录，再由“打开恢复后的资料库”明确切换。切换会关闭原库并清理它专属的通知；正常用户库选择保存在宿主目录，重启继续使用所选库。显式开发数据路径和演示不会改写正常用户选择。清理移除未引用的托管文件，保留被引用的历史版本与现有备份；界面展示真实维护完成状态，移除旧实现的七天等待说明与无法由新维护协议提供的文件计数。关闭窗口清除展示结果，已接纳的操作继续由服务拥有。技术边界与流程图见[资料库设置契约](../architecture/MAC_LIBRARY_SETTINGS.md)。完整 App 的原生交互与视觉验收仍待 Provider 页面完成后执行。
+
+## 新核心的模型配置交互
+
+服务商连接、模型池与用途绑定分别编辑。连接的启用和保存只做本地校验；“测试”使用当前 URL／密钥草稿和合成输入，不携带对话内容，也不自动保存配置。窗口关闭后清除密钥草稿，已接纳保存继续完成。无法由当前表单处理的连接配置明确显示不可编辑状态，不显示可保存的猜测字段。
+
+模型池编辑器显式选择 HTTP 协议家族，按模块描述符呈现思考模式、强度和预算。上下文窗口允许留空保存，但未知限制的模型不能执行。目录建议需主动应用；能力声明与测试验证分开，测试结果需主动保存。取消、保存后的关闭和键盘默认操作保持原生表单语义。
+
+用途选择按全局、工作区和会话分开保存；记忆提取仅列出具备所需 JSON 能力的可用模型。会话范围每页 128 项，显式加载更多；普通刷新保留已经加载的会话页，维护后重置。多窗口同时编辑使用修订冲突反馈，不能覆盖另一窗口的新配置。

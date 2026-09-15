@@ -185,13 +185,13 @@ struct MemoryExtractionValidatorTests {
         }, code: .invalidInput, message: "A workspace memory requires a workspace scope.")
     }
 
-    @Test func duplicateContentAndSubjectIsReturnedOnce() throws {
+    @Test func duplicateItemsRetainTheirOriginalPositions() throws {
         let text = "I prefer compact interfaces"
         let result = try validate(items: [
             item(content: text, quote: text, kind: "preference"),
             item(content: "  I   prefer compact interfaces ", quote: text, kind: "preference")
         ], source: source(text), mode: .automaticWithUndo)
-        #expect(result.count == 1)
+        #expect(result.count == 2)
     }
 
     @Test func malformedAndUnknownShapesAreRejected() throws {
@@ -199,8 +199,8 @@ struct MemoryExtractionValidatorTests {
         assertError({ _ = try MemoryExtractionValidator.validate(output: "```json\n{}\n```", source: validSource, mode: .candidateOnly) }, code: .invalidInput, message: "Automatic memory output must be a JSON object without Markdown.")
         assertError({ _ = try validateJSONObject(["version": 2, "items": [], "extra": true], source: validSource) }, code: .invalidInput, message: "Automatic memory output must use version 2 and only its required top-level keys.")
         assertError({ _ = try validateJSONObject(["version": 2, "items": [["bad": true]]], source: validSource) }, code: .invalidInput, message: "Automatic memory item keys are invalid.")
-        assertError({ _ = try validateJSONObject(["version": 2, "items": [item(content: validSource.message.text, quote: validSource.message.text, kind: "preference", extra: ["unexpected": true])]], source: validSource) }, code: .invalidInput, message: "Automatic memory item keys are invalid.")
-        assertError({ _ = try validateJSONObject(["version": 2, "items": Array(repeating: item(content: validSource.message.text, quote: validSource.message.text, kind: "preference"), count: 7)], source: validSource) }, code: .invalidInput, message: "Automatic memory output must contain at most 6 items.")
+        assertError({ _ = try validateJSONObject(["version": 2, "items": [item(content: validSource.text, quote: validSource.text, kind: "preference", extra: ["unexpected": true])]], source: validSource) }, code: .invalidInput, message: "Automatic memory item keys are invalid.")
+        assertError({ _ = try validateJSONObject(["version": 2, "items": Array(repeating: item(content: validSource.text, quote: validSource.text, kind: "preference"), count: 7)], source: validSource) }, code: .invalidInput, message: "Automatic memory output must contain at most 6 items.")
         assertError({ _ = try MemoryExtractionValidator.validate(output: String(repeating: "x", count: 32_769), source: validSource, mode: .candidateOnly) }, code: .invalidInput, message: "Automatic memory output must be at most 32 KiB.")
     }
 
@@ -219,12 +219,9 @@ struct MemoryExtractionValidatorTests {
     @Test func invalidSourcesAndManualModeFailClosed() throws {
         let text = "I prefer compact interfaces"
         let validItem = item(content: text, quote: text, kind: "preference")
-        assertError({ _ = try validate(item: validItem, source: source(text, sourceRevision: 2), mode: .candidateOnly) }, code: .invalidInput, message: "The extraction source revision is unsupported.")
-        assertError({ _ = try validate(item: validItem, source: source(text, role: .assistant), mode: .candidateOnly) }, code: .invalidInput, message: "The extraction source must be a committed, unpurged user message.")
-        assertError({ _ = try validate(item: validItem, source: source(text, status: .failed), mode: .candidateOnly) }, code: .invalidInput, message: "The extraction source must be a committed, unpurged user message.")
-        assertError({ _ = try validate(item: validItem, source: source(text, bodyPurgedAt: Date()), mode: .candidateOnly) }, code: .invalidInput, message: "The extraction source must be a committed, unpurged user message.")
-        assertError({ _ = try validate(item: validItem, source: source(text, sourceHash: " "), mode: .candidateOnly) }, code: .invalidInput, message: "The extraction source hash is required.")
-        assertError({ _ = try validate(item: validItem, source: source(" "), mode: .candidateOnly) }, code: .invalidInput, message: "The extraction source text is required and must be at most 16 KiB.")
+        assertError({ _ = try validate(item: validItem, source: source(text, bodyKind: .module), mode: .candidateOnly) }, code: .invalidInput, message: "The session evidence reference is invalid.")
+        assertError({ _ = try validate(item: validItem, source: source(text, admissionSequence: 0), mode: .candidateOnly) }, code: .invalidInput, message: "The session evidence reference is invalid.")
+        assertError({ _ = try validate(item: validItem, source: source(" "), mode: .candidateOnly) }, code: .invalidInput, message: "The memory extraction evidence is invalid or exceeds its limit.")
         assertError({ _ = try validate(item: validItem, source: source(text), mode: .manualOnly) }, code: .unauthorized, message: "Automatic memory extraction is disabled.")
     }
 
@@ -233,22 +230,29 @@ struct MemoryExtractionValidatorTests {
         let largeContent = String(repeating: "a", count: 8_193)
         assertError({ _ = try validate(item: item(content: largeContent, quote: text, kind: "preference"), source: source(text), mode: .candidateOnly) }, code: .invalidInput, message: "Automatic memory item content and quote are required and must be at most 8 KiB.")
         let largeSource = String(repeating: "a", count: 16_385)
-        assertError({ _ = try validate(item: item(content: "a", quote: "a", kind: "fact"), source: source(largeSource), mode: .candidateOnly) }, code: .invalidInput, message: "The extraction source text is required and must be at most 16 KiB.")
+        assertError({ _ = try validate(item: item(content: "a", quote: "a", kind: "fact"), source: source(largeSource), mode: .candidateOnly) }, code: .invalidInput, message: "The memory extraction evidence is invalid or exceeds its limit.")
     }
 }
 
 private func source(
     _ text: String,
     workspaceID: WorkspaceID? = nil,
-    role: MessageRole = .user,
-    status: MessageStatus = .committed,
-    bodyPurgedAt: Date? = nil,
-    sourceRevision: Int = 1,
-    sourceHash: String = "synthetic-source-hash"
-) -> MemoryExtractionSource {
+    bodyKind: SessionPayloadKind = .userText,
+    admissionSequence: Int64 = 1
+) -> SessionUserEvidence {
+    let sessionID = ConversationID()
     let executionID = ExecutionID()
-    let message = Message(id: MessageID(), conversationID: ConversationID(), executionID: executionID, sequence: 1, role: role, status: status, text: text, createdAt: Date(timeIntervalSince1970: 1_000), bodyPurgedAt: bodyPurgedAt)
-    return MemoryExtractionSource(message: message, executionID: executionID, workspaceID: workspaceID, sourceRevision: sourceRevision, sourceHash: sourceHash)
+    let batchID = UUID()
+    let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
+                                       retentionGroup: UUID(), kind: bodyKind,
+                                       byteCount: text.utf8.count, digest: String(repeating: "0", count: 64))
+    let reference = SessionEvidenceReference(sessionID: sessionID, originalExecutionID: executionID,
+                                             userMessageID: MessageID(), admissionEventID: UUID(),
+                                             admissionSequence: admissionSequence, body: body)
+    return .init(reference: reference, workspaceID: workspaceID,
+                 admittedAt: Date(timeIntervalSince1970: 1_000), timeZoneIdentifier: "UTC", text: text,
+                 observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID),
+                 sessionAuthorizationEpoch: 0)
 }
 
 private func item(
@@ -277,15 +281,15 @@ private func item(
     return value
 }
 
-private func validate(item: [String: Any], source: MemoryExtractionSource, mode: MemoryCaptureMode) throws -> [MemoryExtractionProposal] {
+private func validate(item: [String: Any], source: SessionUserEvidence, mode: MemoryCaptureMode) throws -> [MemoryExtractionProposal] {
     try validate(items: [item], source: source, mode: mode)
 }
 
-private func validate(items: [[String: Any]], source: MemoryExtractionSource, mode: MemoryCaptureMode) throws -> [MemoryExtractionProposal] {
+private func validate(items: [[String: Any]], source: SessionUserEvidence, mode: MemoryCaptureMode) throws -> [MemoryExtractionProposal] {
     try MemoryExtractionValidator.validate(output: json(["version": 2, "items": items]), source: source, mode: mode)
 }
 
-private func validateJSONObject(_ object: [String: Any], source: MemoryExtractionSource) throws -> [MemoryExtractionProposal] {
+private func validateJSONObject(_ object: [String: Any], source: SessionUserEvidence) throws -> [MemoryExtractionProposal] {
     try MemoryExtractionValidator.validate(output: json(object), source: source, mode: .candidateOnly)
 }
 

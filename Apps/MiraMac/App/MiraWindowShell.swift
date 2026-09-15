@@ -37,6 +37,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private var inspectorUpdate: Task<Void, Never>?
         private var titlebarLayoutUpdate: Task<Void, Never>?
         private var inspectorObservation: NSKeyValueObservation?
+        private var sidebarObservation: NSKeyValueObservation?
         private let nativeToolbar = NSToolbar(identifier: "mira.window.toolbar")
         private var cachedItems: [NSToolbarItem.Identifier: NSToolbarItem] = [:]
         private static let separator = NSToolbarItem.Identifier("mira.sidebar.separator")
@@ -95,19 +96,30 @@ struct MiraWindowShell: NSViewControllerRepresentable {
 
         override func viewDidLayout() {
             super.viewDidLayout()
+            updateTitlebarInsets()
+        }
+
+        private func updateTitlebarInsets() {
             guard #available(macOS 26.0, *), let window = installedWindow else { return }
             let detail = detailHost.view
-            let leadingViews = [window.standardWindowButton(.closeButton),
+            let trailingEdge = cachedItems.values.compactMap(\.view).filter { $0.window === window }
+                .map { detail.convert($0.bounds, from: $0).minX }.min() ?? detail.bounds.maxX
+            var leading = MiraTheme.Spacing.lg
+            if sidebarItem.isCollapsed {
+                let controls = [window.standardWindowButton(.closeButton),
                                 window.standardWindowButton(.miniaturizeButton),
                                 window.standardWindowButton(.zoomButton),
                                 nativeToolbar.items.first { $0.itemIdentifier == .toggleSidebar }?.view]
-                .compactMap { $0 }
-            let leadingEdge = leadingViews.filter { $0.window === window }
-                .map { detail.convert($0.bounds, from: $0).maxX }.max() ?? 0
-            let trailingEdge = cachedItems.values.compactMap(\.view).filter { $0.window === window }
-                .map { detail.convert($0.bounds, from: $0).minX }.min() ?? detail.bounds.maxX
+                    .compactMap { $0 }.filter { $0.window === window }
+                // The collapsed conversation spans the window. The hosted
+                // view can retain its expanded-pane origin during animation.
+                let occupiedEdge = controls.map { $0.convert($0.bounds, to: nil).maxX }.max() ?? 0
+                leading = max(leading, occupiedEdge + MiraTheme.Spacing.sm)
+            }
             let insets = MiraTitlebarInsets(
-                leading: max(MiraTheme.Spacing.lg, leadingEdge + MiraTheme.Spacing.sm),
+                // Only a collapsed sidebar places native leading controls over
+                // the detail pane. Expanded panes use their own leading margin.
+                leading: leading,
                 trailing: max(MiraTheme.Spacing.lg, detail.bounds.maxX - trailingEdge + MiraTheme.Spacing.sm))
             guard configuration.titlebarInsets.wrappedValue != insets else { return }
             titlebarLayoutUpdate?.cancel()
@@ -127,6 +139,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 window.titlebarAppearsTransparent = true
             }
             updateWindow()
+            updateTitlebarInsets()
         }
 
         private static func fitted(_ content: AnyView) -> AnyView {
@@ -174,6 +187,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private func observeCollapsedState() {
+            sidebarObservation = sidebarItem.observe(\.isCollapsed, options: [.new]) { [weak self] _, _ in
+                Task { @MainActor [weak self] in self?.updateTitlebarInsets() }
+            }
             inspectorObservation = inspectorItem.observe(\.isCollapsed, options: [.new]) { [weak self] _, change in
                 MainActor.assumeIsolated {
                     guard let self, !self.updatingFromSwiftUI,

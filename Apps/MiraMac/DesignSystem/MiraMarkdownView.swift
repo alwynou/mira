@@ -18,6 +18,7 @@ enum MiraMarkdownStyle {
             ofSize: MiraTheme.Markdown.code,
             weight: .regular
         )
+        theme.maximumCodeBlockHeight = MiraTheme.Markdown.maximumCodeBlockHeight
         theme.fonts.largeTitle = NSFont.systemFont(ofSize: MiraTheme.Markdown.largeHeading, weight: .regular)
         theme.fonts.title = NSFont.systemFont(ofSize: MiraTheme.Markdown.heading, weight: .bold)
         theme.fonts.footnote = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -316,15 +317,20 @@ final class MiraMarkdownView: MarkdownTextView {
             if shouldAnimate {
                 fadeState.advance(at: ProcessInfo.processInfo.systemUptime)
                 startFadeTimerIfNeeded()
-            } else {
+            } else if reduceMotion {
+                // Reduce Motion is an explicit request to remove transient
+                // drawing state immediately, including on a status-only update.
                 finishFades()
             }
+            // A terminal status update can arrive while the final streamed
+            // words are still fading. Keep the current document, attachments,
+            // selection, and timer alive so completion does not flash the row.
             previousSource = source
             return
         }
 
         if !shouldAnimate { fadeState.finish() }
-        setContentImmediately(content, theme: theme)
+        setContentImmediately(Self.preparingMathImages(in: content), theme: theme)
         let rendered = NSMutableAttributedString(attributedString: textLabelView.attributedText)
         let strippedUnsafeLinks = Self.applyPresentationPolicy(in: rendered)
         var installedFade = false
@@ -381,6 +387,32 @@ final class MiraMarkdownView: MarkdownTextView {
         onLayoutChange?()
     }
 
+    private static func preparingMathImages(in content: MarkdownContent) -> MarkdownContent {
+        guard !content.rendered.isEmpty else { return content }
+        let rendered = content.rendered.mapValues { item -> RenderedTextContent in
+            guard let image = item.image else { return item }
+            let size = image.size
+            // SwiftMath supplies lazily drawn NSImages. An existing image can
+            // still have empty geometry or fail to produce pixels. MarkdownView
+            // asserts if that conversion fails inside its line drawing callback.
+            guard size.width.isFinite, size.height.isFinite,
+                  size.width > 0, size.height > 0,
+                  let bitmap = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            else {
+                return RenderedTextContent(image: nil, text: item.text)
+            }
+            // Resolve once before layout/drawing and retain an immutable bitmap,
+            // including through upstream table and async highlight rebuilds.
+            let drawable = NSImage(cgImage: bitmap, size: size)
+            drawable.isTemplate = true
+            return RenderedTextContent(image: drawable, text: item.text)
+        }
+        return MarkdownContent(
+            blocks: content.blocks, rendered: rendered,
+            highlightMaps: content.highlightMaps, locale: content.locale
+        )
+    }
+
     override func prepareForReuse() {
         finishFades()
         super.prepareForReuse()
@@ -413,6 +445,9 @@ final class MiraMarkdownView: MarkdownTextView {
     }
 
     private func updateNativeContent(in view: NSView) {
+        if let scroll = view as? NSScrollView, scroll.accessibilityIdentifier() == "markdown.codeBlock" {
+            scroll.setAccessibilityIdentifier("conversation.codeBlock")
+        }
         if let label = view as? TextLabelView {
             let safe = NSMutableAttributedString(attributedString: label.attributedText)
             // Native code/table controls own their text metrics. Only enforce links here.

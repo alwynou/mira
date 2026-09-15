@@ -78,7 +78,7 @@ public struct KnowledgeSourceDetail: Sendable {
     }
 }
 
-public struct KnowledgeImportReceipt: Sendable {
+public struct KnowledgeImportReceipt: Codable, Sendable, Equatable {
     public var source: KnowledgeSource
     public var version: KnowledgeSourceVersion
     public var reused: Bool
@@ -103,15 +103,6 @@ public struct KnowledgeSearchResult: Sendable {
     public var scannedCandidates: Int
     public init(hits: [KnowledgeSearchHit], isTruncated: Bool = false, scannedCandidates: Int = 0) {
         self.hits = hits; self.isTruncated = isTruncated; self.scannedCandidates = scannedCandidates
-    }
-}
-
-public struct SourceUsage: Codable, Sendable, Equatable, Hashable {
-    public var sourceID: KnowledgeSourceID
-    public var sourceVersionID: SourceVersionID
-    public var chunkID: SourceChunkID?
-    public init(sourceID: KnowledgeSourceID, sourceVersionID: SourceVersionID, chunkID: SourceChunkID? = nil) {
-        self.sourceID = sourceID; self.sourceVersionID = sourceVersionID; self.chunkID = chunkID
     }
 }
 

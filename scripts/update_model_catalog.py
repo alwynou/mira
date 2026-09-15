@@ -22,7 +22,7 @@ PROVIDER_ORDER = [
     "deepseek",
     "openrouter",
 ]
-PROVIDER_KINDS = {"openai": "openAICompatible", "anthropic": "anthropic"}
+DISCOVERY_PROTOCOLS = {"openai": "openAI", "anthropic": "anthropic"}
 PROVIDER_NAMES = {
     "kimi-for-coding": "Kimi Code",
     "moonshotai-cn": "Moonshot",
@@ -48,10 +48,7 @@ OFFICIAL_DOCUMENTATION_URLS = {
 }
 MAX_INPUT_BYTES = 16 * 1024 * 1024
 MAX_MODELS_PER_PROVIDER = 2_000
-ANTHROPIC_ADAPTIVE_IDS = {
-    "claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7", "claude-opus-4-8", "claude-sonnet-5",
-    "claude-opus-5", "claude-fable-5", "claude-fable-5-1", "claude-mythos-5",
-}
+
 
 
 class CatalogInputError(ValueError):
@@ -209,25 +206,46 @@ def modalities(value: Any, field: str) -> list[str]:
     return result
 
 
-def suggested_mode(provider_id: str, model_id: str, raw: dict[str, Any], task: str = "textGeneration") -> str:
-    # Provider protocol controls are only safe for models whose upstream
-    # metadata explicitly advertises reasoning. Other models remain generic
-    # OpenAI-compatible/Anthropic routes even when their provider supports a
-    # thinking API.
-    reasoning = raw.get("reasoning")
-    if task != "textGeneration" or reasoning is not True:
-        return "standard"
-    if provider_id == "deepseek":
-        return "deepSeek"
-    if provider_id in {"moonshotai-cn", "moonshotai", "kimi-for-coding"}:
-        return "kimi"
+def invocation_protocol(provider_id: str, raw: dict[str, Any]) -> tuple[str, str]:
+    # Only reviewed transport implementations can be selected. Upstream api,
+    # npm, body and header fields never become request authority.
     if provider_id == "anthropic":
-        return "anthropicAdaptive" if any(model_id == base or model_id.startswith(base + "-20") for base in ANTHROPIC_ADAPTIVE_IDS) else "anthropicManual"
+        return "anthropic.messages", "anthropic"
     if provider_id == "openai":
-        return "openAI"
-    if provider_id == "openrouter":
-        return "openRouter"
-    return "standard"
+        shape = raw.get("provider", {}).get("shape")
+        return ("chat.completions" if shape == "completions" else "openai.responses"), "openai.chat"
+    dialects = {"deepseek": "deepseek.chat", "moonshotai-cn": "kimi.chat", "moonshotai": "kimi.chat",
+                "kimi-for-coding": "kimi.chat", "openrouter": "openrouter.chat"}
+    return "chat.completions", dialects.get(provider_id, "generic")
+
+
+def reasoning_options(raw: dict[str, Any]) -> list[dict[str, Any]]:
+    result = []
+    options = raw.get("reasoning_options", [])
+    if not isinstance(options, list) or len(options) > 8:
+        fail("invalid reasoning options")
+    for option in options:
+        if not isinstance(option, dict): fail("invalid reasoning option")
+        kind = option.get("type")
+        if kind == "toggle": result.append({"type": "toggle"})
+        elif kind == "effort":
+            values = option.get("values")
+            if not isinstance(values, list) or len(values) > 32: fail("invalid reasoning effort values")
+            # Null means leave the request parameter unset, represented by providerDefault in Mira.
+            values = [token(v, "reasoning effort", 64) for v in values if v is not None]
+            if len(set(values)) != len(values): fail("duplicate reasoning effort values")
+            result.append({"type": "effort", "values": values})
+        elif kind == "budget_tokens":
+            entry = {"type": "budget_tokens"}
+            for key in ["min", "max"]:
+                if key in option:
+                    value = option[key]
+                    if isinstance(value, bool) or not isinstance(value, int) or not -1 <= value <= 10_000_000:
+                        fail("invalid reasoning budget bound")
+                    entry[key] = value
+            result.append(entry)
+        # Future controls require an implemented semantic rule, not arbitrary JSON passthrough.
+    return result
 
 
 def model_task(raw: dict[str, Any], output_modalities: list[str]) -> str:
@@ -246,7 +264,7 @@ def model_task(raw: dict[str, Any], output_modalities: list[str]) -> str:
     return "unknown"
 
 
-def normalize_model(provider_id: str, raw_id: str, raw: Any, source_revision: str, retrieved_at: str) -> dict[str, Any]:
+def normalize_model(provider_id: str, raw_id: str, raw: Any, source_revision: str, retrieved_at: str, source_url: str = SOURCE_URL) -> dict[str, Any]:
     if not isinstance(raw, dict):
         fail(f"invalid model {provider_id}/{raw_id}")
     model_id = token(raw.get("id"), f"model id {provider_id}/{raw_id}")
@@ -278,10 +296,14 @@ def normalize_model(provider_id: str, raw_id: str, raw: Any, source_revision: st
         "providerID": provider_id,
         "modelID": model_id,
         "displayName": optional_text(raw.get("name"), f"display name {provider_id}/{model_id}"),
-        "sourceURL": SOURCE_URL,
+        "sourceURL": source_url,
         "sourceRevision": source_revision,
         "retrievedAt": retrieved_at,
         "contextWindow": bounded_int(limit.get("context"), f"context {provider_id}/{model_id}"),
+        "maxInputTokens": bounded_int(limit.get("input"), f"input {provider_id}/{model_id}"),
+        "reasoningOptions": reasoning_options(raw),
+        "baseModelID": optional_text(raw.get("base_model"), "base model"),
+        "lifecycle": optional_text(raw.get("status"), "lifecycle"),
         "maxOutputTokens": output_limit if task == "textGeneration" else None,
         "inputModalities": input_modalities,
         "outputModalities": output_modalities,
@@ -294,19 +316,18 @@ def normalize_model(provider_id: str, raw_id: str, raw: Any, source_revision: st
     pricing = catalog_pricing(provider_id, model_id, raw, task)
     if pricing is not None:
         metadata["pricing"] = pricing
-    return {
-        "metadata": metadata,
-        "suggestedProtocolMode": suggested_mode(provider_id, model_id, raw, task),
-    }
+    protocol_id, dialect_id = invocation_protocol(provider_id, raw)
+    return {"metadata": metadata, "protocolID": protocol_id, "dialectProfileID": dialect_id}
 
 
-def normalize(input_path: Path, retrieved_at: str) -> dict[str, Any]:
+def normalize(input_path: Path, retrieved_at: str, source_url: str = SOURCE_URL) -> dict[str, Any]:
     try:
         retrieved = dt.datetime.fromisoformat(retrieved_at.replace("Z", "+00:00"))
     except ValueError as exc:
         fail(f"retrieved-at must be ISO-8601: {exc}")
     if retrieved.tzinfo is None:
         fail("retrieved-at must include a timezone")
+    if not source_url.startswith("https://") or len(source_url) > 2_048: fail("invalid source URL")
     source_bytes = input_path.read_bytes()
     if len(source_bytes) > MAX_INPUT_BYTES:
         fail("input exceeds 16 MiB")
@@ -334,11 +355,8 @@ def normalize(input_path: Path, retrieved_at: str) -> dict[str, Any]:
         if not upstream_documentation.startswith("https://"):
             fail(f"documentation URL must use HTTPS {provider_id}")
         documentation = OFFICIAL_DOCUMENTATION_URLS.get(provider_id, upstream_documentation)
-        # K2.5 was retired on 2026-08-31 according to Kimi's official lifecycle.
-        # Keep stale upstream records out of new-model recommendations.
-        models = [normalize_model(provider_id, model_id, raw_model, source_revision, retrieved_at)
-                  for model_id, raw_model in raw_models.items()
-                  if not (provider_id in {"moonshotai", "moonshotai-cn"} and model_id == "kimi-k2.5")]
+        models = [normalize_model(provider_id, model_id, raw_model, source_revision, retrieved_at, source_url)
+                  for model_id, raw_model in raw_models.items()]
         models.sort(key=lambda model: model["metadata"]["modelID"])
         provider_name = PROVIDER_NAMES.get(provider_id)
         if provider_name is None:
@@ -348,7 +366,9 @@ def normalize(input_path: Path, retrieved_at: str) -> dict[str, Any]:
             "name": provider_name,
             "baseURL": api,
             "documentationURL": documentation,
-            "providerKind": PROVIDER_KINDS.get(provider_id, "openAICompatible"),
+            "discoveryProtocol": DISCOVERY_PROTOCOLS.get(provider_id, "openAI"),
+            "protocolID": invocation_protocol(provider_id, {})[0],
+            "dialectProfileID": invocation_protocol(provider_id, {})[1],
             "models": models,
         })
     return {"providers": providers}
@@ -358,10 +378,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--retrieved-at", required=True)
+    parser.add_argument("--source-url", default=SOURCE_URL)
     parser.add_argument("--output", type=Path, default=Path("Packages/MiraKit/Sources/MiraProviders/Resources/ModelCatalog.json"))
     args = parser.parse_args()
     try:
-        document = normalize(args.input, args.retrieved_at)
+        document = normalize(args.input, args.retrieved_at, args.source_url)
     except CatalogInputError as exc:
         parser.error(str(exc))
     args.output.parent.mkdir(parents=True, exist_ok=True)

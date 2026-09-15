@@ -153,8 +153,8 @@ struct MiraSettingsSelectTests {
 
     private func options() -> [MiraSettingsSelect.Option] {
         [
-            .init(id: "first", title: "First"),
-            .init(id: "second", title: "Second")
+            .init(id: "first", verbatimTitle: "First"),
+            .init(id: "second", verbatimTitle: "Second")
         ]
     }
 

@@ -1,161 +1,225 @@
 import Foundation
-import CryptoKit
 import GRDB
 import MiraCore
 
 enum KnowledgeStorageFaultStage: Sendable, Equatable {
     case afterBlobInstall, beforeImportCommit, beforeReferenceScan, beforeBlobRemoval, afterBlobRemoval
+    case afterPrivacyScopeCommit, afterDomainPrivacyCommit
 }
 
-extension SQLiteMiraStore {
-    public func knowledgeSources(workspaceID: WorkspaceID?, limit: Int) throws -> [KnowledgeSource] {
-        try safely { try pool.read { db in
-            try Row.fetchAll(db, sql: "SELECT source_json FROM knowledge_sources WHERE deleted_at IS NULL AND (workspace_id IS NULL OR workspace_id = ?) ORDER BY updated_at DESC, id LIMIT ?", arguments: [workspaceID.map(Self.id), max(1, min(limit, 1_000))])
-                .map { try Self.decode($0["source_json"]) }
-        }}
-    }
+/// Knowledge owns business records and immutable blobs; the session journal owns usage and execution history.
+public final class SQLiteKnowledgeStore: KnowledgeStore, @unchecked Sendable {
+    let owner: SQLiteDomainDatabase
+    let blobs: ManagedBlobStore
+    let fault: @Sendable (KnowledgeStorageFaultStage) throws -> Void
 
-    public func knowledgeSource(_ sourceID: KnowledgeSourceID, versionID: SourceVersionID?, workspaceID: WorkspaceID?, connectionID: ConnectionID?) throws -> KnowledgeSourceDetail {
-        try safely { try pool.read { db in
-            let source = try requireKnowledgeSource(sourceID, workspaceID: workspaceID, connectionID: connectionID, in: db)
-            let versions: [KnowledgeSourceVersion] = try Row.fetchAll(db, sql: "SELECT version_json FROM source_versions WHERE source_id = ? ORDER BY created_at DESC, id LIMIT 100", arguments: [Self.id(sourceID)]).map { try Self.decode($0["version_json"]) }
-            let selected = try (versionID ?? source.currentVersionID).map { try requireSourceVersion($0, sourceID: sourceID, in: db) }
-            let rows = try selected.map { try Row.fetchAll(db, sql: "SELECT summary_json FROM source_chunks WHERE version_id = ? ORDER BY sequence LIMIT 201", arguments: [Self.id($0.id)]) } ?? []
-            return .init(source: source, versions: versions, selectedVersion: selected, chunks: try rows.prefix(200).map { try Self.decode($0["summary_json"]) }, hasMoreChunks: rows.count > 200)
-        }}
+    public convenience init(database: DatabaseQueue, libraryID: UUID, directory: URL) throws {
+        try self.init(database: database, libraryID: libraryID, directory: directory, faultInjector: { _ in })
     }
-
-    public func sourceChunk(_ chunkID: SourceChunkID, workspaceID: WorkspaceID?, connectionID: ConnectionID?) throws -> SourceChunk {
-        try safely { try pool.read { db in
-            let chunk = try requireSourceChunk(chunkID, in: db)
-            _ = try requireKnowledgeSource(chunk.summary.sourceID, workspaceID: workspaceID, connectionID: connectionID, in: db)
-            let version = try requireSourceVersion(chunk.summary.sourceVersionID, sourceID: chunk.summary.sourceID, in: db)
-            _ = try blobs.read(version.contentHash)
-            return chunk
-        }}
+    init(database: DatabaseQueue, libraryID: UUID, directory: URL,
+         faultInjector: @escaping @Sendable (KnowledgeStorageFaultStage) throws -> Void) throws {
+        owner = try SQLiteDomainDatabase(database: database, libraryID: libraryID, label: "mira.knowledge")
+        blobs = try ManagedBlobStore(directory: directory); fault = faultInjector
+        try database.write { db in
+            guard try db.tableExists("business_workspaces") else { throw Self.corrupt }
+            try Self.initialize(in: db)
+        }
     }
+    public func close() async { await owner.close() }
 
-    public func importMarkdownFile(_ url: URL, workspaceID: WorkspaceID?, updating: KnowledgeSourceID?, expectedRevision: Int?, at: Date) throws -> KnowledgeImportReceipt {
-        let data = try ManagedBlobStore.readSelectedMarkdownFile(url)
-        let title = url.lastPathComponent
-        guard title.utf8.count <= 1_024, at.timeIntervalSince1970.isFinite else { throw MiraError(.invalidInput, "The Markdown import metadata is invalid.") }
-        let parsed: Result<[MarkdownChunkSlice], MiraError>
-        do { parsed = .success(try MarkdownChunker.chunk(data)) }
-        catch { parsed = .failure(MiraError.safe(error)) }
-        return try blobs.withMaintenanceLock {
-            let digest = try blobs.install(data)
-            try knowledgeFaultInjector(.afterBlobInstall)
-            return try safely { try pool.write { db in
-                if let workspaceID { try validateMemoryScope(.workspace(workspaceID), in: db) }
-                var source: KnowledgeSource
-                if let updating {
-                    source = try requireKnowledgeSource(updating, workspaceID: workspaceID, connectionID: nil, in: db)
-                    guard source.revision == expectedRevision, source.revision < Int.max else { throw MiraError(.conflict, "The source revision is out of date.") }
-                } else {
-                    guard expectedRevision == nil else { throw MiraError(.invalidInput, "A new source cannot have an expected revision.") }
-                    if let row = try Row.fetchOne(db, sql: "SELECT s.source_json, v.version_json FROM knowledge_sources s JOIN source_versions v ON v.source_id = s.id WHERE s.deleted_at IS NULL AND s.workspace_id IS ? AND v.content_hash = ? ORDER BY v.created_at DESC, v.id LIMIT 1", arguments: [workspaceID.map(Self.id), digest]) {
-                        let source: KnowledgeSource = try Self.decode(row["source_json"])
-                        let version: KnowledgeSourceVersion = try Self.decode(row["version_json"])
-                        return .init(source: source, version: version, reused: true)
-                    }
-                    source = .init(id: .init(), workspaceID: workspaceID, title: title, createdAt: at, updatedAt: at)
-                    try db.execute(sql: "INSERT INTO knowledge_sources (id, workspace_id, title, current_version_id, allows_remote_use, revision, created_at, updated_at, deleted_at, source_json) VALUES (?, ?, ?, NULL, 0, 1, ?, ?, NULL, ?)", arguments: [Self.id(source.id), workspaceID.map(Self.id), title, at.timeIntervalSince1970, at.timeIntervalSince1970, try Self.encode(source)])
+    public func knowledgeSources(scope: KnowledgeReadScope, limit: Int) async throws -> [KnowledgeSource] {
+        guard (1...1_000).contains(limit) else { throw Self.invalid }
+        return try await owner.read { db in
+            try Self.validateScope(scope, in: db)
+            let remote = scope.destination.modelRoute == nil ? "" : " AND allows_remote_use = 1"
+            return try Row.fetchAll(db, sql: "SELECT * FROM knowledge_sources WHERE deleted_at IS NULL AND (workspace_id IS NULL OR workspace_id = ?)\(remote) ORDER BY updated_at DESC, id LIMIT ?", arguments: [scope.workspaceID.map(Self.key), limit]).map { row in
+                let value = try Self.record(row)
+                return try Self.source(value.id, scope: scope, in: db)
+            }
+        }
+    }
+    public func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID?, scope: KnowledgeReadScope) async throws -> KnowledgeSourceDetail {
+        try await owner.read { db in
+            let source = try Self.source(id, scope: scope, in: db)
+            let versions = try Row.fetchAll(db, sql: "SELECT * FROM knowledge_versions WHERE source_id = ? ORDER BY created_at DESC, id LIMIT 100", arguments: [Self.key(id)]).map(Self.version)
+            let selected = try (versionID ?? source.currentVersionID).map { try Self.version($0, sourceID: id, in: db) }
+            if versionID == nil, let selected { guard selected.parseState == .ready else { throw Self.corrupt } }
+            let rows = try selected.map { try Row.fetchAll(db, sql: "SELECT * FROM knowledge_chunks WHERE version_id = ? ORDER BY sequence LIMIT 201", arguments: [Self.key($0.id)]) } ?? []
+            guard selected?.parseState != .failed || rows.isEmpty else { throw Self.corrupt }
+            let chunks = try rows.prefix(200).map { try Self.chunk($0).summary }
+            return .init(source: source, versions: versions, selectedVersion: selected, chunks: chunks, hasMoreChunks: rows.count > 200)
+        }
+    }
+    public func sourceChunk(_ id: SourceChunkID, scope: KnowledgeReadScope) async throws -> SourceChunk {
+        try await owner.read { try self.verifiedChunk(id, scope: scope, in: $0).chunk }
+    }
+    public func searchKnowledge(query: String, scope: KnowledgeReadScope, limit: Int) async throws -> KnowledgeSearchResult {
+        try await owner.read { db in
+            let result = try Self.search(query: query, scope: scope, limit: limit, in: db)
+            for hit in result.hits {
+                let verified = try self.verifiedChunk(hit.chunk.id, scope: scope, in: db)
+                guard verified.source == hit.source, verified.chunk.summary == hit.chunk else { throw Self.corrupt }
+            }
+            return result
+        }
+    }
+    public func sourceCitation(_ reference: SourceCitationReference, scope: KnowledgeReadScope) async throws -> SourceCitationDetail {
+        try await owner.read { db in
+            let detail = try self.verifiedChunk(reference.chunkID, scope: scope, in: db)
+            guard detail.version.id == reference.versionID else { throw Self.unavailable }
+            return detail
+        }
+    }
+    public func validateKnowledgeSources(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {
+        guard sources.count <= 8_192, Set(sources).count == sources.count else { throw Self.unauthorized }
+        try await owner.read { try self.validateKnowledgeSources(sources, for: request, in: $0) }
+    }
+    func validateKnowledgeSources(_ sources: [AgentSourceReference], for request: AgentContextRequest,
+                                 in db: Database) throws {
+        let scope = KnowledgeReadScope(request)
+        try Self.validateScope(scope, in: db)
+        do {
+            for source in sources {
+                guard case .domain(let namespace, let id, let revision) = source else { throw Self.unauthorized }
+                switch namespace {
+                case KnowledgeSources.metadataNamespace:
+                    let value = try Self.source(.init(id), scope: scope, in: db)
+                    guard revision == value.revision else { throw Self.unauthorized }
+                case KnowledgeSources.chunkNamespace:
+                    guard revision == 1 else { throw Self.unauthorized }
+                    _ = try self.verifiedChunk(.init(id), scope: scope, in: db)
+                default: throw Self.unauthorized
                 }
-                if let currentID = source.currentVersionID {
-                    let current = try requireSourceVersion(currentID, sourceID: source.id, in: db)
-                    if current.contentHash == digest { return .init(source: source, version: current, reused: true) }
+            }
+        } catch let error as MiraError where error.code == .notFound { throw Self.unauthorized }
+    }
+    public func importMarkdown(_ input: KnowledgeImport, workspaceID: WorkspaceID?, updating: KnowledgeSourceID?, expectedRevision: Int?, operationID: UUID, authorization: AgentLibraryAuthorization, at: Date) async throws -> KnowledgeImportReceipt {
+        try input.validate(); try Self.date(at)
+        guard (updating == nil) == (expectedRevision == nil), expectedRevision.map({ $0 > 0 && $0 < Int.max }) ?? true else { throw Self.invalid }
+        return try await owner.write(authorization: authorization) { db in
+            try Self.validateScope(.init(workspaceID: workspaceID, destination: .local), in: db)
+            let digest = Self.hash(input.bytes)
+            let request = try Self.fingerprint(kind: "import", sourceID: updating, workspaceID: workspaceID, expected: expectedRevision, title: input.title, hash: digest)
+            if let prior: KnowledgeImportReceipt = try Self.operation(operationID, kind: "import", request: request, in: db) { return prior }
+            var source: KnowledgeSource
+            if let updating, let expectedRevision {
+                source = try Self.mutable(updating, workspaceID: workspaceID, expected: expectedRevision, in: db)
+            } else {
+                // Deduplication does not move a source back to an older version or overwrite by filename.
+                if let row = try Row.fetchOne(db, sql: "SELECT s.* FROM knowledge_sources s JOIN knowledge_versions v ON v.id = s.current_version_id WHERE s.deleted_at IS NULL AND s.workspace_id IS ? AND v.content_hash = ? ORDER BY s.id LIMIT 1", arguments: [workspaceID.map(Self.key), digest]) {
+                    let value = try Self.record(row)
+                    guard let currentID = value.currentVersionID else { throw Self.corrupt }
+                    let version = try Self.version(currentID, sourceID: value.id, in: db)
+                    guard version.parseState == .ready, try self.blobs.read(version.contentHash) == input.bytes else { throw Self.corrupt }
+                    let receipt = KnowledgeImportReceipt(source: value, version: version, reused: true)
+                    try Self.saveOperation(operationID, kind: "import", request: request, sourceID: value.id, receipt: receipt, in: db)
+                    return receipt
                 }
+                source = .init(id: .init(), workspaceID: workspaceID, title: input.title, createdAt: at, updatedAt: at)
+            }
+            if let currentID = source.currentVersionID {
+                let current = try Self.version(currentID, sourceID: source.id, in: db)
+                if current.contentHash == digest {
+                    guard current.parseState == .ready, try self.blobs.read(current.contentHash) == input.bytes else { throw Self.corrupt }
+                    let receipt = KnowledgeImportReceipt(source: source, version: current, reused: true)
+                    try Self.saveOperation(operationID, kind: "import", request: request, sourceID: source.id, receipt: receipt, in: db)
+                    return receipt
+                }
+            }
+            return try self.blobs.withMaintenanceLock {
+                guard try self.blobs.install(input.bytes) == digest else { throw Self.corrupt }
+                try self.fault(.afterBlobInstall)
                 let slices: [MarkdownChunkSlice], parseError: MiraError?
-                switch parsed { case .success(let value): slices = value; parseError = nil
-                case .failure(let error): slices = []; parseError = error }
-                let version = KnowledgeSourceVersion(id: .init(), sourceID: source.id, contentHash: digest, byteCount: data.count, parserVersion: MarkdownChunker.parserVersion, parseState: parseError == nil ? .ready : .failed, parseError: parseError, createdAt: at)
-                try db.execute(sql: "INSERT OR IGNORE INTO managed_blobs (digest, byte_count, created_at, pending_deletion_at) VALUES (?, ?, ?, NULL)", arguments: [digest, data.count, at.timeIntervalSince1970])
-                try db.execute(sql: "UPDATE managed_blobs SET pending_deletion_at = NULL WHERE digest = ?", arguments: [digest])
-                try db.execute(sql: "INSERT INTO source_versions (id, source_id, content_hash, byte_count, parse_state, created_at, version_json) VALUES (?, ?, ?, ?, ?, ?, ?)", arguments: [Self.id(version.id), Self.id(source.id), digest, data.count, version.parseState.rawValue, at.timeIntervalSince1970, try Self.encode(version)])
+                do { slices = try MarkdownChunker.chunk(input.bytes); parseError = nil }
+                catch let error as MiraError where error.code == .invalidInput { slices = []; parseError = error }
+                let version = KnowledgeSourceVersion(id: .init(), sourceID: source.id, contentHash: digest, byteCount: input.bytes.count, parserVersion: MarkdownChunker.parserVersion, parseState: parseError == nil ? .ready : .failed, parseError: parseError, createdAt: at)
+                if updating == nil { try Self.write(source, insert: true, in: db) }
+                if let bytes = try Int.fetchOne(db, sql: "SELECT byte_count FROM knowledge_blobs WHERE digest = ?", arguments: [digest]) {
+                    guard bytes == input.bytes.count else { throw Self.corrupt }
+                    try db.execute(sql: "UPDATE knowledge_blobs SET pending_deletion_at = NULL WHERE digest = ?", arguments: [digest])
+                } else {
+                    try db.execute(sql: "INSERT INTO knowledge_blobs(digest, byte_count, created_at) VALUES (?, ?, ?)", arguments: [digest, input.bytes.count, at.timeIntervalSince1970])
+                }
+                try db.execute(sql: "INSERT INTO knowledge_versions(id, source_id, content_hash, byte_count, parse_state, created_at, json) VALUES (?, ?, ?, ?, ?, ?, ?)", arguments: [Self.key(version.id), Self.key(source.id), digest, input.bytes.count, version.parseState.rawValue, at.timeIntervalSince1970, try Self.encode(version)])
                 for slice in slices {
-                    let summary = SourceChunkSummary(id: .init(), sourceID: source.id, sourceVersionID: version.id, sequence: slice.sequence, startLine: slice.startLine, endLine: slice.endLine, startUTF8Offset: slice.startUTF8Offset, endUTF8Offset: slice.endUTF8Offset, headingPath: slice.headingPath, contentHash: Self.knowledgeHash(Data(slice.text.utf8)))
-                    let normalized = Self.normalizeKnowledge(source.title + "\n" + slice.headingPath.joined(separator: "\n") + "\n" + slice.text)
-                    try db.execute(sql: "INSERT INTO source_chunks (id, source_id, version_id, sequence, text, normalized_text, summary_json) VALUES (?, ?, ?, ?, ?, ?, ?)", arguments: [Self.id(summary.id), Self.id(source.id), Self.id(version.id), summary.sequence, slice.text, normalized, try Self.encode(summary)])
+                    let summary = SourceChunkSummary(id: .init(), sourceID: source.id, sourceVersionID: version.id, sequence: slice.sequence, startLine: slice.startLine, endLine: slice.endLine, startUTF8Offset: slice.startUTF8Offset, endUTF8Offset: slice.endUTF8Offset, headingPath: slice.headingPath, contentHash: Self.hash(Data(slice.text.utf8)))
+                    let normalized = Self.normalize(source.title + "\n" + slice.headingPath.joined(separator: "\n") + "\n" + slice.text)
+                    try db.execute(sql: "INSERT INTO knowledge_chunks(id, source_id, version_id, sequence, text, normalized_text, json) VALUES (?, ?, ?, ?, ?, ?, ?)", arguments: [Self.key(summary.id), Self.key(source.id), Self.key(version.id), summary.sequence, slice.text, normalized, try Self.encode(summary)])
                     let rowID = db.lastInsertedRowID
-                    try db.execute(sql: "INSERT INTO knowledge_words (rowid, content) VALUES (?, ?)", arguments: [rowID, normalized])
-                    if try db.tableExists("knowledge_trigrams") { try db.execute(sql: "INSERT INTO knowledge_trigrams (rowid, content) VALUES (?, ?)", arguments: [rowID, normalized]) }
+                    try db.execute(sql: "INSERT INTO knowledge_words(rowid, content) VALUES (?, ?)", arguments: [rowID, normalized])
+                    try db.execute(sql: "INSERT INTO knowledge_trigrams(rowid, content) VALUES (?, ?)", arguments: [rowID, normalized])
                 }
                 if parseError == nil { source.currentVersionID = version.id }
-                source.updatedAt = at
                 if updating != nil { source.revision += 1 }
-                try writeKnowledgeSource(source, in: db)
-                try knowledgeFaultInjector(.beforeImportCommit)
-                return .init(source: source, version: version, reused: false)
-            }}
+                source.updatedAt = at
+                try Self.write(source, insert: false, in: db)
+                let receipt = KnowledgeImportReceipt(source: source, version: version, reused: false)
+                try Self.saveOperation(operationID, kind: "import", request: request, sourceID: source.id, receipt: receipt, in: db)
+                try self.fault(.beforeImportCommit)
+                return receipt
+            }
         }
     }
-
-    public func setSourceRemoteUse(_ sourceID: KnowledgeSourceID, workspaceID: WorkspaceID?, allowed: Bool, expectedRevision: Int, at: Date) throws -> KnowledgeSource {
-        try safely { try pool.write { db in
-            var source = try requireKnowledgeSource(sourceID, workspaceID: workspaceID, connectionID: nil, in: db)
-            guard source.revision == expectedRevision, source.revision < Int.max else { throw MiraError(.conflict, "The source revision is out of date.") }
-            source.allowsRemoteUse = allowed; source.revision += 1; source.updatedAt = at
-            try writeKnowledgeSource(source, in: db)
-            if !allowed { try purgeSourceConsumers(sourceID, at: at, in: db) }
+    public func allowSourceRemoteUse(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int, operationID: UUID, authorization: AgentLibraryAuthorization, at: Date) async throws -> KnowledgeSource {
+        try Self.date(at)
+        return try await owner.write(authorization: authorization) { db in
+            let request = try Self.fingerprint(kind: "allow", sourceID: id, workspaceID: workspaceID, expected: expectedRevision)
+            if let prior: KnowledgeSource = try Self.operation(operationID, kind: "allow", request: request, in: db) { return prior }
+            var source = try Self.mutable(id, workspaceID: workspaceID, expected: expectedRevision, in: db)
+            source.allowsRemoteUse = true; source.revision += 1; source.updatedAt = at
+            try Self.write(source, insert: false, in: db)
+            try Self.saveOperation(operationID, kind: "allow", request: request, sourceID: id, receipt: source, in: db)
             return source
-        }}
-    }
-
-    public func deleteKnowledgeSource(_ sourceID: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int, at: Date) throws {
-        try blobs.withMaintenanceLock { try safely { try pool.write { db in
-            var source = try requireKnowledgeSource(sourceID, workspaceID: workspaceID, connectionID: nil, in: db)
-            guard source.revision == expectedRevision, source.revision < Int.max else { throw MiraError(.conflict, "The source revision is out of date.") }
-            try purgeSourceConsumers(sourceID, at: at, in: db)
-            try db.execute(sql: "DELETE FROM knowledge_words WHERE rowid IN (SELECT rowid FROM source_chunks WHERE source_id = ?)", arguments: [Self.id(sourceID)])
-            if try db.tableExists("knowledge_trigrams") { try db.execute(sql: "DELETE FROM knowledge_trigrams WHERE rowid IN (SELECT rowid FROM source_chunks WHERE source_id = ?)", arguments: [Self.id(sourceID)]) }
-            try db.execute(sql: "DELETE FROM source_chunks WHERE source_id = ?", arguments: [Self.id(sourceID)])
-            try db.execute(sql: "DELETE FROM source_versions WHERE source_id = ?", arguments: [Self.id(sourceID)])
-            try db.execute(sql: "UPDATE managed_blobs SET pending_deletion_at = ? WHERE pending_deletion_at IS NULL AND NOT EXISTS (SELECT 1 FROM source_versions WHERE content_hash = managed_blobs.digest)", arguments: [at.timeIntervalSince1970])
-            source.title = "Deleted source"; source.currentVersionID = nil; source.deletedAt = at
-            source.allowsRemoteUse = false; source.revision += 1; source.updatedAt = at
-            try writeKnowledgeSource(source, in: db)
-        }}}
-    }
-
-    func requireKnowledgeSource(_ sourceID: KnowledgeSourceID, workspaceID: WorkspaceID?, connectionID: ConnectionID?, in db: Database) throws -> KnowledgeSource {
-        guard let row = try Row.fetchOne(db, sql: "SELECT source_json FROM knowledge_sources WHERE id = ? AND deleted_at IS NULL AND (workspace_id IS NULL OR workspace_id = ?)", arguments: [Self.id(sourceID), workspaceID.map(Self.id)]) else { throw MiraError(.notFound, "The source is unavailable in this workspace.") }
-        let source: KnowledgeSource = try Self.decode(row["source_json"])
-        if let connectionID {
-            guard source.allowsRemoteUse else { throw MiraError(.unauthorized, "This source is not authorized for model use.") }
-            try validateWorkspacePolicy(workspaceID, connectionID: connectionID, in: db)
-            try validateWorkspacePolicy(source.workspaceID, connectionID: connectionID, in: db)
         }
-        return source
     }
-    func requireSourceVersion(_ versionID: SourceVersionID, sourceID: KnowledgeSourceID, in db: Database) throws -> KnowledgeSourceVersion {
-        guard let json = try String.fetchOne(db, sql: "SELECT version_json FROM source_versions WHERE id = ? AND source_id = ?", arguments: [Self.id(versionID), Self.id(sourceID)]) else { throw MiraError(.notFound, "The source version is unavailable.") }
-        return try Self.decode(json)
+    public func revokeSourceRemoteUse(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int, maintenance: AgentLibraryMaintenanceOperation, at: Date) async throws -> KnowledgeSource {
+        try Self.date(at); try Self.requireMaintenance(maintenance, namespace: "knowledge.revoke", id: id, expected: expectedRevision)
+        return try await owner.maintain(maintenance, afterCommit: { _ in try self.fault(.afterDomainPrivacyCommit) }) { db in
+            if try Self.hasMaintenance(maintenance, id: id, workspaceID: workspaceID, expected: expectedRevision, in: db) {
+                return try Self.maintenanceSource(id, in: db)
+            }
+            var source = try Self.mutable(id, workspaceID: workspaceID, expected: expectedRevision, in: db)
+            source.allowsRemoteUse = false; source.revision += 1; source.updatedAt = at
+            try Self.write(source, insert: false, in: db)
+            try Self.saveMaintenance(maintenance, id: id, workspaceID: workspaceID, expected: expectedRevision, in: db)
+            return source
+        }
     }
-    func requireSourceChunk(_ chunkID: SourceChunkID, in db: Database) throws -> SourceChunk {
-        guard let row = try Row.fetchOne(db, sql: "SELECT summary_json, text FROM source_chunks WHERE id = ?", arguments: [Self.id(chunkID)]) else { throw MiraError(.notFound, "The source chunk is unavailable.") }
-        return .init(summary: try Self.decode(row["summary_json"]), text: row["text"])
+    public func purgeKnowledgeSource(_ id: KnowledgeSourceID, workspaceID: WorkspaceID?, expectedRevision: Int, maintenance: AgentLibraryMaintenanceOperation, at: Date) async throws {
+        try Self.date(at); try Self.requireMaintenance(maintenance, namespace: "knowledge.delete", id: id, expected: expectedRevision)
+        try await owner.maintain(maintenance, afterCommit: { _ in try self.fault(.afterDomainPrivacyCommit) }) { db in
+            if try Self.hasMaintenance(maintenance, id: id, workspaceID: workspaceID, expected: expectedRevision, in: db) { return }
+            var source = try Self.mutable(id, workspaceID: workspaceID, expected: expectedRevision, in: db)
+            try self.blobs.withMaintenanceLock {
+                source.title = "Deleted source"; source.currentVersionID = nil; source.allowsRemoteUse = false
+                source.deletedAt = at; source.updatedAt = at; source.revision += 1
+                try Self.write(source, insert: false, in: db)
+                for table in ["knowledge_words", "knowledge_trigrams"] {
+                    try db.execute(sql: "DELETE FROM \(table) WHERE rowid IN (SELECT rowid FROM knowledge_chunks WHERE source_id = ?)", arguments: [Self.key(id)])
+                }
+                try db.execute(sql: "DELETE FROM knowledge_chunks WHERE source_id = ?", arguments: [Self.key(id)])
+                try db.execute(sql: "DELETE FROM knowledge_versions WHERE source_id = ?", arguments: [Self.key(id)])
+                try db.execute(sql: "UPDATE knowledge_blobs SET pending_deletion_at = ? WHERE pending_deletion_at IS NULL AND NOT EXISTS (SELECT 1 FROM knowledge_versions WHERE content_hash = knowledge_blobs.digest)", arguments: [at.timeIntervalSince1970])
+                try db.execute(sql: "UPDATE knowledge_operations SET request_hash = NULL, receipt_json = NULL WHERE source_id = ?", arguments: [Self.key(id)])
+                try Self.saveMaintenance(maintenance, id: id, workspaceID: workspaceID, expected: expectedRevision, in: db)
+            }
+        }
     }
-    func writeKnowledgeSource(_ source: KnowledgeSource, in db: Database) throws {
-        try db.execute(sql: "UPDATE knowledge_sources SET title = ?, current_version_id = ?, allows_remote_use = ?, revision = ?, updated_at = ?, deleted_at = ?, source_json = ? WHERE id = ?", arguments: [source.title, source.currentVersionID.map(Self.id), source.allowsRemoteUse, source.revision, source.updatedAt.timeIntervalSince1970, source.deletedAt?.timeIntervalSince1970, try Self.encode(source), Self.id(source.id)])
+    static func requireMaintenance(_ operation: AgentLibraryMaintenanceOperation, namespace: String, id: KnowledgeSourceID, expected: Int) throws {
+        guard operation.request.namespace == namespace, operation.request.revision == 1,
+              operation.request.scope == .sources([.domain(namespace: KnowledgeSources.metadataNamespace, id: id.rawValue, revision: expected)]) else { throw unauthorized }
     }
-    static func knowledgeHash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
-    static func normalizeKnowledge(_ text: String) -> String {
-        text.precomposedStringWithCompatibilityMapping.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    static func maintenanceSource(_ id: KnowledgeSourceID, in db: Database) throws -> KnowledgeSource {
+        guard let row = try Row.fetchOne(db, sql: "SELECT * FROM knowledge_sources WHERE id = ?", arguments: [key(id)]) else { throw corrupt }
+        return try record(row)
     }
-    static func createKnowledgeSchema(in db: Database) throws {
-        try db.execute(sql: """
-        CREATE TABLE managed_blobs (digest TEXT PRIMARY KEY NOT NULL CHECK(length(digest)=64), byte_count INTEGER NOT NULL CHECK(byte_count BETWEEN 0 AND 10485760), created_at REAL NOT NULL, pending_deletion_at REAL);
-        CREATE TABLE knowledge_sources (id TEXT PRIMARY KEY NOT NULL, workspace_id TEXT REFERENCES workspaces(id), title TEXT NOT NULL, current_version_id TEXT, allows_remote_use INTEGER NOT NULL CHECK(allows_remote_use IN (0,1)), revision INTEGER NOT NULL CHECK(revision>0), created_at REAL NOT NULL, updated_at REAL NOT NULL, deleted_at REAL, source_json TEXT NOT NULL);
-        CREATE TABLE source_versions (id TEXT PRIMARY KEY NOT NULL, source_id TEXT NOT NULL REFERENCES knowledge_sources(id), content_hash TEXT NOT NULL REFERENCES managed_blobs(digest), byte_count INTEGER NOT NULL CHECK(byte_count BETWEEN 0 AND 10485760), parse_state TEXT NOT NULL CHECK(parse_state IN ('ready','failed')), created_at REAL NOT NULL, version_json TEXT NOT NULL);
-        CREATE TABLE source_chunks (id TEXT UNIQUE NOT NULL, source_id TEXT NOT NULL REFERENCES knowledge_sources(id), version_id TEXT NOT NULL REFERENCES source_versions(id), sequence INTEGER NOT NULL CHECK(sequence>=0), text TEXT NOT NULL, normalized_text TEXT NOT NULL, summary_json TEXT NOT NULL, UNIQUE(version_id,sequence));
-        CREATE TABLE source_usages (execution_id TEXT NOT NULL REFERENCES executions(id), source_id TEXT NOT NULL REFERENCES knowledge_sources(id), version_id TEXT NOT NULL, chunk_key TEXT NOT NULL, created_at REAL NOT NULL, PRIMARY KEY(execution_id,source_id,version_id,chunk_key));
-        CREATE INDEX knowledge_sources_scope ON knowledge_sources(workspace_id,deleted_at,updated_at,id);
-        CREATE INDEX source_versions_source ON source_versions(source_id,created_at,id);
-        CREATE INDEX source_chunks_source ON source_chunks(source_id,version_id,sequence);
-        CREATE INDEX source_usages_source ON source_usages(source_id,execution_id);
-        CREATE VIRTUAL TABLE knowledge_words USING fts5(content, tokenize='unicode61');
-        """)
-        do { try db.execute(sql: "CREATE VIRTUAL TABLE knowledge_trigrams USING fts5(content, tokenize='trigram')") }
-        catch { /* The bounded normalized-text fallback remains available. */ }
+    static func hasMaintenance(_ operation: AgentLibraryMaintenanceOperation, id: KnowledgeSourceID, workspaceID: WorkspaceID?, expected: Int, in db: Database) throws -> Bool {
+        guard let row = try Row.fetchOne(db, sql: "SELECT * FROM knowledge_maintenance WHERE operation_id = ?", arguments: [key(operation.request.id)]) else { return false }
+        guard row["namespace"] as String == operation.request.namespace, row["source_id"] as String == key(id),
+              row["workspace_id"] as String? == workspaceID.map(key), row["expected_revision"] as Int == expected else { throw conflict }
+        return true
+    }
+    static func saveMaintenance(_ operation: AgentLibraryMaintenanceOperation, id: KnowledgeSourceID, workspaceID: WorkspaceID?, expected: Int, in db: Database) throws {
+        try db.execute(sql: "INSERT INTO knowledge_maintenance(operation_id, namespace, source_id, workspace_id, expected_revision) VALUES (?, ?, ?, ?, ?)", arguments: [key(operation.request.id), operation.request.namespace, key(id), workspaceID.map(key), expected])
     }
 }

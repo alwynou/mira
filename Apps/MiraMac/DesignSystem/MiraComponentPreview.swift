@@ -1,4 +1,134 @@
 import SwiftUI
+import MarkdownView
+import MiraCore
+
+/// Activity states use synthetic content and the same native row as conversations.
+private struct MiraActivityPreview: NSViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.locale) private var locale
+    let phase: SessionOutputPhase
+    var completed = false
+    var initialThinking = false
+    var failedTool = false
+
+    func makeNSView(context: Context) -> NativeTranscriptRow { NativeTranscriptRow(frame: .zero) }
+
+    func updateNSView(_ view: NativeTranscriptRow, context: Context) {
+        let appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)!
+        view.appearance = appearance
+        let theme = MiraMarkdownStyle.theme(for: appearance)
+        let first = UUID(), last = UUID()
+        var item = TranscriptItem(id: "preview", role: .assistant, text: "A concise answer is arriving.",
+                                  status: completed ? .completed : nil, isStreaming: !completed,
+                                  thinking: "Reviewing the question.\nChecking the latest source.",
+                                  outputPhase: phase,
+                                  steps: [.init(id: first, stepIndex: 0, blocks: [
+                                      .init(id: "reasoning", content: .thinking(.available("Reviewing the first source."))),
+                                      .init(id: "text", content: .text(.available("I will look up the supporting note."))),
+                                      .init(id: "tool", content: .tool(.init(id: UUID(), toolName: "knowledge.search", status: failedTool ? .failed : .succeeded,
+                                          arguments: .available("{\"query\":\"synthetic note\"}"),
+                                          result: .available(failedTool ? "The synthetic source could not be read." : "Found the relevant synthetic note."))))
+                                  ]), .init(id: last, stepIndex: 1, blocks: [
+                                      .init(id: "reasoning", content: .thinking(.available("The sources agree."))),
+                                      .init(id: "answer", content: .text(.available("A concise answer is arriving.")))
+                                  ])])
+        item.liveAttemptID = completed ? nil : last
+        if initialThinking {
+            item = TranscriptItem(id: "preview", role: .assistant, text: "", status: nil, isStreaming: true,
+                outputPhase: .thinking, steps: [.init(id: first, stepIndex: 0, blocks: [
+                    .init(id: "reasoning", content: .thinking(.available("Reviewing the first source.")))
+                ])], liveAttemptID: first)
+        }
+        view.configure(item: item, body: MarkdownContent(markdown: item.text, theme: theme),
+                       reasoning: MarkdownContent(markdown: item.thinking, theme: theme), expanded: true,
+                       theme: theme, locale: locale, reduceMotion: true, measurement: false,
+                       auxiliary: AnyView(EmptyView()), expandedBlocks: completed ? [first.uuidString + ":tool"] : [], remember: { _ in })
+    }
+}
+
+#Preview("Conversation activity · Answering · Light") {
+    MiraActivityPreview(phase: .answering).frame(width: 600, height: 280)
+        .environment(\.locale, Locale(identifier: "en")).preferredColorScheme(.light)
+}
+
+#Preview("Conversation activity · Thinking · Dark · Narrow") {
+    MiraActivityPreview(phase: .thinking, initialThinking: true).frame(width: 360, height: 300)
+        .environment(\.locale, Locale(identifier: "zh-CN")).preferredColorScheme(.dark)
+}
+
+#Preview("Conversation activity · Completed · Retained body") {
+    MiraActivityPreview(phase: .answering, completed: true).frame(width: 600, height: 280)
+        .environment(\.locale, Locale(identifier: "en")).preferredColorScheme(.light)
+}
+
+#Preview("Conversation activity · Failed tool · Dark · Narrow") {
+    MiraActivityPreview(phase: .answering, completed: true, failedTool: true).frame(width: 360, height: 320)
+        .environment(\.locale, Locale(identifier: "zh-CN")).preferredColorScheme(.dark)
+}
+
+private struct MiraDisclosurePreview: NSViewRepresentable {
+    let summary: String
+    var symbolName: String? = nil
+    var expanded = false
+    func makeNSView(context: Context) -> MiraHoverDisclosureButton {
+        let button = MiraHoverDisclosureButton(title: "", target: nil, action: nil)
+        button.isBordered = false
+        return button
+    }
+    func updateNSView(_ button: MiraHoverDisclosureButton, context: Context) {
+        button.font = .systemFont(ofSize: 13)
+        button.isExpanded = expanded
+        button.image = symbolName.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
+        button.attributedTitle = NSAttributedString(string: summary,
+            attributes: [.font: button.font!, .foregroundColor: NSColor(MiraTheme.Colors.secondaryText)])
+    }
+}
+
+#Preview("Disclosure · Trailing hover · Overflow") {
+    VStack(alignment: .leading, spacing: 16) {
+        MiraDisclosurePreview(summary: "Thinking").frame(height: 24)
+        MiraDisclosurePreview(summary: "Thinking", expanded: true).frame(height: 24)
+        MiraDisclosurePreview(summary: "Tool call", symbolName: "wrench.fill").frame(height: 24)
+        MiraDisclosurePreview(summary: "Failed", symbolName: "xmark.circle.fill").frame(height: 24)
+        MiraDisclosurePreview(summary: String(repeating: "Reviewing the synthetic source. ", count: 6)).frame(height: 24)
+    }.padding().frame(width: 360).background(MiraTheme.Colors.canvas)
+}
+
+/// Synthetic Markdown cases, independent of a conversation or provider.
+private struct MiraMarkdownPreview: NSViewRepresentable {
+    var source = #"Formula $\frac{a}{b} + x^2$. Empty geometry: $\quad$."#
+        + "\n\n| Formula |\n| --- |\n| $y^2$ |"
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.locale) private var locale
+
+    func makeNSView(context: Context) -> MiraMarkdownView { MiraMarkdownView() }
+
+    func updateNSView(_ view: MiraMarkdownView, context: Context) {
+        let appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)!
+        view.appearance = appearance
+        let theme = MiraMarkdownStyle.theme(for: appearance)
+        view.apply(content: MarkdownContent(markdown: source, theme: theme, locale: locale),
+                   source: source, theme: theme, locale: locale,
+                   isStreaming: false, reduceMotion: true)
+    }
+}
+
+#Preview("Markdown math · Light") {
+    MiraMarkdownPreview().frame(width: 480, height: 240).padding()
+        .environment(\.locale, Locale(identifier: "en")).preferredColorScheme(.light)
+}
+
+#Preview("Markdown math · Dark · Narrow") {
+    MiraMarkdownPreview().frame(width: 320, height: 240).padding()
+        .environment(\.locale, Locale(identifier: "zh-CN")).preferredColorScheme(.dark)
+}
+
+#Preview("Markdown code · Bounded scrolling") {
+    MiraMarkdownPreview(source: "```swift\n"
+        + (1...45).map { "let example\($0) = \"" + String(repeating: "wide code ", count: 14) + "\"" }.joined(separator: "\n")
+        + "\n```")
+        .frame(width: 420, height: MiraTheme.Markdown.maximumCodeBlockHeight + 16).padding()
+}
 
 /// A self-contained component gallery. Preview data never opens a library or provider.
 private struct MiraComponentPreview: View {
@@ -54,7 +184,7 @@ private struct MiraComponentPreview: View {
                             Text("Local demo").font(MiraTheme.Typography.composerFootnote)
                                 .foregroundStyle(MiraTheme.Colors.secondaryText)
                             HStack(spacing: MiraTheme.Spacing.sm) {
-                                Text("Use default model").font(MiraTheme.Typography.composerModel)
+                                Text(verbatim: "Model One").font(MiraTheme.Typography.composerModel)
                                     .foregroundStyle(MiraTheme.Colors.secondaryText)
                                 Button("Stop", systemImage: "stop.fill") {}
                                     .labelStyle(.iconOnly).buttonStyle(MiraCircleButtonStyle())
@@ -174,7 +304,9 @@ private struct MiraNativeSettingsPreview: View {
                     providerID: "openai", supportsVision: true, supportsTools: true,
                     supportsThinking: true, contextWindow: 128_000, isEnabled: $enabled)
                 MiraProviderModelRow(name: "Example Model with a longer display name", modelID: "example/long-model-family-version",
-                    pricing: .init(input: "$0.50", output: "$1.20"),
+                    pricing: .init(input: "$0.50–$1.00", output: "$1.20–$2.40",
+                        note: L10n.string("Off-peak–peak", locale: .current),
+                        sourceURL: URL(string: "https://example.com/pricing"), checkedAt: "2026-09-14"),
                     supportsTools: true, contextWindow: 1_000_000, isEnabled: $enabled)
             }
         }
@@ -381,4 +513,16 @@ private struct MiraSettingsNavigationPreview: View {
             .frame(width: 400, height: 400)
         }
     }
+}
+
+#Preview("Conversation model list · Provider groups") {
+    Menu("Model Two") {
+    MiraModelPickerItems(groups: [
+        .init(id: "provider-a", title: "Provider A", options: [
+            .init(id: "one", title: "Model One"), .init(id: "two", title: "Model Two")]),
+        .init(id: "provider-b", title: "Provider B", options: [.init(id: "three", title: "Model Three")])
+    ], selectedID: "two", select: { _ in })
+    }
+    .menuStyle(.borderlessButton)
+    .menuIndicator(.hidden)
 }

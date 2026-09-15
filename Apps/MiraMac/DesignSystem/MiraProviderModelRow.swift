@@ -5,6 +5,10 @@ struct MiraProviderModelRow: View {
     struct Pricing {
         let input: String
         let output: String
+        var note: String? = nil
+        var detail: String? = nil
+        var sourceURL: URL? = nil
+        var checkedAt: String? = nil
     }
 
     @Environment(\.locale) private var locale
@@ -56,6 +60,14 @@ struct MiraProviderModelRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(Text(verbatim: description))
                     .help(Text(verbatim: description))
+            }
+            if let sourceURL = pricing?.sourceURL {
+                Link(destination: sourceURL) {
+                    Text(verbatim: pricing?.checkedAt.map { L10n.format("Pricing source · %@", locale: locale, $0) }
+                        ?? L10n.string("Pricing source", locale: locale))
+                }
+                    .font(MiraTheme.Settings.caption)
+                    .help(Text(verbatim: pricing?.detail ?? ""))
             }
         }
     }
@@ -109,6 +121,7 @@ struct MiraProviderModelRow: View {
             // Locale-neutral price notation; the full spoken labels are localized separately.
             parts.append("\u{2191} \(pricing.input)/M")
             parts.append("\u{2193} \(pricing.output)/M")
+            if let note = pricing.note { parts.append(note) }
         }
         return parts.joined(separator: " · ")
     }
@@ -121,6 +134,8 @@ struct MiraProviderModelRow: View {
         }
         if let pricing {
             parts.append(L10n.format("Input %@/M · Output %@/M", locale: locale, pricing.input, pricing.output))
+            if let note = pricing.note { parts.append(note) }
+            if let detail = pricing.detail { parts.append(detail) }
         }
         return parts.joined(separator: " · ")
     }

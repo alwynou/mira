@@ -1,6 +1,6 @@
-import SwiftUI
 import MiraCore
 import Observation
+import SwiftUI
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
     case general, providers, models, memory, data
@@ -16,11 +16,11 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
     }
     var symbol: String {
         switch self {
-        case .general: "gearshape" // i18n-verbatim: SF Symbol identifier.
-        case .providers: "cloud" // i18n-verbatim: SF Symbol identifier.
-        case .models: "sparkles" // i18n-verbatim: SF Symbol identifier.
-        case .memory: "brain" // i18n-verbatim: SF Symbol identifier.
-        case .data: "checkmark.shield" // i18n-verbatim: SF Symbol identifier.
+        case .general: "gearshape"  // i18n-verbatim: SF Symbol identifier.
+        case .providers: "cloud"  // i18n-verbatim: SF Symbol identifier.
+        case .models: "sparkles"  // i18n-verbatim: SF Symbol identifier.
+        case .memory: "brain"  // i18n-verbatim: SF Symbol identifier.
+        case .data: "checkmark.shield"  // i18n-verbatim: SF Symbol identifier.
         }
     }
 }
@@ -51,6 +51,9 @@ final class SettingsModel {
     var destination = SettingsDestination.category(.general)
     private var destinations: [SettingsCategory: SettingsDestination] = [:]
     @ObservationIgnored private let container: AppContainer
+    @ObservationIgnored private var retiredProviders: Task<Void, Never>?
+    @ObservationIgnored private var retiredMemory: Task<Void, Never>?
+    @ObservationIgnored private var retiredData: Task<Void, Never>?
 
     init(container: AppContainer) {
         self.container = container
@@ -66,11 +69,10 @@ final class SettingsModel {
 
     func navigate(_ next: SettingsDestination) {
         let resolved: SettingsDestination
-        if case .category(let category) = next { resolved = destination(for: category) }
-        else { resolved = next }
+        if case .category(let category) = next { resolved = destination(for: category) } else { resolved = next }
         guard resolved != destination else { return }
         #if DEBUG
-        ProviderSettingsTiming.begin(resolved, entering: destination.category != .providers)
+            ProviderSettingsTiming.begin(resolved, entering: destination.category != .providers)
         #endif
         destinations[resolved.category] = resolved
         visited.insert(resolved.category)
@@ -78,63 +80,84 @@ final class SettingsModel {
     }
 
     func navigate(_ next: SettingsDestination, from category: SettingsCategory) {
-        if destination.category == category { navigate(next) }
-        else { destinations[next.category] = next }
+        if destination.category == category { navigate(next) } else { destinations[next.category] = next }
     }
 
     /// A window session owns transient navigation, drafts and scroll positions.
     func close() {
-        providers.stopRequests(); routing.stopRequests()
+        let previousProviders = retiredProviders
+        let oldProviders = providers
+        let oldRouting = routing
+        retiredProviders = Task {
+            await previousProviders?.value
+            await oldProviders.stopRequests()
+            await oldRouting.stopRequests()
+        }
+        let previous = retiredMemory
+        let oldMemory = memory
+        retiredMemory = Task {
+            await previous?.value
+            await oldMemory.stop()
+        }
         providers = ProviderLibraryModel(container: container)
         routing = ProviderLibraryModel(container: container)
         memory = MemorySettingsModel(container: container)
-        if data.isWorking {
-            // Keep the active maintenance owner and its duplicate-action guard,
-            // while clearing results left by an earlier operation in this session.
-            data.status = ""; data.statusError = nil
-            data.restoredPath = nil; data.cleanupReport = nil
-        } else {
-            data = DataSettingsModel(container: container)
+        let previousData = retiredData
+        let oldData = data
+        oldData.clearResults()
+        retiredData = Task {
+            await previousData?.value
+            await oldData.stopObserving()
         }
+        if !data.isWorking { data = DataSettingsModel(container: container) }
         destination = .category(.general)
-        destinations = [:]; visited = [.general]
+        destinations = [:]
+        visited = [.general]
         sessionID = UUID()
     }
 
 }
 
 #if DEBUG
-/// Opt-in offline diagnostic: action delivery to the selected editor's first layout.
-/// It records durations only, never provider configuration or credentials.
-@MainActor
-enum ProviderSettingsTiming {
-    private static var pending: (destination: SettingsDestination, start: ContinuousClock.Instant, phase: String)?
+    /// Opt-in offline diagnostic: action delivery to the selected editor's first layout.
+    /// It records durations only, never provider configuration or credentials.
+    @MainActor
+    enum ProviderSettingsTiming {
+        private static var pending: (destination: SettingsDestination, start: ContinuousClock.Instant, phase: String)?
 
-    static func begin(_ destination: SettingsDestination, entering: Bool) {
-        let arguments = ProcessInfo.processInfo.arguments
-        guard arguments.contains("--demo"), arguments.contains("--profile-provider-settings"),
-              destination.category == .providers else { pending = nil; return }
-        pending = (destination, .now, entering ? "entry" : "switch")
-    }
+        static func begin(_ destination: SettingsDestination, entering: Bool) {
+            let arguments = ProcessInfo.processInfo.arguments
+            guard arguments.contains("--demo"), arguments.contains("--profile-provider-settings"),
+                destination.category == .providers
+            else {
+                pending = nil
+                return
+            }
+            pending = (destination, .now, entering ? "entry" : "switch")
+        }
 
-    static func didLayout(_ destination: SettingsDestination?) {
-        guard let pending, pending.destination == destination || pending.destination == .category(.providers) else { return }
-        let elapsed = pending.start.duration(to: .now).components
-        let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
-        print("Provider settings \(pending.phase) layout milliseconds: \(milliseconds)")
-        self.pending = nil
+        static func didLayout(_ destination: SettingsDestination?) {
+            guard let pending, pending.destination == destination || pending.destination == .category(.providers) else {
+                return
+            }
+            let elapsed = pending.start.duration(to: .now).components
+            let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
+            print("Provider settings \(pending.phase) layout milliseconds: \(milliseconds)")
+            self.pending = nil
+        }
     }
-}
 #endif
 
 struct SettingsSidebar: View {
     let model: SettingsModel
 
     var body: some View {
-        List(selection: Binding<SettingsCategory?>(
-            get: { model.destination.category },
-            set: { if let category = $0 { model.navigate(.category(category)) } }
-        )) {
+        List(
+            selection: Binding<SettingsCategory?>(
+                get: { model.destination.category },
+                set: { if let category = $0 { model.navigate(.category(category)) } }
+            )
+        ) {
             ForEach(SettingsCategory.allCases) { category in
                 Label {
                     Text(category.title)
@@ -158,8 +181,8 @@ struct SettingsSidebar: View {
     }
 }
 
-private extension SettingsCategory {
-    var iconColor: Color {
+extension SettingsCategory {
+    fileprivate var iconColor: Color {
         switch self {
         case .general: Color(nsColor: .systemGray)
         case .providers, .models: Color(nsColor: .systemBlue)
@@ -221,16 +244,14 @@ struct SettingsView: View {
             DataSettingsView(model: model.data)
         case .providers, .models:
             let library = category == .providers ? model.providers : model.routing
-            ProviderConfigurationView(model: library, destination: model.destination(for: category),
-                                      navigate: { model.navigate($0, from: category) })
-                .task(id: model.destination.category == category) {
-                    guard model.destination.category == category else { return }
-                    await library.observe(includeRoutingScopes: category == .models)
-                }
+            ProviderConfigurationView(
+                model: library, destination: model.destination(for: category),
+                navigate: { model.navigate($0, from: category) }
+            )
+            .task(id: model.destination.category == category) {
+                guard model.destination.category == category else { return }
+                await library.observe(includeRoutingScopes: category == .models)
+            }
         }
     }
-}
-
-extension EnvironmentValues {
-    @Entry var miraSettingsPageActive = true
 }

@@ -32,6 +32,6 @@ That revision passed Debug host tests (52 Swift Testing tests, 9 XCTest passes, 
 
 Reproduce with a Debug disposable bundle using `--demo --native-rendering-benchmark --verify-floating-composer --data-directory <new-absolute-fixture-directory> --benchmark-report <new-absolute-report-path>`. Stop its process before deleting the fixture. The normal library must not be used for this fixture.
 
-Remaining checks: macOS 15 runtime, full VoiceOver/IME and physical trackpad/drag-selection sessions, and system accessibility preference switching. A later reported first-focus flash near the window bottom remains unresolved; an isolated field-editor probe did not reproduce it and no fix is claimed. These layout checks do not establish FPS or throughput.
+Remaining checks: macOS 15 runtime, full VoiceOver/IME and physical trackpad/drag-selection sessions, and system accessibility preference switching. The first-focus flash was later reproduced as the macOS one-time-code AutoFill panel and corrected with the documented app opt-in requirement; see [first-focus verification](COMPOSER_FIRST_FOCUS_VERIFICATION.md). These layout checks do not establish FPS or throughput.
 
 Superseded Liquid Glass/tint/transparency experiments and their intermediate captures were removed during consolidation. The retained files describe the accepted implementation and its verification limits.

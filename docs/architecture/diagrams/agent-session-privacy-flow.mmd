@@ -1,0 +1,18 @@
+flowchart TD
+  Start[精确 pending 操作、领域来源集合、保留规则] --> Saved{原计划已保存？}
+  Saved -->|是| Match[核对原操作及参数\n复用原批次身份]
+  Saved -->|否| Scan[分页枚举规范会话\n读取固定头与归约状态]
+  Scan --> Edges[读取请求、工具准备和重放中的来源\n合并此前计划保留的依赖身份]
+  Edges --> Closure[反向遍历依赖\n传播到跨会话后代和同一消息的全部重试]
+  Closure --> Persist[复核完整会话集合与所有头\n原子保存不可变计划]
+  Persist --> Match
+  Match --> Heads[复核所有头仍是原前缀或原计划的失效批次]
+  Heads --> Append[提交全部会话失效批次\n确认丢失时只核对原批次]
+  Append --> Purge[删除计划指定的正文分组]
+  Purge --> Verify[再次核对日志头、排除状态\n并检查实际文件不存在]
+  Verify --> Domain[交回领域处理器\n完整跨存储验证后才可完成库维护]
+  Persist -->|确认丢失| Pending[保持 pending\n重试读取原计划]
+  Append -->|未确认| Pending
+  Purge -->|删除失败| Pending
+  Verify -->|未通过| Pending
+  Pending --> Saved

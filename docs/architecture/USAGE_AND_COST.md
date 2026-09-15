@@ -1,4 +1,6 @@
-# Usage and cost contract
+# 用量与费用契约
+
+<!-- Simplified Chinese documentation is explicitly requested by the user on 2026-09-12. -->
 
 This document owns v0.1 token accounting and cost estimation. Provider wire contracts remain in [Providers](PROVIDERS.md); extraction reservations remain in [Automatic memory](AUTOMATIC_MEMORY_IMPLEMENTATION.md).
 
@@ -14,7 +16,7 @@ Distinct foreground calls add counters only when every component is known. An in
 
 The bundled, offline models.dev snapshot supplies advisory USD prices per million text tokens. Prices belong to the provider-specific `api.json` entry, exact model ID, and allowlisted official endpoint. China/international providers and relay/native providers never share prices merely because model names match. Custom endpoints have unknown prices.
 
-`ModelCatalogMetadata.pricing` contains Decimal input/output/cache-read rates, permitted base URLs, an optional supported input range, and an optional provider effective date. Its enclosing metadata records source URL, snapshot hash, and retrieval timestamp. Retrieval time is not presented as a provider's effective date. The complete metadata is frozen in the execution route or background attempt route. Updating settings or the bundled catalog does not reprice historical calls. Existing saved metadata acquires new prices only when the user applies a current catalog reference and saves the model.
+`HTTPModelPricingSnapshot` 由 MiraProviders 拥有，记录准确 model ID、来源 URL、目录版本、获取时间与 `ModelPricing`。价格使用 Decimal，保留输入／输出／缓存读取费率、允许端点、可选输入范围和提供方生效日；目录获取时间不冒充价格生效日。快照存入冻结 `AgentModelRoute.configuration`，当前设置或目录更新不重算历史价格。只有用户显式应用并保存新目录资料，后续执行才采用新快照。
 
 The current estimator supports base text tariffs. For a known context pricing threshold, ingestion restricts the base tariff to inputs strictly below the first threshold; calls at or above that boundary remain unknown. Non-text/audio tariffs, separately priced reasoning, and unsupported tier shapes do not acquire a misleading flat price. Positive cache-write usage remains unpriced because cache lifetime rates are not represented yet. Missing usage or required cache prices also makes the estimate unknown. Explicit reported zero and explicit catalog zero are distinct from missing data.
 
@@ -22,13 +24,15 @@ For inclusive input, cost is `(input - cacheRead) × inputRate + cacheRead × ca
 
 ## Persistence, settlement, and presentation
 
-Schema **11** stores the full value as `usage_json` in executions, foreground attempts, and memory extraction attempts. Typed reads and backup validation check the counters and historical pricing metadata. There is no migration from earlier development schemas. The loader rejects unsupported versions; the authorized development procedure deletes obsolete runtime libraries without backup and reuses the current path.
+前台尝试用量和终态来自当前会话日志，执行计划正文保存冻结路线；独立记忆提取尝试及预算事实保留在业务数据库。归约、类型化读取和当前格式归档校验用量与配置，不读取旧 SQL execution/message 表。旧开发库直接删除，在同一路径初始化当前格式，不添加旧 schema 解码或迁移。
 
-Foreground estimates are calculated per actual model attempt from the frozen execution route. Background job details expose dispatched attempts, their own route snapshots, dispatch times, finality, and usage. Retries remain distinct calls. A combined total is shown only when every recorded call is known; otherwise the UI shows unknown, a known subtotal, and the number of unpriced calls. The execution inspector and extraction status distinguish foreground and background costs. No-call states are displayed separately from a zero charge.
+`SessionExecutionAuditPage.modelUsage` 从同一日志 head 返回整次执行的全部尝试元数据，不受请求／输出正文分页限制；自动重试保留独立 ID，手动重试的新执行独立统计。`ModelCostSummary` 在 Provider 层逐次计算，只有全部已记录尝试都能估价才提供总额，否则显示未知、已知小计和未知次数。无调用与零费用分开显示。读取汇总不额外加载页外请求／输出。
+
+原生执行检查器已接入这份完整汇总，按仍可读取的计划优先级显示前台／后台标题；计划因隐私维护已清理时使用通用标题，费用全部保持未知，不从当前设置补回历史价格。独立后台提取的[状态与用量查询](AGENT_EXTRACTION_QUERIES.md)已通过 `MemoryApplication` 接入检查器：按原始回合和工作区分页选择作业，每个作业读取全部尝试，以实际调度、终态、原始用量和逐次冻结路线单独汇总。未调度的预留不计调用，失败预算扣减不冒充实际用量；它与前台费用分别展示。审计权威与生命周期见[会话读取](AGENT_SESSION_READS.md)。
 
 Background token budgets use complete inclusive input plus output. Missing cache totals on an exclusive-input protocol charge the reserved ceiling conservatively. Failed extraction attempts retain their existing conservative reservation charge and show unknown monetary cost; collecting partial failure counters across the worker timeout boundary is not part of this increment. Day attribution continues to use each attempt's actual dispatch time. No monetary hard-limit setting is introduced.
 
-Ordinary logs contain neither usage source bodies nor credentials. Forgetting sensitive bodies leaves accounting metadata available under the existing retention boundary. Prices are calculated from persisted non-secret snapshots and usage; no runtime catalog fetch or paid endpoint is needed to display history.
+Ordinary logs contain neither usage source bodies nor credentials. Forgetting sensitive bodies leaves accounting metadata available under the existing retention boundary. Prices are calculated only while the persisted snapshots remain readable; purged pricing stays unknown. No runtime catalog fetch or paid endpoint is needed to display history.
 
 ## Sources
 

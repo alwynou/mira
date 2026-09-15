@@ -7,6 +7,15 @@ import Testing
 
 @Suite("Backup file I/O")
 struct BackupFileIOTests {
+    @Test func storageDigestEncodingPreservesEveryByteAndLeadingZero() {
+        let bytes = Array(UInt8.min...UInt8.max)
+        let encoded = DigestEncoding.hexadecimal(bytes)
+        #expect(encoded == bytes.map { String(format: "%02x", $0) }.joined())
+        #expect(encoded.utf8.count == 512)
+        #expect(DigestEncoding.hexadecimal([UInt8]()) == "")
+        #expect(FileSessionIO.digest(Data()) == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    }
+
     @Test func inspectAndCopyStreamMultipleBuffers() throws {
         let directory = try testDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

@@ -1,0 +1,71 @@
+---
+title: Mira Agent 执行流程 · 目标设计
+config:
+  theme: base
+  fontFamily: PingFang SC, Hiragino Sans GB, sans-serif
+  themeVariables:
+    fontSize: 22px
+    lineColor: '#78899d'
+    primaryTextColor: '#17283e'
+    edgeLabelBackground: '#ffffff'
+    clusterBkg: '#f7f9fc'
+    clusterBorder: '#c8d3e0'
+    titleColor: '#173b67'
+  flowchart:
+    htmlLabels: false
+    curve: basis
+    nodeSpacing: 28
+    rankSpacing: 40
+    padding: 18
+    wrappingWidth: 360
+    useMaxWidth: false
+---
+flowchart TB
+    START(["用户提交 · 接纳前校验"])
+    ADMIT["持久提交接纳批次<br/>用户消息 + 排队执行 + 冻结路线"]
+    PREP["调度与请求准备<br/>首步冻结上下文，后续追加工具交换<br/>复核来源、权限、限额并取得模型资源"]
+    ATTEMPT["持久提交模型尝试<br/>冻结请求快照 + 尝试 ID"]
+    MODEL["调用模型 · 接收流式输出"]
+    LIVE["实时快照 → 界面<br/>草稿按 250 ms / 4 KiB 策略落盘"]
+    OUTPUT["持久保存模型输出<br/>保留思考与完整续接材料"]
+    HAS{"有工具调用？"}
+    AUTH["校验工具参数与授权<br/>必要时等待一次性审批"]
+    INTENT["持久提交工具派发意图<br/>固定调用 ID、参数与授权修订"]
+    RUN["执行已授权工具<br/>只读：有界并行 / 独占调度<br/>内部写入：再校验后进入 SQLite 事务<br/>业务变更 + 唯一回执 + outbox 同时提交"]
+    RESULT["持久提交工具终态结果<br/>每个调用一次 · 保持模型顺序"]
+    FINISH["持久提交回合终态批次<br/>保存已有输出 + 草稿处理 + 唯一终态"]
+    END(["发布事实 · 更新界面与投影<br/>仅合格成功回合幂等触发后台作业"])
+
+    START -->|通过；未通过则保留输入并拒绝| ADMIT --> PREP --> ATTEMPT --> MODEL
+    MODEL -.-> LIVE
+    MODEL -->|流结束| OUTPUT --> HAS
+    HAS -->|有| AUTH
+    HAS -->|无| FINISH
+    AUTH -->|通过| INTENT --> RUN
+    AUTH -->|拒绝 / 过期 / 无效：不执行，返回错误| RESULT
+    RUN -->|既有事务回执或明确失败| RESULT
+    RESULT -->|允许继续：复核策略与限额| PREP
+    RESULT -->|取消或达到上限| FINISH
+    FINISH --> END
+
+    RETRY{"可安全重试？"}
+    RETRYWAIT["有限退避并重新取得模型资源<br/>保留冻结请求 · 使用新尝试 ID"]
+    CANCEL["用户取消 / 撤权"]
+    DRAIN["立即阻止新副作用并反馈界面<br/>协作取消 · 收集已知结果<br/>未知副作用保持明确状态"]
+    MODEL -->|失败| RETRY
+    RETRY -->|是| RETRYWAIT --> ATTEMPT
+    RETRY -->|否| DRAIN
+    CANCEL --> DRAIN -->|提交通道明确后结算| FINISH
+
+    UNCERTAIN["任何持久提交结果不确定<br/>隔离写入通道 → 核对原批次 ID 与回执<br/>结果明确后恢复；否则保持隔离<br/>不重新执行未知副作用"]
+
+    classDef normal fill:#eff3f8,stroke:#8b9aac,color:#17283e,stroke-width:1.5px;
+    classDef durable fill:#eaf5ee,stroke:#73a888,color:#234d35,stroke-width:1.5px;
+    classDef decision fill:#edf4ff,stroke:#7198cc,color:#173b67,stroke-width:1.5px;
+    classDef caution fill:#fff3e8,stroke:#c99563,color:#704921,stroke-width:1.5px;
+    classDef endpoint fill:#193b63,stroke:#193b63,color:#ffffff,stroke-width:2px;
+    class PREP,MODEL,LIVE,AUTH,RUN,RETRYWAIT normal;
+    class ADMIT,ATTEMPT,OUTPUT,INTENT,RESULT,FINISH durable;
+    class HAS,RETRY decision;
+    class CANCEL,DRAIN,UNCERTAIN caution;
+    class START,END endpoint;

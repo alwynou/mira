@@ -40,34 +40,51 @@ public struct MemoryDraft: Codable, Equatable, Sendable {
         guard subject != .workspace || scope.workspaceID != nil else {
             throw MiraError(.invalidInput, "A project memory requires a workspace scope.")
         }
+        guard validFrom.map({ $0.timeIntervalSince1970.isFinite }) ?? true,
+              validUntil.map({ $0.timeIntervalSince1970.isFinite }) ?? true,
+              allowedConnectionIDs.map({ $0.count <= 128 }) ?? true else {
+            throw MiraError(.invalidInput, "Memory disclosure or validity bounds are invalid.")
+        }
         if let validFrom, let validUntil, validFrom >= validUntil {
             throw MiraError(.invalidInput, "Memory validity must end after it starts.")
         }
     }
 }
 
-/// The store resolves the source itself; caller-provided excerpts never establish authorship.
+/// A host request names immutable journal evidence; text alone never establishes authorship.
 public enum MemorySourceInput: Codable, Equatable, Sendable {
-    case message(id: MessageID, excerpt: String)
+    case userMessage(reference: SessionEvidenceReference, excerpt: String)
     case manualEntry(id: UUID, statement: String)
 }
-public enum MemoryEvidenceKind: String, Codable, Sendable { case message, manualEntry }
+
+/// Body-free provenance retained after forgetting. A manual entry is never a synthetic message.
+public enum MemoryEvidenceSource: Codable, Equatable, Sendable {
+    case userMessage(SessionEvidenceReference)
+    case manualEntry(UUID)
+}
+
+/// Resolved by the application under a library lease, or by the tool effect resolver.
+/// SessionUserEvidence can only be created by the authoritative journal reader.
+public enum MemoryWriteSource: Sendable {
+    case userMessage(evidence: SessionUserEvidence, excerpt: String)
+    case manualEntry(id: UUID, statement: String)
+}
+
 public struct MemoryEvidence: Identifiable, Codable, Equatable, Sendable {
-    public var id: UUID
-    public var memoryID: MemoryID
-    public var sourceKind: MemoryEvidenceKind
-    public var sourceID: UUID
-    public var sourceRevision: Int
-    public var conversationID: ConversationID?
+    public let id: UUID
+    public let memoryID: MemoryID
+    public let source: MemoryEvidenceSource
+    public let sourceWorkspaceID: WorkspaceID?
     public var excerpt: String?
     public var sourceHash: String?
-    public var speakerRole: MessageRole
-    public var createdAt: Date
+    public let createdAt: Date
     public var bodyPurgedAt: Date?
-    public init(id: UUID = UUID(), memoryID: MemoryID, sourceKind: MemoryEvidenceKind, sourceID: UUID, sourceRevision: Int = 1, conversationID: ConversationID? = nil, excerpt: String?, sourceHash: String?, speakerRole: MessageRole = .user, createdAt: Date, bodyPurgedAt: Date? = nil) {
-        self.id = id; self.memoryID = memoryID; self.sourceKind = sourceKind; self.sourceID = sourceID
-        self.sourceRevision = sourceRevision; self.conversationID = conversationID; self.excerpt = excerpt
-        self.sourceHash = sourceHash; self.speakerRole = speakerRole; self.createdAt = createdAt; self.bodyPurgedAt = bodyPurgedAt
+    public init(id: UUID = UUID(), memoryID: MemoryID, source: MemoryEvidenceSource,
+                sourceWorkspaceID: WorkspaceID?, excerpt: String?, sourceHash: String?,
+                createdAt: Date, bodyPurgedAt: Date? = nil) {
+        self.id = id; self.memoryID = memoryID; self.source = source
+        self.sourceWorkspaceID = sourceWorkspaceID; self.excerpt = excerpt
+        self.sourceHash = sourceHash; self.createdAt = createdAt; self.bodyPurgedAt = bodyPurgedAt
     }
 }
 
@@ -137,7 +154,7 @@ public struct MemoryDetail: Sendable {
     }
 }
 public enum MemoryWriteDisposition: String, Codable, Sendable { case created, existing, replacementProposed }
-public struct MemoryWriteReceipt: Sendable {
+public struct MemoryWriteReceipt: Codable, Equatable, Sendable {
     public var memory: Memory
     public var disposition: MemoryWriteDisposition
     public init(memory: Memory, disposition: MemoryWriteDisposition) { self.memory = memory; self.disposition = disposition }
@@ -152,8 +169,11 @@ public struct MemoryUsage: Codable, Equatable, Sendable {
     public var revision: Int
     public init(memoryID: MemoryID, revision: Int) { self.memoryID = memoryID; self.revision = revision }
 }
-public struct MemoryForgetReceipt: Sendable {
-    public var memoryID: MemoryID
-    public var redactedExecutionIDs: Set<ExecutionID>
-    public init(memoryID: MemoryID, redactedExecutionIDs: Set<ExecutionID>) { self.memoryID = memoryID; self.redactedExecutionIDs = redactedExecutionIDs }
+/// Domain purge result. The maintenance coordinator must also invalidate journal descendants and payloads.
+public struct MemoryForgetReceipt: Codable, Equatable, Sendable {
+    public let memoryID: MemoryID
+    public let suppressedSources: [MemoryEvidenceSource]
+    public init(memoryID: MemoryID, suppressedSources: [MemoryEvidenceSource]) {
+        self.memoryID = memoryID; self.suppressedSources = suppressedSources
+    }
 }

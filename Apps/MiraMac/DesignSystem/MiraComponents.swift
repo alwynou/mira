@@ -1,6 +1,128 @@
 import SwiftUI
 import AppKit
 
+/// A native disclosure whose trailing affordance appears without moving its text.
+final class MiraHoverDisclosureButton: NSButton {
+    var isExpanded = false { didSet { needsDisplay = true } }
+    private(set) var isPointerInside = false
+    private var hoverTracking: NSTrackingArea?
+
+    var showsChevron: Bool { isEnabled && (isPointerInside || window?.firstResponder === self) }
+    var symbolSize: CGFloat { font?.pointSize ?? 13 }
+    var textOriginX: CGFloat { image == nil ? 0 : symbolSize + 7 }
+    var textOverflows: Bool { textOriginX + attributedTitle.size().width + 8 + symbolSize > bounds.width }
+    var chevronFrame: NSRect {
+        let x = min(textOriginX + attributedTitle.size().width + 8, max(0, bounds.width - symbolSize - 2))
+        return NSRect(x: x, y: (bounds.height - symbolSize) / 2, width: symbolSize, height: symbolSize)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        hoverTracking = area
+        if let window {
+            isPointerInside = bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        }
+        needsDisplay = true
+    }
+
+    override func mouseEntered(with event: NSEvent) { isPointerInside = true; needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { isPointerInside = false; needsDisplay = true }
+    override func becomeFirstResponder() -> Bool { let value = super.becomeFirstResponder(); needsDisplay = true; return value }
+    override func resignFirstResponder() -> Bool { let value = super.resignFirstResponder(); needsDisplay = true; return value }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let color = attributedTitle.length > 0
+            ? attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor ?? .secondaryLabelColor
+            : NSColor.secondaryLabelColor
+        NSGraphicsContext.saveGraphicsState()
+        bounds.clip()
+        if let image {
+            drawSymbol(image, in: NSRect(x: 0, y: (bounds.height - symbolSize) / 2, width: symbolSize, height: symbolSize), color: color)
+        }
+        attributedTitle.draw(at: NSPoint(x: textOriginX, y: (bounds.height - attributedTitle.size().height) / 2))
+        if showsChevron {
+            let frame = chevronFrame
+            if textOverflows {
+                let background = NSColor(MiraTheme.Colors.canvas)
+                let fade = NSRect(x: max(0, frame.minX - 24), y: 0, width: frame.minX - max(0, frame.minX - 24), height: bounds.height)
+                NSGradient(starting: background.withAlphaComponent(0), ending: background)?.draw(in: fade, angle: 0)
+                background.setFill()
+                NSRect(x: frame.minX, y: 0, width: bounds.width - frame.minX, height: bounds.height).fill()
+            }
+            if let symbol = NSImage(systemSymbolName: isExpanded ? "chevron.down" : "chevron.right", accessibilityDescription: nil) {
+                drawSymbol(symbol, in: frame, color: NSColor(MiraTheme.Colors.secondaryText))
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        if window?.firstResponder === self {
+            NSGraphicsContext.saveGraphicsState()
+            NSFocusRingPlacement.only.set()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4).fill()
+            NSGraphicsContext.restoreGraphicsState()
+        }
+    }
+
+    private func drawSymbol(_ image: NSImage, in frame: NSRect, color: NSColor) {
+        let configuration = NSImage.SymbolConfiguration(pointSize: symbolSize, weight: .regular)
+            .applying(.preferringMonochrome())
+        let configured = image.withSymbolConfiguration(configuration) ?? image
+        let size = configured.size
+        guard size.width > 0, size.height > 0 else { return }
+        let scale = min(frame.width / size.width, frame.height / size.height)
+        let destination = NSRect(x: frame.midX - size.width * scale / 2,
+                                 y: frame.midY - size.height * scale / 2,
+                                 width: size.width * scale, height: size.height * scale)
+        let tinted = NSImage(size: size, flipped: false) { rect in
+            configured.draw(in: rect)
+            color.setFill()
+            rect.fill(using: .sourceIn)
+            return true
+        }
+        tinted.draw(in: destination, from: .zero, operation: .sourceOver,
+                    fraction: 1, respectFlipped: true, hints: nil)
+    }
+}
+
+struct MiraModelPickerGroup: Identifiable {
+    struct Option: Identifiable {
+        let id: String
+        let title: String
+    }
+    let id: String
+    let title: String
+    let options: [Option]
+}
+
+/// Native menu rows retain system typography, spacing, selection and keyboard navigation.
+struct MiraModelPickerItems: View {
+    let groups: [MiraModelPickerGroup]
+    let selectedID: String?
+    let select: (String) -> Void
+
+    var body: some View {
+        ForEach(groups) { group in
+            Section {
+                ForEach(group.options) { option in
+                    Toggle(isOn: Binding(get: { selectedID == option.id }, set: { enabled in
+                        if enabled { select(option.id) }
+                    })) {
+                        Text(verbatim: option.title)
+                    }
+                    .accessibilityIdentifier("conversation.modelOption." + option.id)
+                }
+            } header: {
+                Text(verbatim: group.title)
+            }
+        }
+        if groups.isEmpty {
+            Text("Configure a compatible model in Providers.")
+        }
+    }
+}
+
 private extension EnvironmentValues {
     @Entry var miraSidebarIsPressed = false
 }
@@ -238,6 +360,7 @@ struct MiraScrollEdgeViewport<Content: View>: View {
                 .scrollEdgeEffectStyle(.soft, for: .top)
                 .safeAreaBar(edge: .top, alignment: .leading, spacing: 0) {
                     Text(verbatim: title)
+                        .accessibilityIdentifier("conversation.title")
                         .font(MiraTheme.Typography.body.weight(.semibold))
                         .foregroundStyle(MiraTheme.Colors.text)
                         .lineLimit(1)

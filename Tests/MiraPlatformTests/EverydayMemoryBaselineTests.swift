@@ -1,5 +1,5 @@
 import Foundation
-import MiraCore
+@testable import MiraCore
 import XCTest
 
 final class EverydayMemoryBaselineTests: XCTestCase {
@@ -20,8 +20,7 @@ final class EverydayMemoryBaselineTests: XCTestCase {
         var results: [Observation] = []
         for scenario in corpus.scenarios {
             let executionID = ExecutionID()
-            let message = Message(id: .init(), conversationID: .init(), executionID: executionID, sequence: 1, role: .user, status: .committed, text: scenario.statement, createdAt: Date(timeIntervalSince1970: 1_000))
-            let source = MemoryExtractionSource(message: message, executionID: executionID, workspaceID: nil, sourceHash: "synthetic")
+            let source = Self.syntheticEvidence(text: scenario.statement, executionID: executionID)
             let annotation = corpus.hostAnnotations[scenario.id]
             let item: [String: Any] = [
                 "content": scenario.statement, "quote": scenario.statement,
@@ -31,7 +30,8 @@ final class EverydayMemoryBaselineTests: XCTestCase {
                 "assertion": ["mode": annotation?.assertionMode ?? "directStable", "aspectKey": annotation?.aspectKey ?? "unannotated.preference", "changeIntent": annotation?.changeIntent ?? "independent"]
             ]
             let data = try JSONSerialization.data(withJSONObject: ["version": 2, "items": [item]])
-            let proposals = try MemoryExtractionValidator.validate(output: String(decoding: data, as: UTF8.self), source: source, mode: .automaticWithUndo)
+            let proposals = try MemoryExtractionValidator.validate(
+                output: String(decoding: data, as: UTF8.self), source: source, mode: .automaticWithUndo)
             let active = proposals.contains { $0.triage == .active }
             results.append(.init(id: scenario.id, expected: scenario.expectation, gate: active ? "active" : "candidate"))
             if scenario.expectation == "notActive" {
@@ -54,6 +54,22 @@ final class EverydayMemoryBaselineTests: XCTestCase {
         // Positive misses are retained as coverage gaps in the report. This CI
         // check asserts safety only and must not be described as Q04 acceptance.
         print("Everyday host gate: \(report.acceptedActive)/\(report.expectedActive) authored positives accepted; \(report.unsafeActive) unsafe activations.")
+    }
+
+    private static func syntheticEvidence(text: String, executionID: ExecutionID) -> SessionUserEvidence {
+        let sessionID = ConversationID()
+        let batchID = UUID()
+        let body = SessionPayloadReference(
+            id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .userText,
+            byteCount: text.utf8.count, digest: String(repeating: "0", count: 64))
+        let reference = SessionEvidenceReference(
+            sessionID: sessionID, originalExecutionID: executionID, userMessageID: MessageID(),
+            admissionEventID: UUID(), admissionSequence: 1, body: body)
+        return SessionUserEvidence(
+            reference: reference, workspaceID: nil, admittedAt: Date(timeIntervalSince1970: 1_000),
+            timeZoneIdentifier: "UTC", text: text,
+            observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID),
+            sessionAuthorizationEpoch: 0)
     }
 
     private struct Corpus: Decodable { let version: Int; let scenarios: [Scenario]; let hostAnnotations: [String: HostAnnotation] }

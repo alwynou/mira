@@ -1,0 +1,32 @@
+flowchart TB
+  H[宿主组合根<br/>库作用域、共享存储与所有工作组]
+  subgraph CORE[平台无关的 MiraCore]
+    C[AgentLibraryMaintenanceCoordinator<br/>串行命令、恢复核对与完成所有权]
+    T[库作用域处理器目录<br/>固定 namespace 与 revision]
+    W[应用、消费者及领域工作组<br/>全部关闭并报告结算结果]
+    G[AgentLibraryAccess<br/>接纳、撤销、排空与不确定状态]
+    L[作用域访问租约<br/>固定库身份与授权代次]
+    O[正文读取、模型及工具<br/>实际退出前保留所有权]
+    P[AgentLibraryMaintenanceStore<br/>持久开始与完成端口]
+    D[MemoryForgetHandler<br/>领域展开、清理与实际验证]
+    C --> T
+    C --> W
+    C --> G
+    G --> L
+    L --> O
+    G --> P
+  end
+  subgraph ADAPTERS[领域及存储适配器]
+    S[SQLiteLibraryAuthority<br/>唯一库身份、代次与维护意图]
+    B[SQLiteBusinessEffects<br/>同库授权检查与业务回执]
+    F[FileSessionLibrary<br/>权威日志与受管正文]
+    D --> F
+    D --> PB[SQLiteBusinessPrivacyStore<br/>共享结果清理与验证]
+    S --> B
+  end
+  H --> C
+  H --> S
+  P --> S
+  T --> D
+  O --> F
+  O --> B

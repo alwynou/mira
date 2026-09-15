@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 import MiraCore
+import Testing
 
 @Suite("Keychain credentials")
 struct KeychainTests {
@@ -20,7 +20,25 @@ struct KeychainTests {
         try credentials.save("secret", reference: "reference", version: 8)
 
         #expect(try credentials.read(reference: "reference", version: 8) == "secret")
-        #expect(fake.addCalls == [.init(service: KeychainCredentials.service, account: "reference:8", data: Data("secret".utf8), accessibility: .whenUnlockedThisDeviceOnly, synchronizable: false)])
+        #expect(
+            fake.addCalls == [
+                .init(
+                    service: KeychainCredentials.service, account: "reference:8", data: Data("secret".utf8),
+                    accessibility: .whenUnlockedThisDeviceOnly, synchronizable: false)
+            ])
+    }
+
+    @Test func invalidReferenceNeverReachesKeychain() throws {
+        let fake = LockedFakeKeychain()
+        let credentials = KeychainCredentials(access: fake)
+        let long = String(repeating: "x", count: 513)
+
+        #expect(throws: MiraError.self) { try credentials.read(reference: "", version: 1) }
+        #expect(throws: MiraError.self) { try credentials.save("secret", reference: long, version: 1) }
+        #expect(throws: MiraError.self) { try credentials.delete(reference: "ok", version: 0) }
+        #expect(fake.copyCalls.isEmpty)
+        #expect(fake.addCalls.isEmpty)
+        #expect(fake.deleteCalls.isEmpty)
     }
 
     @Test func lockedDeniedMissingAndMalformedReadsUseSafeCredentialError() throws {
@@ -68,61 +86,154 @@ struct KeychainTests {
     @Test func cleanupRetainsSharedCredentialReferences() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let retained = connection(reference: "shared", version: 1)
-        let removed = connection(reference: "shared", version: 1)
-        let cleanup = CredentialCleanup(directory: directory)
+        let cleanup = CredentialCleanup(directory: directory, libraryID: UUID())
+        let retained = cleanup.makeReference(version: 1)
+        let removed = cleanup.makeReference(version: 2)
         let fake = LockedFakeKeychain()
-        let credentials = KeychainCredentials(access: fake)
 
-        try cleanup.enqueue([retained, removed])
-        #expect(try cleanup.reconcile(retaining: [retained], credentials: credentials) == nil)
-        #expect(fake.deleteCalls.isEmpty)
-        #expect(try ledgerItems(in: directory).count == 0)
+        try cleanup.enqueue([retained, removed, retained])
+        #expect(try cleanup.reconcile(retaining: [retained], credentials: fake) == false)
+        #expect(fake.deleteCalls.map(\.account) == ["\(removed.reference):2"])
+        #expect(try ledgerItems(in: directory).isEmpty)
+        #expect(
+            !FileManager.default.fileExists(atPath: directory.appendingPathComponent("credential-cleanup.json").path))
+        #expect(try cleanup.reconcile(retaining: [retained], credentials: fake) == false)
+        #expect(fake.deleteCalls.count == 1)
     }
 
     @Test func failedCleanupDeletionIsQueuedAndRetryable() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let old = connection(reference: "old", version: 1)
-        let cleanup = CredentialCleanup(directory: directory)
+        let cleanup = CredentialCleanup(directory: directory, libraryID: UUID())
+        let old = cleanup.makeReference(version: 1)
         let fake = LockedFakeKeychain()
         fake.deleteResult = .failure(-25299)
-        let credentials = KeychainCredentials(access: fake)
 
         try cleanup.enqueue([old])
-        #expect(try cleanup.reconcile(retaining: [], credentials: credentials) != nil)
+        #expect(try cleanup.reconcile(retaining: [], credentials: fake) == true)
         #expect(try ledgerItems(in: directory).count == 1)
 
         fake.deleteResult = .success
-        #expect(try cleanup.reconcile(retaining: [], credentials: credentials) == nil)
+        #expect(try cleanup.reconcile(retaining: [], credentials: fake) == false)
         #expect(try ledgerItems(in: directory).isEmpty)
+        #expect(
+            !FileManager.default.fileExists(atPath: directory.appendingPathComponent("credential-cleanup.json").path))
     }
 
-    @Test func corruptCleanupLedgerRejectsWithoutDeletingAnything() throws {
-        let directory = try temporaryDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
-        try Data("not-json".utf8).write(to: directory.appendingPathComponent("credential-cleanup.json"))
-        let fake = LockedFakeKeychain()
-        let credentials = KeychainCredentials(access: fake)
-
-        #expect(throws: MiraError.self) {
-            try CredentialCleanup(directory: directory).reconcile(retaining: [], credentials: credentials)
+    @Test func foreignDirectoryAndReferencesAreNeverDeleted() throws {
+        let first = try temporaryDirectory()
+        let second = try temporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: first)
+            try? FileManager.default.removeItem(at: second)
         }
+        let owner = CredentialCleanup(directory: first, libraryID: UUID())
+        let foreign = CredentialCleanup(directory: second, libraryID: UUID()).makeReference(version: 1)
+        let fake = LockedFakeKeychain()
+
+        try owner.enqueue([foreign])
+        #expect(!FileManager.default.fileExists(atPath: first.appendingPathComponent("credential-cleanup.json").path))
+        #expect(try owner.reconcile(retaining: [], credentials: fake) == false)
         #expect(fake.deleteCalls.isEmpty)
     }
 
-    private func connection(reference: String, version: Int) -> ProviderConnection {
-        ProviderConnection(name: "Test", providerKind: .openAICompatible, baseURL: "https://example.invalid", credentialReference: reference, credentialVersion: version)
+    @Test func corruptOrCrossDirectoryLedgerRejectsBeforeDeleting() throws {
+        let directory = try temporaryDirectory()
+        let other = try temporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: other)
+        }
+        let libraryID = UUID()
+        let owner = CredentialCleanup(directory: directory, libraryID: libraryID)
+        let fake = LockedFakeKeychain()
+        try Data("not-json".utf8).write(to: directory.appendingPathComponent("credential-cleanup.json"))
+        #expect(throws: MiraError.self) { try owner.reconcile(retaining: [], credentials: fake) }
+        #expect(fake.deleteCalls.isEmpty)
+
+        try FileManager.default.removeItem(at: directory.appendingPathComponent("credential-cleanup.json"))
+        let crossDirectory = CredentialCleanup(directory: other, libraryID: libraryID)
+        let crossReference = crossDirectory.makeReference(version: 1)
+        try crossDirectory.enqueue([crossReference])
+        let data = try Data(contentsOf: other.appendingPathComponent("credential-cleanup.json"))
+        try data.write(to: directory.appendingPathComponent("credential-cleanup.json"), options: .atomic)
+        #expect(throws: MiraError.self) { try owner.reconcile(retaining: [], credentials: fake) }
+        #expect(fake.deleteCalls.isEmpty)
+    }
+
+    @Test func malformedHardlinkedAndOversizedLedgersRejectBeforeDeletion() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cleanup = CredentialCleanup(directory: directory, libraryID: UUID())
+        let fake = LockedFakeKeychain()
+        let valid = cleanup.makeReference(version: 1)
+        try cleanup.enqueue([valid])
+        let ledgerURL = directory.appendingPathComponent("credential-cleanup.json")
+        let original = try Data(contentsOf: ledgerURL)
+        let malformed = String(data: original, encoding: .utf8)!.replacingOccurrences(
+            of: valid.reference, with: "\(valid.reference.dropLast(36))not-a-uuid")
+        try Data(malformed.utf8).write(to: ledgerURL, options: .atomic)
+        #expect(throws: MiraError.self) { try cleanup.reconcile(retaining: [], credentials: fake) }
+        #expect(fake.deleteCalls.isEmpty)
+
+        try Data(original).write(to: ledgerURL, options: .atomic)
+        let hardlink = directory.appendingPathComponent("credential-cleanup.hardlink")
+        try FileManager.default.linkItem(at: ledgerURL, to: hardlink)
+        #expect(throws: MiraError.self) { try cleanup.reconcile(retaining: [], credentials: fake) }
+        #expect(fake.deleteCalls.isEmpty)
+        try FileManager.default.removeItem(at: hardlink)
+
+        try Data(repeating: 0x31, count: 1_048_577).write(to: ledgerURL, options: .atomic)
+        #expect(throws: MiraError.self) { try cleanup.reconcile(retaining: [], credentials: fake) }
+        #expect(fake.deleteCalls.isEmpty)
+    }
+
+    @Test func itemLimitAndLedgerPermissionsAreEnforced() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cleanup = CredentialCleanup(directory: directory, libraryID: UUID())
+        let fake = LockedFakeKeychain()
+        let refs = (0..<1_024).map { _ in cleanup.makeReference(version: 1) }
+        try cleanup.enqueue(refs)
+        let ledgerURL = directory.appendingPathComponent("credential-cleanup.json")
+        let permissions =
+            try FileManager.default.attributesOfItem(atPath: ledgerURL.path)[.posixPermissions] as? NSNumber
+        #expect(permissions?.intValue == 0o600)
+        #expect(throws: MiraError.self) { try cleanup.enqueue([cleanup.makeReference(version: 1)]) }
+        #expect(fake.deleteCalls.isEmpty)
+    }
+
+    @Test func symlinkLedgerAndCrashRemainderAreRejectedOrRecoveredSafely() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cleanup = CredentialCleanup(directory: directory, libraryID: UUID())
+        let fake = LockedFakeKeychain()
+        let target = directory.appendingPathComponent("target")
+        try Data("not-ledger".utf8).write(to: target)
+        try FileManager.default.createSymbolicLink(
+            at: directory.appendingPathComponent("credential-cleanup.json"), withDestinationURL: target)
+        #expect(throws: MiraError.self) { try cleanup.enqueue([cleanup.makeReference(version: 1)]) }
+        #expect(fake.deleteCalls.isEmpty)
+
+        try FileManager.default.removeItem(at: directory.appendingPathComponent("credential-cleanup.json"))
+        try Data("partial".utf8).write(to: directory.appendingPathComponent("credential-cleanup.json.next"))
+        try cleanup.enqueue([])
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: directory.appendingPathComponent("credential-cleanup.json.next").path))
     }
 
     private func temporaryDirectory() throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("mira-keychain-tests-\(UUID().uuidString)")
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "mira-keychain-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         return directory
     }
 
     private func ledgerItems(in directory: URL) throws -> [LedgerItem] {
-        let data = try Data(contentsOf: directory.appendingPathComponent("credential-cleanup.json"))
+        let url = directory.appendingPathComponent("credential-cleanup.json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(Ledger.self, from: data).items
     }
 
@@ -148,7 +259,7 @@ private struct LedgerItem: Decodable, Equatable {
     let version: Int
 }
 
-private final class LockedFakeKeychain: KeychainAccess, @unchecked Sendable {
+private final class LockedFakeKeychain: MacCredentialStore, KeychainAccess, @unchecked Sendable {
     struct Call: Equatable, Sendable {
         let service: String
         let account: String
@@ -171,83 +282,108 @@ private final class LockedFakeKeychain: KeychainAccess, @unchecked Sendable {
     private var _deleteResult: KeychainStatus?
 
     var copyCalls: [Call] {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return _copyCalls
     }
     var addCalls: [AddCall] {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return _addCalls
     }
     var deleteCalls: [Call] {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return _deleteCalls
     }
     var copyResult: KeychainReadResult? {
         get {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             return _copyResult
         }
         set {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             _copyResult = newValue
         }
     }
     var addResult: KeychainStatus {
         get {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             return _addResult
         }
         set {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             _addResult = newValue
         }
     }
     var deleteResult: KeychainStatus? {
         get {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             return _deleteResult
         }
         set {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             _deleteResult = newValue
         }
     }
 
     func put(_ data: Data, service: String, account: String) {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         items[key(service, account)] = data
     }
-
     func data(service: String, account: String) -> Data? {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return items[key(service, account)]
     }
-
     func copy(service: String, account: String) -> KeychainReadResult {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         _copyCalls.append(.init(service: service, account: account))
         if let result = _copyResult { return result }
         guard let data = items[key(service, account)] else { return .init(status: .itemNotFound, data: nil) }
         return .init(status: .success, data: data)
     }
-
-    func add(service: String, account: String, data: Data, accessibility: KeychainAccessibility, synchronizable: Bool) -> KeychainStatus {
-        lock.lock(); defer { lock.unlock() }
-        _addCalls.append(.init(service: service, account: account, data: data, accessibility: accessibility, synchronizable: synchronizable))
+    func add(service: String, account: String, data: Data, accessibility: KeychainAccessibility, synchronizable: Bool)
+        -> KeychainStatus
+    {
+        lock.lock()
+        defer { lock.unlock() }
+        _addCalls.append(
+            .init(
+                service: service, account: account, data: data, accessibility: accessibility,
+                synchronizable: synchronizable))
         guard _addResult == .success else { return _addResult }
         let itemKey = key(service, account)
         guard items[itemKey] == nil else { return .duplicate }
         items[itemKey] = data
         return .success
     }
-
     func delete(service: String, account: String) -> KeychainStatus {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         _deleteCalls.append(.init(service: service, account: account))
         if let result = _deleteResult { return result }
         let removed = items.removeValue(forKey: key(service, account))
         return removed == nil ? .itemNotFound : .success
     }
-
+    func save(_ secret: String, reference: String, version: Int) throws {
+        let credentials = KeychainCredentials(access: self)
+        try credentials.save(secret, reference: reference, version: version)
+    }
+    func delete(reference: String, version: Int) throws {
+        let credentials = KeychainCredentials(access: self)
+        try credentials.delete(reference: reference, version: version)
+    }
+    func read(reference: String, version: Int) throws -> String {
+        try KeychainCredentials(access: self).read(reference: reference, version: version)
+    }
     private func key(_ service: String, _ account: String) -> String { "\(service)\u{1f}\(account)" }
 }

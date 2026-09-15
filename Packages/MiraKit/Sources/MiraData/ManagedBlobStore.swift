@@ -12,6 +12,11 @@ enum ManagedBlobFaultStage: Sendable, Equatable {
     case beforeSelectedOpen
 }
 
+struct ManagedBlobInventory: Sendable {
+    let blobs: [String: Int]
+    let temporaryCount: Int
+}
+
 /// A content-addressed store for user-selected Markdown attachments.
 ///
 /// Directory descriptors are retained for the lifetime of the store.  The
@@ -328,6 +333,99 @@ final class ManagedBlobStore: @unchecked Sendable {
         return removed
     }
 
+    /// Enumerates blob metadata without reading or hashing blob bodies. Callers
+    /// must hold the maintenance lock while reconciling the returned inventory.
+    func inventory(maximumEntries: Int = 100_000) throws -> ManagedBlobInventory {
+        guard (1...1_000_000).contains(maximumEntries) else {
+            throw Self.error(.invalidInput, "The blob inventory bound is invalid.")
+        }
+        try validateAnchors()
+        var count = 0
+        var blobs: [String: Int] = [:]
+        var temporaryCount = 0
+        let firstNames = try Self.directoryEntriesLimited(blobsDirectoryDescriptor, limit: maximumEntries, count: &count)
+        for first in firstNames {
+            guard Self.isShard(first), let firstDescriptor = try Self.openExistingIfPresent(blobsDirectoryDescriptor, name: first) else {
+                throw Self.error(.storage, "The blob storage hierarchy contains an unexpected entry.")
+            }
+            defer { close(firstDescriptor) }
+            guard try Self.fstatIdentity(firstDescriptor).isDirectory else {
+                throw Self.error(.storage, "The blob storage hierarchy is invalid.")
+            }
+            let secondNames = try Self.directoryEntriesLimited(firstDescriptor, limit: maximumEntries, count: &count)
+            for second in secondNames {
+                guard Self.isShard(second), let secondDescriptor = try Self.openExistingIfPresent(firstDescriptor, name: second) else {
+                    throw Self.error(.storage, "The blob storage hierarchy contains an unexpected entry.")
+                }
+                defer { close(secondDescriptor) }
+                guard try Self.fstatIdentity(secondDescriptor).isDirectory else {
+                    throw Self.error(.storage, "The blob storage hierarchy is invalid.")
+                }
+                try validateShardAnchors(first: first, firstDescriptor: firstDescriptor, second: second, secondDescriptor: secondDescriptor)
+                let entries = try Self.directoryEntriesLimited(secondDescriptor, limit: maximumEntries, count: &count)
+                for entry in entries {
+                    if Self.isTemporaryName(entry) {
+                        guard let descriptor = try Self.openExistingIfPresent(secondDescriptor, name: entry) else {
+                            throw Self.error(.storage, "The temporary blob is invalid.")
+                        }
+                        defer { close(descriptor) }
+                        let identity = try Self.fstatIdentity(descriptor)
+                        guard identity.isRegular, identity.size >= 0, identity.size <= Self.maximumBytes else {
+                            throw Self.error(.storage, "The temporary blob is invalid.")
+                        }
+                        temporaryCount += 1
+                    } else {
+                        guard Self.isDigest(entry), String(entry.prefix(2)) == first,
+                              String(entry.dropFirst(2).prefix(2)) == second,
+                              let descriptor = try Self.openExistingIfPresent(secondDescriptor, name: entry) else {
+                            throw Self.error(.storage, "The blob storage hierarchy contains an unexpected entry.")
+                        }
+                        defer { close(descriptor) }
+                        let identity = try Self.fstatIdentity(descriptor)
+                        guard identity.isRegular, identity.size >= 0, identity.size <= Self.maximumBytes else {
+                            throw Self.error(.storage, "The stored blob is invalid.")
+                        }
+                        guard blobs[entry] == nil else { throw Self.error(.storage, "The blob inventory contains a duplicate digest.") }
+                        blobs[entry] = Int(identity.size)
+                    }
+                }
+                try validateShardAnchors(first: first, firstDescriptor: firstDescriptor, second: second, secondDescriptor: secondDescriptor)
+            }
+            try validateFirstShardAnchor(first, descriptor: firstDescriptor)
+        }
+        try validateAnchors()
+        return .init(blobs: blobs, temporaryCount: temporaryCount)
+    }
+
+    func verifyAbsent(_ digest: String) throws {
+        try validateAnchors()
+        guard Self.isDigest(digest) else { throw Self.error(.invalidInput, "The blob digest is invalid.") }
+        let first = String(digest.prefix(2)); let second = String(digest.dropFirst(2).prefix(2))
+        guard let firstDescriptor = try Self.openExistingIfPresent(blobsDirectoryDescriptor, name: first) else { try validateAnchors(); return }
+        defer { close(firstDescriptor) }
+        guard try Self.fstatIdentity(firstDescriptor).isDirectory else { throw Self.error(.storage, "The blob storage hierarchy is invalid.") }
+        guard let secondDescriptor = try Self.openExistingIfPresent(firstDescriptor, name: second) else {
+            try validateFirstShardAnchor(first, descriptor: firstDescriptor); try validateAnchors(); return
+        }
+        defer { close(secondDescriptor) }
+        guard try Self.fstatIdentity(secondDescriptor).isDirectory else { throw Self.error(.storage, "The blob storage hierarchy is invalid.") }
+        try validateShardAnchors(first: first, firstDescriptor: firstDescriptor, second: second, secondDescriptor: secondDescriptor)
+        if let descriptor = try Self.openExistingIfPresent(secondDescriptor, name: digest) {
+            close(descriptor)
+            throw Self.error(.conflict, "The blob still exists.")
+        }
+        try validateShardAnchors(first: first, firstDescriptor: firstDescriptor, second: second, secondDescriptor: secondDescriptor)
+        try validateAnchors()
+    }
+
+    private func validateFirstShardAnchor(_ first: String, descriptor: Int32) throws {
+        let reopened = try Self.openChildDirectory(blobsDirectoryDescriptor, name: first, createMissing: false)
+        defer { close(reopened) }
+        guard Self.sameDirectoryIdentity(try Self.fstatIdentity(descriptor), try Self.fstatIdentity(reopened)) else {
+            throw Self.error(.storage, "The blob storage hierarchy changed while it was in use.")
+        }
+    }
+
     private func validateAnchors() throws {
         let reopenedLibrary = try Self.openDirectoryTree(libraryDirectory.path, createMissing: false)
         defer { close(reopenedLibrary) }
@@ -523,6 +621,30 @@ final class ManagedBlobStore: @unchecked Sendable {
                 }
             }
             if name != "." && name != ".." { names.append(name) }
+        }
+        guard errno == 0 else { throw error(.storage, "The blob storage hierarchy could not be read.") }
+        return names
+    }
+
+    private static func directoryEntriesLimited(_ directory: Int32, limit: Int, count: inout Int) throws -> [String] {
+        let duplicate = ".".withCString { openat(directory, $0, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC) }
+        guard duplicate >= 0, let stream = fdopendir(duplicate) else {
+            if duplicate >= 0 { close(duplicate) }
+            throw error(.storage, "The blob storage hierarchy could not be read.")
+        }
+        defer { closedir(stream) }
+        var names: [String] = []
+        errno = 0
+        while let entry = readdir(stream) {
+            let name = withUnsafePointer(to: entry.pointee.d_name) { pointer in
+                pointer.withMemoryRebound(to: CChar.self, capacity: MemoryLayout.size(ofValue: entry.pointee.d_name)) {
+                    String(cString: $0)
+                }
+            }
+            guard name != ".", name != ".." else { continue }
+            count += 1
+            guard count <= limit else { throw error(.outputLimit, "The blob inventory exceeds its supported bound.") }
+            names.append(name)
         }
         guard errno == 0 else { throw error(.storage, "The blob storage hierarchy could not be read.") }
         return names

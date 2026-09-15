@@ -14,9 +14,11 @@ let package = Package(
         .target(name: "MiraCore", resources: [.process("Resources")]),
         .target(name: "MiraData", dependencies: ["MiraCore", .product(name: "GRDB", package: "GRDB.swift")]),
         .target(name: "MiraProviders", dependencies: ["MiraCore"], resources: [.process("Resources")]),
+        .executableTarget(name: "MiraCrashProbe", dependencies: ["MiraCore", "MiraData", .product(name: "GRDB", package: "GRDB.swift")], path: "Tests/MiraCrashProbe"),
+        .executableTarget(name: "MiraScaleProbe", dependencies: ["MiraCore", "MiraData", .product(name: "GRDB", package: "GRDB.swift")], path: "Tests/MiraScaleProbe"),
         .testTarget(name: "MiraCoreTests", dependencies: ["MiraCore", "MiraData"]),
         .testTarget(name: "MiraDataTests", dependencies: ["MiraData", "MiraCore", .product(name: "GRDB", package: "GRDB.swift")]),
-        .testTarget(name: "MiraProvidersTests", dependencies: ["MiraProviders", "MiraCore"])
+        .testTarget(name: "MiraProvidersTests", dependencies: ["MiraProviders", "MiraCore", "MiraData"])
     ],
     swiftLanguageModes: [.v6]
 )

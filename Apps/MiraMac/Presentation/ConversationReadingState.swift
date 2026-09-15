@@ -9,7 +9,8 @@ final class ConversationReadingState {
         let offset: CGFloat
     }
     @ObservationIgnored var nativeAnchor: NativeAnchor?
-    @ObservationIgnored var expandedThinkingIDs: Set<String> = []
+    @ObservationIgnored var expandedActivityIDs: Set<String> = []
+    @ObservationIgnored var expandedProcessBlockIDs: Set<String> = []
     var scrollState = TranscriptScrollState()
     @ObservationIgnored private var isVisible = true
     @ObservationIgnored private(set) var hasSavedPosition = false

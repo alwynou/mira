@@ -5,6 +5,7 @@ enum MiraSettingsWindow {
 }
 
 extension EnvironmentValues {
+    @Entry var miraSettingsPageActive = true
     // Carry the scene action across the conversation's AppKit hosting boundary.
     @Entry var miraOpenSettingsWindow: OpenWindowAction? = nil
 }

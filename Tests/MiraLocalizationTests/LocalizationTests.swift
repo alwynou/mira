@@ -47,6 +47,13 @@ final class LocalizationTests: XCTestCase {
     }
 
     func testLocalizedFormatPreservesTypedArguments() {
+        XCTAssertEqual(L10n.string("Input", locale: AppLanguage.english.locale, bundle: resources), "Input")
+        XCTAssertEqual(L10n.string("Input", locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "输入") // i18n-fixture: Expected Simplified Chinese tool input label.
+        XCTAssertEqual(L10n.string("Thought for a while", locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "思考了一会儿") // i18n-fixture: Expected Simplified Chinese reasoning-only summary.
+        XCTAssertEqual(L10n.format("%lld tool calls", locale: AppLanguage.english.locale, bundle: resources, Int64(2)), "2 tool calls")
+        XCTAssertEqual(L10n.format("%lld messages", locale: AppLanguage.simplifiedChinese.locale, bundle: resources, Int64(3)), "3 条消息") // i18n-fixture: Expected Simplified Chinese message count.
+        XCTAssertEqual(L10n.format("%lld tool calls · %lld messages", locale: AppLanguage.english.locale, bundle: resources, Int64(2), Int64(3)), "2 tool calls · 3 messages")
+        XCTAssertEqual(L10n.format("%lld tool calls · %lld messages", locale: AppLanguage.simplifiedChinese.locale, bundle: resources, Int64(2), Int64(3)), "2 次工具调用 · 3 条消息") // i18n-fixture: Expected Simplified Chinese process counts.
         XCTAssertEqual(L10n.format("Step %lld · Attempt %lld", locale: AppLanguage.english.locale, bundle: resources, Int64(2), Int64(3)), "Step 2 · Attempt 3")
         XCTAssertEqual(L10n.format("Step %lld · Attempt %lld", locale: AppLanguage.simplifiedChinese.locale, bundle: resources, Int64(2), Int64(3)), "步骤 2 · 尝试 3") // i18n-fixture: Expected Simplified Chinese format.
     }

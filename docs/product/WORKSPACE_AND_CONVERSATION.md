@@ -322,8 +322,18 @@ Thinking is a core conversation capability. A supported model can use its native
 
 Provider-returned visible thinking appears in a collapsible section before the answer and remains available after reopening the conversation. A stopped response may contain thinking without an answer; it remains visibly incomplete. Signatures and encrypted/redacted provider state are never presented as readable thought text. Thinking is not automatically saved as a user fact or a memory.
 
+Assistant rows use one compact activity/status line instead of a repeated Mira avatar. While a turn is live, the line changes from Thinking to Answering as visible output changes phase, and it includes the latest bounded thinking or tool summary. The line can expand to show visible thinking and persisted tool activity. Opaque continuation state, signatures, and incomplete tool exchanges remain hidden.
+
+If cancellation or interruption happens before a completed answer exists, the conversation keeps the visible answer or thinking already produced in that answer row and marks it incomplete so the user can continue or retry. It does not replay an unfinished tool call or fabricate a completed response.
+
 Changing settings applies to a new execution. A running assistant/tool turn retains its frozen settings and continuation state. Model capability, enabled settings and a successful connection test are separate facts; an error is surfaced without silently switching models or disabling thinking.
 
 ## Streaming and reading position
 
 Selecting the already active conversation is a no-op and preserves the visible transcript and unsent input. Each conversation retains its reading position and expanded thinking within the window session. First entry starts at the latest turn; returning restores the same message and relative position, including when newer content arrived while away. Initial placement completes before the transcript is displayed. Streaming growth and terminal replacement preserve the reading position without automatic scrolling. Sending a new user message and selecting “Jump to latest” position the latest turn once. A manual scroll cancels pending navigation. Opening a cited historical message takes precedence over the saved position. Newly appended prose, headings, and list text fade in during generation; expanded live thinking uses the same effect. The fade must preserve input responsiveness, text selection, and reading position. Completed replies and the initial snapshot of a reopened reply appear immediately. Finishing or stopping generation, or enabling the system Reduce Motion setting, reveals remaining text immediately. Code, tables, quotes, and math retain their normal native rendering.
+
+If a formula image cannot be drawn, the answer or expanded thinking displays the original LaTeX as text instead of terminating the app or silently dropping the formula. Other formulas in the same reply retain mathematical rendering, and stored model output remains verbatim.
+
+### Multiround process history
+
+A tool-using reply shows every intermediate reasoning/text step and tool exchange in order. Reasoning and tool details expand independently. Tool input and returned content appear together in one card with independently scrollable sections, including after reopening the conversation. The running turn has no duplicate process header, and expanded reasoning hides its inline summary. The running process stays visible; only after settlement does the process, including final-round reasoning, fold behind a summary, leaving only the final answer text visible. Content that has been purged or cannot be read is marked as such, rather than replaced with a fabricated tool result.

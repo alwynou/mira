@@ -138,6 +138,8 @@ xcodebuild -project Mira.xcodeproj -scheme Mira \
 
 The package command exercises MiraKit. The host command runs the renamed `MiraHostTests` target, which contains localization and isolated Keychain fixtures. Native macOS UI and CI execution are separate evidence and must be recorded independently.
 
+`MiraCompositionTests` compiles the production `MacLibrary`, storage owner and workload group directly into an independent test bundle. Run `xcodebuild -project Mira.xcodeproj -scheme MiraCompositionTests -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO test`. This suite uses synthetic model and notification ports with real journals and business databases. Both the `Mira` and `MiraHostTests` schemes include it; its independent success does not establish app or UI acceptance while legacy presentation callers are being replaced.
+
 Opt-in live memory evaluation uses `MIRA_EVAL_CASE_IDS` (one to four fixture IDs) and a shared `MIRA_EVAL_DISPATCH_CAP`; the default cap is 4 and valid overrides are 1 through 12. The cap includes provider continuations and background extraction, so a run must record the selected IDs and effective cap with its evidence. Live evaluation requires an isolated schema 12 library, configured synthetic corpus, and a new report path; it is never part of the normal package or host test commands.
 
 首次解析可使用 `swift package --package-path Packages/MiraKit resolve`。依赖升级时同时检查两个 `Package.resolved`。工程源配置为根目录 `project.yml`，新增 Host 文件后用 XcodeGen 2.46.0 生成并提交 `.xcodeproj` 与共享 Scheme。Core / Data / Providers 是 Swift Package 的三个库；测试只使用合成数据。

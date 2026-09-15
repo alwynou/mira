@@ -1,0 +1,11 @@
+flowchart LR
+  Catalog[冻结工具及模块策略] --> Host[宿主策略]
+  Host -->|拒绝| Deny[持久拒绝结果]
+  Host -->|允许或要求审批| Module[附加模块策略]
+  Module -->|拒绝| Deny
+  Module -->|均允许| Check[派发前双方复核]
+  Module -->|任一要求审批| Approval[合并完整提示与最早期限<br/>同一提案的一次审批]
+  Approval -->|批准| Check
+  Approval -->|拒绝／过期／不可用| Deny
+  Check --> Body[持久派发及实际工具操作]
+  Body --> Result[当前策略与业务回执检查]

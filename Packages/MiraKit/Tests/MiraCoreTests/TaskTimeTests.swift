@@ -72,8 +72,8 @@ struct TaskTimeTests {
             "remind": .bool(true), "time_quote": .string("2026-09-08 at 09:00"),
             "time": .string("09:00"), "date": .string("2026-09-08")
         ])
-        let reference = TaskEvidence(messageID: .init(), conversationID: .init(), quote: text,
-                                      sentAt: Date(timeIntervalSince1970: 1_788_761_400), timeZoneID: "Asia/Shanghai")
+        let reference = TaskEvidence(source: syntheticEvidenceReference(), quote: text,
+                                     sentAt: Date(timeIntervalSince1970: 1_788_761_400), timeZoneID: "Asia/Shanghai")
         let value = try TaskCommandInterpreter.proposal(arguments: arguments, reference: reference, workspaceID: nil, operationID: UUID(), at: reference.sentAt)
         #expect(!TaskCommandInterpreter.canCommitDirectly(value, current: nil, arguments: arguments))
     }
@@ -96,7 +96,18 @@ struct TaskTimeTests {
 
     private func proposal(text: String, title: String, timeQuote: String, time: String, offset: Int) throws -> (TaskProposal, JSONValue) {
         let arguments: JSONValue = .object(["operation": .string("create"), "title": .string(title), "quote": .string(text), "remind": .bool(true), "time_quote": .string(timeQuote), "time": .string(time), "day_offset": .number(Double(offset))])
-        let reference = TaskEvidence(messageID: .init(), conversationID: .init(), quote: text, sentAt: Date(timeIntervalSince1970: 1_788_761_400), timeZoneID: "Asia/Shanghai")
+        let reference = TaskEvidence(source: syntheticEvidenceReference(), quote: text,
+                                     sentAt: Date(timeIntervalSince1970: 1_788_761_400), timeZoneID: "Asia/Shanghai")
         return (try TaskCommandInterpreter.proposal(arguments: arguments, reference: reference, workspaceID: nil, operationID: UUID(), at: reference.sentAt), arguments)
+    }
+
+    private func syntheticEvidenceReference() -> SessionEvidenceReference {
+        let sessionID = ConversationID()
+        let batchID = UUID()
+        let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
+                                           retentionGroup: UUID(), kind: .userText, byteCount: 1,
+                                           digest: String(repeating: "0", count: 64))
+        return .init(sessionID: sessionID, originalExecutionID: ExecutionID(), userMessageID: MessageID(),
+                     admissionEventID: UUID(), admissionSequence: 1, body: body)
     }
 }

@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant Host as 展示层
+    participant Query as SessionQueryService
+    participant Access as 库访问租约
+    participant Projection as 查询投影
+    participant Payload as 正文端口
+    Host->>Query: 请求会话消息页
+    Query->>Access: 接纳并登记实际查询任务
+    Query->>Projection: 追赶已确认日志前缀
+    Query->>Projection: 同一事务读取页面元数据
+    Query->>Query: 验证身份、顺序及整页正文容量
+    loop 仅读取未清理的可见正文
+        Query->>Access: 检查有效租约
+        Query->>Payload: 读取正文
+        Payload-->>Access: 实际读取结束
+        Access->>Access: 再次校验，拒绝撤权后的迟到结果
+    end
+    Query-->>Host: 页面、执行状态与明确的正文状态
+    Host->>Query: 工作组关闭
+    Query->>Query: 停止接纳，同时取消并排空查询和追赶
+    Query-->>Host: 实际任务已退出，可关闭共享存储

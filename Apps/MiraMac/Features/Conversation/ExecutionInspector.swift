@@ -1,26 +1,27 @@
-import SwiftUI
 import MiraCore
+import MiraProviders
+import SwiftUI
 
 struct ExecutionInspector: View {
     @Environment(\.locale) private var locale
-    @Bindable var model: ConversationModel
+    let model: ConversationModel
     @Bindable var page: ConversationPageState
-    @State private var loadedAttempts: [ModelAttempt] = []
-    @State private var loadedInvocations: [ToolInvocation] = []
-    @State private var auditExecutionID: ExecutionID?
-    @State private var auditError: MiraError?
-    private var execution: Execution? { page.executions.first { $0.id == page.inspectedExecutionID } ?? page.executions.last }
-    private var attempts: [ModelAttempt] { auditExecutionID == execution?.id ? loadedAttempts : [] }
-    private var invocations: [ToolInvocation] { auditExecutionID == execution?.id ? loadedInvocations : [] }
-    private var refreshID: String { "\(execution?.id.rawValue.uuidString ?? "none")-\(page.inspectionRevision)" }
+    @State private var reader = MacSessionReadModel<SessionExecutionAuditPage>()
+    @State private var cursorExecutionID: ExecutionID?
+    @State private var beforeSequence: Int64?
 
-    private func selectionTitle(_ source: RouteSelectionSource) -> String {
-        switch source {
-        case .explicit: "Explicit selection"
-        case .conversation: "Conversation override"
-        case .workspace: "Workspace default"
-        case .global: "Global default"
-        }
+    private var execution: SessionExecutionSummary? {
+        page.executions.first { $0.id == page.inspectedExecutionID }
+            ?? page.executions.max { $0.sequence < $1.sequence }
+    }
+    private var cursor: Int64? { cursorExecutionID == execution?.id ? beforeSequence : nil }
+    private struct ReadIdentity: Hashable {
+        let sessionID: ConversationID?
+        let executionID: ExecutionID?
+        let beforeSequence: Int64?
+    }
+    private var identity: ReadIdentity {
+        .init(sessionID: page.conversationID, executionID: execution?.id, beforeSequence: cursor)
     }
 
     var body: some View {
@@ -31,91 +32,206 @@ struct ExecutionInspector: View {
                     Picker("Turn", selection: $page.inspectedExecutionID) {
                         Text("Latest turn").tag(nil as ExecutionID?)
                         ForEach(page.executions) { item in
-                            Text(item.createdAt, format: .dateTime.hour().minute().second()).tag(Optional(item.id))
+                            Text(item.admittedAt, format: .dateTime.hour().minute().second()).tag(Optional(item.id))
                         }
                     }
                 }
-                if let execution {
-                    LabeledContent("Status", value: L10n.string(execution.status.displayTitle, locale: locale))
-                    LabeledContent("Model", value: execution.route.modelID)
-                    LabeledContent("Route preset", value: execution.route.name)
-                    LabeledContent("Route selection", value: L10n.string(selectionTitle(execution.route.selectionSource), locale: locale))
-                    LabeledContent("Provider origin", value: execution.route.origin)
-                    LabeledContent("Connection revision") { Text(execution.route.connectionRevision, format: .number) }
-                    LabeledContent("Input tokens", value: execution.usage.totalInputTokens.map(String.init) ?? L10n.string("Service did not provide this", locale: locale))
-                    LabeledContent("Output tokens", value: execution.usage.outputTokens.map(String.init) ?? L10n.string("Service did not provide this", locale: locale))
-                    if auditExecutionID == execution.id {
-                        CostSummaryView(calls: attempts.map { .init(id: $0.id, route: execution.route, usage: $0.usage, createdAt: $0.createdAt, isComplete: $0.status == .completed) }, isBackground: false)
-                    }
-                    if let metadata = execution.route.catalogMetadata, metadata.pricing != nil {
-                        Text(L10n.format("Catalog retrieved: %@", locale: locale, metadata.retrievedAt)).font(.caption).foregroundStyle(.secondary)
-                        Text(verbatim: metadata.sourceRevision).font(.caption2).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
-                    }
+                if let audit = reader.value, audit.execution.id == execution?.id {
+                    ExecutionAuditSummary(audit: audit)
+                    CostSummaryView(
+                        summary: .init(attempts: audit.modelUsage, route: audit.plan.availableValue?.route),
+                        priority: audit.plan.availableValue?.priority)
                     Divider()
                     Text("Local execution record").font(.subheadline.weight(.semibold))
-                    Text("Includes actual requests, tool parameters, and results; API keys are excluded. Tool observations are reused only for the current turn.").font(.caption).foregroundStyle(.secondary)
-                    if auditExecutionID != execution.id {
-                        if let auditError {
-                            Text(L10n.error(auditError, locale: locale)).font(.caption).foregroundStyle(.secondary)
-                        } else { ProgressView() }
-                    } else if attempts.isEmpty {
-                        Text("Request not sent yet").foregroundStyle(.secondary)
+                    Text("Includes recorded requests, tool parameters, and results. API keys are excluded.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if audit.attempts.isEmpty {
+                        Text("No model calls recorded").foregroundStyle(.secondary)
                     }
-                    ForEach(attempts) { attempt in
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(L10n.format("Step %lld · Attempt %lld", locale: locale, Int64(attempt.stepIndex), Int64(attempt.attemptIndex))).font(.subheadline.weight(.semibold))
-                            Text(L10n.string(attempt.status.displayTitle, locale: locale)).font(.caption).foregroundStyle(.secondary)
-                            UsageCostView(usage: attempt.usage, route: execution.route, isComplete: attempt.status == .completed)
-                            if let error = attempt.error { Text(L10n.error(error, locale: locale)).font(.caption).foregroundStyle(.orange) }
-                            if let request = attempt.request {
-                                DisclosureGroup("Request snapshot") {
-                                    RequestSnapshotView(request: request, execution: execution, application: model.application) { sourceID in
-                                        Task { await model.selectConversation(sourceID) }
-                                    }
-                                }
-                            } else if attempt.bodyPurgedAt != nil {
-                                Label("Audit content cleared after forgetting a memory", systemImage: "eye.slash").font(.caption).foregroundStyle(.secondary)
-                            }
-                            ForEach(invocations.filter { $0.attemptID == attempt.id }) { invocation in
-                                DisclosureGroup {
-                                    Text(L10n.format("Call ID: %@", locale: locale, invocation.call.id)).font(.caption2).foregroundStyle(.secondary)
-                                    if invocation.bodyPurgedAt != nil {
-                                        Text("Tool content cleared after forgetting a memory").font(.caption).foregroundStyle(.secondary)
-                                    } else {
-                                        Text(verbatim: invocation.call.arguments).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                                        if let result = invocation.result { Text(verbatim: result.text).font(.caption).textSelection(.enabled) }
-                                    }
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(L10n.format("%lld. %@", locale: locale, Int64(invocation.modelOrder + 1), invocation.call.name)).font(.caption.weight(.semibold))
-                                        Text(L10n.string(invocation.result?.status.displayTitle ?? (invocation.dispatchedAt == nil ? "Waiting for check" : "Running"), locale: locale))
-                                            .font(.caption2).foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }.padding(12).background(.quaternary.opacity(0.3), in: .rect(cornerRadius: 10))
+                    ForEach(audit.attempts) { attempt in
+                        ExecutionAttemptView(
+                            attempt: attempt, route: audit.plan.availableValue?.route,
+                            library: model.library, sessionID: audit.execution.sessionID,
+                            executionID: audit.execution.id
+                        ) { id in
+                            Task { await model.selectConversation(id) }
+                        }
                     }
+                    HStack {
+                        if cursor != nil {
+                            Button("Latest calls") { beforeSequence = nil }
+                        }
+                        if audit.hasMore, let last = audit.attempts.last {
+                            Button("Earlier calls") {
+                                cursorExecutionID = audit.execution.id
+                                beforeSequence = last.sequence
+                            }
+                        }
+                    }
+                } else if let error = reader.error {
+                    Text(L10n.error(error, locale: locale)).font(.caption).foregroundStyle(.secondary)
+                } else if execution != nil {
+                    ProgressView()
+                }
+                if let sessionID = page.conversationID, let execution {
+                    Divider()
+                    MemoryExtractionInspector(library: model.library, sessionID: sessionID,
+                        executionID: execution.id, workspaceID: page.workspaceID)
+                        .id(execution.id)
                 }
             }
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .padding(20)
         }
+        .labeledContentStyle(ExecutionFieldStyle())
         .accessibilityIdentifier("conversation.executionInspector")
-        .task(id: refreshID) {
-            let id = execution?.id
-            let revision = page.inspectionRevision
-            auditExecutionID = nil; loadedAttempts = []; loadedInvocations = []; auditError = nil
-            guard let id else { return }
-            do {
-                let audit = try await model.application.audit(for: id)
-                guard !Task.isCancelled, model.activePage === page,
-                      page.inspectionRevision == revision, execution?.id == id else { return }
-                loadedAttempts = audit.attempts; loadedInvocations = audit.invocations; auditExecutionID = id
-            } catch {
-                if !Task.isCancelled, model.activePage === page,
-                   page.inspectionRevision == revision, execution?.id == id {
-                    auditError = MiraError.safe(error); page.error = auditError
+        .task(id: identity) {
+            guard let sessionID = identity.sessionID, let executionID = identity.executionID else { return }
+            let before = identity.beforeSequence
+            await reader.observe(library: model.library, sessionID: sessionID) { group in
+                try await group.queries.executionAudit(
+                    sessionID: sessionID, executionID: executionID,
+                    beforeSequence: before, limit: 32)
+            }
+        }
+    }
+}
+
+private struct ExecutionFieldStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                configuration.label
+                Spacer(minLength: 0)
+                configuration.content
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: 4) {
+                configuration.label.foregroundStyle(.secondary)
+                configuration.content
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct ExecutionAuditSummary: View {
+    @Environment(\.locale) private var locale
+    let audit: SessionExecutionAuditPage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LabeledContent("Status", value: L10n.string(audit.execution.displayTitle, locale: locale))
+            if let plan = audit.plan.availableValue {
+                LabeledContent("Driver", value: plan.driverID)
+                if let route = plan.route {
+                    LabeledContent("Model", value: route.modelID)
+                    LabeledContent("Adapter", value: route.adapter.id)
+                    LabeledContent("Route preset ID", value: route.id.rawValue.uuidString)
+                    LabeledContent("Connection revision") { Text(route.connectionRevision, format: .number) }
+                    if let completion = audit.execution.completion {
+                        LabeledContent("Input tokens", value: count(completion.usage.totalInputTokens))
+                        LabeledContent("Output tokens", value: count(completion.usage.outputTokens))
+                    }
                 }
+            } else if case .purged = audit.plan {
+                Label("Audit content cleared", systemImage: "eye.slash").font(.caption).foregroundStyle(.secondary)
+            }
+            if let error = audit.error.availableValue {
+                Text(L10n.error(error, locale: locale)).font(.caption).foregroundStyle(.orange)
+            }
+        }
+    }
+    private func count(_ value: Int?) -> String {
+        value.map { $0.formatted(.number.locale(locale)) }
+            ?? L10n.string("Service did not provide this", locale: locale)
+    }
+}
+
+private struct ExecutionAttemptView: View {
+    @Environment(\.locale) private var locale
+    let attempt: SessionAuditAttempt
+    let route: AgentModelRoute?
+    let library: MacLibrary
+    let sessionID: ConversationID
+    let executionID: ExecutionID
+    let onOpenConversation: (ConversationID) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(
+                L10n.format(
+                    "Step %lld · Attempt %lld", locale: locale,
+                    Int64(attempt.attempt.stepIndex), Int64(attempt.attempt.attemptIndex))
+            )
+            .font(.subheadline.weight(.semibold))
+            Text(attempt.startedAt, format: .dateTime.hour().minute().second()).font(.caption2).foregroundStyle(
+                .secondary)
+            Text(L10n.string((attempt.resolution?.status ?? .prepared).displayTitle, locale: locale))
+                .font(.caption).foregroundStyle(.secondary)
+            if let route {
+                UsageCostView(
+                    usage: attempt.resolution?.usage ?? .init(), route: route,
+                    isComplete: attempt.resolution?.status == .completed)
+            }
+            if let failure = attempt.failure.availableValue {
+                Text(L10n.error(failure.failure.error, locale: locale)).font(.caption).foregroundStyle(.orange)
+            }
+            if let request = attempt.request.availableValue {
+                DisclosureGroup("Request snapshot") {
+                    RequestSnapshotView(
+                        request: request, library: library, sessionID: sessionID,
+                        executionID: executionID, onOpenConversation: onOpenConversation)
+                }
+            } else if case .purged = attempt.request {
+                Label("Audit content cleared", systemImage: "eye.slash").font(.caption).foregroundStyle(.secondary)
+            }
+            if let output = attempt.output.availableValue {
+                DisclosureGroup("Recorded model output") { AuditJSONView(value: output) }
+            }
+            ForEach(attempt.invocations) { invocation in ExecutionInvocationView(invocation: invocation) }
+        }
+        .padding(12)
+        .background(.quaternary.opacity(0.3), in: .rect(cornerRadius: 10))
+    }
+}
+
+private struct ExecutionInvocationView: View {
+    @Environment(\.locale) private var locale
+    let invocation: SessionAuditInvocation
+    var body: some View {
+        DisclosureGroup {
+            if let call = invocation.call.availableValue {
+                Text(L10n.format("Call ID: %@", locale: locale, call.id)).font(.caption2).foregroundStyle(.secondary)
+                Text(verbatim: call.arguments).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            } else if case .purged = invocation.call {
+                Text("Tool content cleared").font(.caption).foregroundStyle(.secondary)
+            }
+            if let proposal = invocation.proposal.availableValue {
+                DisclosureGroup("Prepared tool proposal") { AuditJSONView(value: proposal) }
+            }
+            if let result = invocation.result.availableValue {
+                AuditJSONView(value: result)
+            } else if case .purged = invocation.result {
+                Text("Tool content cleared").font(.caption).foregroundStyle(.secondary)
+            }
+            if invocation.state.resolution?.effectIsKnown == false {
+                Text("Interrupted · check the result").font(.caption).foregroundStyle(.orange)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(
+                    L10n.format(
+                        "%lld. %@", locale: locale,
+                        Int64(invocation.state.invocation.modelOrder + 1), invocation.state.invocation.toolName)
+                )
+                .font(.caption.weight(.semibold))
+                Text(
+                    L10n.string(
+                        invocation.state.resolution?.status.displayTitle
+                            ?? (invocation.state.dispatchedAt == nil ? "Waiting for check" : "Running"), locale: locale)
+                )
+                .font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
@@ -123,73 +239,133 @@ struct ExecutionInspector: View {
 
 private struct RequestSnapshotView: View {
     @Environment(\.locale) private var locale
-    let request: CanonicalModelRequest
-    let execution: Execution
-    let application: MiraApplication
+    let request: AgentContextBuild
+    let library: MacLibrary
+    let sessionID: ConversationID
+    let executionID: ExecutionID
     let onOpenConversation: (ConversationID) -> Void
+
+    private struct RecordedMessage: Identifiable {
+        let stepID: UUID
+        let ordinal: Int
+        let message: AgentModelMessage
+        var id: String { "\(stepID.uuidString):\(ordinal)" }
+    }
+    // The ordinal is part of the immutable recorded request, not a live list position.
+    private var orderedMessages: [RecordedMessage] {
+        request.prepared.input.messages.enumerated().map {
+            .init(stepID: request.prepared.input.stepID, ordinal: $0.offset + 1, message: $0.element)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("System instructions").font(.caption.weight(.semibold))
-            Text(verbatim: request.system).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-            if let tools = request.tools, !tools.isEmpty {
-                DisclosureGroup("Tool definitions") {
-                    Text(verbatim: encoded(tools)).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                }
+            Text(verbatim: request.prepared.input.instructions)
+                .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            if !request.prepared.input.tools.isEmpty {
+                DisclosureGroup("Tool definitions") { AuditJSONView(value: request.prepared.input.tools) }
             }
             Text("Request order").font(.caption.weight(.semibold))
-            Text("System instructions are applied first. Message entries below remain in their recorded order. JSON object key order does not represent prompt order.")
+            Text(
+                "System instructions are applied first. Message entries below remain in their recorded order. JSON object key order does not represent prompt order."
+            )
+            .font(.caption2).foregroundStyle(.secondary)
+            ForEach(orderedMessages) { entry in
+                Text(
+                    L10n.format(
+                        "%lld. %@", locale: locale, Int64(entry.ordinal),
+                        L10n.string(entry.message.role.auditTitle, locale: locale))
+                )
+                .font(.caption.weight(.semibold))
+                AuditJSONView(value: entry.message)
+            }
+            LabeledContent("Conservative input estimate") {
+                Text(request.prepared.estimatedInputTokens, format: .number)
+            }
+            .font(.caption2)
+            Text("Estimate is based on UTF-8 and protocol overhead, not the provider's exact token count.")
                 .font(.caption2).foregroundStyle(.secondary)
-            Text(verbatim: orderedMessages).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-            if let context = request.contextInfo {
-                Text(L10n.format("Route revision %lld · Conservative input estimate %@", locale: locale, Int64(context.routeRevision), context.estimatedInputBytes.map(String.init) ?? L10n.string("Unknown", locale: locale))).font(.caption2).foregroundStyle(.secondary)
-                Text("Estimate is based on UTF-8 and protocol overhead, not the provider's exact token count.").font(.caption2).foregroundStyle(.secondary)
-                ForEach(Array(context.references.enumerated()), id: \.offset) { _, item in
-                    if item.kind == "memory", let revision = item.revision, let uuid = UUID(uuidString: item.id) {
-                        MemoryCitationButton(reference: .init(memoryID: MemoryID(uuid), revision: revision), executionID: execution.id,
-                                             conversationID: execution.conversationID, application: application, onOpenConversation: onOpenConversation)
-                    } else if let revision = item.revision {
-                        Text(L10n.format("%@ · %@ · v%lld", locale: locale, item.kind, item.id, Int64(revision))).font(.caption2).textSelection(.enabled)
+            ForEach(request.sources, id: \.self) { source in
+                switch source {
+                case .domain(let namespace, let id, let revision):
+                    if namespace == "memories" {
+                        MemoryCitationButton(
+                            reference: .init(memoryID: MemoryID(id), revision: revision),
+                            executionID: executionID, conversationID: sessionID,
+                            library: library, onOpenConversation: onOpenConversation)
                     } else {
-                        Text(L10n.format("%@ · %@", locale: locale, item.kind, item.id)).font(.caption2).textSelection(.enabled)
+                        Text(L10n.format("%@ · %@ · v%lld", locale: locale, namespace, id.uuidString, Int64(revision)))
+                            .font(.caption2).textSelection(.enabled)
                     }
-                }
-                ForEach(context.omissions) { omission in
-                    Text(L10n.format(omission.reason == .memoryContextInvalidated ? "Execution %@: related memory changed or is unavailable; the historical reply is excluded from model context." : "Execution %@: failed, cancelled, or interrupted replies are excluded from history.", locale: locale, omission.executionID.rawValue.uuidString))
-                        .font(.caption2).foregroundStyle(.secondary)
+                case .sessionExecution(let id, let execution):
+                    Button("Open conversation") { onOpenConversation(id) }
+                        .help(execution.rawValue.uuidString)
                 }
             }
-            DisclosureGroup("Canonical request JSON") {
-                Text(verbatim: encoded(request)).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            if !request.omissions.isEmpty {
+                DisclosureGroup("Context omissions") { AuditJSONView(value: request.omissions) }
             }
+            DisclosureGroup("Prepared request JSON") { AuditJSONView(value: request) }
         }
     }
-    private var orderedMessages: String {
-        request.messages.enumerated().map { index, message in
-            let title: String
-            switch message.role {
-            case .context: title = "Retrieved context"
-            case .user: title = "User message"
-            case .assistant: title = "Assistant message"
-            case .tool: title = "Tool result"
+}
+
+private struct AuditJSONView<Value: Encodable>: View {
+    @Environment(\.locale) private var locale
+    let value: Value
+    var body: some View {
+        Text(verbatim: text).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+    }
+    private var text: String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        do { return String(decoding: try encoder.encode(value), as: UTF8.self) } catch {
+            return L10n.string("Request unavailable", locale: locale)
+        }
+    }
+}
+
+extension SessionAuditContent {
+    fileprivate var availableValue: Value? { if case .available(let value) = self { value } else { nil } }
+}
+
+extension SessionExecutionSummary {
+    var displayTitle: String {
+        if let completion {
+            switch completion.status {
+            case .completed: return "Completed"
+            case .failed: return "Failed"
+            case .cancelled: return "Stopped"
+            case .interrupted: return "Interrupted"
+            case .queued: return "Queued"
+            case .waitingForModel: return "Generating"
             }
-            return "\((index + 1).formatted(.number.locale(locale))). \(L10n.string(title, locale: locale))\n\(encoded(message))"
-        }.joined(separator: "\n\n")
-    }
-    private func encoded<T: Encodable>(_ value: T) -> String {
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        return (try? String(decoding: encoder.encode(value), as: UTF8.self)) ?? L10n.string("Request unavailable", locale: locale)
-    }
-
-
-}
-
-private extension AttemptStatus {
-    var displayTitle: String {
-        switch self { case .prepared: "Waiting for model response"; case .completed: "Model call completed"; case .failed: "Model call failed"; case .interrupted: "Model call interrupted" }
+        }
+        return switch phase {
+        case .queued: "Queued"
+        case .preparing: "Preparing"
+        case .waitingForModel: "Generating"
+        case .waitingForTools: "Running tools"
+        case .waitingForUser: "Waiting for approval"
+        case .settling: "Saving"
+        case .cancelling: "Stopping"
+        }
     }
 }
-private extension ToolResultStatus {
-    var displayTitle: String {
+
+extension AttemptStatus {
+    fileprivate var displayTitle: String {
+        switch self {
+        case .prepared: "Waiting for model response"
+        case .completed: "Model call completed"
+        case .failed: "Model call failed"
+        case .interrupted: "Model call interrupted"
+        }
+    }
+}
+extension ToolResultStatus {
+    fileprivate var displayTitle: String {
         switch self {
         case .succeeded: "Completed"
         case .invalidArguments: "Invalid arguments · not executed"
@@ -201,6 +377,17 @@ private extension ToolResultStatus {
         case .failed: "Execution failed"
         case .outputLimit: "Limit exceeded"
         case .interrupted: "Interrupted · check the result"
+        }
+    }
+}
+
+extension CanonicalRole {
+    fileprivate var auditTitle: String {
+        switch self {
+        case .context: "Retrieved context"
+        case .user: "User message"
+        case .assistant: "Assistant message"
+        case .tool: "Tool result"
         }
     }
 }

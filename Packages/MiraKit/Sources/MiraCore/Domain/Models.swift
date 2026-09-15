@@ -30,75 +30,10 @@ public struct Workspace: Identifiable, Codable, Sendable, Equatable {
     }
 }
 
-public struct Conversation: Identifiable, Codable, Sendable, Equatable {
-    public var id: ConversationID
-    public var workspaceID: WorkspaceID?
-    public var title: String
-    public var isArchived: Bool
-    public var createdAt: Date
-    public var updatedAt: Date
-    public var revision: Int
-    public init(id: ConversationID, workspaceID: WorkspaceID?, title: String, isArchived: Bool = false, createdAt: Date, updatedAt: Date, revision: Int = 1) {
-        self.id = id; self.workspaceID = workspaceID; self.title = title; self.isArchived = isArchived
-        self.createdAt = createdAt; self.updatedAt = updatedAt; self.revision = revision
-    }
-}
-
-public enum MessageRole: String, Codable, Sendable { case user, assistant }
-public enum MessageStatus: String, Codable, Sendable { case committed, interrupted, failed }
-public struct Message: Identifiable, Codable, Sendable, Equatable {
-    public var id: MessageID
-    public var conversationID: ConversationID
-    public var executionID: ExecutionID?
-    public var sequence: Int
-    public var role: MessageRole
-    public var status: MessageStatus
-    public var text: String
-    public var trace: [CanonicalMessage]
-    public var createdAt: Date
-    public var bodyPurgedAt: Date?
-    public init(id: MessageID, conversationID: ConversationID, executionID: ExecutionID?, sequence: Int, role: MessageRole, status: MessageStatus, text: String, createdAt: Date, bodyPurgedAt: Date? = nil, trace: [CanonicalMessage] = []) {
-        self.trace = trace
-        self.id = id; self.conversationID = conversationID; self.executionID = executionID
-        self.sequence = sequence; self.role = role; self.status = status; self.text = text; self.createdAt = createdAt
-        self.bodyPurgedAt = bodyPurgedAt
-    }
-}
-
 public enum ExecutionStatus: String, Codable, Sendable, CaseIterable {
     case queued, waitingForModel, completed, failed, cancelled, interrupted
     public var isTerminal: Bool { [.completed, .failed, .cancelled, .interrupted].contains(self) }
 }
-public struct Execution: Identifiable, Codable, Sendable, Equatable {
-    public var id: ExecutionID
-    public var conversationID: ConversationID
-    public var triggerMessageID: MessageID
-    public var retryOfExecutionID: ExecutionID?
-    public var status: ExecutionStatus
-    public var route: ResolvedModelRouteSnapshot
-    public var usage: TokenUsage
-    public var error: MiraError?
-    public var createdAt: Date
-    public var updatedAt: Date
-    public var bodyPurgedAt: Date?
-    public init(id: ExecutionID, conversationID: ConversationID, triggerMessageID: MessageID, retryOfExecutionID: ExecutionID? = nil, status: ExecutionStatus = .queued, route: ResolvedModelRouteSnapshot, usage: TokenUsage = .init(), error: MiraError? = nil, createdAt: Date, updatedAt: Date, bodyPurgedAt: Date? = nil) {
-        self.id = id; self.conversationID = conversationID; self.triggerMessageID = triggerMessageID
-        self.retryOfExecutionID = retryOfExecutionID; self.status = status; self.route = route
-        self.usage = usage; self.error = error; self.createdAt = createdAt; self.updatedAt = updatedAt
-        self.bodyPurgedAt = bodyPurgedAt
-    }
-}
-public struct Draft: Codable, Sendable, Equatable {
-    public var executionID: ExecutionID
-    public var text: String
-    public var trace: [CanonicalMessage]
-    public var updatedAt: Date
-    public init(executionID: ExecutionID, text: String, updatedAt: Date, trace: [CanonicalMessage] = []) {
-        self.trace = trace
-        self.executionID = executionID; self.text = text; self.updatedAt = updatedAt
-    }
-}
-
 public struct MiraError: Error, LocalizedError, Codable, Sendable, Equatable {
     public enum Code: String, Codable, Sendable {
         case configuration, credentialMissing, connectionChanged, busy, notFound, conflict, invalidInput

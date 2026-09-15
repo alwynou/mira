@@ -32,15 +32,25 @@ public struct TaskDraft: Codable, Sendable, Equatable {
     }
 }
 
+/// The complete immutable journal admission, never a foreign key to a session query table.
 public struct TaskEvidence: Codable, Sendable, Equatable {
-    public var messageID: MessageID
-    public var conversationID: ConversationID
-    public var quote: String
-    public var sentAt: Date
-    public var timeZoneID: String
-    public init(messageID: MessageID, conversationID: ConversationID, quote: String, sentAt: Date, timeZoneID: String) {
-        self.messageID = messageID; self.conversationID = conversationID; self.quote = quote
-        self.sentAt = sentAt; self.timeZoneID = timeZoneID
+    public let source: SessionEvidenceReference
+    public let quote: String
+    public let sentAt: Date
+    public let timeZoneID: String
+    public init(source: SessionEvidenceReference, quote: String, sentAt: Date, timeZoneID: String) {
+        self.source = source; self.quote = quote; self.sentAt = sentAt; self.timeZoneID = timeZoneID
+    }
+    public init(_ evidence: SessionUserEvidence) {
+        self.init(source: evidence.reference, quote: evidence.text,
+                  sentAt: evidence.admittedAt, timeZoneID: evidence.timeZoneIdentifier)
+    }
+    public func validate() throws {
+        try source.validate()
+        guard !quote.isEmpty, quote.utf8.count <= 16_384, sentAt.timeIntervalSince1970.isFinite,
+              TimeZone(identifier: timeZoneID) != nil else {
+            throw MiraError(.invalidInput, "The task source or tool request is no longer authorized.")
+        }
     }
 }
 

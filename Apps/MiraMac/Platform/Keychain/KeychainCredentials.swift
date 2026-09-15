@@ -1,6 +1,6 @@
 import Foundation
-import Security
 import MiraCore
+import Security
 
 enum KeychainAccessibility: Equatable, Sendable {
     case whenUnlockedThisDeviceOnly
@@ -22,7 +22,8 @@ struct KeychainReadResult: Sendable {
 /// Security.framework dictionaries remain confined to its concrete adapter.
 protocol KeychainAccess: Sendable {
     func copy(service: String, account: String) -> KeychainReadResult
-    func add(service: String, account: String, data: Data, accessibility: KeychainAccessibility, synchronizable: Bool) -> KeychainStatus
+    func add(service: String, account: String, data: Data, accessibility: KeychainAccessibility, synchronizable: Bool)
+        -> KeychainStatus
     func delete(service: String, account: String) -> KeychainStatus
 }
 
@@ -36,7 +37,9 @@ private struct SecurityKeychainAccess: KeychainAccess {
         return KeychainReadResult(status: map(status), data: result as? Data)
     }
 
-    func add(service: String, account: String, data: Data, accessibility: KeychainAccessibility, synchronizable: Bool) -> KeychainStatus {
+    func add(service: String, account: String, data: Data, accessibility: KeychainAccessibility, synchronizable: Bool)
+        -> KeychainStatus
+    {
         var attributes = identity(service: service, account: account)
         attributes[kSecValueData as String] = data
         if accessibility == .whenUnlockedThisDeviceOnly {
@@ -51,9 +54,11 @@ private struct SecurityKeychainAccess: KeychainAccess {
     }
 
     private func identity(service: String, account: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: service,
-         kSecAttrAccount as String: account]
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
     }
 
     private func map(_ status: OSStatus) -> KeychainStatus {
@@ -66,7 +71,12 @@ private struct SecurityKeychainAccess: KeychainAccess {
     }
 }
 
-struct KeychainCredentials: CredentialReader, Sendable {
+protocol MacCredentialStore: CredentialReader {
+    func save(_ secret: String, reference: String, version: Int) throws
+    func delete(reference: String, version: Int) throws
+}
+
+struct KeychainCredentials: MacCredentialStore, Sendable {
     static let service = "com.alwynou.mira.provider-credentials"
     private let access: any KeychainAccess
 
@@ -75,23 +85,32 @@ struct KeychainCredentials: CredentialReader, Sendable {
     }
 
     func read(reference: String, version: Int) throws -> String {
+        try validate(reference: reference, version: version)
         let result = access.copy(service: Self.service, account: account(reference: reference, version: version))
         guard result.status == .success, let data = result.data,
-              let value = String(data: data, encoding: .utf8), !value.isEmpty else {
+            let value = String(data: data, encoding: .utf8), !value.isEmpty
+        else {
             throw MiraError(.credentialMissing, "Unable to read the API key. Save your credentials again in Settings.")
         }
         return value
     }
 
     func save(_ secret: String, reference: String, version: Int) throws {
-        guard !secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw MiraError(.credentialMissing, "Enter an API key.") }
-        let status = access.add(service: Self.service, account: account(reference: reference, version: version), data: Data(secret.utf8), accessibility: .whenUnlockedThisDeviceOnly, synchronizable: false)
+        try validate(reference: reference, version: version)
+        guard !secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw MiraError(.credentialMissing, "Enter an API key.")
+        }
+        let status = access.add(
+            service: Self.service, account: account(reference: reference, version: version), data: Data(secret.utf8),
+            accessibility: .whenUnlockedThisDeviceOnly, synchronizable: false)
         guard status == .success else {
-            throw MiraError(.credentialMissing, "Keychain could not save the key. Existing credentials were not replaced.")
+            throw MiraError(
+                .credentialMissing, "Keychain could not save the key. Existing credentials were not replaced.")
         }
     }
 
     func delete(reference: String, version: Int) throws {
+        try validate(reference: reference, version: version)
         let status = access.delete(service: Self.service, account: account(reference: reference, version: version))
         guard status == .success || status == .itemNotFound else {
             throw MiraError(.credentialMissing, "Keychain could not remove the old credentials.")
@@ -100,5 +119,11 @@ struct KeychainCredentials: CredentialReader, Sendable {
 
     private func account(reference: String, version: Int) -> String {
         "\(reference):\(version)"
+    }
+
+    private func validate(reference: String, version: Int) throws {
+        guard !reference.isEmpty, reference.utf8.count <= 512, version > 0 else {
+            throw MiraError(.configuration, "The credential reference is invalid.")
+        }
     }
 }

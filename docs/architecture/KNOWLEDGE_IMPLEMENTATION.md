@@ -1,59 +1,92 @@
-# Markdown knowledge implementation
+# 知识领域实现契约
 
-This document owns the v0.1 Markdown implementation profile. Product scope remains in [MVP](../MVP.md); broad domain design remains in [Memory and knowledge](MEMORY_AND_KNOWLEDGE.md). Verification evidence belongs in engineering documents.
+本文描述 `codex/agent-core` 的新实现。产品范围仍由 [Memory 与 Knowledge](MEMORY_AND_KNOWLEDGE.md) 和 [MVP](../MVP.md) 定义；验证证据在[核心重建记录](../engineering/AGENT_CORE_VERIFICATION.md)。本次直接替换旧知识工具、SQL 会话使用记录和旧格式校验，不提供兼容入口。
 
-## Ownership and import
+## 1. 依赖与所有权
 
-The host presents an explicit file picker for `.md` and `.markdown`, with at most 100 files per batch and 10 MiB per file. It holds security-scoped access only during each selected-file read and releases it afterward. This snapshot profile retains no bookmark, watched directory, external canonical path, or continuing access grant. Updating a source requires choosing a file again. The imported copy is managed independently of the original file; deleting it never modifies that original.
+![知识领域架构](diagrams/agent-knowledge-architecture.svg)
 
-New sources belong to the current workspace, or global scope from Inbox. Imported bytes default to local-only. An explicit source setting permits remote use, subject to the conversation workspace's current outbound policy and connection allowlist. Shared physical bytes never grant cross-scope access. The store checks scope before returning metadata or text, and tools record and revalidate usage before returning payloads.
+- `KnowledgeApplication` 属于宿主应用作用域。它接纳本地读取、快照导入、允许远程使用和引用解析；每次操作拥有库访问租约和真实异步任务。调用方取消等待不会丢弃已接纳的操作，关闭必须等实际工作返回。
+- `KnowledgeModule` 注册三个只读工具、两个来源权威，可选注册预取贡献器。内核、驱动器和通用日志读取器均不依赖 Knowledge 类型。
+- `KnowledgeReadStore` 和 `KnowledgeStore` 是异步领域端口；读取通过 `KnowledgeReadScope` 明确指定工作区及 `.local` 或冻结 `.model(route)` 目标。此值只选择策略，不代替库租约。
+- `SQLiteKnowledgeStore` 只保存领域资料、不可变版本与片段、操作回执及维护事实。它使用与工作区／模型设置／业务回执相同的业务数据库，外键指向 `business_workspaces`，不查询 SQL 会话、消息或执行表。
+- `MarkdownFileSnapshotReader` 是 macOS 文件适配器。已接纳的文件读取在独立串行队列完成，安全作用域访问保持到实际读取结束。它使用受保护的文件描述符读取，返回 `KnowledgeImport(title, bytes)`；核心不打开文件 URL、不持有路径或书签。iOS 文件能力留待独立适配器实现。
 
-Identical bytes in the same scope reuse an existing source/version. Matching filenames alone never overwrite a source. An explicit update checks the reviewed source revision and creates a new immutable version, keeping all previous versions. Invalid UTF-8 or binary controls produce a failed version retaining the original blob and a safe error. Failed updates leave the last successful current version unchanged. Extension, size, authorization, nonregular file, symlink, or read-time replacement failures reject the import before committing a version.
+## 2. 快照导入与领域事务
 
-## Parsing and positions
+单个快照不超过 10 MiB，标题非空且不超过 1,024 UTF-8 字节。平台选择器的批量上限仍为 100 个文件；本领域 API 每次接纳一个快照，不以一个超大数组长期占用执行资源。
 
-`markdown-lines-v1` is a Foundation-only line/fence-aware segmentation profile, not a complete CommonMark AST. It recognizes ATX and setext heading paths and backtick/tilde fences. Heading syntax inside a fence does not affect navigation. Bounded paragraphs and fences stay together where practical; long lines and fences split at Unicode scalar boundaries. The target is 4 KiB and each chunk contains at most 8 KiB of raw UTF-8 text.
+文件适配器只接受 `.md` / `.markdown` 常规文件；禁止符号链接、非普通文件、父目录替换和读取时文件替换。安全作用域只覆盖选中文件的这次读取；导入副本与原文件随后是否存在无关。资料正文、标题、路径片段和 Markdown 链接均是非可信内容，读取不会执行 HTML、脚本或发起图片／链接网络请求。
 
-Original text is preserved, including CRLF. Concatenating chunk text reproduces the decoded source after an optional UTF-8 BOM. Locators contain inclusive one-based line numbers and half-open zero-based UTF-8 byte offsets in the original blob, including the BOM offset. Heading metadata is limited to six levels and 512 UTF-8 bytes per heading; shortening metadata does not alter source text or positions. UUID chunk identities are assigned once when the immutable version commits.
+导入持有领域 I/O 所有权，在同一次受库代次保护的事务内完成业务判断。内容寻址 blob 的完整写入、同步和原子发布先于版本引用写入；领域版本、片段、搜索投影、来源当前版本和操作回执一起提交。文件已经发布但事务失败时允许留下孤儿文件，不允许提交对半成品文件的引用。
 
-Source previews use selectable plain text. Markdown images, HTML, scripts, links, and Wiki Links do not trigger network requests or execution. Source-derived memory extraction is optional future work and is not enabled by importing a file.
+同一工作区内，内容与某个未删除来源的**当前成功版本**相同时可复用来源与版本。历史版本匹配不把当前资料倒退到旧版本；同名文件不覆盖来源。快照标题只为新来源提供名称；明确更新保留已有来源名称，选中文件名称不是重命名指令。明确更新必须提供来源 ID 和已审阅 revision，并且来源实际作用域与修改作用域一致。成功更新生成新的 version/chunk ID；先前版本和片段保留。
 
-## Search
+`operationID` 与内容去重是两种身份：同一操作及相同参数重试，返回原始冻结回执；复用操作 ID 但修改标题、内容、目标或期望 revision 会冲突。回执不从后来改变的来源状态拼装。修改使用 CAS，并在 SQL 事务内核对当前库授权代次。
 
-Only a source's current successful version enters search results. Historical versions remain available through explicit local inspection and authorized exact references, including version/chunk-specific tools under the source's current disclosure policy. Search normalizes a separate text projection using compatibility normalization and case/width/diacritic folding; original text and offsets remain unchanged.
+非法 UTF-8 或二进制控制符保存为带安全错误的失败版本，原始 blob 保留，不创建片段。失败更新不替换先前成功的当前版本，但会推进来源 revision。大小、扩展名、文件身份或读取权限失败不提交版本。新来源默认只可本地使用；允许远程使用是明确的领域修改。
 
-The host opens the exact chunk selected from search, even when it falls outside the detail pane's first 200 chunk summaries. Source/version selection invalidates pending chunk reads; an action from a stale version cannot populate the new selection. The selected chunk also owns its sheet presentation, so clearing the selection or deleting the source dismisses that body.
+## 3. 不可变片段与搜索
 
-The word and trigram FTS paths generate literal quoted terms and bind SQL arguments. Post-filtering treats query terms literally, including `%`, `_`, quotes, operators, type names, and path fragments. Short queries, or a missing trigram projection, use a bounded normalized-text candidate scan. Scope, deletion, current version, and remote-use filters apply before candidate processing. The scan permits at most 20,000 eligible candidates and a 200 ms monotonic deadline, enforced during SQLite work with a progress handler. Results disclose truncation and inspected candidate count; the UI asks for a more specific query when incomplete. Deterministic ranking prefers an exact phrase and title match, with chunk ID as the final tie-break.
+`MarkdownChunker` 保持 Foundation-only 的 `markdown-lines-v1` 分段规则：识别 ATX／setext 标题、反引号／波浪号围栏，围栏内标题不改变目录；目标 4 KiB、硬上限 8 KiB，必要时按 Unicode scalar 边界分割。标题路径最多六层，每层最多 512 UTF-8 字节。
 
-## Tool and citation contract
+原始正文及 CRLF 保持不变。拼接片段可重建去除可选 UTF-8 BOM 后的原文；行号从一开始且两端包含，UTF-8 偏移从零开始且末端不包含，偏移计入 BOM。正文读取会校验版本归属、片段摘要、正文摘要以及其在原始 blob 中的实际字节区间。缺失／损坏 blob 会报错，不能通过删除资料记录掩盖损坏。
 
-| Tool | Input | Result |
-|---|---|---|
-| `knowledge.search` | Literal query, at most 500 Unicode scalars | At most six 1,200-byte snippets, source/version/chunk IDs, exact references, and truncation status |
-| `source.open` | Source UUID and optional version UUID | Selected version metadata and at most 40 chunk summaries; body reading is a separate action |
-| `source.readChunk` | Chunk UUID | Complete bounded text and its exact reference |
+搜索只读取当前成功版本，历史版本通过明确 version/chunk ID 读取。搜索对独立投影进行兼容规范化及大小写／宽度／变音符折叠，原文不变。词和 trigram 索引只生成候选，最终按字面 AND 匹配；短词走有限扫描。所有工作区、删除、当前版本、解析状态和远程使用过滤都在候选计数之前。
 
-Closed schemas reject unknown fields, invalid types, and invalid optional UUIDs. Tools derive scope and connection identity from the persisted live execution. Caller-supplied source identifiers cannot choose a different workspace or provider. Results are bounded after JSON encoding, and descriptions identify file content as untrusted data.
+一次搜索最多处理 20,000 个合格候选，SQL progress handler 与单调时钟施加 200 ms 搜索期限。结果最多 100 个，工具限制为六个。结果包含截断状态和扫描数量；排序优先完整短语，其次标题，最终以 chunk UUID 保持稳定。短词扫描使用 `CROSS JOIN` 固定从 chunk rowid 开始，避免先排序全量宽行。每条片段摘要最多 1,200 UTF-8 字节。该期限只覆盖搜索计算，不声称包含随后 blob 完整性验证的绝对端到端延迟。
 
-The exact citation syntax is `[source:<version-uuid>#<chunk-uuid>]`. A recognized token is only a proposal: the local resolver requires a matching persisted chunk usage by that reply, matching conversation scope, a readable historical version, and current disclosure policy. Metadata-only `source.open` does not authorize a body citation. Search snippets and full chunk reads do. Updating a source never retargets an earlier reference. Unused, guessed, cross-scope, deleted, or revoked references are unavailable.
+## 4. 工具、来源与引用
 
-Citation buttons retain availability state rather than a source body. Opening a citation performs a fresh resolution for the reference, execution, and conversation together. While the sheet is visible, application changes revalidate that same identity and clear unavailable content; closing the sheet clears its presentation copy. This uses the application's existing change stream and does not claim observation of out-of-process database edits.
+| 工具 | 输入 | 冻结结果 | 来源身份 |
+|---|---|---|---|
+| `knowledge.search` | 非空字面查询，最多 500 Unicode scalar | 最多六个 1,200 字节摘要、精确引用、截断标记 | `knowledge.chunks`，不可变片段 revision 1 |
+| `source.open` | 来源 UUID、可选明确 version UUID | 已选版本信息，最多 40 个片段定位元数据 | `knowledge.sources`，来源实际 revision |
+| `source.read_chunk` | 片段 UUID | 完整有界正文、标题路径、位置和引用 | `knowledge.chunks`，不可变片段 revision 1 |
 
-`source_usages` records source, version, optional chunk, execution, and time. Request audit metadata includes `sourceVersion` and `sourceChunk` references; these do not enter provider wire bodies. History dependencies propagate usage into later requests, and policy is rechecked before dispatch. Revoking remote use or deleting a source purges dependent request/output/tool/draft/assistant bodies transitively and blocks late writes. Original user messages remain local history; preserved source-use markers carry no source text.
+新工具 ID 遵守核心的小写标识符契约。没有旧工具名称别名。封闭输入／输出 schema 拒绝未知字段、错误类型和无效可选 UUID。工具核对请求 ID、来源与版本关系、重复片段、位置及字节上限。有效目录允许有界分页；畸形存储结果不以截断伪装为有效数据。编码后的 search/open 限制约 28 KiB，完整工具结果上限 32 KiB。
 
-## Managed files and recovery
+![知识工具与引用执行流程](diagrams/agent-knowledge-tool-flow.svg)
 
-The current schema v12 includes sources, immutable versions/chunks, usage, search projections, managed blob metadata, and the M6 task/reminder tables. Earlier schemas are rejected intact; there are no converters. Blob paths derive only from lowercase SHA-256 digests. Selected-file and managed-file operations use verified regular files, bounded reads, and protected directory traversal. File publication precedes the database transaction: temporary bytes are fully written and synchronized, atomically installed, then referenced by a single database commit. A failed database commit can leave an orphan file, never a reference to a partial file. Task and local-reminder behavior is defined in [Tasks and local reminders](TASKS_AND_REMINDERS.md).
+`prepare` 读取当前授权范围内的数据并冻结结果及来源。通用执行器继续处理宿主策略、持久提案、派发和结果；`SQLiteKnowledgeReadValidator` 在业务授权事务中复核冻结路线和当前资料权限，工具执行时再次复核来源及 blob 后返回冻结结果。读取工具不修改“使用记录表”。随后模型实际使用的上下文及精确来源由通用会话日志保存。
 
-Import, backup, and garbage collection share a maintenance boundary across store instances and processes. All retained historical versions count as references. Deleting a source removes its versions/chunks and marks newly unreferenced files for cleanup. Ordinary collection waits at least seven days and rechecks references while holding the maintenance boundary. The Settings cleanup action also discovers orphan files; their grace period begins when first discovered. Failures preserve referenced canonical data and remain visible. This is logical deletion and ordinary filesystem cleanup, not a secure-erasure promise; existing backup copies are not rewritten.
+目录元数据和正文是不同的来源身份。`source.open` 不能授权正文引用。搜索和正文读取记录不可变 chunk 身份；其权威查询拥有该片段的版本及来源当前权限，而非只信任一个 UUID。搜索不附加可变来源 revision，因此更新资料不会把一个历史片段错误地替换为新内容。
 
-The backup API creates a new directory bundle containing `Mira.sqlite`, `manifest.json`, and only referenced `Blobs`. The manifest identifies format/schema/app version, byte counts, and SHA-256 digests. Export and restore use owned staging and publish only verified complete results. Restore validates the original bundle before opening any staged SQLite copy, checks exact schema/constraints, integrity, foreign keys, typed relationships, and chunk bytes against their original blobs. Automatic extraction is disabled, uncertain work is paused, and future task reminders are paused in the restored copy. Existing libraries and original backups remain unchanged. Backup credentials, signing, and real-model acceptance remain separate from deterministic restore tests.
+引用语法仍为 `[source:<version-uuid>#<chunk-uuid>]`。语法识别只产生候选。`KnowledgeApplication.citation` 从 `JournalSessionReader.recordedContextEvidence` 读取已完成且有可用回答的真实模型上下文证据，要求包含该 chunk，核对工作区，再以原始冻结 route 检查当前领域权限，并核对返回 source/version/chunk 的完整关系。猜测、未使用、只有目录、版本不匹配、已删除或已撤权引用均不可用。
 
-The database limit is 2 GiB, the referenced blob total is 2 GiB, each blob is at most 10 MiB, and the manifest is at most 8 MiB with 100,000 blob entries. Database hashing and copying use 64 KiB buffers with descriptor/path identity checks, nonblocking regular-file opening, exclusive destination creation, synchronization, and incomplete-copy cleanup. The database size limit is independent of buffer allocation. It replaces the initial 512 MiB ceiling because the reference 50,000 chunks include canonical text, normalized text, and two FTS content projections. These are bounded local-library limits; they do not imply unbounded backup capacity.
+可选预取由确定性的 `KnowledgePrefetchPlan` 提示词组合触发；模型目标下最多搜索四条，摘要各截到 600 UTF-8 字节，编码条目约 8 KiB。预取保留真实正文、标题和精确引用，只作为非可信上下文贡献，不写入 system 指令或永久对话正文。它使用与显式搜索相同的 chunk 权威；不存在网络查询改写、嵌入模型或后台资料提取。
 
-The short-query fallback explicitly scans chunks in rowid order before looking up each source. This avoids sorting the full wide-row candidate set before the deadline can return a useful result. Scope, current-version, deletion, and remote-use filters still run inside SQL before the candidate count. The implementation uses SQLite's documented [CROSS JOIN loop-order guarantee](https://www.sqlite.org/optoverview.html#manual_control_of_query_plans_using_cross_join); the regression checks the actual production query plan for absence of a temporary ordering B-tree. Indexed FTS queries retain their existing plan.
+## 5. 库作用域隐私维护
 
-Ordinary source-oriented questions may receive a small turn-scoped prefetch. The host gates this local search with the deterministic `KnowledgePrefetchPlan` cue pair (a source cue and a reference cue), then calls `searchKnowledge` with the frozen workspace and connection. Search still returns only the source's current successful version. At most four hits are rendered, each snippet is capped at 600 UTF-8 bytes, and the combined serialized memory/source context remains within the existing conservative retrieval budget. Prefetch is untrusted data and never enters durable history or the system header.
+`KnowledgePrivacyHandler` 在独立 library 作用域注册 `knowledge.revoke` / `knowledge.delete`，修订均为 1。它组合领域端口、通用会话隐私引擎、持久计划、业务结果清理、Blob 回收和查询投影；内核、驱动器和库协调器不新增 Knowledge 分支。
 
-Each prefetched chunk is recorded through `recordSourceUsage` before dispatch. `ContextBuilder` emits both the exact source-version and chunk references, and the existing `prepareSourceContext` validation rejects any reference without persisted usage or with a changed disclosure policy. A prefetched search snippet therefore has the same citation provenance as a `knowledge.search` result; `source.open` remains metadata-only, while `source.readChunk` is still required when the answer needs complete evidence. Local-only, cross-scope, deleted, or revoked sources are omitted before rendering. No embedding model, remote query rewriting, or source schema change is part of this profile.
+![知识隐私维护执行流程](diagrams/agent-knowledge-privacy-flow.svg)
+
+| 操作 | 领域资料 | 会话可见内容 | 后续模型上下文 |
+|---|---|---|---|
+| 撤销远程使用 | 关闭远程使用，保留本地版本、片段、操作回执和被引用文件 | 保留用户消息、已提交回答与思考 | 清除受影响的隐藏请求、工具、草稿及重放；排除全部依赖执行 |
+| 删除来源 | 清除全部版本、片段、FTS 正文及导入／授权回执正文，保留墓碑与操作身份 | 保留原始用户消息；清除受影响的生成回答和思考 | 同样清除隐藏正文并排除依赖执行 |
+
+来源删除只处理 Mira 导入的快照副本，不删除用户最初选中的外部文件。其他来源即使共享相同物理文件，也保有各自权限及版本引用。
+
+开始维护的同一 SQL 事务先核对已审阅的来源 revision，并验证完整范围可处理，之后才能提交 pending 和新库代次。工作组排空后，处理器把 `KnowledgePrivacyScope` 保存到独立维护表：包括来源／工作区身份、原 revision、当前版本、全部历史与失败版本的摘要／大小、全部片段及所属版本、全部领域操作 ID；不复制标题、片段标题路径或正文。范围上限为元数据修订与片段合计 8,192 个来源身份、8,192 个版本和操作，以及 2 MiB 编码。
+
+范围表通过外键绑定真实维护操作；读取先检查长度及库身份，再读取有限正文并核对 SHA-256。后续重试必须复用该范围，不能在删除关联之后重新扫描出一个缩小的范围。会话引擎由此展开全部元数据修订和不可变片段，并在任何删除之前保存依赖闭包与原失效批次。
+
+执行顺序是：保存领域范围 → 保存会话计划 → 清除选中执行的业务结果 → 领域撤权／删除 → 提交会话失效并物理清理正文 → 回收文件 → 重建投影。独立验证阶段核对来源 revision／时间／墓碑、版本／片段／操作身份、正文空值、FTS、业务结果、会话文件实际不存在和投影元数据；全部通过才允许协调器完成维护。任一步失败保留同一 pending，关闭重开适配器后继续原操作，不重新调用模型或工具。
+
+## 6. 文件引用扫描与可恢复回收
+
+`KnowledgeBlobMaintenance` 是独立端口；`KnowledgeBlobCollectionHandler` 以 `knowledge.collect` / 修订 1 接纳整库孤儿回收。它与来源维护共享真实库维护权威和工作组排空，不允许普通应用工作仍在导入时直接扫描删除。
+
+回收在同一个领域事务和 Blob 维护锁内完成。先以有界游标扫描**所有**保留版本，包含历史版本、解析失败版本、其他工作区和仅本地使用资料；任何版本仍引用的摘要都不能回收。数据库引用元数据最多 100,000 条；文件清单枚举最多 100,000 个目录及文件条目，不把全部文件正文读入内存。文件层只接受规范摘要分片和明确命名的临时文件，拒绝符号链接及未知目录条目。
+
+先确认全部保留摘要都有对应大小的实际文件，然后删除没有任何版本引用的文件，清理暂存文件及无引用的 Blob 元数据。显式隐私删除和排空后的孤儿清理不等待宽限期；判断依据是 durable pending、已排空生产者和全版本引用扫描。删除后再次枚举，要求实际文件集合与保留引用完全一致，且没有暂存文件。日常内容读取仍负责正文摘要校验，清理清单不替代内容完整性验证。
+
+文件解除链接后 SQL 事务可能失败或进程中断：此前领域删除与 pending 已持久化，没有有效版本指向被删文件；剩余无引用元数据可在重开后继续清理。原有共享引用始终阻止物理删除。完成过的操作、伪造 pending、关闭的适配器都不能继续授权回收。
+
+## 7. 尚待完成的边界
+
+本实现提供可组合并可恢复的领域处理器。备份／恢复、完整查询／规模验收、原生宿主及全部工作组组装仍待当前 Goal 完成，不把隔离组合成功称为 App 已可用。旧 `source_usages`、`SourceUsage`、SQL 引用解析和旧知识备份校验已删除，不用于过渡运行。
+
+旧开发数据已按用户授权删除，默认目录为空，等待新宿主按新格式初始化；不迁移历史数据。旧包调用方继续直接重写，隔离新领域测试不能替代完整包、宿主构建和原生验收。

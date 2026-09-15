@@ -1,0 +1,15 @@
+flowchart TD
+  Start[明确选择连接与发现适配器] --> Lease[取得库租约并冻结模块目录]
+  Lease --> Validate[读取连接并校验描述符]
+  Validate --> Begin[登记资源并启动发现操作]
+  Begin --> Wait[等待有界结果或期限]
+  Wait -->|成功| ValidateResult[验证模型标识与数量]
+  Wait -->|取消或失败| Stop[取消并等待实际排空]
+  ValidateResult --> Drain[关闭并等待实际排空]
+  Drain --> Current[重新读取并完整比较连接]
+  Current -->|一致且租约有效| Return[形成原连接快照与建议列表]
+  Current -->|已变更或撤权| Reject[丢弃迟到结果]
+  Stop --> Reject
+  Return --> Release[释放模块与库租约]
+  Reject --> Release
+  Release --> Deliver[交付结果或错误]

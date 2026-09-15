@@ -50,6 +50,17 @@
                ReferencedContainer = "container:Mira.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "30D297D98215454FB58EF34A"
+               BuildableName = "MiraCompositionTests.xctest"
+               BlueprintName = "MiraCompositionTests"
+               ReferencedContainer = "container:Mira.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

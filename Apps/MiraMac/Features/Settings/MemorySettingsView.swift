@@ -1,5 +1,5 @@
-import SwiftUI
 import MiraCore
+import SwiftUI
 
 @MainActor
 struct MemorySettingsView: View {
@@ -20,17 +20,13 @@ struct MemorySettingsView: View {
     }
 
     private var tokenLimitBinding: Binding<String> {
-        Binding(get: { model.dailyTokenLimitText }, set: {
-            guard model.dailyTokenLimitText != $0 else { return }
-            model.dailyTokenLimitText = $0
-            model.markDirty()
-        })
-    }
-
-    private var hasMemoryExtractionRoute: Bool {
-        model.configuration.bindings.contains {
-            $0.purpose == .memoryExtraction && isDisplayedScope($0.scope)
-        }
+        Binding(
+            get: { model.dailyTokenLimitText },
+            set: {
+                guard model.dailyTokenLimitText != $0 else { return }
+                model.dailyTokenLimitText = $0
+                model.markDirty()
+            })
     }
 
     var body: some View {
@@ -57,7 +53,7 @@ struct MemorySettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    if model.mode != .manualOnly && !hasMemoryExtractionRoute {
+                    if model.mode != .manualOnly && !model.hasMemoryExtractionRoute {
                         HStack(alignment: .firstTextBaseline, spacing: MiraTheme.Spacing.md) {
                             Text("Choose a memory extraction model in Models.")
                                 .font(MiraTheme.Settings.caption)
@@ -73,7 +69,9 @@ struct MemorySettingsView: View {
                 }
 
                 MiraSettingsSection("Daily extraction budget") {
-                    MiraSettingsFormRow("Daily token limit", subtitle: "Daily token budget for automatic memory. Resets at 00:00 UTC.") {
+                    MiraSettingsFormRow(
+                        "Daily token limit", subtitle: "Daily token budget for automatic memory. Resets at 00:00 UTC."
+                    ) {
                         TextField("Daily token limit", text: tokenLimitBinding)
                             .textFieldStyle(.roundedBorder)
                             .disabled(model.isSaving)
@@ -122,14 +120,10 @@ struct MemorySettingsView: View {
                 }
             }
         }
-        .task(id: isActive) { if isActive { await model.observe() } }
-    }
-
-    private func isDisplayedScope(_ scope: RouteScope) -> Bool {
-        switch scope {
-        case .global, .workspace: true
-        case .conversation: false
+        .task(id: isActive) {
+            if isActive { await model.observe() } else { await model.stop() }
         }
+        .onDisappear { Task { await model.stop() } }
     }
 
     private func modeKey(_ value: MemoryCaptureMode) -> String {

@@ -4,7 +4,11 @@ import MiraCore
 @testable import MiraProviders
 
 private final class ThinkingCredentials: CredentialReader, @unchecked Sendable {
-    func read(reference: String, version: Int) throws -> String { "fixture-secret" }
+    private(set) var reads = 0
+    func read(reference: String, version: Int) throws -> String {
+        reads += 1
+        return "fixture-secret"
+    }
 }
 
 private final class ThinkingTransport: HTTPStreamingTransport, @unchecked Sendable {
@@ -14,14 +18,17 @@ private final class ThinkingTransport: HTTPStreamingTransport, @unchecked Sendab
 
     init(responseBytes: Data) { self.responseBytes = responseBytes }
 
-    func stream(request: URLRequest) -> AsyncThrowingStream<HTTPTransportEvent, any Error> {
-        lock.lock(); requests.append(request); lock.unlock()
-        return AsyncThrowingStream { continuation in
+    func stream(request: URLRequest) -> HTTPTransportOperation {
+        lock.lock()
+        requests.append(request)
+        lock.unlock()
+        let events = AsyncThrowingStream<HTTPTransportEvent, any Error> { continuation in
             continuation.yield(.response(HTTPTransportResponse(statusCode: 200)))
             continuation.yield(.bytes(responseBytes))
             continuation.yield(.end)
             continuation.finish()
         }
+        return HTTPTransportOperation(events: events, cancelAndDrain: {})
     }
 }
 
@@ -48,44 +55,66 @@ private func anthropicStopStream() -> Data {
     ])
 }
 
-private func openAIRoute(
+private func route(
+    fixture: ProtocolFixture,
     modelID: String = "fixture-model",
-    protocolMode: ModelProtocolMode = .standard,
-    thinking: ThinkingSettings = .init()
-) -> ResolvedModelRouteSnapshot {
-    var route = ResolvedModelRouteSnapshot(
-        name: "Fixture", providerKind: .openAICompatible, baseURL: "https://fixture.test/v1",
-        modelID: modelID, credentialReference: "fixture", contextWindow: 100_000,
-        maxOutputTokens: 2_048, protocolMode: protocolMode, thinking: thinking
+    thinking: ThinkingSettings = .init(),
+    contextWindow: Int = 100_000,
+    maximumOutputTokens: Int = 2_048
+) throws -> AgentModelRoute {
+    let configuration = HTTPModelConfiguration(
+        baseURL: "https://fixture.test/v1", protocolID: fixture.protocolID,
+        dialectProfileID: fixture.dialect, requestsUsage: true, thinking: thinking
     )
-    route.toolCapability = .declared
-    return route
+    return AgentModelRoute(
+        id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
+        modelDescriptorID: ModelDescriptorID(), modelRevision: 1,
+        adapter: fixture.adapter, modelID: modelID,
+        credential: .init(reference: "fixture", version: 1), contextWindow: contextWindow,
+        maximumOutputTokens: maximumOutputTokens,
+        capabilities: .init(streamsText: true, callsTools: true, producesThinking: true),
+        configuration: try configuration.jsonValue()
+    )
 }
 
-private func anthropicRoute(
-    modelID: String = "claude-sonnet-4-5",
-    protocolMode: ModelProtocolMode = .anthropicManual,
-    thinking: ThinkingSettings = .init()
-) -> ResolvedModelRouteSnapshot {
-    var route = ResolvedModelRouteSnapshot(
-        name: "Fixture", providerKind: .anthropic, baseURL: "https://fixture.test/v1",
-        modelID: modelID, credentialReference: "fixture", contextWindow: 200_000,
-        maxOutputTokens: 4_096, protocolMode: protocolMode, thinking: thinking
-    )
-    route.toolCapability = .declared
-    return route
+private func input(
+    messages: [AgentModelMessage] = [.init(role: .user, text: "Hello")],
+    tools: [ToolDefinition] = []
+) -> AgentModelInput {
+    AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "System",
+                    messages: messages, tools: tools)
 }
 
-private func request(
-    messages: [CanonicalMessage] = [CanonicalMessage(role: .user, text: "Hello")],
-    tools: [ToolDefinition]? = nil
-) -> CanonicalModelRequest {
-    CanonicalModelRequest(executionID: ExecutionID(), system: "System", messages: messages, tools: tools)
+private func jsonObject(_ value: JSONValue) throws -> [String: Any] {
+    let data = try JSONEncoder().encode(value)
+    return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 }
 
 private func bodyObject(_ transport: ThinkingTransport) throws -> [String: Any] {
     let body = try #require(transport.requests.first?.httpBody)
     return try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+}
+
+private func stream(
+    adapter: any AgentModelAdapter,
+    input: AgentModelInput,
+    route: AgentModelRoute
+) async throws -> ([AgentModelStreamEvent], AgentModelFailure?) {
+    let prepared = try adapter.prepare(input, route: route)
+    let operation = adapter.stream(prepared, route: route)
+    var events: [AgentModelStreamEvent] = []
+    do {
+        for try await event in operation.events { events.append(event) }
+        await operation.close()
+        return (events, nil)
+    } catch let failure as AgentModelFailure {
+        await operation.close()
+        try failure.validate()
+        return (events, failure)
+    } catch {
+        await operation.close()
+        throw error
+    }
 }
 
 @Test("Anthropic preserves multiple signed and redacted thinking blocks for exact replay")
@@ -112,38 +141,64 @@ func anthropicOrderedThinkingReplay() async throws {
         ("message_stop", #"{"type":"message_stop"}"#)
     ])
     let transport = ThinkingTransport(responseBytes: response)
-    let provider = HTTPModelProvider(credentials: ThinkingCredentials(), transport: transport)
+    let credentials = ThinkingCredentials()
+    let adapter = HTTPModelAdapter(fixture: .anthropic, credentials: credentials, transport: transport)
     let tools = [ToolDefinition(name: "memory.search", description: "Search", inputSchema: .object([:]))]
-    var events: [CanonicalStreamEvent] = []
-    for try await event in provider.stream(request: request(tools: tools), route: anthropicRoute(thinking: ThinkingSettings(mode: .enabled, budgetTokens: 2_048))) {
-        events.append(event)
-    }
-    let reasoning = try #require(events.compactMap { event -> ReasoningContent? in
-        guard case .reasoning(let value) = event else { return nil }
-        return value
-    }.last)
-    #expect(reasoning.isComplete)
-    #expect(reasoning.blocks.count == 5)
-    #expect(reasoning.blocks[0]["thinking"]?.stringValue == "first")
-    #expect(reasoning.blocks[0]["signature"]?.stringValue == "sig-a-one")
-    #expect(reasoning.blocks[1]["thinking"]?.stringValue == "second")
-    #expect(reasoning.blocks[1]["signature"]?.stringValue == "sig-b-two")
-    #expect(reasoning.blocks[2]["data"]?.stringValue == "opaque-redacted")
-    #expect(reasoning.blocks[3]["text"]?.stringValue == "answer")
-    #expect(reasoning.blocks[4]["id"]?.stringValue == "call-1")
-    #expect(events.contains(.toolCalls([CanonicalToolCall(id: "call-1", name: "memory.search", arguments: "{}")])) )
+    let route = try route(fixture: .anthropic, thinking: .init(mode: .enabled, budgetTokens: 2_048), maximumOutputTokens: 4_096)
+    let prepared = try adapter.prepare(input(tools: tools), route: route)
+    #expect(credentials.reads == 0)
+    let operation = adapter.stream(prepared, route: route)
+    var events: [AgentModelStreamEvent] = []
+    for try await event in operation.events { events.append(event) }
+    await operation.close()
+    #expect(credentials.reads == 1)
 
-    let assistant = CanonicalMessage(
+    let thinking = try #require(thinkingSnapshots(events).last)
+    #expect(thinking.isComplete)
+    guard case .array(let blocks) = try #require(thinking.continuation?.payload) else {
+        Issue.record("Anthropic continuation was not an ordered block array")
+        return
+    }
+    #expect(blocks.count == 5)
+    #expect(blocks[0]["thinking"]?.stringValue == "first")
+    #expect(blocks[0]["signature"]?.stringValue == "sig-a-one")
+    #expect(blocks[1]["thinking"]?.stringValue == "second")
+    #expect(blocks[1]["signature"]?.stringValue == "sig-b-two")
+    #expect(blocks[2]["data"]?.stringValue == "opaque-redacted")
+    #expect(blocks[3]["text"]?.stringValue == "answer")
+    #expect(blocks[4]["id"]?.stringValue == "call-1")
+    #expect(containsToolCall(events, id: "call-1", name: "memory.search", arguments: "{}"))
+
+    let assistant = AgentModelMessage(
         role: .assistant, text: "answer",
-        toolCalls: [CanonicalToolCall(id: "call-1", name: "memory.search", arguments: "{}")],
-        reasoning: reasoning
+        toolCalls: [.init(id: "call-1", name: "memory.search", arguments: "{}")],
+        thinking: thinking
     )
+    guard case .include(let sameExecution) = try adapter.replay(
+        [assistant], from: route, to: route, boundary: .sameExecution
+    ) else {
+        Issue.record("same-execution Anthropic continuation was omitted")
+        return
+    }
+    #expect(sameExecution == [assistant])
+    guard case .include(let previousExecution) = try adapter.replay(
+        [assistant], from: route, to: route, boundary: .previousExecution
+    ) else {
+        Issue.record("previous-turn Anthropic answer was omitted")
+        return
+    }
+    #expect(previousExecution == [AgentModelMessage(
+        role: .assistant, text: "answer",
+        toolCalls: [.init(id: "call-1", name: "memory.search", arguments: "{}")]
+    )])
+
     let replayTransport = ThinkingTransport(responseBytes: response)
-    let replayProvider = HTTPModelProvider(credentials: ThinkingCredentials(), transport: replayTransport)
-    for try await _ in replayProvider.stream(
-        request: request(messages: [assistant, .init(role: .tool, text: "Synthetic result", toolCallID: "call-1")], tools: tools),
-        route: anthropicRoute(thinking: ThinkingSettings(mode: .enabled, budgetTokens: 2_048))
-    ) {}
+    let replayAdapter = HTTPModelAdapter(fixture: .anthropic, credentials: ThinkingCredentials(), transport: replayTransport)
+    let replayInput = input(messages: [assistant, .init(role: .tool, text: "Synthetic result", toolCallID: "call-1")], tools: tools)
+    let replayPrepared = try replayAdapter.prepare(replayInput, route: route)
+    let replayOperation = replayAdapter.stream(replayPrepared, route: route)
+    for try await _ in replayOperation.events {}
+    await replayOperation.close()
     let replay = try bodyObject(replayTransport)
     let messages = try #require(replay["messages"] as? [[String: Any]])
     let content = try #require(messages.first?["content"] as? [[String: Any]])
@@ -168,23 +223,14 @@ func anthropicIncompleteThinkingBeforeToolCalls(redacted: Bool) async throws {
         ("message_stop", #"{"type":"message_stop"}"#)
     ])
     let transport = ThinkingTransport(responseBytes: response)
-    let provider = HTTPModelProvider(credentials: ThinkingCredentials(), transport: transport)
+    let adapter = HTTPModelAdapter(fixture: .anthropic, credentials: ThinkingCredentials(), transport: transport)
+    let route = try route(fixture: .anthropic, thinking: .init(mode: .enabled, budgetTokens: 2_048), maximumOutputTokens: 4_096)
     let tools = [ToolDefinition(name: "memory.search", description: "Search", inputSchema: .object([:]))]
-    var sawToolCalls = false
-    var failure: (any Error)?
-    do {
-        for try await event in provider.stream(
-            request: request(tools: tools),
-            route: anthropicRoute(thinking: ThinkingSettings(mode: .enabled, budgetTokens: 2_048))
-        ) {
-            if case .toolCalls = event { sawToolCalls = true }
-        }
-    } catch {
-        failure = error
-    }
-    #expect(sawToolCalls == false)
-    #expect(failure is MiraError)
-    #expect((failure as? MiraError)?.code == .malformedStream)
+    let result = try await stream(adapter: adapter, input: input(tools: tools), route: route)
+    #expect(result.0.contains { isToolCallEvent($0) } == false)
+    let failure = try #require(result.1)
+    #expect(failure.error.code == .malformedStream)
+    #expect(failure.retryAdvice == nil)
 }
 
 @Test("OpenRouter keeps 600 reasoning details ordered, deduplicates visible aliases, and stays bounded")
@@ -193,12 +239,9 @@ func openRouterLargeReasoningDetails() async throws {
     for index in 0..<600 {
         let fragment: JSONValue
         switch index % 3 {
-        case 0:
-            fragment = .object(["type": .string("reasoning.text"), "id": .string("repeat"), "text": .string("visible")])
-        case 1:
-            fragment = .object(["type": .string("reasoning.summary"), "id": .string("repeat"), "summary": .string("summary")])
-        default:
-            fragment = .object(["type": .string("reasoning.encrypted"), "id": .string("repeat"), "data": .string("opaque")])
+        case 0: fragment = .object(["type": .string("reasoning.text"), "id": .string("repeat"), "text": .string("visible")])
+        case 1: fragment = .object(["type": .string("reasoning.summary"), "id": .string("repeat"), "summary": .string("summary")])
+        default: fragment = .object(["type": .string("reasoning.encrypted"), "id": .string("repeat"), "data": .string("opaque")])
         }
         var delta: [String: JSONValue] = ["reasoning_details": .array([fragment])]
         if index == 0 { delta["reasoning_content"] = .string("visible") }
@@ -208,72 +251,64 @@ func openRouterLargeReasoningDetails() async throws {
     frames.append(("", #"{"choices":[{"delta":{},"finish_reason":"stop"}]}"#))
     frames.append(("", "[DONE]"))
     let transport = ThinkingTransport(responseBytes: sse(frames))
-    let provider = HTTPModelProvider(credentials: ThinkingCredentials(), transport: transport)
-    var events: [CanonicalStreamEvent] = []
-    for try await event in provider.stream(request: request(), route: openAIRoute(modelID: "openrouter/fixture", protocolMode: .openRouter)) {
-        events.append(event)
-    }
-    let snapshots = events.compactMap { event -> ReasoningContent? in
-        guard case .reasoning(let value) = event else { return nil }
-        return value
-    }
+    let adapter = HTTPModelAdapter(fixture: .openRouter, credentials: ThinkingCredentials(), transport: transport)
+    let result = try await stream(adapter: adapter, input: input(), route: try route(fixture: .openRouter))
+    #expect(result.1 == nil)
+    let snapshots = thinkingSnapshots(result.0)
     let complete = try #require(snapshots.last)
     #expect(snapshots.count < 128)
     #expect(complete.isComplete)
-    #expect(complete.blocks.count == 600)
-    #expect(complete.blocks.first?["id"]?.stringValue == "repeat")
-    #expect(complete.blocks.last?["type"]?.stringValue == "reasoning.encrypted")
+    guard case .array(let blocks) = try #require(complete.continuation?.payload) else {
+        Issue.record("OpenRouter continuation was not an ordered detail array")
+        return
+    }
+    #expect(blocks.count == 600)
+    #expect(blocks.first?["id"]?.stringValue == "repeat")
+    #expect(blocks.last?["type"]?.stringValue == "reasoning.encrypted")
     #expect(complete.text.components(separatedBy: "visible").count - 1 == 200)
     #expect(complete.text.components(separatedBy: "summary").count - 1 == 200)
 }
 
 @Test("Partial OpenAI reasoning is emitted as incomplete before premature EOF")
 func partialReasoningPrematureEOF() async throws {
-    let transport = ThinkingTransport(responseBytes: sse([
-        ("", #"{"choices":[{"delta":{"reasoning_content":"partial"}}]}"#)
-    ]))
-    let provider = HTTPModelProvider(credentials: ThinkingCredentials(), transport: transport)
-    var events: [CanonicalStreamEvent] = []
-    var failure: (any Error)?
-    do {
-        for try await event in provider.stream(request: request(), route: openAIRoute()) { events.append(event) }
-    } catch {
-        failure = error
-    }
-    let reasoning = try #require(events.compactMap { event -> ReasoningContent? in
-        guard case .reasoning(let value) = event else { return nil }
-        return value
-    }.first)
-    #expect(reasoning.text == "partial")
-    #expect(reasoning.isComplete == false)
-    #expect(events.contains { if case .finished = $0 { true } else { false } } == false)
-    #expect((failure as? MiraError)?.code == .interrupted)
+    let transport = ThinkingTransport(responseBytes: sse([("", #"{"choices":[{"delta":{"reasoning_content":"partial"}}]}"#)]))
+    let adapter = HTTPModelAdapter(fixture: .openAI, credentials: ThinkingCredentials(), transport: transport)
+    let result = try await stream(adapter: adapter, input: input(), route: try route(fixture: .openAI, modelID: "gpt-5.1"))
+    let thinking = try #require(thinkingSnapshots(result.0).first)
+    #expect(thinking.text == "partial")
+    #expect(thinking.isComplete == false)
+    #expect(result.0.contains { if case .finished = $0 { true } else { false } } == false)
+    let failure = try #require(result.1)
+    #expect(failure.error.code == .interrupted)
+    #expect(failure.retryAdvice == nil)
 }
 
 @Test("Thinking payload table preserves provider defaults and explicit controls")
 func thinkingPayloadTable() async throws {
-    struct Case {
-        let route: ResolvedModelRouteSnapshot
-        let anthropic: Bool
-        let check: ([String: Any]) -> Bool
-    }
+    struct Case { let fixture: ProtocolFixture; let route: AgentModelRoute; let anthropic: Bool; let check: ([String: Any]) -> Bool }
     let cases: [Case] = [
-        Case(route: openAIRoute(modelID: "deepseek-v4-pro", protocolMode: .deepSeek), anthropic: false, check: { body in body["thinking"] == nil && body["reasoning_effort"] == nil }),
-        Case(route: openAIRoute(modelID: "deepseek-v4-pro", protocolMode: .deepSeek, thinking: ThinkingSettings(mode: .enabled, effort: .high)), anthropic: false, check: { body in (body["thinking"] as? [String: String]) == ["type": "enabled"] && body["reasoning_effort"] as? String == "high" }),
-        Case(route: openAIRoute(modelID: "kimi-k3", protocolMode: .kimi, thinking: ThinkingSettings(mode: .providerDefault, effort: .max)), anthropic: false, check: { body in body["thinking"] == nil && body["reasoning_effort"] as? String == "max" && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
-        Case(route: openAIRoute(modelID: "k3-256k", protocolMode: .kimi, thinking: ThinkingSettings(mode: .providerDefault, effort: .high)), anthropic: false, check: { body in body["thinking"] == nil && body["reasoning_effort"] as? String == "high" && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
-        Case(route: openAIRoute(modelID: "kimi-for-coding", protocolMode: .kimi, thinking: ThinkingSettings(mode: .enabled)), anthropic: false, check: { body in (body["thinking"] as? [String: String]) == ["type": "enabled", "keep": "all"] && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
-        Case(route: openAIRoute(modelID: "kimi-k2.6", protocolMode: .kimi, thinking: ThinkingSettings(mode: .enabled)), anthropic: false, check: { body in (body["thinking"] as? [String: String]) == ["type": "enabled", "keep": "all"] }),
-        Case(route: openAIRoute(modelID: "gpt-5.1", protocolMode: .openAI), anthropic: false, check: { body in body["reasoning_effort"] == nil && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
-        Case(route: openAIRoute(modelID: "gpt-5.1", protocolMode: .openAI, thinking: ThinkingSettings(mode: .providerDefault, effort: .high)), anthropic: false, check: { body in body["reasoning_effort"] as? String == "high" }),
-        Case(route: anthropicRoute(thinking: ThinkingSettings(mode: .disabled)), anthropic: true, check: { body in (body["thinking"] as? [String: String]) == ["type": "disabled"] }),
-        Case(route: anthropicRoute(thinking: ThinkingSettings(mode: .providerDefault, budgetTokens: 2_048)), anthropic: true, check: { body in (body["thinking"] as? [String: Any])?["type"] as? String == "enabled" && (body["thinking"] as? [String: Any])?["budget_tokens"] as? Int == 2_048 }),
-        Case(route: anthropicRoute(modelID: "claude-sonnet-4-6", protocolMode: .anthropicAdaptive, thinking: ThinkingSettings(mode: .providerDefault, effort: .high)), anthropic: true, check: { body in (body["thinking"] as? [String: String]) == ["type": "adaptive"] && (body["output_config"] as? [String: String]) == ["effort": "high"] })
+        Case(fixture: .deepSeek, route: try route(fixture: .deepSeek, modelID: "deepseek-v4-pro"), anthropic: false, check: { body in body["thinking"] == nil && body["reasoning_effort"] == nil }),
+        Case(fixture: .deepSeek, route: try route(fixture: .deepSeek, modelID: "deepseek-v4-pro", thinking: .init(mode: .enabled, effort: .high)), anthropic: false, check: { body in (body["thinking"] as? [String: String]) == ["type": "enabled"] && body["reasoning_effort"] as? String == "high" }),
+        Case(fixture: .kimi, route: try route(fixture: .kimi, modelID: "kimi-k3", thinking: .init(mode: .providerDefault, effort: .max)), anthropic: false, check: { body in body["thinking"] == nil && body["reasoning_effort"] as? String == "max" && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
+        Case(fixture: .kimi, route: try route(fixture: .kimi, modelID: "k3-256k", thinking: .init(mode: .providerDefault, effort: .high)), anthropic: false, check: { body in body["thinking"] == nil && body["reasoning_effort"] as? String == "high" && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
+        Case(fixture: .kimi, route: try route(fixture: .kimi, modelID: "kimi-for-coding", thinking: .init(mode: .enabled)), anthropic: false, check: { body in (body["thinking"] as? [String: String]) == ["type": "enabled", "keep": "all"] && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
+        Case(fixture: .kimi, route: try route(fixture: .kimi, modelID: "kimi-k2.6", thinking: .init(mode: .enabled)), anthropic: false, check: { body in (body["thinking"] as? [String: String]) == ["type": "enabled", "keep": "all"] }),
+        Case(fixture: .openAI, route: try route(fixture: .openAI, modelID: "gpt-5.1"), anthropic: false, check: { body in body["reasoning_effort"] == nil && body["max_completion_tokens"] as? Int == 2_048 && body["max_tokens"] == nil }),
+        Case(fixture: .openAI, route: try route(fixture: .openAI, modelID: "gpt-5.1", thinking: .init(mode: .providerDefault, effort: .high)), anthropic: false, check: { body in body["reasoning_effort"] as? String == "high" }),
+        Case(fixture: .anthropic, route: try route(fixture: .anthropic, thinking: .init(mode: .disabled), maximumOutputTokens: 4_096), anthropic: true, check: { body in (body["thinking"] as? [String: String]) == ["type": "disabled"] }),
+        Case(fixture: .anthropic, route: try route(fixture: .anthropic, thinking: .init(mode: .providerDefault, budgetTokens: 2_048), maximumOutputTokens: 4_096), anthropic: true, check: { body in (body["thinking"] as? [String: Any])?["type"] as? String == "enabled" && (body["thinking"] as? [String: Any])?["budget_tokens"] as? Int == 2_048 }),
+        Case(fixture: .anthropic, route: try route(fixture: .anthropic, modelID: "claude-sonnet-4-6", thinking: .init(mode: .providerDefault, effort: .high), maximumOutputTokens: 4_096), anthropic: true, check: { body in (body["thinking"] as? [String: String]) == ["type": "adaptive"] && (body["output_config"] as? [String: String]) == ["effort": "high"] })
     ]
     for testCase in cases {
         let transport = ThinkingTransport(responseBytes: testCase.anthropic ? anthropicStopStream() : openAIStopStream())
-        let provider = HTTPModelProvider(credentials: ThinkingCredentials(), transport: transport)
-        for try await _ in provider.stream(request: request(), route: testCase.route) {}
+        let credentials = ThinkingCredentials()
+        let adapter = HTTPModelAdapter(fixture: testCase.fixture, credentials: credentials, transport: transport)
+        let prepared = try adapter.prepare(input(), route: testCase.route)
+        #expect(credentials.reads == 0)
+        #expect(testCase.check(try jsonObject(prepared.wirePayload)))
+        let operation = adapter.stream(prepared, route: testCase.route)
+        for try await _ in operation.events {}
+        await operation.close()
         #expect(testCase.check(try bodyObject(transport)))
     }
 }
@@ -281,10 +316,29 @@ func thinkingPayloadTable() async throws {
 @Test("Conflicting OpenRouter controls fail before dispatch")
 func conflictingOpenRouterControls() async throws {
     let transport = ThinkingTransport(responseBytes: openAIStopStream())
-    let provider = HTTPModelProvider(credentials: ThinkingCredentials(), transport: transport)
-    let route = openAIRoute(protocolMode: .openRouter, thinking: .init(mode: .enabled, effort: .high, budgetTokens: 1024))
-    await #expect(throws: MiraError.self) {
-        for try await _ in provider.stream(request: request(), route: route) {}
+    let adapter = HTTPModelAdapter(fixture: .openRouter, credentials: ThinkingCredentials(), transport: transport)
+    let route = try route(fixture: .openRouter, thinking: .init(mode: .enabled, effort: .high, budgetTokens: 1_024))
+    do {
+        _ = try adapter.prepare(input(), route: route)
+        Issue.record("Expected conflicting OpenRouter controls to fail during preparation.")
+    } catch let error as MiraError {
+        #expect(error.code == .configuration)
     }
     #expect(transport.requests.isEmpty)
+}
+
+@Test("Kimi provider defaults preserve reasoning history when replaying a tool turn")
+func kimiProviderDefaultPreservesReasoningHistory() throws {
+    let transport = ThinkingTransport(responseBytes: openAIStopStream())
+    let adapter = HTTPModelAdapter(fixture: .kimi, credentials: ThinkingCredentials(), transport: transport)
+    let route = try route(fixture: .kimi, modelID: "kimi-k2.6")
+    let continuation = AgentModelContinuation(adapter: route.adapter, format: "openai.content",
+        payload: .array([.object(["text": .string("plan")])]), isComplete: true)
+    let history = AgentModelMessage(role: .assistant, text: "answer",
+        thinking: .init(text: "plan", continuation: continuation, isComplete: true))
+    let prepared = try adapter.prepare(input(messages: [history, .init(role: .user, text: "Continue")]), route: route)
+    let body = try jsonObject(prepared.wirePayload)
+    #expect((body["thinking"] as? [String: String]) == ["type": "enabled", "keep": "all"])
+    let messages = try #require(body["messages"] as? [[String: Any]])
+    #expect(messages[1]["reasoning_content"] as? String == "plan")
 }

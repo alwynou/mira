@@ -126,27 +126,31 @@ class ModelCatalogGeneratorTests(unittest.TestCase):
             with self.subTest(cost=cost), self.assertRaises(catalog.CatalogInputError):
                 catalog.normalize_model("fixture", "fixture", model(cost=cost), "fixture", "2026-09-06T00:00:00Z")
 
-    def test_protocol_suggestions_require_reasoning_and_match_provider_contracts(self):
-        self.assertEqual(catalog.suggested_mode("moonshotai", "kimi-k3", {"reasoning": True}), "kimi")
-        self.assertEqual(catalog.suggested_mode("moonshotai-cn", "kimi-k2.7-code", {"reasoning": True}), "kimi")
-        self.assertEqual(catalog.suggested_mode("moonshotai", "kimi-k2.6", {"reasoning": True}), "kimi")
-        self.assertEqual(catalog.suggested_mode("deepseek", "deepseek-v4-flash", {"reasoning": True}), "deepSeek")
-        self.assertEqual(catalog.suggested_mode("custom", "kimi-k2.6", {"reasoning": True}), "standard")
-        self.assertEqual(catalog.suggested_mode("openai", "gpt-4", {"reasoning": False}), "standard")
-        for model_id in ("claude-opus-5", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-4-6-20260217"):
-            self.assertEqual(catalog.suggested_mode("anthropic", model_id, {"reasoning": True}), "anthropicAdaptive")
+    def test_protocol_and_controls_come_from_provider_and_metadata_not_model_names(self):
+        for model_id in ("future-name", "claude-new", "kimi-k3"):
+            self.assertEqual(catalog.invocation_protocol("deepseek", model(model_id)), ("chat.completions", "deepseek.chat"))
+            self.assertEqual(catalog.invocation_protocol("anthropic", model(model_id)), ("anthropic.messages", "anthropic"))
+        self.assertEqual(catalog.invocation_protocol("openai", model()), ("openai.responses", "openai.chat"))
+        self.assertEqual(catalog.invocation_protocol("openai", model(provider={"shape": "completions"})), ("chat.completions", "openai.chat"))
+        self.assertEqual(catalog.reasoning_options(model(reasoning_options=[
+            {"type": "effort", "values": [None, "low", "future-effort"]},
+            {"type": "budget_tokens", "min": 1024, "max": 32000},
+            {"type": "unimplemented", "body": {"endpoint": "untrusted"}},
+        ])), [{"type": "effort", "values": ["low", "future-effort"]},
+              {"type": "budget_tokens", "min": 1024, "max": 32000}])
 
-    def test_retired_kimi_model_is_not_recommended_on_native_endpoints(self):
+    def test_source_models_are_not_removed_by_a_model_name_rule(self):
         source = {provider_id: {
             "id": provider_id, "name": "Fixture", "doc": "https://documentation.example/models",
-            "models": {"kimi-k2.5": model("kimi-k2.5", reasoning=True)},
+            "models": {"kimi-k2.5": model("kimi-k2.5", reasoning=True, status="deprecated")},
         } for provider_id in catalog.PROVIDER_ORDER}
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "source.json"
             path.write_text(json.dumps(source))
             normalized = catalog.normalize(path, "2026-09-06T04:49:05Z")
         for provider in normalized["providers"]:
-            self.assertEqual(len(provider["models"]), 0 if provider["id"] in {"moonshotai", "moonshotai-cn"} else 1)
+            self.assertEqual(len(provider["models"]), 1)
+            self.assertEqual(provider["models"][0]["metadata"]["lifecycle"], "deprecated")
 
     def test_boolean_limits_and_malformed_continuations_are_rejected(self):
         for value in (False, True, -1, 10_000_001, "8192"):

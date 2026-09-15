@@ -1,5 +1,5 @@
-import SwiftUI
 import MiraCore
+import SwiftUI
 
 @MainActor
 struct DataSettingsView: View {
@@ -17,43 +17,55 @@ struct DataSettingsView: View {
                     }
                     if let diagnostics = model.diagnostics {
                         MiraSettingsRow("SQLite") { Text(diagnostics.sqliteVersion) }
-                        MiraSettingsRow("FTS5") { Text(LocalizedStringKey(diagnostics.supportsFTS5 ? "Available" : "Unavailable")) }
-                        MiraSettingsRow("Trigram") { Text(LocalizedStringKey(diagnostics.supportsTrigram ? "Available" : "Unavailable")) }
+                        MiraSettingsRow("FTS5") {
+                            Text(LocalizedStringKey(diagnostics.supportsFTS5 ? "Available" : "Unavailable"))
+                        }
+                        MiraSettingsRow("Trigram") {
+                            Text(LocalizedStringKey(diagnostics.supportsTrigram ? "Available" : "Unavailable"))
+                        }
                     }
-                    Text("Use disposable data during development. Memory, source files, and long-term recovery will be verified in later milestones.")
-                        .font(MiraTheme.Settings.caption).foregroundStyle(MiraTheme.Settings.secondaryText)
-                    if let message = model.container.maintenanceMessage {
-                        Text(L10n.string(message, locale: locale)).font(MiraTheme.Settings.body).foregroundStyle(.orange)
-                        Button("Retry Credential Cleanup") { Task { await model.container.retryCredentialCleanup() } }
+                    if case .pending(let error) = model.credentialCleanup {
+                        Text(L10n.error(error, locale: locale)).font(MiraTheme.Settings.body).foregroundStyle(.orange)
+                        Button("Retry Credential Cleanup") { model.retryCredentialCleanup() }
+                            .disabled(model.isWorking)
                     }
                 }
                 MiraSettingsSection("Backup and Restore") {
-                    Text("Backups contain conversations, configuration, request records, knowledge source versions and files, plus integrity checksums. API keys and other credentials are excluded. Restoring creates a separate directory and preserves the current library.")
-                        .font(MiraTheme.Settings.body)
+                    Text(
+                        "Backups contain conversations, configuration, request records, knowledge source versions and files, plus integrity checksums. API keys and other credentials are excluded. Restoring creates a separate directory and preserves the current library."
+                    )
+                    .font(MiraTheme.Settings.body)
                     HStack {
                         Button("Export Library Backup…") { model.exportBackup() }
                             .accessibilityIdentifier("settings.data.export")
                         Button("Restore to New Directory…") { model.restoreBackup(locale: locale) }
                             .accessibilityIdentifier("settings.data.restore")
                     }.disabled(model.isWorking)
-                    Text("Unreferenced managed files are eligible for cleanup after 7 days. Cleanup never removes referenced historical versions and does not rewrite existing backups.")
-                        .font(MiraTheme.Settings.caption).foregroundStyle(MiraTheme.Settings.secondaryText)
+                    Text(
+                        "Cleanup removes unreferenced managed files after active library work has stopped. Referenced historical versions and existing backups are preserved."
+                    )
+                    .font(MiraTheme.Settings.caption).foregroundStyle(MiraTheme.Settings.secondaryText)
                     Button("Clean Up Unreferenced Files") { model.cleanupFiles() }.disabled(model.isWorking)
-                    if let report = model.cleanupReport {
-                        Text(L10n.format("Cleaned up %lld unreferenced files; retained %lld referenced files.", locale: locale, Int64(report.removedCount), Int64(report.retainedCount)))
-                            .font(MiraTheme.Settings.body).textSelection(.enabled)
+                    if let error = model.error {
+                        Text(L10n.error(error, locale: locale)).font(MiraTheme.Settings.body).foregroundStyle(.red)
+                            .textSelection(.enabled)
+                    } else if let key = model.statusKey {
+                        Text(L10n.string(key, locale: locale)).font(MiraTheme.Settings.body).textSelection(.enabled)
                     }
-                    if let error = model.statusError {
-                        Text(L10n.error(error, locale: locale)).font(MiraTheme.Settings.body).foregroundStyle(.red).textSelection(.enabled)
-                    } else if !model.status.isEmpty {
-                        Text(L10n.string(model.status, locale: locale)).font(MiraTheme.Settings.body).textSelection(.enabled)
-                    }
-                    if let path = model.restoredPath {
-                        MiraSettingsRow("Restored Library") { Text(verbatim: path).textSelection(.enabled) }
+                    if let directory = model.restoredDirectory {
+                        MiraSettingsRow("Restored Library") { Text(verbatim: directory.path).textSelection(.enabled) }
+                        if model.container.canActivateRestoredLibrary {
+                            Button("Open Restored Library") { model.activateRestoredLibrary() }
+                                .disabled(!model.canActivateRestoredLibrary)
+                                .accessibilityIdentifier("settings.data.activateRestored")
+                        }
                     }
                 }
             }
         }
-        .task(id: isActive) { if isActive { await model.observe() } }
+        .task(id: isActive) {
+            if isActive { await model.observe() } else { await model.stopObserving() }
+        }
+        .onDisappear { Task { await model.stopObserving() } }
     }
 }

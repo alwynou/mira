@@ -1,47 +1,104 @@
-# Automatic memory implementation contract
+# 自动记忆执行契约
 
-Status: active implementation increment after manual memory commit `673e545`. This document fixes the bounded v0.1 execution contract; it is not acceptance evidence.
+<!-- Simplified Chinese documentation is explicitly requested by the user on 2026-09-12. -->
 
-## Authorization and source
+本文定义新 Agent 架构下的后台提取。旧 SQL 会话和旧 Provider 提取循环已经直接删除，历史验收不代表新路径已完成宿主接入。记忆的保存、召回、引用和遗忘边界见[记忆实现](MEMORY_IMPLEMENTATION.md)。
 
-The library starts in `manualOnly`. Settings offer `candidateOnly` and `automaticWithUndo`, explain the dedicated extraction route, additional model usage, memory recall, and the daily token limit, and require an explicit save to enable processing. The editable initial token limit is 10,000 per UTC day. Changing policy increments its revision; enabling sets an activation timestamp. No earlier conversation history is silently backfilled.
+## 责任与事实源
 
-The initial input is one committed user message created after activation, whose foreground execution subsequently completed successfully. A successful retry may supply completion while preserving the original message identity. Assistant/tool output is not evidence. Queuing happens in the same transaction as foreground completion. A job retains source identity/revision/hash, an immutable policy snapshot and policy/extractor versions, lifecycle and attempt identity; its source text is resolved from canonical storage when claimed. Workspace sources retain workspace scope and outbound restrictions. Inbox statements use global user scope only; workspace subjects are invalid without a workspace. Markdown extraction waits for owned source versions in M4.
+会话 journal 决定用户原文、原始时间／时区、完成事件和会话授权代次。`SessionEvidenceReference` 保存完整出处，消息 UUID 本身不能充当来源身份。任务保存完成事件 ID、完成批次 head 和原始证据引用；消费处理器必须先对照真实日志验证这些值。
 
-Only the configured `memoryExtraction` purpose is resolved. Conversation routes do not act as an implicit fallback. The job freezes the route and validates its connection, model, purpose binding, workspace policy, source, suppression, and policy revision before preparation, dispatch, and commit. Settings changes or suppression invalidate pending and late work.
+记忆领域拥有提取作业、尝试租约、冻结用途绑定／模型路线、精确准备请求、模型输出、预算和记忆决定。它是独立业务作业，不创建隐藏会话，也不复制前台执行状态。每次尝试使用独立 ID，共享新 `AgentModelAdapter`、`AgentModelAccumulator`、`RuntimeScheduler` 和库访问生命周期。正文和 thinking 只保存在受管业务记录中，不进入普通诊断日志；遗忘清除对应请求、输出和隐藏续接内容。
 
-## Jobs and accounting
+```mermaid
+flowchart LR
+    J[会话 journal + 正文] --> E[权威证据读取器]
+    J --> C[持久完成消费者]
+    E --> C
+    C --> T[同一 SQLite 事务
+领域作业 + 消费检查点]
+    T --> W[记忆后台工作器]
+    E --> W
+    S[当前设置 / 工作区 / 捕获策略] --> W
+    W --> A[库租约 + 共享调度器]
+    A --> M[注册的模型适配器]
+    M --> R[共享流归约器]
+    R --> B[业务事务
+验证提案 / 记忆演变 / 预算结算]
+```
 
-One background job may hold a lease. New background dispatch waits for foreground executions; an already dispatched call remains independently cancellable. A claim owns a unique lease and attempt ID with a 120-second expiry. The worker uses a shorter 90-second call deadline. Source and job identities are separate from the provider request ID.
+可独立查看[架构图](diagrams/agent-memory-extraction-architecture.svg)（[PNG](diagrams/agent-memory-extraction-architecture.png)）和[执行流程图](diagrams/agent-memory-extraction-flow.svg)（[PNG](diagrams/agent-memory-extraction-flow.png)）。
 
-The canonical extraction request uses the originating foreground execution ID as source correlation and a unique extraction attempt request ID. It is stored in the extraction attempt audit, not appended as a new foreground turn or assistant message. Its frozen route purpose is `memoryExtraction`.
+## 从完成事件到模型调用
 
-Preparation reserves the conservative serialized input byte estimate plus the route's maximum output tokens. Each attempt retains its own immutable route, original reservation ceiling, reservation day, dispatch marker, usage, charged amount, and terminal state. Reported usage above the reservation is charged as reported within the bounded valid counter range; it is never silently clamped down. A dispatch crossing midnight transfers an unsent reservation to the new UTC day after checking that day's capacity. Known valid usage settles the actual total; absent/invalid usage conservatively charges the reserved ceiling. A dispatched cancellation or uncertain interruption also charges the ceiling. Unsent cancellation releases its reservation. Settlement is idempotent. Prices are not invented and this token budget is not a provider billing guarantee.
+消费者逐批核对完整 journal 记录。成功且有可见回复的完成事实才产生待提取来源；助手内容和思考不能作为用户证据。后续已被排除、正文已清理或超过 16 KiB 的来源不会入队。消费者不发网络请求。
 
-Unsent expired leases can return to the queue. At process startup all previous-process leases are recovered immediately: unsent claims requeue and dispatched attempts pause. A dispatched attempt whose result is unknown pauses and requires an explicit retry; reopening Mira does not automatically repeat it. Retry creates or reuses the current source/policy/extractor job identity after source and suppression checks. A new policy creates a distinct job; prior jobs and attempts retain their original authorization. Explicit retry records its own timestamp, allowing a previously eligible paused job to run after re-enabling capture or restoring a backup. This does not authorize initial backfill of earlier conversation history. Restoring a backup pauses jobs and disables automatic capture until the user explicitly enables it again.
+`prepare` 异步解析来源后持有库租约；同步 `apply` 再检查当前库授权、捕获开关、启用时间和抑制决定，在写入领域作业的同一事务里推进检查点。来源、策略修订和提取器修订构成唯一键。重复通知、重放或会话重试不会为同一策略下的同一原始消息重复入队。
 
-## Output and triage
+工作器每轮最多选择 32 个待处理作业，按会话 UUID 轮转，同一会话选择最早入队作业，轮次之间主动让出执行机会。部分索引支持下一会话查找和末尾回绕，不加载全部作业后排序；轮转游标只用于调度，领取与结算仍由业务库授权。来源永久失效的作业暂停；存储故障不冒充来源失效。唤醒合并，是否存在工作以业务库为准。通用消费者服务的有限扫描、定期补扫和作用域拥有的事件连接已与工作器组合验证。生产宿主仍需按维护先行顺序恢复并打开整个工作组。
 
-The output is bounded JSON with `version: 2` and at most six `items`. The item schema contains content, exact quote, kind, subject, sensitivity, inference/stability/confidence classification, nullable validity dates, and source-bound assertion metadata. Metadata contains an assertion mode, a narrow canonical English `aspectKey` for conflict grouping, and a change intent; it contains no IDs, authorization, scope, or user content. Validity dates are null unless the user explicitly supplies a boundary; source creation time is provenance, not a start date, and recurring routines are not validity intervals. Model-supplied IDs, scopes, unknown keys, wrong types, uncommitted evidence, nonmatching excerpts, invalid aspect keys, or invalid time intervals fail validation. Source input is limited to 16 KiB and output to 32 KiB; each assertion/excerpt is limited to 8 KiB.
+```mermaid
+sequenceDiagram
+    participant W as 后台工作器
+    participant J as journal 证据读取器
+    participant D as 业务库
+    participant S as 共享调度器
+    participant M as 模型适配器
+    W->>J: 重新解析完整原始证据
+    W->>D: 领取作业，冻结专用用途路线和策略
+    W->>M: 纯准备（30 秒期限）
+    M-->>W: 有界 AgentPreparedModelRequest
+    W->>J: 再读当前证据
+    W->>D: 保存精确请求并预留预算
+    W->>S: 请求后台模型额度
+    S-->>W: 模型租约
+    W->>J: 调度后重验来源
+    W->>D: 原子复核当前路线、抑制、策略和租约并标记派发
+    W->>M: 开始有所有权的流（90 秒期限）
+    M-->>W: 文本 / thinking / 用量 / 完成
+    W->>M: 取消并排空实际生产者
+    W->>S: 释放模型额度
+    W->>J: 最终来源复核
+    W->>D: 同事务验证结构化结果、写记忆、结算预算和作业
+```
 
-Confidence and model assertion metadata are advisory. The automatic-active gate remains conservative: only an entire exact source quote, direct stable first-person preference or constraint, valid standard disclosure, and a narrow aspect key may become active. The host retains language-independent structural checks and reviewed English/Chinese safety cues for questions, quotation, reports, hypotheses, temporary wording, corrections, mixed instructions, and sensitive content. Explicit validity dates and workspace-subject classifications remain candidates. Other valid facts remain candidates. Missing lexical resources fail closed to review. This increment does not establish Q04 recall or precision; human/model qualification remains deferred.
+路线只从 `mira.memoryExtraction` 用途绑定选择，需要已声明／验证的流式文本和 JSON 输出能力。现有绑定无效时明确停止；不能改用聊天路线。每次派发和提交重验专用绑定以及所有冻结配置身份，设置修改不能悄悄替换一次已经准备的请求。
 
-The extractor is instructed to preserve an already self-contained direct preference or constraint verbatim in `content` and `quote`, classify its assertion mode, and emit the narrowest stable aspect key. A clearly stated current stable preference or constraint replacing an old one is `directStable` with `explicitReplacement`; `correction` is reserved for an ambiguous reference or unclear new fact. When the full-source quote satisfies every direct-active gate, the host stores that exact user evidence and discards the proposed paraphrase; it never automatically stores model-reworded facts. Other proposals retain model content for review. The host recognizes a bounded first-person semantic shape from generic language cues and does not encode individual corpus sentences. Other-person reporting, questions without punctuation, temporary/ambiguous wording, mixed instructions, missing preference objects, and unstable metadata remain review candidates. This does not make arbitrary multi-clause or partial-quote statements automatically active.
+请求由原始文本、原始时间／时区和固定提取规范组成。没有工具或隐式历史。适配器不能替换已审计语义输入；初次 wire 表示由适配器负责，之后同一尝试只能重用已冻结的精确准备请求。所有工具调用、用量倒退、缺失结束事件、不完整 thinking 或超限结果均不能提交为成功提取。
 
-The store also checks existing assertions and source decisions. The business key excludes policy/extractor versions, so upgrades do not bypass duplicates or suppression. Different aspect keys of the same scope/subject/kind coexist. A same-aspect candidate is eligible for automatic evolution only when the source explicitly signals a change and the existing current memory is an observed-user, unconfirmed memory with identical scope, subject, kind, and disclosure policy. The new assertion is committed with a confirmed `replaces` relation and a revision of the old memory in the same transaction. Missing, unstable, ambiguous, or multiply matched aspects become candidates with a proposed relation; explicit-user memories are never automatically replaced. Sensitive candidates remain local-only. Other captured memories inherit the explicitly enabled automatic-memory disclosure policy and all source restrictions, and candidates cannot enter recall before review.
+## 事务状态与预算
 
-Memory, Evidence, Revision, ExtractionDecision, usage/capture links, search changes, reservation settlement, and successful job state commit together. A successful provider response by itself is not a save receipt. Manual revision, approval, and confirmed replacement raise current authority to explicit user while preserving capture origin and revision history. Persisted state retains processing, completed, no memories extracted, review required, paused, and failed outcomes. The conversation extraction status panel is currently removed at the user's request, pending replacement feedback design. Memory settings still control capture mode, route, and budget; removing the panel does not change extraction scheduling or stored outcomes.
+业务库最多一个活跃提取尝试，唯一索引覆盖 claimed、prepared、dispatched。租约为 300 秒；它是迟到结果的校验期限，不能用过期为理由越过仍在执行的生产者并启动第二次调用。
 
-## Cleanup and validation
+| 状态 | 已有事实 | 失败／恢复 |
+|---|---|---|
+| queued | 完成出处和策略修订 | 合格后才能领取 |
+| claimed | 独立尝试、冻结路线、租约 | 未发送，恢复可重新排队 |
+| prepared | 精确请求和预算预留 | 未发送，取消释放预留；恢复使用新尝试 |
+| dispatched | 网络派发意图已持久化 | 不确定结果收取预留上限并暂停，禁止自动重发 |
+| completed | 输出、思考、验证决定和记忆结果已一起提交 | 重复结算只返回原结果 |
+| paused / failed | 持久原因和终态结算 | 显式重试重新核验来源、抑制与当前策略 |
 
-Remove, reject, and forget maintain source suppression across policy/extractor versions. Forget also clears extraction request/output and decision excerpts/hashes that retain the forgotten body; body-free source IDs, decisions, accounting and job status remain. A late worker cannot recreate a purged body or overwrite a terminal decision.
+预算按 UTC 日统计，直接来自尝试记录，避免另一套累计计数与尝试终态分离。准备预留 `max(准备请求字节数, 适配器估算输入 token) + 最大输出 token`，同时受模型上下文窗口和每日余额限制。跨 UTC 日派发时，重新检查新一天余额并原子转移预留。
 
-New persistence uses normalized columns and only the necessary immutable request/route payloads, avoiding mirrored whole-row JSON. Backup validation checks lifecycle, lease/attempt ownership, source references, disclosure provenance, budget accounting and purge propagation. Deterministic fixtures cover those boundaries separately from the deferred human-reviewed Q04–Q06 datasets and actual model runs.
+成功结果的输入与输出用量全部已知时按实际计数结算；排除缓存的输入协议还必须给出缓存读写计数。缺失任何必要计数时收取预留上限。失败、取消或崩溃后的派发结果不确定时同样收取上限。重复失败不能再次计费，也不能覆盖已经成功提交的结果。
 
-## Source language exception
+关闭捕获／修改策略的事务暂停旧作业、释放未发送预留并保守结算已派发尝试。工作器最终提交会拒绝旧策略。关闭和维护等待实际准备、模型流和传输清理完成；调用方取消不会提前释放资源或使晚到结果恢复写入权限。
 
-`MemoryExtractionLexicon.json` contains English and Simplified Chinese recognition cues. These are the narrow language-recognition resource exception allowed by `AGENTS.md`; they do not localize system prompts or follow the display language. Chinese test text is individually marked as an i18n fixture. The JSON response schema, system instructions, identifiers, and diagnostics remain English.
+## 决定、演变与清理
 
-## Current storage
+每次最多六个提案，整个文本输出最多 32 KiB。纯验证器保留原始 item 顺序和重复项；断言去重由业务提交处理，不通过丢弃提案消除审核轨迹。纯验证器保留精确摘录、主体与范围、敏感内容、推断、时效、否定／引用／假设及保守候选规则。完整直接陈述可以自动成为有效记忆；普通候选不进入默认召回。
 
-Fresh schema v12 adds normalized assertion metadata bound to each extracted memory revision and source. Only immutable policy/route/request/output and assertion metadata payloads use typed JSON; full row state is not duplicated. The original reserved ceiling remains after settlement so backup validation can distinguish real reported usage from conservative unknown usage. Validation checks job/attempt ownership and ordinals, immutable disclosure provenance, exact request construction, complete response decisions, source-bound metadata, replacement relations, historical evidence, budget settlement, and purge propagation before installing a restored library. Older development schemas are rejected intact.
+断言去重独立于尝试 ID。同一来源和同一规范化断言可复用已有记忆，不重复制造证据。语义 aspect 只用于冲突分组，不能授予授权；匹配时校验索引字段、规范元数据、来源和原证据的一致性。只有明确替换、当前修订仍匹配、来源和发送策略相容的直接观察才自动替代；含糊或竞争变化保留为候选。用户修订后，旧提取元数据不能继续授权自动替换。
+
+遗忘的领域事务清除记忆正文、修订、摘录、提取 aspect 和受影响作业尝试中的请求／输出／thinking／错误正文，保留无正文出处、状态和计费事实，提升来源抑制强度。晚到工作器不能重建正文。完整遗忘还需要库维护协调器完成 journal 依赖传递失效和其他域清理；仅完成这里的事务不能报告完整遗忘已完成。
+
+每条提案与成功尝试同事务保存 `MemoryExtractionDecision`：原始位置、创建／复用、结果记忆及当时修订／状态、纯验证器的确切审核原因、冲突原因与目标 ID，以及自动替代的目标 ID。六条相同提案可以指向同一记忆，但仍保留六条决定；输出 item 数、决定数和顺序在重新读取时共同校验。创建记忆、全部决定、费用、尝试及作业成功状态要么一起提交，要么全部回滚。决定是历史事实，不能授权当前召回或写入。
+
+独立 `MemoryExtractionInspectionStore` 按作业、尝试序号和精确工作区读取已完成尝试的审核报告。未完成返回 nil；成功无提案返回空决定数组；已清理返回带清理时间且决定为 nil 的报告。不存在或其他工作区的尝试拒绝读取。它不暴露准备请求或 thinking，也不增加工作器的读取职责。遗忘将提案级明细连同模型正文一并清除，保留尝试身份和计费事实。
+
+同一 aspect 最多检查 100 个有效目标，超过上限明确失败。多个冲突全部保存 proposed 关系，唯一键是候选与目标的组合，不能随意取第一条。用户确认必须指定一个当前目标、候选修订和目标修订；目标必须是某条提议的原目标或未被遗忘／删除的替代链后继，每条链最多 100 次后继跳转且拒绝环。确认只替代所选目标，关闭其余待审提议，保留其他有效记忆。直接激活含待审关系的候选会失败；不相关目标、过期修订和策略不相容均不写入。确认关系、记忆修订和操作回执共用事务，重复同一操作返回原结果。详情读取保留有界 1,000 条关系上限。
+
+## 当前验收范围
+
+实现按新接口直接替换；不维护旧 SQL Message、旧 Provider 或旧提取作业解码路径。自动测试使用合成 journal、临时业务库和模型替身，覆盖消费者事务、来源、请求冻结、预算、演变和取消所有权。完整宿主启动恢复／唤醒、跨域维护、备份和真实模型质量仍需各自验收，详见[核心重建验证记录](../engineering/AGENT_CORE_VERIFICATION.md)。

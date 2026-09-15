@@ -1,0 +1,18 @@
+{
+  "operation": "archive-baseline",
+  "gitCommit": "fbd21b4",
+  "probeSHA256": "3907011bfe389377ad1a58af01791f6d40339297d3167f607871be0dcdbc0765",
+  "returnCode": -5,
+  "wallMilliseconds": 29345.583832997363,
+  "sessions": 1000,
+  "messages": 100000,
+  "expectedPayloads": 201000,
+  "archivePublished": false,
+  "restoredPublished": false,
+  "remainingFiles": [
+    "run/source-business/Business.sqlite"
+  ],
+  "outputRemoved": true,
+  "scope": "Actual export with pre-format-2 production code; uncaught storage error terminates the probe, not an injected crash.",
+  "limitation": "Source session snapshot rejects 201000 payload references at the former 100000 cap before publication."
+}

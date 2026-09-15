@@ -50,6 +50,91 @@ struct MiraMarkdownViewTests {
         return result
     }
 
+    @Test("undrawable formula images fall back to verbatim LaTeX before native drawing",
+          arguments: [false, true])
+    func undrawableMathFallsBack(inTable: Bool) throws {
+        _ = NSApplication.shared
+        let theme = theme()
+        let source = inTable ? "| Formula |\n| --- |\n| $x^2$ |" : "Before $x^2$ after."
+        let parsed = content(source, theme: theme)
+        #expect(!parsed.rendered.isEmpty)
+        for size in [CGSize.zero, CGSize(width: 20, height: 0), CGSize(width: 20, height: 20)] {
+            // Positive dimensions without representations also fail CGImage conversion.
+            let image = NSImage(size: size)
+            image.isTemplate = true
+            #expect(image.cgImage(forProposedRect: nil, context: nil, hints: nil) == nil)
+            let injected = MarkdownContent(
+                blocks: parsed.blocks,
+                rendered: parsed.rendered.mapValues { RenderedTextContent(image: image, text: $0.text) },
+                highlightMaps: parsed.highlightMaps, locale: parsed.locale
+            )
+            let view = MiraMarkdownView()
+            view.apply(content: injected, source: source, theme: theme,
+                       locale: parsed.locale, isStreaming: false, reduceMotion: false)
+            _ = try #require(renderedBitmap(view, width: 320))
+            #expect(textLabels(in: view).contains { $0.attributedText.string.contains("x^2") })
+            #expect(injected.rendered.values.allSatisfy { $0.image === image })
+            // Repeated layout/draw and reuse must never reinstall the unsafe image.
+            _ = try #require(renderedBitmap(view, width: 720))
+            view.prepareForReuse()
+            view.apply(content: injected, source: source, theme: theme,
+                       locale: parsed.locale, isStreaming: false, reduceMotion: false)
+            _ = try #require(renderedBitmap(view, width: 320))
+        }
+    }
+
+    @Test("empty formula geometry from SwiftMath safely draws as text")
+    func zeroHeightFormula() throws {
+        _ = NSApplication.shared
+        let theme = theme()
+        let source = #"Before $\quad$ after."#
+        let parsed = content(source, theme: theme)
+        let image = try #require(parsed.rendered.values.first?.image)
+        #expect(image.size.height == 0)
+        let view = MiraMarkdownView()
+        view.apply(content: parsed, source: source, theme: theme,
+                   locale: parsed.locale, isStreaming: false, reduceMotion: false)
+        _ = try #require(renderedBitmap(view, width: 320))
+        #expect(view.textLabelView.attributedText.string.contains(#"\quad"#))
+    }
+
+    @Test("normal formulas survive redraw, streaming, appearance, locale, and selection",
+          arguments: [false, true])
+    func drawableMathRemainsVisible(dark: Bool) throws {
+        _ = NSApplication.shared
+        let theme = theme(dark ? .darkAqua : .aqua)
+        let locale = Locale(identifier: dark ? "zh-Hans" : "en")
+        let view = MiraMarkdownView()
+        view.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        let prefix = "Stable prefix."
+        let source = prefix + #" Formula $\frac{a}{b} + x^2$ and $\quad$ tail."#
+            + "\n\n| Formula |\n| --- |\n| $y^2$ |\n\n```swift\nlet value = 1\n```"
+        view.apply(content: content(prefix, theme: theme), source: prefix, theme: theme,
+                   locale: locale, isStreaming: false, reduceMotion: false)
+        view.textLabelView.selectionRange = NSRange(location: 0, length: 6)
+        let parsed = content(source, theme: theme, locale: locale)
+        view.apply(content: parsed, source: source, theme: theme,
+                   locale: locale, isStreaming: true, reduceMotion: false)
+        #expect(view.textLabelView.selectionRange == NSRange(location: 0, length: 6))
+        for width: CGFloat in [320, 720, 320] {
+            _ = try #require(renderedBitmap(view, width: width))
+            // A normal formula still has a drawing action, not the raw-text fallback.
+            let actions = textLabels(in: view).flatMap { $0.layoutRuns(matching: .litextLineDrawingAction) }
+            #expect(!actions.isEmpty)
+            #expect(!view.textLabelView.attributedText.string.contains(#"\frac"#))
+            #expect(view.textLabelView.attributedText.string.contains(#"\quad"#))
+        }
+        // Upstream's unkeyed notification synchronously rebuilds stored content.
+        // This is its pinned notification contract, rather than a timing assumption.
+        NotificationCenter.default.post(
+            name: Notification.Name("wiki.qaq.MarkdownView.CodeHighlighter.highlightDidUpdate"), object: nil
+        )
+        _ = try #require(renderedBitmap(view, width: 320))
+        view.apply(content: parsed, source: source, theme: theme,
+                   locale: locale, isStreaming: false, reduceMotion: false)
+        _ = try #require(renderedBitmap(view, width: 320))
+    }
+
     @Test("terminal content has stable text and finite fitting height")
     func terminalContentParityAndMeasurement() {
         _ = NSApplication.shared
@@ -256,6 +341,69 @@ struct MiraMarkdownViewTests {
         #expect(settledAgain.elementsEqual(settled))
     }
 
+    @Test("terminal code blocks expose their complete content", arguments: [false, true])
+    func terminalCodeBlockFits(dark: Bool) async throws {
+        _ = NSApplication.shared
+        let view = MiraMarkdownView()
+        let theme = theme(dark ? .darkAqua : .aqua)
+        let locale = Locale(identifier: dark ? "zh-Hans" : "en")
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 700),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        window.contentView?.addSubview(view)
+        window.orderFront(nil)
+        defer { window.close() }
+        // Escaped CJK scalars are synthetic font-fallback geometry fixtures.
+        let lines = (1...45).map { $0.isMultiple(of: 3) ? "" : "Line \($0): " + String(repeating: "\u{4E2D}\u{6587} example ", count: 12) }
+        let whole = "Heading\n\n```\n" + lines.joined(separator: "\n") + "\n```"
+        let snapshots = stride(from: 120, to: whole.count, by: 600).map { String(whole.prefix($0)) }
+            + [whole, whole + "\n\nFollowing paragraph."]
+        for source in snapshots {
+            view.apply(content: content(source, theme: theme), source: source, theme: theme,
+                       locale: locale, isStreaming: source != whole, reduceMotion: false)
+            for width: CGFloat in [320, 760] {
+                _ = renderedBitmap(view, width: width)
+                try await Task.sleep(for: .milliseconds(100))
+                _ = renderedBitmap(view, width: width)
+                let key = NSAttributedString.Key("contextView")
+                let run = try #require(view.textLabelView.layoutRuns(matching: key).last)
+                let block = try #require(run.attributes[key] as? NSView)
+                #expect(block.frame.maxY <= view.bounds.maxY + 1,
+                        "Block \(block.frame) exceeds document \(view.bounds)")
+                let label = try #require(textLabels(in: block).first { $0.attributedText.string.contains("Line 1:") })
+                let scroll = try #require(label.enclosingScrollView)
+                #expect(block.frame.height <= MiraTheme.Markdown.maximumCodeBlockHeight)
+                if source.count >= whole.count {
+                    #expect(block.frame.height == MiraTheme.Markdown.maximumCodeBlockHeight)
+                    #expect(label.bounds.height > scroll.contentView.bounds.height)
+                }
+                #expect(scroll.hasVerticalScroller && scroll.hasHorizontalScroller)
+                let bottom = max(-scroll.contentInsets.top,
+                    label.bounds.maxY - scroll.contentView.bounds.height + scroll.contentInsets.bottom)
+                scroll.contentView.scroll(to: CGPoint(x: -scroll.contentInsets.left, y: bottom))
+                scroll.reflectScrolledClipView(scroll.contentView)
+                let visible = label.convert(scroll.contentView.bounds, from: scroll.contentView)
+                let scrollerClearance = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .overlay)
+                #expect(visible.maxY - label.intrinsicContentSize.height >= scrollerClearance,
+                        "Bottom \(visible) must reveal the final glyphs above the horizontal scroller")
+                let horizontalScroller = try #require(scroll.horizontalScroller)
+                let scrollerFrame = label.convert(horizontalScroller.bounds, from: horizontalScroller)
+                #expect(scrollerFrame.minY >= label.intrinsicContentSize.height - 1,
+                        "Horizontal scroller \(scrollerFrame) must not cover the final code line")
+                let gutter = try #require(block.subviews.compactMap { $0 as? NSClipView }.first)
+                #expect(abs(gutter.bounds.minY - (scroll.contentView.bounds.minY + scroll.contentInsets.top)) < 1)
+                let right = label.bounds.maxX - scroll.contentView.bounds.width + scroll.contentInsets.right
+                scroll.contentView.scroll(to: CGPoint(x: max(0, right), y: bottom))
+                let rightVisible = label.convert(scroll.contentView.bounds, from: scroll.contentView)
+                #expect(rightVisible.maxX >= label.bounds.maxX)
+                let runs = label.layoutRuns(matching: .font)
+                #expect(runs.map { NSMaxRange($0.stringRange) }.max() == label.attributedText.length)
+                #expect(attachmentOverlaps(in: view).isEmpty)
+            }
+        }
+    }
+
     @Test("streamed code and tables never cover following text", arguments: [false, true])
     func streamedAttachmentsKeepTheirReservedHeight(reduceMotion: Bool) async throws {
         _ = NSApplication.shared
@@ -361,5 +509,47 @@ struct MiraMarkdownViewTests {
         )
         let expected = try #require(renderedBitmap(canonical, width: 320))
         #expect(actual.elementsEqual(expected))
+    }
+
+    @Test("status-only completion preserves active fades and native selection")
+    func statusOnlyCompletionPreservesTransientRendering() throws {
+        _ = NSApplication.shared
+        let theme = theme()
+        let view = MiraMarkdownView()
+        let first = content("Stable prefix", theme: theme)
+        let streamedSource = "Stable prefix with a final streamed word\n\n```swift\nlet value = 1\n```"
+        let streamed = content(streamedSource, theme: theme)
+
+        view.apply(content: first, source: "Stable prefix", theme: theme,
+                   locale: Locale(identifier: "en"), isStreaming: false, reduceMotion: false)
+        view.textLabelView.selectionRange = NSRange(location: 0, length: 6)
+        view.apply(content: streamed, source: streamedSource, theme: theme,
+                   locale: Locale(identifier: "en"), isStreaming: true, reduceMotion: false)
+        _ = try #require(renderedBitmap(view, width: 420))
+        let selected = view.textLabelView.selectionRange
+        let fadeKey = NSAttributedString.Key("miraMarkdownFadeRun")
+        let wordRange = (view.textLabelView.attributedText.string as NSString).range(of: "word")
+        let before = view.textLabelView.attributedText.attribute(fadeKey, at: wordRange.location,
+                                                                 effectiveRange: nil)
+        #expect(before != nil)
+        let contextKey = NSAttributedString.Key("contextView")
+        let attachmentsBefore = view.textLabelView.layoutRuns(matching: contextKey).compactMap {
+            $0.attributes[contextKey] as? NSView
+        }
+        #expect(!attachmentsBefore.isEmpty)
+
+        // Completion changes row status only; it reuses the exact parsed body.
+        view.apply(content: streamed, source: streamedSource, theme: theme,
+                   locale: Locale(identifier: "en"), isStreaming: false, reduceMotion: false)
+        _ = try #require(renderedBitmap(view, width: 420))
+
+        #expect(view.textLabelView.selectionRange == selected)
+        #expect(view.textLabelView.attributedText.attribute(fadeKey, at: wordRange.location,
+                                                           effectiveRange: nil) != nil)
+        let attachmentsAfter = view.textLabelView.layoutRuns(matching: contextKey).compactMap {
+            $0.attributes[contextKey] as? NSView
+        }
+        #expect(attachmentsAfter.count == attachmentsBefore.count)
+        #expect(zip(attachmentsBefore, attachmentsAfter).allSatisfy { $0 === $1 })
     }
 }

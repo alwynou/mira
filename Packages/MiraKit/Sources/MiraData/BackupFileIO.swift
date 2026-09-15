@@ -36,7 +36,7 @@ enum BackupFileIO {
             close(destinationDescriptor)
             throw MiraError(.storage, "The backup file could not be written.")
         }
-        guard createdIdentity.st_mode & UInt16(S_IFMT) == UInt16(S_IFREG) else {
+        guard createdIdentity.st_mode & UInt16(S_IFMT) == UInt16(S_IFREG), createdIdentity.st_nlink == 1 else {
             close(destinationDescriptor)
             removeCreatedDestinationIfUnchanged(destinationPath, identity: createdIdentity)
             throw MiraError(.storage, "The backup file could not be written.")
@@ -61,6 +61,7 @@ enum BackupFileIO {
                   destinationPath.withCString({ lstat($0, &pathAfter) }) == 0,
                   after.st_mode & UInt16(S_IFMT) == UInt16(S_IFREG),
                   pathAfter.st_mode & UInt16(S_IFMT) == UInt16(S_IFREG),
+                  after.st_nlink == 1, pathAfter.st_nlink == 1,
                   after.st_dev == createdIdentity.st_dev,
                   after.st_ino == createdIdentity.st_ino,
                   pathAfter.st_dev == createdIdentity.st_dev,
@@ -97,6 +98,7 @@ enum BackupFileIO {
         guard limit >= 0,
               fstat(descriptor, &before) == 0,
               before.st_mode & UInt16(S_IFMT) == UInt16(S_IFREG),
+              before.st_nlink == 1,
               before.st_size >= 0,
               before.st_size <= off_t(limit),
               before.st_size <= off_t(Int.max) else {
@@ -129,6 +131,8 @@ enum BackupFileIO {
         guard fstat(descriptor, &after) == 0,
               path.withCString({ lstat($0, &pathAfter) }) == 0,
               sameIdentity(before, after),
+              after.st_nlink == 1, pathAfter.st_nlink == 1,
+              pathAfter.st_mode & UInt16(S_IFMT) == UInt16(S_IFREG),
               pathAfter.st_dev == before.st_dev, pathAfter.st_ino == before.st_ino,
               pathAfter.st_size == before.st_size,
               pathAfter.st_mtimespec.tv_sec == before.st_mtimespec.tv_sec,
@@ -137,7 +141,7 @@ enum BackupFileIO {
               pathAfter.st_ctimespec.tv_nsec == before.st_ctimespec.tv_nsec else {
             throw MiraError(.storage, "The backup file changed while it was read.")
         }
-        let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        let digest = DigestEncoding.hexadecimal(hasher.finalize())
         return Snapshot(digest: digest, byteCount: count)
     }
 

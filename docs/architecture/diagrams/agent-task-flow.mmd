@@ -1,0 +1,20 @@
+flowchart TD
+  Admit[日志接纳：用户正文／原始时间／时区／执行计划] --> Model[模型提出 task.change]
+  Model --> Prepare[模块规范化参数并准备目标]
+  Prepare --> Guard[内核权限与持久意图／派发关口]
+  Guard --> Recheck[解析原始证据；事务复核库／工作区／路线／目标]
+  Recheck --> Direct{明确且完整的受支持命令？}
+  Direct -->|是| Save[任务与修订]
+  Direct -->|否| Proposal[待审核提案]
+  Save --> Receipt[同事务：业务结果／回执／待发布记录]
+  Proposal --> Receipt
+  Receipt --> JournalResult[日志工具结果与模型续接]
+  Proposal --> Review[人工审核重新解析原始证据]
+  Review --> Confirm[显式修正时间；CAS 接受或拒绝]
+  Confirm -->|接受| Desired[任务的提醒期望状态]
+  Confirm -->|拒绝| Rejected[只记录拒绝状态]
+  Save --> Desired
+  Desired --> Reconcile[独立提醒协调]
+  Reconcile --> Install[平台通知调用]
+  Install --> Observe[核对系统待发通知与任务修订]
+  Observe --> Delivery[记录实际调度状态或重新协调]

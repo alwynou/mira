@@ -1,51 +1,58 @@
-# Thinking and provider continuation
+# Thinking 与协议续接
 
-Thinking is a first-class model output, separate from the answer and from tool authorization. Supporting a reasoning-capable model requires both its request controls and its continuation protocol. A catalog declaration is not a transport test.
+<!-- Chinese documentation follows the user's explicit language preference. -->
 
-## Domain and ownership
+Thinking 是模型输出的一等内容。用户可见的思考文本和协议必需的隐藏续接分别保存，不互相推导。相关契约：[模型配置](AGENT_MODEL_CONFIGURATION.md)、[HTTP 适配器](AGENT_HTTP_ADAPTER.md)。
 
-`ThinkingSettings` belongs to a model route and is copied into the immutable execution snapshot. It contains provider-default/enabled/disabled mode, optional effort, and optional token budget. `ModelProtocolMode` selects a reviewed wire policy; it no longer means that reasoning must be disabled. The pool editor exposes the controls supported by that policy and model. OpenRouter effort and token budget are alternatives; selecting one clears the other. Custom deployments can explicitly select the relevant interface; catalog matching remains exact by endpoint and model ID.
+## 通用输出
 
-`ReasoningContent` carries visible thinking text plus provider replay material. Formats distinguish OpenAI-style reasoning text, Anthropic ordered assistant blocks, and OpenRouter reasoning details. `isComplete` distinguishes a recoverable partial draft from material that can be replayed. `CanonicalStreamEvent.reasoning` publishes cumulative snapshots (first content promptly, then approximately every 100 ms or 4 KiB while data arrives, with final/error flush); model outputs and canonical assistant messages preserve the same value.
+`AgentModelMessage`、`AgentModelOutput` 使用有序 `AgentModelBlock`：text、thinking、toolCall、toolResult。每块具有稳定 ID；流事件依次启动、追加和结束指定块，终态前必须完成所有块。核心验证有界大小、唯一块／工具 ID、角色和工具配对，不将输出压成单个 text + thinking 对象。
 
-The application runtime owns the stream. Views receive snapshots and show a collapsible Thinking section before the answer, including thinking-only interrupted replies. Opaque signatures, encrypted details and redacted blocks are preserved for the provider and never shown as readable thinking. No reasoning is invented when a service returns only an answer or hidden state.
+`AgentModelContinuation` 独立于可见块，包含适配器身份、格式、不透明 payload 和完整性。它可以与零可见 thinking 甚至零可见块共存。加密状态、签名和 redacted 内容不显示成思考文本，也不据此编造模型推理。
 
-## History boundaries
+目录未声明 thinking 不妨碍保留服务商实际返回的 thinking。能力资料用于配置和用途选择，不能用关闭思考或丢弃输出来掩盖未完成的协议支持。工具提案仍受能力、schema、来源和副作用权限校验。
 
-The current assistant/tool turn uses a frozen base request and fixed tool definitions. Authorization, route identity, memory and source policies are still checked before every dispatch. A policy failure stops execution; it does not silently rewrite a signed prefix.
+## 参数与协议
 
-For DeepSeek, Kimi and OpenRouter, successful same-model/same-connection/same-endpoint history containing thinking replays the complete ordered assistant/tool transcript, including intermediate decisions, only when that history remains eligible under current memory and source policy. Context budgets include reasoning and replay data. Incomplete and unsuccessful turns are excluded from future successful history, as before. Switching models or connections retains ordinary answer text without transferring provider continuation material. A forgotten or otherwise invalidated memory excludes its affected history and transitive descendants from replay.
+模式、effort、budget 位于 MiraProviders；核心只冻结模块配置。协议与差异规则分离，Anthropic manual／adaptive 属于参数模式。effort 是有界开放值，来自具体模型资料；客户端只展示并编码当前已实现的语义控制，互斥或无效组合在请求前失败。
 
-Anthropic tool continuation echoes the complete current assistant content array in its original order, including thinking, redacted thinking, signatures, text and tool-use blocks. At a new user turn Mira rebuilds its retrieved context; it therefore omits **all** completed prior-turn Anthropic thinking blocks. Anthropic permits that boundary. Mixing old signed thinking with an edited system/tools/message prefix is not supported. The current tool loop is never stripped or reconstructed from visible thinking alone.
+| 协议／差异规则 | 隐藏续接格式与边界 |
+|---|---|
+| Chat 的 DeepSeek／Kimi | `openai.content`，完整 `reasoning_content` 和工具往返；不能遗漏中间 assistant 推理 |
+| Chat 的 OpenRouter | `openrouter.details`，原始有序 reasoning_details；加密片段保留原值 |
+| Anthropic Messages | `anthropic.blocks`，完整有序 assistant content，包括签名、redacted、text 和 tool_use |
+| OpenAI Responses | `openai.responses.items`，有序 output items 与加密 reasoning；`store:false`，本地历史负责续接 |
 
-Non-thinking tool observations keep their existing turn-scoped behavior. Thinking history is retained only where needed for supported continuation; it inherits the originating execution's memory/source dependencies and sending policy. After memory forgetting or lifecycle invalidation, committed historical replies and their displayable reasoning remain locally visible with body-free invalidation tags, and the affected turn and its descendants are unavailable for future provider replay. Forget removes hidden tool messages, arguments, results, and tool-call identifiers; other lifecycle invalidations retain their original audit and trace data for historical inspection.
+普通 Chat 文本、协议错误、usage、EOF 和取消同样受独立适配器测试。新增协议必须同时实现请求、流、工具往返和历史回放，不能只添加一个下拉项。
 
-## Persistence and privacy
+## 历史与来源
 
-Schema v10 adds ordered `trace_json` to assistant drafts and messages and a `thinking_json` mirror to model routes. Step/attempt output and request snapshots also contain thinking. Checkpoints, terminal compare-and-swap, pending-save retry, process recovery and backup/restore preserve it. A partial thinking-only response is recoverable even when answer text is empty.
+Live presentation carries an explicit `SessionOutputPhase` independently of retained thinking text. The most recently updated visible block selects thinking, answering, or tool-call preparation; finishing that block can return to waiting before the execution settles. Starting an answer therefore stops the thinking indicator even when a provider keeps its earlier thinking block open. These process-local observations do not change provider replay data or durable message bodies.
 
-Thinking is model output, never user evidence for memory extraction. Extraction validates only the final answer JSON and accounts for the whole request's usage. Synthetic capability checks retain the selected thinking controls and output reservation; they cannot disable thinking just to pass a short probe.
+取消或进程中断的执行可以把仍获来源授权的可见回答正文带入后续回合（包括用户发送“继续”）；即使只中断在 thinking 阶段且没有可见回答，也保留原始用户消息和中性的“前一回复被中断且不完整”提示。该历史交换在核心读取结果中标记为 `isIncomplete`，持久的 assistant 消息正文保持原文。它不是成功 Assistant 输出，也不能携带 thinking、opaque continuation、tool call 或 tool result。读取器仍以执行日志和正文保留组为权威，重开后重新检查正文可用性、执行来源授权和隐私失效；任何撤权或清理都排除该交换。
 
-Memory forgetting purges derived thinking from request/output snapshots, tool observations, audit caches, active drafts, and hidden tool portions of retained traces. Committed historical messages, replies, and displayable reasoning remain locally visible with body-free invalidation tags. Other lifecycle invalidations retain their original audit and trace data with tags. In both cases, affected history is omitted from rebuilt provider context, including transitive descendants; no model replay is attempted. Knowledge source deletion/revocation retains its separate generated-body purge contract. Normal logs and errors contain no thinking or opaque replay data. Old development schemas are rejected intact; there is no migration bridge or automatic deletion.
+同一执行中的工具循环使用完整冻结路线和请求前缀。每次派发仍检查路线授权、记忆与来源政策；失效就停止，不能修改签名前缀继续发送。
 
-## Design references and extension boundary
+跨执行仅在准确协议／差异规则、模型配置实例、调用规格、连接、模型和端点匹配且历史仍合格时携带隐藏续接。换模型、连接或不兼容规格时保留可移植正文及完整工具配对，剥离 thinking 和隐藏材料。不同协议不尝试解码对方的 payload。
 
-LobeHub is a design reference, not a runtime dependency. Its [OpenAI-compatible factory](https://github.com/lobehub/lobehub/blob/canary/packages/model-runtime/src/core/openaiCompatibleFactory/index.ts) centralizes dispatch and stream handling while provider hooks own payload differences. Its [Moonshot adapter](https://github.com/lobehub/lobehub/blob/canary/packages/model-runtime/src/providers/moonshot/index.ts) and [model-family parser](https://github.com/lobehub/lobehub/blob/canary/packages/model-runtime/src/providers/moonshot/modelId.ts) keep Kimi-specific controls separate from the common transport. Its [model-bank types](https://github.com/lobehub/lobehub/blob/canary/packages/model-bank/src/types/aiModel.ts) separate model abilities and supported controls from provider enablement.
+Anthropic 新用户回合会重新构建检索上下文，因此剥离已完成旧回合的 thinking；当前回合原始 signed assistant content 必须保持完整和原顺序，不能从可见文本重建。Responses 使用本地 output items 及准确 function_call_output 配对，隐藏状态不依赖远端保存的 response ID。
 
-Mira follows those boundaries at its current scale: catalog metadata describes models; an explicit route policy selects wire controls; common bounded stream assemblers publish canonical answer, thinking, tool and usage events. Request encoding and continuation rules remain in MiraProviders. Pure configuration validation belongs to MiraCore and never imports vendor SDK types. The host reads these supported controls rather than maintaining a separate set of model checks. Extending a protocol requires payload, stream, continuation and failure fixtures together; a new catalog entry alone cannot add protocol support.
+不完整和失败回合不成为成功历史。隐私或来源政策失效的历史及其依赖后代不再进入模型上下文；有可见文字不代表续接材料仍可发送。
 
-Provider activation, model discovery, pool membership, purpose eligibility and a successful live probe remain separate states. Mira currently preserves live model identifiers and overlays reviewed exact catalog metadata; it does not yet ingest every provider's live capability field. A future discovery increment may follow LobeHub's precedence of explicit live metadata, exact catalog match, then provider-scoped fallback rules. Models.dev remains advisory offline metadata.
+## 持久化与隐私
 
-## Protocol sources
+请求、流草稿、输出和终态通过日志正文引用保存。可见正文／thinking 与隐藏重放使用不同保留组；thinking-only 中断可恢复。重启后只核对既有意图和结算，不擅自再次调用模型。
 
-- [DeepSeek thinking](https://api-docs.deepseek.com/guides/thinking_mode/): thinking toggle, effort and complete reasoning replay for requests carrying tools.
-- [Kimi API](https://platform.kimi.ai/docs/api/chat): K2.6 preserved thinking with `keep: all` and mandatory K3 reasoning with effort and `max_completion_tokens`. [Model lifecycle](https://platform.kimi.ai/docs/models) takes precedence over stale catalog availability.
-- [Anthropic thinking](https://platform.claude.com/docs/en/build-with-claude/thinking), [tool workflows](https://platform.claude.com/docs/en/build-with-claude/thinking-tool-workflows), and [preserved thinking](https://platform.claude.com/docs/en/build-with-claude/preserved-thinking): manual/adaptive controls, opaque signatures, exact active-turn replay and prefix constraints.
-- [OpenRouter reasoning](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens): gateway request controls and ordered reasoning details.
-- [OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create): native reasoning effort and completion-token budget. Chat Completions does not expose the Responses reasoning-item workflow; Responses remains a separate adapter increment.
+记忆遗忘清除相关请求／输出快照、隐藏工具数据、重放和草稿中的派生材料；已经提交的可见回答和思考可以保留本地展示及无正文的失效标签。知识来源撤销遵循其独立的生成正文清理契约。普通日志与错误不包含模型正文、密钥或隐藏续接。
 
-Synthetic and live acceptance evidence belongs in `docs/engineering`; catalog provenance remains in [MODEL_CATALOG.md](MODEL_CATALOG.md).
+Thinking 不是用户证据，记忆提取只验证最终回答中的严格 JSON，并记录整个调用的用量。显式合成探测保留真实配置和预算，不能通过关闭 thinking 获得虚假的通过结果。
 
-## Kimi Code aliases
+## 协议资料与验收
 
-Kimi Code uses the existing OpenAI-compatible Kimi policy and lossless `reasoning_content` replay. Official Coding IDs `k3` and `k3-256k` share K3's mandatory thinking, `low`/`high`/`max` effort, and `max_completion_tokens` output reservation. `kimi-for-coding` and `kimi-for-coding-highspeed` are mandatory-thinking K2.7 Code deployments; their requests explicitly preserve thinking with `type: enabled` and `keep: all`, and use `max_completion_tokens`. These aliases never permit thinking-off fallback to another model. Client identity is unchanged; no approved-client impersonation header is introduced. The [official Coding model documentation](https://www.kimi.com/code/docs/en/kimi-code/models.html) and [Chat Completions reference](https://platform.kimi.ai/docs/api/chat) support these protocol settings. Live service acceptance remains deferred.
+- [DeepSeek Thinking](https://api-docs.deepseek.com/guides/thinking_mode/)
+- [Kimi Chat](https://platform.kimi.ai/docs/api/chat)
+- [Anthropic thinking tool workflows](https://platform.claude.com/docs/en/build-with-claude/thinking-tool-workflows)
+- [OpenRouter reasoning](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)
+- [OpenAI Responses reasoning](https://developers.openai.com/api/docs/guides/reasoning)
+
+合成、原生及在线验证分别记录在[BYOK 实施记录](../engineering/BYOK_MODEL_LAYER_VERIFICATION.md)，不以编译通过或目录声明替代真实服务商验收。

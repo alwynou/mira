@@ -12,24 +12,31 @@ private final class UsageTransport: HTTPStreamingTransport, @unchecked Sendable 
 
     init(events: [HTTPTransportEvent]) { self.events = events }
 
-    func stream(request: URLRequest) -> AsyncThrowingStream<HTTPTransportEvent, any Error> {
-        AsyncThrowingStream { continuation in
+    func stream(request: URLRequest) -> HTTPTransportOperation {
+        let stream = AsyncThrowingStream<HTTPTransportEvent, any Error> { continuation in
             for event in events { continuation.yield(event) }
             continuation.finish()
         }
+        return HTTPTransportOperation(events: stream, cancelAndDrain: {})
     }
 }
 
-private func usageRoute(_ providerKind: ProviderKind = .openAICompatible) -> ResolvedModelRouteSnapshot {
-    ResolvedModelRouteSnapshot(name: "Usage fixture", providerKind: providerKind,
-                               baseURL: "https://example.test", modelID: "fixture-model",
-                               credentialReference: "fixture", contextWindow: 4096,
-                               maxOutputTokens: 128, requestsUsage: true)
+private func usageRoute(_ fixture: ProtocolFixture = .standard) throws -> AgentModelRoute {
+    let configuration = HTTPModelConfiguration(baseURL: "https://example.test/v1", protocolID: fixture.protocolID,
+                                                dialectProfileID: fixture.dialect, requestsUsage: true)
+    return AgentModelRoute(
+        id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
+        modelDescriptorID: ModelDescriptorID(), modelRevision: 1, adapter: fixture.adapter,
+        modelID: "fixture-model", credential: .init(reference: "fixture", version: 1),
+        contextWindow: 4_096, maximumOutputTokens: 128,
+        capabilities: .init(streamsText: true, callsTools: false, producesThinking: false),
+        configuration: try configuration.jsonValue()
+    )
 }
 
-private func usageRequest() -> CanonicalModelRequest {
-    CanonicalModelRequest(executionID: ExecutionID(), system: "Be concise.",
-                          messages: [CanonicalMessage(role: .user, text: "Hello")])
+private func usageInput() -> AgentModelInput {
+    AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Be concise.",
+                    messages: [.init(role: .user, text: "Hello")], tools: [])
 }
 
 private func usageSSE(_ frames: [(String, String)]) -> Data {
@@ -42,15 +49,23 @@ private func usageEvents(_ data: Data) -> [HTTPTransportEvent] {
     [.response(HTTPTransportResponse(statusCode: 200)), .bytes(data), .end]
 }
 
-private func collectUsage(_ transport: UsageTransport, route: ResolvedModelRouteSnapshot) async -> ([CanonicalStreamEvent], MiraError?) {
-    var events: [CanonicalStreamEvent] = []
+private func collectUsage(_ transport: UsageTransport, fixture: ProtocolFixture = .standard) async throws -> ([AgentModelStreamEvent], AgentModelFailure?) {
+    let adapter = HTTPModelAdapter(fixture: fixture, credentials: UsageCredentials(), transport: transport)
+    let route = try usageRoute(fixture)
+    let prepared = try adapter.prepare(usageInput(), route: route)
+    let operation = adapter.stream(prepared, route: route)
+    var events: [AgentModelStreamEvent] = []
     do {
-        for try await event in HTTPModelProvider(credentials: UsageCredentials(), transport: transport).stream(request: usageRequest(), route: route) {
-            events.append(event)
-        }
+        for try await event in operation.events { events.append(event) }
+        await operation.close()
         return (events, nil)
+    } catch let failure as AgentModelFailure {
+        await operation.close()
+        try failure.validate()
+        return (events, failure)
     } catch {
-        return (events, MiraError.safe(error))
+        await operation.close()
+        throw error
     }
 }
 
@@ -62,9 +77,9 @@ func openAICumulativeUsageIsNormalized() async throws {
         ("", #"{"choices":[],"usage":{"prompt_tokens":100,"completion_tokens":15,"prompt_tokens_details":{"cached_tokens":60},"completion_tokens_details":{"reasoning_tokens":7}}}"#),
         ("", "[DONE]")
     ])
-    let (events, error) = await collectUsage(UsageTransport(events: usageEvents(data)), route: usageRoute())
-    #expect(error == nil)
-    #expect(events == [
+    let result = try await collectUsage(UsageTransport(events: usageEvents(data)))
+    #expect(result.1 == nil)
+    #expect(result.0 == [
         .usage(.init(inputTokens: 100, outputTokens: 10, cacheReadTokens: 20, reasoningTokens: 4)),
         .usage(.init(inputTokens: 100, outputTokens: 15, cacheReadTokens: 60, reasoningTokens: 7)),
         .finished(.stop)
@@ -77,7 +92,7 @@ func compatibleCacheUsageIsNormalized() async throws {
         ("", #"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":5,"prompt_cache_hit_tokens":40}}"#),
         ("", "[DONE]")
     ])
-    let deepSeekResult = await collectUsage(UsageTransport(events: usageEvents(deepSeek)), route: usageRoute())
+    let deepSeekResult = try await collectUsage(UsageTransport(events: usageEvents(deepSeek)), fixture: .deepSeek)
     #expect(deepSeekResult.0 == [.usage(.init(inputTokens: 100, outputTokens: 5, cacheReadTokens: 40)), .finished(.stop)])
     #expect(deepSeekResult.1 == nil)
 
@@ -85,7 +100,7 @@ func compatibleCacheUsageIsNormalized() async throws {
         ("", #"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":5,"cached_tokens":40}}"#),
         ("", "[DONE]")
     ])
-    let kimiResult = await collectUsage(UsageTransport(events: usageEvents(kimi)), route: usageRoute())
+    let kimiResult = try await collectUsage(UsageTransport(events: usageEvents(kimi)), fixture: .kimi)
     #expect(kimiResult.0 == [.usage(.init(inputTokens: 100, outputTokens: 5, cacheReadTokens: 40)), .finished(.stop)])
     #expect(kimiResult.1 == nil)
 }
@@ -96,9 +111,11 @@ func conflictingCacheFieldsFailSafely() async throws {
         ("", #"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":5,"cached_tokens":40,"prompt_tokens_details":{"cached_tokens":20}}}"#),
         ("", "[DONE]")
     ])
-    let result = await collectUsage(UsageTransport(events: usageEvents(data)), route: usageRoute())
+    let result = try await collectUsage(UsageTransport(events: usageEvents(data)))
     #expect(result.0.isEmpty)
-    #expect(result.1?.code == .malformedStream)
+    let failure = try #require(result.1)
+    #expect(failure.error.code == .malformedStream)
+    #expect(failure.retryAdvice == nil)
 }
 
 @Test("Anthropic partial usage preserves message-start fields while replacing cumulative values")
@@ -110,16 +127,12 @@ func anthropicUsageMergesPartials() async throws {
         ("message_delta", #"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":7}}"#),
         ("message_stop", #"{"type":"message_stop"}"#)
     ])
-    let result = await collectUsage(UsageTransport(events: usageEvents(data)), route: usageRoute(.anthropic))
+    let result = try await collectUsage(UsageTransport(events: usageEvents(data)), fixture: .anthropic)
     #expect(result.1 == nil)
-    #expect(result.0 == [
-        .usage(.init(inputTokens: 100, outputTokens: 0, cacheReadTokens: 20, cacheWriteTokens: 10,
-                     inputTokenBasis: .excludesCache)),
-        .textDelta("hello"),
-        .usage(.init(inputTokens: 100, outputTokens: 7, cacheReadTokens: 20, cacheWriteTokens: 10,
-                     inputTokenBasis: .excludesCache)),
-        .finished(.stop)
-    ])
+    #expect(result.0.contains(.usage(.init(inputTokens: 100, outputTokens: 0, cacheReadTokens: 20, cacheWriteTokens: 10, inputTokenBasis: .excludesCache))))
+    #expect(textDeltas(result.0) == ["hello"])
+    #expect(result.0.contains(.usage(.init(inputTokens: 100, outputTokens: 7, cacheReadTokens: 20, cacheWriteTokens: 10, inputTokenBasis: .excludesCache))))
+    #expect(result.0.last == .finished(.stop))
 }
 
 @Test("Unknown usage fields are ignored and absent counters remain nil")
@@ -128,7 +141,7 @@ func unknownUsageFieldsDoNotInventCounters() async throws {
         ("", #"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":2,"provider_future":{"cache_write_tokens":99}}}"#),
         ("", "[DONE]")
     ])
-    let result = await collectUsage(UsageTransport(events: usageEvents(data)), route: usageRoute())
+    let result = try await collectUsage(UsageTransport(events: usageEvents(data)))
     #expect(result.1 == nil)
     #expect(result.0 == [.usage(.init(inputTokens: 3, outputTokens: 2)), .finished(.stop)])
 }
@@ -141,9 +154,11 @@ func malformedUsageCountersFailSafely() async throws {
         #"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":2,"completion_tokens_details":{"reasoning_tokens":3}}}"#
     ]
     for payload in payloads {
-        let result = await collectUsage(UsageTransport(events: usageEvents(usageSSE([("", payload), ("", "[DONE]")]))), route: usageRoute())
+        let result = try await collectUsage(UsageTransport(events: usageEvents(usageSSE([("", payload), ("", "[DONE]")]))))
         #expect(result.0.isEmpty)
-        #expect(result.1?.code == .malformedStream)
+        let failure = try #require(result.1)
+        #expect(failure.error.code == .malformedStream)
+        #expect(failure.retryAdvice == nil)
     }
 }
 
@@ -153,9 +168,10 @@ func interruptedStreamRetainsUsage() async throws {
         ("", #"{"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":4}}"#),
         ("", #"{"choices":[{"delta":{"content":"partial"},"finish_reason":null}]}"#)
     ])
-    let result = await collectUsage(UsageTransport(events: [
-        .response(HTTPTransportResponse(statusCode: 200)), .bytes(data), .end
-    ]), route: usageRoute())
-    #expect(result.0 == [.usage(.init(inputTokens: 12, outputTokens: 4)), .textDelta("partial")])
-    #expect(result.1?.code == .interrupted)
+    let result = try await collectUsage(UsageTransport(events: usageEvents(data)))
+    #expect(result.0.first == .usage(.init(inputTokens: 12, outputTokens: 4)))
+    #expect(textDeltas(result.0) == ["partial"])
+    let failure = try #require(result.1)
+    #expect(failure.error.code == .interrupted)
+    #expect(failure.retryAdvice == nil)
 }

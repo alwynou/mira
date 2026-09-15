@@ -19,7 +19,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
     let reduceMotion: Bool
     let topOverlayHeight: CGFloat
     let bottomOverlayHeight: CGFloat
-    @Binding var rememberedMessage: Message?
+    @Binding var rememberedMessage: SessionQueryMessage?
     @Binding var revealedMessageID: MessageID?
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -129,6 +129,19 @@ struct NativeConversationTranscript: NSViewRepresentable {
 
         private func handle(_ event: NSEvent) -> Bool {
             guard parent.isActive, parent.page.isActive, event.window === list.window else { return false }
+            if event.type == .scrollWheel, let content = list.window?.contentView {
+                let vertical = abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX)
+                var hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
+                while let view = hit, view !== content {
+                    if let scroll = view as? NSScrollView,
+                       ["conversation.toolIO", "conversation.codeBlock"].contains(scroll.accessibilityIdentifier()),
+                       ((vertical && event.scrollingDeltaY != 0 && (scroll.documentView?.bounds.height ?? 0) > scroll.contentView.bounds.height) ||
+                        (!vertical && event.scrollingDeltaX != 0 && (scroll.documentView?.bounds.width ?? 0) > scroll.contentView.bounds.width)) {
+                        return false
+                    }
+                    hit = view.superview
+                }
+            }
             let point = list.convert(event.locationInWindow, from: nil)
             let isScrollKey = event.type == .keyDown && [115, 116, 119, 121, 125, 126].contains(event.keyCode)
                 && event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty
@@ -181,7 +194,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             eventMonitor = nil
             // Bounds changes record the last visible position. Teardown may already
             // have collapsed the viewport or clamped its offset to zero.
-            parent.readingState.expandedThinkingIDs = state.expandedThinking
+            parent.readingState.expandedActivityIDs = state.expandedActivity
             parent.readingState.leave()
             viewport.onLayout = nil
             contents.removeAll()
@@ -232,8 +245,9 @@ struct NativeConversationTranscript: NSViewRepresentable {
             // Do not prune the destination's saved measurements or thinking state.
             guard !parent.page.isLoading else { return }
             let privacyChanged = parent.items.contains { item in
-                item.bodyPurgedAt != nil && state.items[item.id]?.bodyPurgedAt == nil
+                item.isBodyPurged && state.items[item.id]?.isBodyPurged != true
             }
+            let previousItems = state.items
             let change = state.apply(parent.items)
             let contentChanged = change.structureChanged || !change.updated.isEmpty
             if contentChanged { bottomAlignmentUntil = 0; restorationUntil = 0 }
@@ -263,26 +277,33 @@ struct NativeConversationTranscript: NSViewRepresentable {
             if (overlayChanged || styleChanged) && !contentChanged && parent.readingState.scrollState.shouldKeepBottomAlignedDuringResize() {
                 bottomAlignmentUntil = ProcessInfo.processInfo.systemUptime + 0.5
             }
-            for id in parent.readingState.expandedThinkingIDs where !state.expandedThinking.contains(id) {
-                state.toggleThinking(id)
+            for id in parent.readingState.expandedActivityIDs where !state.expandedActivity.contains(id) {
+                state.toggleActivity(id)
             }
-            parent.readingState.expandedThinkingIDs = state.expandedThinking
+            parent.readingState.expandedActivityIDs = state.expandedActivity
             measurementSignatures = Dictionary(uniqueKeysWithValues: parent.items.map {
-                ($0.id, $0.measurementSignature(expanded: state.expandedThinking.contains($0.id)))
+                ($0.id, $0.measurementSignature(expanded: state.expandedActivity.contains($0.id)))
             })
             let retainedIDs = Set(state.tokens.map(\.id))
             parent.readingState.rowMeasurements = parent.readingState.rowMeasurements.filter { retainedIDs.contains($0.key) }
-            let invalidated = Set(change.updated.map(\.id)).union(change.removed)
-            for id in invalidated {
+            let contentInvalidated = Set(parent.items.compactMap { item -> String? in
+                guard let previous = previousItems[item.id], renderedContentChange(from: previous, to: item)
+                else { return nil }
+                return item.id
+            }).union(change.removed)
+            let layoutInvalidated = Set(change.updated.map(\.id)).union(change.removed)
+            for id in contentInvalidated {
                 contents.removeValue(forKey: id + ":answer")
                 contents.removeValue(forKey: id + ":thinking")
+            }
+            for id in layoutInvalidated {
                 heights.removeValue(forKey: id)
             }
             contentOrder.removeAll { contents[$0] == nil }
             #if DEBUG
             if NativePerformanceBenchmark.isRequested && ProcessInfo.processInfo.arguments.contains("--benchmark-expand-thinking") {
-                for item in parent.items where item.trace.contains(where: { $0.reasoning != nil }) && !state.expandedThinking.contains(item.id) {
-                    state.toggleThinking(item.id)
+                for item in parent.items where !item.thinking.isEmpty && !state.expandedActivity.contains(item.id) {
+                    state.toggleActivity(item.id)
                 }
             }
             #endif
@@ -322,12 +343,17 @@ struct NativeConversationTranscript: NSViewRepresentable {
             wake()
         }
 
+        private func renderedContentChange(from previous: TranscriptItem, to current: TranscriptItem) -> Bool {
+            previous.role != current.role || previous.text != current.text ||
+                previous.thinking != current.thinking || previous.isBodyPurged != current.isBodyPurged
+        }
+
         /// Keep the native container and its cleared reuse pool warm across selections.
         /// No old message, prepared document or selection is retained in a reused row.
         private func resetForSelection() {
             navigationGeneration &+= 1
             hasInstalledSnapshot = false
-            parent.readingState.expandedThinkingIDs = state.expandedThinking
+            parent.readingState.expandedActivityIDs = state.expandedActivity
             parent.readingState.leave()
             scheduler.cancel()
             list.cancelCurrentScrolling()
@@ -350,7 +376,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
 
         private var sourceMessageID: String? {
             if let reveal = parent.revealedMessageID,
-               parent.items.contains(where: { $0.message?.id == reveal && $0.role == .user && $0.status == .committed }) {
+               parent.items.contains(where: { $0.message?.id == reveal && $0.role == .user && $0.status == .completed }) {
                 return "message:\(reveal.rawValue.uuidString)"
             }
             return nil
@@ -467,11 +493,11 @@ struct NativeConversationTranscript: NSViewRepresentable {
             let origin = conversationID
             let contentGeneration = parent.contentGeneration
             if !measuring { rowViews.add(row) }
-            let visible = item.bodyPurgedAt == nil && item.role == .assistant
-            let expanded = state.expandedThinking.contains(item.id)
+            let visible = !item.isBodyPurged && item.role == .assistant
+            let expanded = state.expandedActivity.contains(item.id)
             var reasoningSource = ""
             if visible && expanded {
-                reasoningSource = item.trace.compactMap { $0.reasoning?.text }.filter { !$0.isEmpty }.joined(separator: "\n\n")
+                reasoningSource = item.thinking
                 if reasoningSource.isEmpty {
                     reasoningSource = L10n.string("The model did not provide visible thinking text.", locale: parent.locale)
                 }
@@ -508,12 +534,12 @@ struct NativeConversationTranscript: NSViewRepresentable {
                     wake()
                 }
             }
-            row.onToggleThinking = { [weak self] in
+            row.onToggleActivity = { [weak self] in
                 guard let self, isMounted, parent.isActive, parent.page.isActive,
                       conversationID == origin, parent.contentGeneration == contentGeneration else { return }
-                state.toggleThinking(item.id)
-                parent.readingState.expandedThinkingIDs = state.expandedThinking
-                measurementSignatures[item.id] = item.measurementSignature(expanded: state.expandedThinking.contains(item.id))
+                state.toggleActivity(item.id)
+                parent.readingState.expandedActivityIDs = state.expandedActivity
+                measurementSignatures[item.id] = item.measurementSignature(expanded: state.expandedActivity.contains(item.id))
                 heights.removeValue(forKey: item.id)
                 if let current = list.rowView(for: item.id) as? NativeTranscriptRow {
                     configure(current, token: token, measurement: false)
@@ -521,9 +547,24 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 list.invalidateLayout(forRowWith: item.id)
                 wake()
             }
-            row.configure(item: item, body: body, reasoning: reasoning, reasoningSource: reasoningSource,
+            row.onToggleProcessBlock = { [weak self] blockID in
+                guard let self, isMounted, parent.isActive, parent.page.isActive,
+                      conversationID == origin, parent.contentGeneration == contentGeneration else { return }
+                if !parent.readingState.expandedProcessBlockIDs.insert(blockID).inserted {
+                    parent.readingState.expandedProcessBlockIDs.remove(blockID)
+                }
+                heights.removeValue(forKey: item.id)
+                parent.readingState.rowMeasurements.removeValue(forKey: item.id)
+                if let current = list.rowView(for: item.id) as? NativeTranscriptRow {
+                    configure(current, token: token, measurement: false)
+                }
+                list.invalidateLayout(forRowWith: item.id)
+                wake()
+            }
+            row.configure(item: item, body: body, reasoning: reasoning,
                           expanded: expanded, theme: theme, locale: parent.locale, reduceMotion: parent.reduceMotion,
-                          measurement: measuring, auxiliary: auxiliary) { [weak self] message in
+                          measurement: measuring, auxiliary: auxiliary,
+                          expandedBlocks: parent.readingState.expandedProcessBlockIDs) { [weak self] message in
                 guard let self, isMounted, parent.isActive, parent.page.isActive,
                       conversationID == origin, parent.contentGeneration == contentGeneration else { return }
                 parent.rememberedMessage = message

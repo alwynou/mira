@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import MiraCore
+import MiraProviders
 
 struct CostPresentationTests {
     private var resources: Bundle { Bundle(for: CostLocalizationMarker.self) }

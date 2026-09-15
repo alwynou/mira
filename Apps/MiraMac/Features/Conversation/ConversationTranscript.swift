@@ -6,7 +6,7 @@ struct ConversationTranscript: View {
     let page: ConversationPageState
     let topOverlayHeight: CGFloat
     let bottomOverlayHeight: CGFloat
-    @Binding var rememberedMessage: Message?
+    @Binding var rememberedMessage: SessionQueryMessage?
     @Binding var revealedMessageID: MessageID?
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -29,28 +29,8 @@ struct ConversationTranscript: View {
         }
     }
 
-    private var transcriptItems: [TranscriptItem] {
-        var items = page.messages.map { message in
-            TranscriptItem(
-                id: message.role == .assistant ? (message.executionID.map { "execution:\($0.rawValue.uuidString)" } ?? "message:\(message.id.rawValue.uuidString)") : "message:\(message.id.rawValue.uuidString)",
-                role: message.role, text: message.text, status: message.status, isStreaming: false,
-                message: message, bodyPurgedAt: message.bodyPurgedAt,
-                executionID: message.executionID, trace: message.trace,
-                memoryNotices: message.executionID.flatMap { page.memoryNotices[$0] } ?? []
-            )
-        }
-        if let execution = page.executions.last,
-           !items.contains(where: { $0.id == "execution:\(execution.id.rawValue.uuidString)" }),
-           let draft = page.streamBuffer.drafts[execution.id] {
-            items.append(.init(
-                id: "execution:\(execution.id.rawValue.uuidString)", role: .assistant, text: draft,
-                status: execution.status.isTerminal ? .interrupted : nil,
-                isStreaming: !execution.status.isTerminal,
-                executionID: execution.id, trace: page.streamBuffer.thinkingTraces[execution.id] ?? []
-            ))
-        }
-        return items
-    }
+    private var transcriptItems: [TranscriptItem] { page.transcriptItems }
+
 }
 
 /// Scroll-driven visibility updates do not rebuild transcript message snapshots.
@@ -90,11 +70,11 @@ struct TranscriptCitations: View, Equatable {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             MemoryCitationList(references: MemoryCitationReference.references(in: text), executionID: executionID,
-                               conversationID: conversationID, application: model.application, memoryNotices: memoryNotices) { sourceID in
+                               conversationID: conversationID, library: model.library) { sourceID in
                 Task { await model.selectConversation(sourceID) }
             }
             KnowledgeCitationList(references: SourceCitationReference.references(in: text), executionID: executionID,
-                                  conversationID: conversationID, application: model.application)
+                                  conversationID: conversationID, library: model.library)
         }
     }
 }

@@ -22,43 +22,49 @@ struct ReminderSchedulerTests {
         let foreign = ReminderNotification(identifier: foreignIdentifier, title: "Other library", body: "", fireAt: now.addingTimeInterval(7_200), revision: 1)
         let store = SchedulerStore(tasks: [task], includeInWorkPage: inWorkPage)
         let notifications = SchedulerNotificationPort(initial: [current, orphan, foreign])
-        let scheduler = ReminderScheduler(store: store, notifications: notifications, namespace: namespace, now: { now })
+        try await withScheduler(store: store, notifications: notifications, namespace: namespace, now: now) { scheduler in
+            try await scheduler.reconcile()
 
-        try await scheduler.reconcile()
-
-        let pending = await notifications.pending()
-        #expect(pending.contains(orphan) == false)
-        #expect(pending.contains(foreign))
-        #expect(pending.contains(current))
+            let pending = await notifications.pending()
+            #expect(pending.contains(orphan) == false)
+            #expect(pending.contains(foreign))
+            #expect(pending.contains(current))
+        }
     }
 }
 
-private final class SchedulerStore: TaskStore, @unchecked Sendable {
+private actor SchedulerStore: TaskStore {
     var tasks: [MiraTask]
     let includeInWorkPage: Bool
     init(tasks: [MiraTask], includeInWorkPage: Bool) { self.tasks = tasks; self.includeInWorkPage = includeInWorkPage }
 
-    func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) throws -> [MiraTask] { tasks }
-    func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> MiraTask {
+    func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) async throws -> [MiraTask] { tasks }
+    func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> MiraTask {
         guard let task = tasks.first(where: { $0.id == id }) else { throw MiraError(.notFound, "Task is unavailable.") }
         return task
     }
-    func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> [TaskRevision] { [] }
-    func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus, expectedRevision: Int?, operationID: UUID, at: Date) throws -> MiraTask { throw MiraError(.unsupported, "Synthetic store does not save tasks.") }
-    func taskProposals(workspaceID: WorkspaceID?) throws -> [TaskProposal] { [] }
-    func resolveTaskProposal(_ id: UUID, workspaceID: WorkspaceID?, accept: Bool, correctedDraft: TaskDraft?, at: Date) throws -> TaskWriteReceipt { throw MiraError(.unsupported, "Synthetic store does not resolve proposals.") }
-    func performTaskTool(arguments: JSONValue, context: ToolContext, at: Date) throws -> TaskWriteReceipt { throw MiraError(.unsupported, "Synthetic store does not perform tools.") }
-    func taskToolReference(context: ToolContext) throws -> TaskEvidence { throw MiraError(.unsupported, "Synthetic store does not provide evidence.") }
-    func reminderWork(limit: Int) throws -> [MiraTask] { includeInWorkPage ? tasks : [] }
-    func reminderTaskExists(_ id: MiraTaskID) throws -> Bool { tasks.contains { $0.id == id } }
-    func setReminderDelivery(_ id: MiraTaskID, expectedRevision: Int, state: ReminderDeliveryState, error: MiraError?, at: Date) throws -> Bool {
+    func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> [TaskRevision] { [] }
+    func taskProposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal] { [] }
+    func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus,
+                  expectedRevision: Int?, operationID: UUID, authorization: AgentLibraryAuthorization, at: Date) async throws -> MiraTask {
+        throw MiraError(.unsupported, "Synthetic store does not save tasks.")
+    }
+    func resolveTaskProposal(_ id: UUID, workspaceID: WorkspaceID?, accept: Bool, correctedDraft: TaskDraft?,
+                             source: SessionUserEvidence?, authorization: AgentLibraryAuthorization, at: Date) async throws -> TaskWriteReceipt {
+        throw MiraError(.unsupported, "Synthetic store does not resolve proposals.")
+    }
+    func reminderWork(limit: Int) async throws -> [MiraTask] { includeInWorkPage ? tasks : [] }
+    func reminderTaskExists(_ id: MiraTaskID) async throws -> Bool { tasks.contains { $0.id == id } }
+    func setReminderDelivery(_ id: MiraTaskID, expectedRevision: Int, state: ReminderDeliveryState, error: MiraError?,
+                             authorization: AgentLibraryAuthorization, at: Date) async throws -> Bool {
         guard let index = tasks.firstIndex(where: { $0.id == id }), tasks[index].revision == expectedRevision else { return false }
         tasks[index].deliveryState = state
         tasks[index].deliveryRevision = expectedRevision
         tasks[index].deliveryError = error
         return true
     }
-    func resumeReminder(_ id: MiraTaskID, workspaceID: WorkspaceID?, expectedRevision: Int, at: Date) throws {}
+    func resumeReminder(_ id: MiraTaskID, workspaceID: WorkspaceID?, expectedRevision: Int,
+                        authorization: AgentLibraryAuthorization, at: Date) async throws {}
 }
 
 private actor SchedulerNotificationPort: LocalNotificationPort {
@@ -69,4 +75,49 @@ private actor SchedulerNotificationPort: LocalNotificationPort {
     func pending() async -> [ReminderNotification] { Array(values.values) }
     func install(_ notification: ReminderNotification) async throws { values[notification.identifier] = notification }
     func remove(_ identifier: String) async { values[identifier] = nil }
+}
+
+private actor SchedulerAccessStore: AgentLibraryMaintenanceStore {
+    private let storedState: AgentLibraryMaintenanceState
+
+    init() {
+        storedState = .init(
+            authorization: .init(libraryID: UUID(), epoch: 1),
+            pending: nil
+        )
+    }
+
+    func state() async throws -> AgentLibraryMaintenanceState { storedState }
+    func operation(id: UUID) async throws -> AgentLibraryMaintenanceOperation? { nil }
+
+    func begin(_ request: AgentLibraryMaintenanceRequest,
+               expected: AgentLibraryAuthorization) async throws -> AgentLibraryMaintenanceOperation {
+        throw MiraError(.unsupported, "Synthetic scheduler authority does not perform maintenance.")
+    }
+
+    func complete(_ operation: AgentLibraryMaintenanceOperation,
+                  at date: Date) async throws -> AgentLibraryMaintenanceOperation {
+        throw MiraError(.unsupported, "Synthetic scheduler authority does not perform maintenance.")
+    }
+}
+
+private func withScheduler<T>(store: SchedulerStore, notifications: SchedulerNotificationPort,
+                             namespace: String, now: Date,
+                             _ body: (ReminderScheduler) async throws -> T) async throws -> T {
+    let access = try await AgentLibraryAccess.open(store: SchedulerAccessStore())
+    let scope = RuntimeScope(kind: .application)
+    let scheduler = ReminderScheduler(store: store, notifications: notifications, namespace: namespace,
+                                      access: access, scope: scope, now: { now })
+    do {
+        let result = try await body(scheduler)
+        await scheduler.close()
+        await access.close()
+        await scope.dispose()
+        return result
+    } catch {
+        await scheduler.close()
+        await access.close()
+        await scope.dispose()
+        throw error
+    }
 }

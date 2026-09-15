@@ -1,0 +1,27 @@
+flowchart TB
+  Host["macOS 宿主作用域"] --> File["MarkdownFileSnapshotReader<br/>文件描述符检查 · 读取排空"]
+  File --> Snapshot["KnowledgeImport<br/>标题与有界字节快照"]
+  Snapshot --> App["KnowledgeApplication<br/>库租约 · 已接纳操作所有权"]
+  Host --> Module["KnowledgeModule<br/>工具 · 可选预取 · 来源权威"]
+  subgraph Core["MiraCore · 只依赖 Foundation"]
+    Snapshot
+    Runtime["平台无关 Agent Runtime<br/>策略 · 派发 · 结算 · 作用域排空"]
+    App --> Port["异步 Knowledge 领域端口<br/>明确工作区与发送目标"]
+    Module --> Tools["search · open · read_chunk<br/>封闭 schema · 冻结结果"]
+    Module --> Context["上下文贡献器<br/>真实片段与精确来源"]
+    Module --> Authority["元数据与正文片段分别授权"]
+    Tools --> Port
+    Context --> Port
+    Authority --> Port
+    App --> Reader["通用 JournalSessionReader<br/>已完成回答的 route 与来源证据"]
+  end
+  Port --> Store["SQLiteKnowledgeStore<br/>受库代次保护的领域事务"]
+  Store --> DB["共享业务 SQLite<br/>来源 · 版本 · 片段 · 回执"]
+  Store --> Blob["内容寻址 Blobs<br/>先完整发布，再提交引用"]
+  Reader --> Journal["会话 journal 与 payload<br/>模型上下文的唯一使用证据"]
+  Module --> Runtime
+  Runtime --> Journal
+  Runtime --> Validator["SQLiteKnowledgeReadValidator<br/>派发时核对当前业务权限"]
+  Validator --> DB
+  Pending["尚待完成：跨日志隐私清理<br/>可恢复 GC · 新备份 · 宿主切换"] -.-> Store
+  Pending -.-> Journal

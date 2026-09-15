@@ -1,0 +1,1363 @@
+{
+  "build": "SwiftPM Release; production baseline b85a19d; newly added MiraScaleProbe fixture",
+  "cache": "new process per sample; warm OS filesystem cache; no purge or native UI measurement",
+  "corpora": [
+    {
+      "afterRebuild": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 2211840,
+          "bytes": 2197480,
+          "files": 10
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 942080,
+          "bytes": 937260,
+          "files": 10
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 8232960,
+          "bytes": 1837190,
+          "files": 2010
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 1351680,
+          "bytes": 1338020,
+          "files": 10
+        },
+        "projection.sqlite": {
+          "allocatedBytes": 2600960,
+          "bytes": 2179072,
+          "files": 1
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 90,
+          "files": 1
+        }
+      },
+      "afterSamples": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 2211840,
+          "bytes": 2197480,
+          "files": 10
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 942080,
+          "bytes": 937260,
+          "files": 10
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 8232960,
+          "bytes": 1837190,
+          "files": 2010
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 1351680,
+          "bytes": 1338020,
+          "files": 10
+        },
+        "projection.sqlite": {
+          "allocatedBytes": 2600960,
+          "bytes": 2179072,
+          "files": 1
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 90,
+          "files": 1
+        }
+      },
+      "afterSeed": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 2211840,
+          "bytes": 2197480,
+          "files": 10
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 942080,
+          "bytes": 937260,
+          "files": 10
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 8232960,
+          "bytes": 1837190,
+          "files": 2010
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 1351680,
+          "bytes": 1338020,
+          "files": 10
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 90,
+          "files": 1
+        }
+      },
+      "messages": 1000,
+      "p95Milliseconds": {
+        "journalOpen": 326.245458,
+        "libraryCatchUp": 5.920125,
+        "localStoreReady": 336.83775,
+        "projectionOpen": 2.108917,
+        "selectedCheckpoint": 5.64925,
+        "visiblePage": 2.919375
+      },
+      "p95ProcessWallMs": 352.18745801830664,
+      "rebuild": {
+        "messages": 1000,
+        "milliseconds": {
+          "fullProjectionRebuild": 1422.866708,
+          "journalOpen": 325.441458,
+          "localStoreReady": 1755.08,
+          "projectionOpen": 3.876834,
+          "selectedCheckpoint": 5.535875,
+          "visiblePage": 2.835083
+        },
+        "operation": "rebuild",
+        "peakRSSBytes": 27639808,
+        "processWallMs": 1800.7272079994436,
+        "sessions": 10,
+        "systemCPUSeconds": 0.755098,
+        "userCPUSeconds": 0.677768
+      },
+      "samples": [
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 325.510625,
+            "libraryCatchUp": 5.313375,
+            "localStoreReady": 335.212209,
+            "projectionOpen": 1.808542,
+            "selectedCheckpoint": 5.152208,
+            "visiblePage": 2.548833
+          },
+          "operation": "read",
+          "peakRSSBytes": 25182208,
+          "processWallMs": 350.064916012343,
+          "sessions": 10,
+          "systemCPUSeconds": 0.136019,
+          "userCPUSeconds": 0.209283
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 322.6625,
+            "libraryCatchUp": 5.170208,
+            "localStoreReady": 332.633167,
+            "projectionOpen": 2.032875,
+            "selectedCheckpoint": 5.123542,
+            "visiblePage": 2.731791
+          },
+          "operation": "read",
+          "peakRSSBytes": 24854528,
+          "processWallMs": 347.5254999939352,
+          "sessions": 10,
+          "systemCPUSeconds": 0.133885,
+          "userCPUSeconds": 0.209003
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 322.636416,
+            "libraryCatchUp": 5.510958,
+            "localStoreReady": 333.045291,
+            "projectionOpen": 1.911209,
+            "selectedCheckpoint": 5.397042,
+            "visiblePage": 2.953416
+          },
+          "operation": "read",
+          "peakRSSBytes": 25231360,
+          "processWallMs": 348.2124169822782,
+          "sessions": 10,
+          "systemCPUSeconds": 0.135163,
+          "userCPUSeconds": 0.208462
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 318.757167,
+            "libraryCatchUp": 5.437416,
+            "localStoreReady": 328.748167,
+            "projectionOpen": 1.927416,
+            "selectedCheckpoint": 5.454666,
+            "visiblePage": 2.589
+          },
+          "operation": "read",
+          "peakRSSBytes": 24887296,
+          "processWallMs": 344.3082080048043,
+          "sessions": 10,
+          "systemCPUSeconds": 0.132078,
+          "userCPUSeconds": 0.207967
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 326.245458,
+            "libraryCatchUp": 5.582334,
+            "localStoreReady": 336.83775,
+            "projectionOpen": 2.108917,
+            "selectedCheckpoint": 5.501625,
+            "visiblePage": 2.864875
+          },
+          "operation": "read",
+          "peakRSSBytes": 25198592,
+          "processWallMs": 352.18745801830664,
+          "sessions": 10,
+          "systemCPUSeconds": 0.136598,
+          "userCPUSeconds": 0.210888
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 323.553875,
+            "libraryCatchUp": 5.785083,
+            "localStoreReady": 333.785542,
+            "projectionOpen": 1.711958,
+            "selectedCheckpoint": 5.022542,
+            "visiblePage": 2.700416
+          },
+          "operation": "read",
+          "peakRSSBytes": 25296896,
+          "processWallMs": 350.53808300290257,
+          "sessions": 10,
+          "systemCPUSeconds": 0.133286,
+          "userCPUSeconds": 0.211195
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 321.739958,
+            "libraryCatchUp": 5.864458,
+            "localStoreReady": 332.18175,
+            "projectionOpen": 1.767875,
+            "selectedCheckpoint": 5.164083,
+            "visiblePage": 2.769792
+          },
+          "operation": "read",
+          "peakRSSBytes": 25100288,
+          "processWallMs": 347.18487499048933,
+          "sessions": 10,
+          "systemCPUSeconds": 0.132184,
+          "userCPUSeconds": 0.21097
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 353.294416,
+            "libraryCatchUp": 5.549792,
+            "localStoreReady": 363.96825,
+            "projectionOpen": 2.173833,
+            "selectedCheckpoint": 5.174917,
+            "visiblePage": 2.919375
+          },
+          "operation": "read",
+          "peakRSSBytes": 25427968,
+          "processWallMs": 378.5838340118062,
+          "sessions": 10,
+          "systemCPUSeconds": 0.162137,
+          "userCPUSeconds": 0.211743
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 321.620833,
+            "libraryCatchUp": 5.920125,
+            "localStoreReady": 332.114208,
+            "projectionOpen": 1.817416,
+            "selectedCheckpoint": 5.455292,
+            "visiblePage": 2.726334
+          },
+          "operation": "read",
+          "peakRSSBytes": 25018368,
+          "processWallMs": 348.12954199151136,
+          "sessions": 10,
+          "systemCPUSeconds": 0.133588,
+          "userCPUSeconds": 0.209667
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 320.327542,
+            "libraryCatchUp": 5.246208,
+            "localStoreReady": 330.160459,
+            "projectionOpen": 1.837542,
+            "selectedCheckpoint": 5.271792,
+            "visiblePage": 2.701583
+          },
+          "operation": "read",
+          "peakRSSBytes": 25116672,
+          "processWallMs": 345.9091660042759,
+          "sessions": 10,
+          "systemCPUSeconds": 0.132895,
+          "userCPUSeconds": 0.208294
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 317.845917,
+            "libraryCatchUp": 5.501416,
+            "localStoreReady": 327.879084,
+            "projectionOpen": 1.882583,
+            "selectedCheckpoint": 5.28525,
+            "visiblePage": 2.609417
+          },
+          "operation": "read",
+          "peakRSSBytes": 25247744,
+          "processWallMs": 342.9988330171909,
+          "sessions": 10,
+          "systemCPUSeconds": 0.131412,
+          "userCPUSeconds": 0.207019
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 320.401875,
+            "libraryCatchUp": 6.068375,
+            "localStoreReady": 331.062834,
+            "projectionOpen": 2.038375,
+            "selectedCheckpoint": 5.64925,
+            "visiblePage": 2.521042
+          },
+          "operation": "read",
+          "peakRSSBytes": 25296896,
+          "processWallMs": 346.62729199044406,
+          "sessions": 10,
+          "systemCPUSeconds": 0.133735,
+          "userCPUSeconds": 0.208527
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 324.10425,
+            "libraryCatchUp": 5.643791,
+            "localStoreReady": 334.527917,
+            "projectionOpen": 2.019167,
+            "selectedCheckpoint": 5.158792,
+            "visiblePage": 2.731208
+          },
+          "operation": "read",
+          "peakRSSBytes": 25198592,
+          "processWallMs": 349.2729580029845,
+          "sessions": 10,
+          "systemCPUSeconds": 0.135849,
+          "userCPUSeconds": 0.209068
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 321.77175,
+            "libraryCatchUp": 5.49375,
+            "localStoreReady": 331.952417,
+            "projectionOpen": 2.00075,
+            "selectedCheckpoint": 5.413917,
+            "visiblePage": 2.645292
+          },
+          "operation": "read",
+          "peakRSSBytes": 25149440,
+          "processWallMs": 346.83891700115055,
+          "sessions": 10,
+          "systemCPUSeconds": 0.133467,
+          "userCPUSeconds": 0.208913
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 325.06025,
+            "libraryCatchUp": 5.660792,
+            "localStoreReady": 335.216958,
+            "projectionOpen": 1.850833,
+            "selectedCheckpoint": 5.467709,
+            "visiblePage": 2.609875
+          },
+          "operation": "read",
+          "peakRSSBytes": 25362432,
+          "processWallMs": 350.37562501383945,
+          "sessions": 10,
+          "systemCPUSeconds": 0.135135,
+          "userCPUSeconds": 0.21079
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 318.916625,
+            "libraryCatchUp": 5.498084,
+            "localStoreReady": 329.202375,
+            "projectionOpen": 2.030125,
+            "selectedCheckpoint": 5.24425,
+            "visiblePage": 2.72475
+          },
+          "operation": "read",
+          "peakRSSBytes": 25231360,
+          "processWallMs": 344.3013329815585,
+          "sessions": 10,
+          "systemCPUSeconds": 0.13215,
+          "userCPUSeconds": 0.20805
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 323.3975,
+            "libraryCatchUp": 5.7055,
+            "localStoreReady": 333.753,
+            "projectionOpen": 1.873958,
+            "selectedCheckpoint": 5.296542,
+            "visiblePage": 2.744417
+          },
+          "operation": "read",
+          "peakRSSBytes": 25100288,
+          "processWallMs": 349.4467920099851,
+          "sessions": 10,
+          "systemCPUSeconds": 0.135797,
+          "userCPUSeconds": 0.208783
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 322.680709,
+            "libraryCatchUp": 5.744875,
+            "localStoreReady": 332.924792,
+            "projectionOpen": 1.844875,
+            "selectedCheckpoint": 5.503458,
+            "visiblePage": 2.613792
+          },
+          "operation": "read",
+          "peakRSSBytes": 25149440,
+          "processWallMs": 348.54958299547434,
+          "sessions": 10,
+          "systemCPUSeconds": 0.134351,
+          "userCPUSeconds": 0.209833
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 317.95175,
+            "libraryCatchUp": 5.310791,
+            "localStoreReady": 327.9725,
+            "projectionOpen": 1.884458,
+            "selectedCheckpoint": 5.490916,
+            "visiblePage": 2.789917
+          },
+          "operation": "read",
+          "peakRSSBytes": 25001984,
+          "processWallMs": 343.0897500074934,
+          "sessions": 10,
+          "systemCPUSeconds": 0.130881,
+          "userCPUSeconds": 0.207957
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 321.687542,
+            "libraryCatchUp": 5.83725,
+            "localStoreReady": 332.221708,
+            "projectionOpen": 2.007208,
+            "selectedCheckpoint": 5.532709,
+            "visiblePage": 2.654458
+          },
+          "operation": "read",
+          "peakRSSBytes": 25165824,
+          "processWallMs": 347.36087499186397,
+          "sessions": 10,
+          "systemCPUSeconds": 0.132703,
+          "userCPUSeconds": 0.210191
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 317.513042,
+            "libraryCatchUp": 5.22675,
+            "localStoreReady": 327.562417,
+            "projectionOpen": 1.915875,
+            "selectedCheckpoint": 5.234917,
+            "visiblePage": 2.869583
+          },
+          "operation": "read",
+          "peakRSSBytes": 24936448,
+          "processWallMs": 342.3306669865269,
+          "sessions": 10,
+          "systemCPUSeconds": 0.129928,
+          "userCPUSeconds": 0.208116
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 320.010083,
+            "libraryCatchUp": 5.668792,
+            "localStoreReady": 330.394583,
+            "projectionOpen": 1.939625,
+            "selectedCheckpoint": 5.480542,
+            "visiblePage": 2.744041
+          },
+          "operation": "read",
+          "peakRSSBytes": 25018368,
+          "processWallMs": 345.92158399755135,
+          "sessions": 10,
+          "systemCPUSeconds": 0.132644,
+          "userCPUSeconds": 0.208388
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 323.56975,
+            "libraryCatchUp": 5.6075,
+            "localStoreReady": 333.8955,
+            "projectionOpen": 2.053959,
+            "selectedCheckpoint": 5.467625,
+            "visiblePage": 2.632125
+          },
+          "operation": "read",
+          "peakRSSBytes": 25165824,
+          "processWallMs": 349.4191660138313,
+          "sessions": 10,
+          "systemCPUSeconds": 0.134407,
+          "userCPUSeconds": 0.210023
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 322.555708,
+            "libraryCatchUp": 5.632083,
+            "localStoreReady": 332.811166,
+            "projectionOpen": 1.844084,
+            "selectedCheckpoint": 5.549333,
+            "visiblePage": 2.744667
+          },
+          "operation": "read",
+          "peakRSSBytes": 24969216,
+          "processWallMs": 348.4469999966677,
+          "sessions": 10,
+          "systemCPUSeconds": 0.134442,
+          "userCPUSeconds": 0.209478
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 322.793959,
+            "libraryCatchUp": 5.498291,
+            "localStoreReady": 333.175167,
+            "projectionOpen": 2.098709,
+            "selectedCheckpoint": 5.40675,
+            "visiblePage": 2.750083
+          },
+          "operation": "read",
+          "peakRSSBytes": 25395200,
+          "processWallMs": 348.208874987904,
+          "sessions": 10,
+          "systemCPUSeconds": 0.135081,
+          "userCPUSeconds": 0.208466
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 320.747583,
+            "libraryCatchUp": 5.225917,
+            "localStoreReady": 330.495833,
+            "projectionOpen": 1.817542,
+            "selectedCheckpoint": 5.695625,
+            "visiblePage": 2.665375
+          },
+          "operation": "read",
+          "peakRSSBytes": 25378816,
+          "processWallMs": 345.7548749865964,
+          "sessions": 10,
+          "systemCPUSeconds": 0.132979,
+          "userCPUSeconds": 0.208374
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 321.971833,
+            "libraryCatchUp": 5.571291,
+            "localStoreReady": 332.323042,
+            "projectionOpen": 1.914125,
+            "selectedCheckpoint": 5.480333,
+            "visiblePage": 2.826375
+          },
+          "operation": "read",
+          "peakRSSBytes": 25280512,
+          "processWallMs": 347.5904169899877,
+          "sessions": 10,
+          "systemCPUSeconds": 0.133852,
+          "userCPUSeconds": 0.209365
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 319.681375,
+            "libraryCatchUp": 5.424791,
+            "localStoreReady": 329.858666,
+            "projectionOpen": 1.871,
+            "selectedCheckpoint": 5.540917,
+            "visiblePage": 2.844875
+          },
+          "operation": "read",
+          "peakRSSBytes": 25378816,
+          "processWallMs": 345.37229099078104,
+          "sessions": 10,
+          "systemCPUSeconds": 0.13197,
+          "userCPUSeconds": 0.209167
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 318.973542,
+            "libraryCatchUp": 5.256292,
+            "localStoreReady": 328.8965,
+            "projectionOpen": 1.892041,
+            "selectedCheckpoint": 5.472667,
+            "visiblePage": 2.744417
+          },
+          "operation": "read",
+          "peakRSSBytes": 24952832,
+          "processWallMs": 343.9994999789633,
+          "sessions": 10,
+          "systemCPUSeconds": 0.132578,
+          "userCPUSeconds": 0.207193
+        },
+        {
+          "messages": 1000,
+          "milliseconds": {
+            "journalOpen": 323.797459,
+            "libraryCatchUp": 5.682833,
+            "localStoreReady": 334.174459,
+            "projectionOpen": 1.908375,
+            "selectedCheckpoint": 5.383958,
+            "visiblePage": 2.7575
+          },
+          "operation": "read",
+          "peakRSSBytes": 25149440,
+          "processWallMs": 349.2279580095783,
+          "sessions": 10,
+          "systemCPUSeconds": 0.134357,
+          "userCPUSeconds": 0.2098
+        }
+      ],
+      "seed": {
+        "messages": 1000,
+        "milliseconds": {
+          "seed": 2144.611125
+        },
+        "operation": "seed",
+        "peakRSSBytes": 21118976,
+        "processWallMs": 2799.4200839893892,
+        "sessions": 10,
+        "systemCPUSeconds": 1.096741,
+        "userCPUSeconds": 0.906776
+      },
+      "sessions": 10
+    },
+    {
+      "afterRebuild": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 22118400,
+          "bytes": 21974800,
+          "files": 100
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 9420800,
+          "bytes": 9372600,
+          "files": 100
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 82329600,
+          "bytes": 18371990,
+          "files": 20100
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 13516800,
+          "bytes": 13380200,
+          "files": 100
+        },
+        "projection.sqlite": {
+          "allocatedBytes": 21426176,
+          "bytes": 21258240,
+          "files": 1
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 91,
+          "files": 1
+        }
+      },
+      "afterSamples": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 22118400,
+          "bytes": 21974800,
+          "files": 100
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 9420800,
+          "bytes": 9372600,
+          "files": 100
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 82329600,
+          "bytes": 18371990,
+          "files": 20100
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 13516800,
+          "bytes": 13380200,
+          "files": 100
+        },
+        "projection.sqlite": {
+          "allocatedBytes": 21426176,
+          "bytes": 21258240,
+          "files": 1
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 91,
+          "files": 1
+        }
+      },
+      "afterSeed": {
+        "Sessions/.cache-authentication": {
+          "allocatedBytes": 4096,
+          "bytes": 32,
+          "files": 1
+        },
+        "Sessions/.lock": {
+          "allocatedBytes": 0,
+          "bytes": 0,
+          "files": 1
+        },
+        "Sessions/checkpoints": {
+          "allocatedBytes": 22118400,
+          "bytes": 21974800,
+          "files": 100
+        },
+        "Sessions/indexes": {
+          "allocatedBytes": 9420800,
+          "bytes": 9372600,
+          "files": 100
+        },
+        "Sessions/payloads": {
+          "allocatedBytes": 82329600,
+          "bytes": 18371990,
+          "files": 20100
+        },
+        "Sessions/sessions": {
+          "allocatedBytes": 13516800,
+          "bytes": 13380200,
+          "files": 100
+        },
+        "scale.json": {
+          "allocatedBytes": 4096,
+          "bytes": 91,
+          "files": 1
+        }
+      },
+      "messages": 10000,
+      "p95Milliseconds": {
+        "journalOpen": 3453.233375,
+        "libraryCatchUp": 47.987,
+        "localStoreReady": 3503.610834,
+        "projectionOpen": 2.188,
+        "selectedCheckpoint": 5.692375,
+        "visiblePage": 3.043375
+      },
+      "p95ProcessWallMs": 3522.063332988182,
+      "rebuild": {
+        "messages": 10000,
+        "milliseconds": {
+          "fullProjectionRebuild": 15924.399375,
+          "journalOpen": 3395.3151669999997,
+          "localStoreReady": 19326.439334,
+          "projectionOpen": 3.491542,
+          "selectedCheckpoint": 5.576958,
+          "visiblePage": 3.176042
+        },
+        "operation": "rebuild",
+        "peakRSSBytes": 109215744,
+        "processWallMs": 19680.91395800002,
+        "sessions": 100,
+        "systemCPUSeconds": 7.7804079999999995,
+        "userCPUSeconds": 6.80952
+      },
+      "samples": [
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3382.800792,
+            "libraryCatchUp": 45.384167,
+            "localStoreReady": 3433.173417,
+            "projectionOpen": 2.033375,
+            "selectedCheckpoint": 5.550791,
+            "visiblePage": 2.920667
+          },
+          "operation": "read",
+          "peakRSSBytes": 101761024,
+          "processWallMs": 3451.9392919901293,
+          "sessions": 100,
+          "systemCPUSeconds": 1.469663,
+          "userCPUSeconds": 1.974259
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3387.931375,
+            "libraryCatchUp": 47.537875,
+            "localStoreReady": 3440.320917,
+            "projectionOpen": 2.091541,
+            "selectedCheckpoint": 5.316791,
+            "visiblePage": 2.731917
+          },
+          "operation": "read",
+          "peakRSSBytes": 99614720,
+          "processWallMs": 3458.686416997807,
+          "sessions": 100,
+          "systemCPUSeconds": 1.47247,
+          "userCPUSeconds": 1.9782220000000001
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3389.7956249999997,
+            "libraryCatchUp": 46.260459,
+            "localStoreReady": 3441.119,
+            "projectionOpen": 2.152209,
+            "selectedCheckpoint": 5.619583,
+            "visiblePage": 2.8795
+          },
+          "operation": "read",
+          "peakRSSBytes": 101924864,
+          "processWallMs": 3460.099582996918,
+          "sessions": 100,
+          "systemCPUSeconds": 1.475316,
+          "userCPUSeconds": 1.976108
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3386.111125,
+            "libraryCatchUp": 45.281875,
+            "localStoreReady": 3436.084375,
+            "projectionOpen": 1.900625,
+            "selectedCheckpoint": 5.199292,
+            "visiblePage": 2.756
+          },
+          "operation": "read",
+          "peakRSSBytes": 101400576,
+          "processWallMs": 3453.899417014327,
+          "sessions": 100,
+          "systemCPUSeconds": 1.4685139999999999,
+          "userCPUSeconds": 1.9775559999999999
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3430.291958,
+            "libraryCatchUp": 46.449375,
+            "localStoreReady": 3481.330583,
+            "projectionOpen": 1.910458,
+            "selectedCheckpoint": 5.342125,
+            "visiblePage": 2.646583
+          },
+          "operation": "read",
+          "peakRSSBytes": 100204544,
+          "processWallMs": 3499.6923340077046,
+          "sessions": 100,
+          "systemCPUSeconds": 1.497782,
+          "userCPUSeconds": 1.985317
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3394.162875,
+            "libraryCatchUp": 45.346,
+            "localStoreReady": 3444.265625,
+            "projectionOpen": 1.901791,
+            "selectedCheckpoint": 5.317625,
+            "visiblePage": 2.824416
+          },
+          "operation": "read",
+          "peakRSSBytes": 101629952,
+          "processWallMs": 3462.554000027012,
+          "sessions": 100,
+          "systemCPUSeconds": 1.4755989999999999,
+          "userCPUSeconds": 1.978767
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3379.685208,
+            "libraryCatchUp": 45.323208,
+            "localStoreReady": 3429.776708,
+            "projectionOpen": 1.939209,
+            "selectedCheckpoint": 5.599333,
+            "visiblePage": 2.797167
+          },
+          "operation": "read",
+          "peakRSSBytes": 101580800,
+          "processWallMs": 3448.2062500028405,
+          "sessions": 100,
+          "systemCPUSeconds": 1.464109,
+          "userCPUSeconds": 1.97708
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3393.297209,
+            "libraryCatchUp": 45.15375,
+            "localStoreReady": 3443.159125,
+            "projectionOpen": 1.938208,
+            "selectedCheckpoint": 5.48725,
+            "visiblePage": 2.741958
+          },
+          "operation": "read",
+          "peakRSSBytes": 102465536,
+          "processWallMs": 3461.256000009598,
+          "sessions": 100,
+          "systemCPUSeconds": 1.47806,
+          "userCPUSeconds": 1.974607
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3388.915541,
+            "libraryCatchUp": 47.078875,
+            "localStoreReady": 3440.8455,
+            "projectionOpen": 1.82625,
+            "selectedCheckpoint": 5.583041,
+            "visiblePage": 2.994333
+          },
+          "operation": "read",
+          "peakRSSBytes": 102088704,
+          "processWallMs": 3459.2747919959947,
+          "sessions": 100,
+          "systemCPUSeconds": 1.471978,
+          "userCPUSeconds": 1.977992
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3389.068875,
+            "libraryCatchUp": 45.163166,
+            "localStoreReady": 3438.989708,
+            "projectionOpen": 2.039625,
+            "selectedCheckpoint": 5.692375,
+            "visiblePage": 2.680292
+          },
+          "operation": "read",
+          "peakRSSBytes": 102236160,
+          "processWallMs": 3457.8229160106275,
+          "sessions": 100,
+          "systemCPUSeconds": 1.469679,
+          "userCPUSeconds": 1.978268
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3389.376083,
+            "libraryCatchUp": 46.303792,
+            "localStoreReady": 3440.448792,
+            "projectionOpen": 2.032875,
+            "selectedCheckpoint": 5.30225,
+            "visiblePage": 2.703791
+          },
+          "operation": "read",
+          "peakRSSBytes": 100155392,
+          "processWallMs": 3458.5448750003707,
+          "sessions": 100,
+          "systemCPUSeconds": 1.466482,
+          "userCPUSeconds": 1.981763
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3400.850208,
+            "libraryCatchUp": 45.754958,
+            "localStoreReady": 3451.461208,
+            "projectionOpen": 1.977125,
+            "selectedCheckpoint": 5.619416,
+            "visiblePage": 2.844416
+          },
+          "operation": "read",
+          "peakRSSBytes": 101777408,
+          "processWallMs": 3469.791209005052,
+          "sessions": 100,
+          "systemCPUSeconds": 1.47796,
+          "userCPUSeconds": 1.983844
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3389.905167,
+            "libraryCatchUp": 45.393333,
+            "localStoreReady": 3439.975958,
+            "projectionOpen": 1.930709,
+            "selectedCheckpoint": 5.428791,
+            "visiblePage": 2.712958
+          },
+          "operation": "read",
+          "peakRSSBytes": 99745792,
+          "processWallMs": 3458.3896250114776,
+          "sessions": 100,
+          "systemCPUSeconds": 1.479439,
+          "userCPUSeconds": 1.9715340000000001
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3453.233375,
+            "libraryCatchUp": 45.607125,
+            "localStoreReady": 3503.610834,
+            "projectionOpen": 1.947291,
+            "selectedCheckpoint": 5.358,
+            "visiblePage": 2.790708
+          },
+          "operation": "read",
+          "peakRSSBytes": 100384768,
+          "processWallMs": 3522.063332988182,
+          "sessions": 100,
+          "systemCPUSeconds": 1.508655,
+          "userCPUSeconds": 1.994355
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3402.1907499999998,
+            "libraryCatchUp": 46.014875,
+            "localStoreReady": 3452.823333,
+            "projectionOpen": 1.891167,
+            "selectedCheckpoint": 5.113792,
+            "visiblePage": 2.693041
+          },
+          "operation": "read",
+          "peakRSSBytes": 101892096,
+          "processWallMs": 3470.8109159837477,
+          "sessions": 100,
+          "systemCPUSeconds": 1.472365,
+          "userCPUSeconds": 1.989732
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3403.298041,
+            "libraryCatchUp": 47.650375,
+            "localStoreReady": 3455.891125,
+            "projectionOpen": 2.01025,
+            "selectedCheckpoint": 5.383208,
+            "visiblePage": 2.898666
+          },
+          "operation": "read",
+          "peakRSSBytes": 101482496,
+          "processWallMs": 3473.9839590038173,
+          "sessions": 100,
+          "systemCPUSeconds": 1.479689,
+          "userCPUSeconds": 1.98444
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3399.602917,
+            "libraryCatchUp": 46.2635,
+            "localStoreReady": 3450.600125,
+            "projectionOpen": 1.935334,
+            "selectedCheckpoint": 5.598916,
+            "visiblePage": 2.761583
+          },
+          "operation": "read",
+          "peakRSSBytes": 102023168,
+          "processWallMs": 3469.190083007561,
+          "sessions": 100,
+          "systemCPUSeconds": 1.4768919999999999,
+          "userCPUSeconds": 1.9851480000000001
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3392.41325,
+            "libraryCatchUp": 44.182916,
+            "localStoreReady": 3441.464167,
+            "projectionOpen": 2.016333,
+            "selectedCheckpoint": 5.364709,
+            "visiblePage": 2.8225
+          },
+          "operation": "read",
+          "peakRSSBytes": 101695488,
+          "processWallMs": 3459.70754197333,
+          "sessions": 100,
+          "systemCPUSeconds": 1.466482,
+          "userCPUSeconds": 1.985463
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3396.848125,
+            "libraryCatchUp": 45.152458,
+            "localStoreReady": 3446.845625,
+            "projectionOpen": 2.117709,
+            "selectedCheckpoint": 5.678292,
+            "visiblePage": 2.680625
+          },
+          "operation": "read",
+          "peakRSSBytes": 100188160,
+          "processWallMs": 3464.870374999009,
+          "sessions": 100,
+          "systemCPUSeconds": 1.472826,
+          "userCPUSeconds": 1.98465
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3409.837625,
+            "libraryCatchUp": 45.555875,
+            "localStoreReady": 3460.016333,
+            "projectionOpen": 1.873084,
+            "selectedCheckpoint": 5.359917,
+            "visiblePage": 2.720041
+          },
+          "operation": "read",
+          "peakRSSBytes": 99991552,
+          "processWallMs": 3478.3384579932317,
+          "sessions": 100,
+          "systemCPUSeconds": 1.482281,
+          "userCPUSeconds": 1.9877639999999999
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3401.741833,
+            "libraryCatchUp": 45.509167,
+            "localStoreReady": 3452.280792,
+            "projectionOpen": 1.954792,
+            "selectedCheckpoint": 5.541583,
+            "visiblePage": 3.043375
+          },
+          "operation": "read",
+          "peakRSSBytes": 100401152,
+          "processWallMs": 3470.796124980552,
+          "sessions": 100,
+          "systemCPUSeconds": 1.474086,
+          "userCPUSeconds": 1.989694
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3412.557417,
+            "libraryCatchUp": 47.987,
+            "localStoreReady": 3465.177209,
+            "projectionOpen": 1.998208,
+            "selectedCheckpoint": 5.326709,
+            "visiblePage": 2.600417
+          },
+          "operation": "read",
+          "peakRSSBytes": 101220352,
+          "processWallMs": 3482.694917009212,
+          "sessions": 100,
+          "systemCPUSeconds": 1.478979,
+          "userCPUSeconds": 1.9950860000000001
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3467.874291,
+            "libraryCatchUp": 45.46825,
+            "localStoreReady": 3518.407625,
+            "projectionOpen": 2.120375,
+            "selectedCheckpoint": 5.6175,
+            "visiblePage": 2.913042
+          },
+          "operation": "read",
+          "peakRSSBytes": 100007936,
+          "processWallMs": 3537.0927499898244,
+          "sessions": 100,
+          "systemCPUSeconds": 1.50563,
+          "userCPUSeconds": 2.007079
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3384.521542,
+            "libraryCatchUp": 45.027333,
+            "localStoreReady": 3434.480167,
+            "projectionOpen": 1.898458,
+            "selectedCheckpoint": 5.407917,
+            "visiblePage": 3.000167
+          },
+          "operation": "read",
+          "peakRSSBytes": 100171776,
+          "processWallMs": 3452.251332986634,
+          "sessions": 100,
+          "systemCPUSeconds": 1.466647,
+          "userCPUSeconds": 1.978624
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3388.505792,
+            "libraryCatchUp": 45.218167,
+            "localStoreReady": 3438.338042,
+            "projectionOpen": 1.934583,
+            "selectedCheckpoint": 5.15575,
+            "visiblePage": 2.650917
+          },
+          "operation": "read",
+          "peakRSSBytes": 100237312,
+          "processWallMs": 3456.233875011094,
+          "sessions": 100,
+          "systemCPUSeconds": 1.465619,
+          "userCPUSeconds": 1.983365
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3390.302833,
+            "libraryCatchUp": 48.895708,
+            "localStoreReady": 3444.827625,
+            "projectionOpen": 2.192334,
+            "selectedCheckpoint": 5.482959,
+            "visiblePage": 3.397708
+          },
+          "operation": "read",
+          "peakRSSBytes": 101040128,
+          "processWallMs": 3463.3949999988545,
+          "sessions": 100,
+          "systemCPUSeconds": 1.469066,
+          "userCPUSeconds": 1.9862069999999998
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3383.254417,
+            "libraryCatchUp": 47.147959,
+            "localStoreReady": 3435.465292,
+            "projectionOpen": 2.188,
+            "selectedCheckpoint": 5.77125,
+            "visiblePage": 2.844916
+          },
+          "operation": "read",
+          "peakRSSBytes": 99794944,
+          "processWallMs": 3453.825667005731,
+          "sessions": 100,
+          "systemCPUSeconds": 1.465809,
+          "userCPUSeconds": 1.980366
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3396.099167,
+            "libraryCatchUp": 46.000542,
+            "localStoreReady": 3447.311334,
+            "projectionOpen": 2.153208,
+            "selectedCheckpoint": 5.65325,
+            "visiblePage": 3.02375
+          },
+          "operation": "read",
+          "peakRSSBytes": 102400000,
+          "processWallMs": 3464.9284580082167,
+          "sessions": 100,
+          "systemCPUSeconds": 1.468579,
+          "userCPUSeconds": 1.989898
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3426.746834,
+            "libraryCatchUp": 47.956459,
+            "localStoreReady": 3479.550542,
+            "projectionOpen": 1.891041,
+            "selectedCheckpoint": 5.564041,
+            "visiblePage": 2.917916
+          },
+          "operation": "read",
+          "peakRSSBytes": 100925440,
+          "processWallMs": 3498.520291002933,
+          "sessions": 100,
+          "systemCPUSeconds": 1.481548,
+          "userCPUSeconds": 1.99797
+        },
+        {
+          "messages": 10000,
+          "milliseconds": {
+            "journalOpen": 3390.139625,
+            "libraryCatchUp": 45.827458,
+            "localStoreReady": 3440.8157499999998,
+            "projectionOpen": 2.070916,
+            "selectedCheckpoint": 5.313833,
+            "visiblePage": 2.741125
+          },
+          "operation": "read",
+          "peakRSSBytes": 102334464,
+          "processWallMs": 3458.6397079983726,
+          "sessions": 100,
+          "systemCPUSeconds": 1.471846,
+          "userCPUSeconds": 1.980302
+        }
+      ],
+      "seed": {
+        "messages": 10000,
+        "milliseconds": {
+          "seed": 21087.718083
+        },
+        "operation": "seed",
+        "peakRSSBytes": 40583168,
+        "processWallMs": 21099.914999998873,
+        "sessions": 100,
+        "systemCPUSeconds": 10.596935,
+        "userCPUSeconds": 8.822818
+      },
+      "sessions": 100
+    }
+  ],
+  "cpu": "Apple M1 Pro",
+  "format": "mira-session-scale-measurement-v1",
+  "gitCommit": "b85a19d6eb8188f8d2c56c5dfa114e91cf329eac",
+  "memoryBytes": 17179869184,
+  "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "timestampUTC": "2026-09-13T21:42:27Z",
+  "warmups": 5
+}

@@ -4,6 +4,24 @@ import Testing
 
 @Suite("Native transcript state")
 struct NativeTranscriptStateTests {
+    @Test func finalReasoningStaysInProcessAndOnlyTrailingTextStaysOutside() {
+        var turn = TranscriptItem(id: "turn", role: .assistant, text: "Answer", status: .completed, isStreaming: false)
+        let attempt = UUID()
+        turn.steps = [.init(id: attempt, stepIndex: 0, blocks: [
+            .init(id: "intermediate", content: .text(.available("Checking one more detail"))),
+            .init(id: "reasoning", content: .thinking(.available("Final reasoning"))),
+            .init(id: "answer", content: .text(.available("Answer")))
+        ])]
+        #expect(turn.processEntries.map(\.block.id) == ["intermediate", "reasoning"])
+        #expect(turn.finalEntries.map(\.block.id) == ["answer"])
+        #expect(turn.processEntries + turn.finalEntries == turn.orderedBlocks)
+        turn.steps = [.init(id: attempt, stepIndex: 0, blocks: [
+            .init(id: "reasoning", content: .thinking(.available("Interrupted reasoning")))
+        ])]
+        #expect(turn.finalEntries.isEmpty)
+        #expect(turn.processEntries == turn.orderedBlocks)
+    }
+
     @Test func unchangedRowsAreNotReportedForUpdate() {
         var state = NativeTranscriptState()
         let first = item(id: "first", text: "Earlier")
@@ -23,7 +41,7 @@ struct NativeTranscriptStateTests {
         let draftChange = state.apply([draft])
         let draftToken = try #require(draftChange.updated.first)
 
-        let terminal = item(id: "execution", text: "complete", status: .committed, isStreaming: false)
+        let terminal = item(id: "execution", text: "complete", status: .completed, isStreaming: false)
         let terminalChange = state.apply([terminal])
         let terminalToken = try #require(terminalChange.updated.first)
 
@@ -38,23 +56,23 @@ struct NativeTranscriptStateTests {
         let deleted = item(id: "deleted", text: "Removed answer")
 
         _ = state.apply([visible, deleted])
-        state.toggleThinking("visible")
-        state.toggleThinking("deleted")
-        #expect(state.expandedThinking == ["visible", "deleted"])
+        state.toggleActivity("visible")
+        state.toggleActivity("deleted")
+        #expect(state.expandedActivity == ["visible", "deleted"])
 
-        let purged = item(id: "visible", text: "Private answer", bodyPurgedAt: true)
+        let purged = item(id: "visible", text: "Private answer", isBodyPurged: true)
         let purgeChange = state.apply([purged, deleted])
         #expect(purgeChange.removed.isEmpty)
         #expect(purgeChange.updated.map(\.id) == ["visible"])
-        #expect(!state.expandedThinking.contains("visible"))
-        #expect(state.expandedThinking == ["deleted"])
+        #expect(!state.expandedActivity.contains("visible"))
+        #expect(state.expandedActivity == ["deleted"])
 
         let deletion = state.apply([purged])
         #expect(deletion.removed == ["deleted"])
-        #expect(state.expandedThinking.isEmpty)
+        #expect(state.expandedActivity.isEmpty)
 
-        state.toggleThinking("visible")
-        #expect(state.expandedThinking.isEmpty)
+        state.toggleActivity("visible")
+        #expect(state.expandedActivity.isEmpty)
     }
 
     @Test func deletionAndReinsertDoNotReuseStaleRevision() throws {
@@ -93,9 +111,9 @@ struct NativeTranscriptStateTests {
     private func item(
         id: String,
         text: String,
-        status: MessageStatus? = .committed,
+        status: ExecutionStatus? = .completed,
         isStreaming: Bool = false,
-        bodyPurgedAt: Bool = false
+        isBodyPurged: Bool = false
     ) -> TranscriptItem {
         TranscriptItem(
             id: id,
@@ -103,7 +121,7 @@ struct NativeTranscriptStateTests {
             text: text,
             status: status,
             isStreaming: isStreaming,
-            bodyPurgedAt: bodyPurgedAt ? Date(timeIntervalSince1970: 1) : nil
+            isBodyPurged: isBodyPurged
         )
     }
 }

@@ -1,55 +1,40 @@
 import MiraCore
 
-/// Provider-specific thinking controls stay isolated from the common request
-/// encoder and SSE assembler. Values are emitted only for an explicitly
-/// supported protocol route; providerDefault otherwise leaves the wire default
-/// untouched.
+/// Wire controls are selected from the frozen invocation descriptor. This
+/// policy deliberately contains no model-name or prefix matching.
 enum ProviderThinkingRules {
-    static func usesCompletionTokenLimit(for route: ResolvedModelRouteSnapshot) -> Bool {
-        route.protocolMode == .openAI || isKimiK3(route) ||
-            (route.protocolMode == .kimi && ["kimi-for-coding", "kimi-for-coding-highspeed"].contains(route.modelID))
+    static func usesCompletionTokenLimit(for policy: HTTPModelPolicy) -> Bool {
+        // DeepSeek's current Chat Completions contract still names this
+        // field `max_tokens`; Kimi and OpenAI use `max_completion_tokens`.
+        [.kimi, .openAI].contains(policy.kind.dialect)
     }
 
-    private static func isKimiK3(_ route: ResolvedModelRouteSnapshot) -> Bool {
-        route.protocolMode == .kimi && ["kimi-k3", "k3", "k3-256k"].contains(route.modelID)
+    static func preservesKimiThinking(for policy: HTTPModelPolicy) -> Bool {
+        policy.kind.dialect == .kimi && policy.thinking.mode != .disabled
     }
 
-    static func preservesKimiThinking(for route: ResolvedModelRouteSnapshot) -> Bool {
-        route.protocolMode == .kimi && ["kimi-k2.6", "kimi-for-coding", "kimi-for-coding-highspeed"].contains(route.modelID) && route.thinking.mode != .disabled
-    }
-
-    static func openAIThinkingType(for route: ResolvedModelRouteSnapshot) -> String? {
-        guard route.protocolMode == .deepSeek || route.protocolMode == .kimi,
-              !isKimiK3(route) else { return nil }
-        if preservesKimiThinking(for: route) { return "enabled" }
-        switch route.thinking.mode {
-        case .providerDefault: return nil
+    static func openAIThinkingType(for policy: HTTPModelPolicy, preservingHistory: Bool = false) -> String? {
+        guard [.deepSeek, .kimi].contains(policy.kind.dialect) else { return nil }
+        switch policy.thinking.mode {
+        case .providerDefault: return policy.kind.dialect == .kimi && preservingHistory ? "enabled" : nil
         case .enabled: return "enabled"
+        case .adaptive: return "enabled"
         case .disabled: return "disabled"
         }
     }
 
-    static func openAIReasoningEffort(for route: ResolvedModelRouteSnapshot) -> String? {
-        if route.protocolMode == .deepSeek, route.thinking.mode != .disabled {
-            return route.thinking.effort.map { $0 == .medium ? "high" : $0.rawValue }
-        }
-        if isKimiK3(route), route.thinking.mode != .disabled {
-            return route.thinking.effort?.rawValue
-        }
-        guard route.protocolMode == .openAI else { return nil }
-        switch route.thinking.mode {
-        case .providerDefault:
-            return route.thinking.effort?.rawValue
-        case .disabled:
-            return "none"
-        case .enabled:
-            return route.thinking.effort?.rawValue ?? (route.thinkingCapabilities.efforts == [.high] ? "high" : "medium")
+    static func openAIReasoningEffort(for policy: HTTPModelPolicy) -> String? {
+        guard [.deepSeek, .kimi, .openAI].contains(policy.kind.dialect) else { return nil }
+        switch policy.thinking.mode {
+        case .providerDefault: return policy.thinking.effort?.rawValue
+        case .disabled: return policy.kind.dialect == .openAI ? "none" : nil
+        case .enabled, .adaptive: return policy.thinking.effort?.rawValue
         }
     }
 
-    static func openRouterReasoning(for route: ResolvedModelRouteSnapshot) -> (enabled: Bool?, effort: String?, maxTokens: Int?)? {
-        guard route.protocolMode == .openRouter else { return nil }
-        let settings = route.thinking
+    static func openRouterReasoning(for policy: HTTPModelPolicy) -> (enabled: Bool?, effort: String?, maxTokens: Int?)? {
+        guard policy.kind.dialect == .openRouter else { return nil }
+        let settings = policy.thinking
         guard settings.mode != .providerDefault || settings.effort != nil || settings.budgetTokens != nil else { return nil }
         return (
             enabled: settings.mode == .providerDefault ? nil : settings.mode == .enabled,
@@ -58,35 +43,24 @@ enum ProviderThinkingRules {
         )
     }
 
-    static func anthropicThinking(for route: ResolvedModelRouteSnapshot) -> (type: String, budgetTokens: Int?)? {
-        switch route.protocolMode {
-        case .anthropicManual:
-            switch route.thinking.mode {
-            case .disabled:
-                return ("disabled", nil)
-            case .enabled:
-                return ("enabled", route.thinking.budgetTokens ?? 2_048)
+    static func anthropicThinking(for policy: HTTPModelPolicy) -> (type: String, budgetTokens: Int?)? {
+        if policy.kind.isAnthropic {
+            switch policy.thinking.mode {
+            case .disabled: return ("disabled", nil)
+            case .enabled: return ("enabled", policy.thinking.budgetTokens ?? 2_048)
             case .providerDefault:
-                return route.thinking.budgetTokens.map { ("enabled", $0) }
+                if policy.thinking.effort != nil { return ("adaptive", nil) }
+                return policy.thinking.budgetTokens.map { ("enabled", $0) }
+            case .adaptive: return ("adaptive", nil)
             }
-        case .anthropicAdaptive:
-            switch route.thinking.mode {
-            case .disabled:
-                return ("disabled", nil)
-            case .enabled:
-                return ("adaptive", nil)
-            case .providerDefault:
-                return route.thinking.effort == nil ? nil : ("adaptive", nil)
-            }
-        default:
-            return nil
         }
+        return nil
     }
 
-    static func anthropicOutputEffort(for route: ResolvedModelRouteSnapshot) -> String? {
-        guard route.protocolMode == .anthropicAdaptive else { return nil }
-        guard route.thinking.mode == .enabled ||
-                (route.thinking.mode == .providerDefault && route.thinking.effort != nil) else { return nil }
-        return route.thinking.effort?.rawValue
+    static func anthropicOutputEffort(for policy: HTTPModelPolicy) -> String? {
+        guard policy.kind.isAnthropic else { return nil }
+        guard policy.thinking.mode == .adaptive || policy.thinking.mode == .enabled ||
+                (policy.thinking.mode == .providerDefault && policy.thinking.effort != nil) else { return nil }
+        return policy.thinking.effort?.rawValue
     }
 }

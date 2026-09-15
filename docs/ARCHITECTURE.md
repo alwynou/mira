@@ -6,7 +6,11 @@
 
 定义系统结构、依赖方向、架构不变量和并发所有权。具体领域模型与算法位于 architecture 目录，工具链与交付规则位于 engineering 目录。
 
+已按[新 Agent 核心方案](architecture/AGENT_CORE_PROPOSAL.md)完成核心重建和直接宿主接入；2026-09-14 收尾范围与延期验收见[核心收尾说明](engineering/AGENT_CORE_COMPLETION.md)。新路径的[应用接纳与恢复](architecture/AGENT_APPLICATION_RUNTIME.md)、[执行内核与驱动器](architecture/AGENT_EXECUTION_KERNEL.md)、[工具执行与业务回执](architecture/AGENT_TOOL_EXECUTION.md)已形成实现与正式包完整回归；旧 SQL 会话仓库、旧固定 Provider 路线和旧上下文构造器已删除。会话权威为日志，业务事实保留在独立领域 SQLite 中，查询投影可重建；完整阶段状态见[验证记录](engineering/AGENT_CORE_VERIFICATION.md)。[生产 HTTP 适配器](architecture/AGENT_HTTP_ADAPTER.md)已直接使用新核心接口；旧 Provider 已删除，macOS 宿主已直接接入新服务并恢复完整构建；完整原生流程与剩余行为边界列为后续验收，不通过兼容适配保留旧核心。
+
 ## 文档职责与阅读顺序
+
+服务商与模型层的后续调整见 [BYOK 重设计提案](architecture/BYOK_MODEL_LAYER_PROPOSAL.md)及[实施计划](engineering/BYOK_MODEL_LAYER_PLAN.md)。两者当前为分析方案，尚未替换下述已实现契约。
 
 | 文档区域 | 唯一职责 |
 |---|---|
@@ -22,8 +26,32 @@
 
 ## 领域文档
 
+- [正文发布与启动恢复](architecture/AGENT_PAYLOAD_RECOVERY.md)：定义先持久标记再写正文、已提交批次的清理结果、启动定向恢复、实际读取校验及全量隐私／归档边界。
+
+- [独立记忆提取状态与用量](architecture/AGENT_EXTRACTION_QUERIES.md)：定义原始回合限定、分页、全部尝试记账、冻结费用与正文清理后的读取边界。
+
+- [历史回复的记忆状态](architecture/AGENT_MEMORY_HISTORY.md)：定义日志来源、当前生命周期、保留隐私历史与无正文提示的边界。
+
+- [业务提交通知](architecture/AGENT_BUSINESS_CHANGES.md)：定义无正文的提交唤醒、回滚抑制、库级观察器所有权与宿主重读边界。
+
+- [macOS 会话展示层](architecture/MAC_CONVERSATION_PRESENTATION.md)：定义窗口／页面读取所有权、工作组更替、待核对提交、实时输出及原生接入缺口。
+- [macOS 应用生命周期](architecture/MAC_APP_LIFECYCLE.md)：定义新应用容器、原生退出所有权、显式本地演示及扩展夹具。
+- [macOS 记忆展示层](architecture/MAC_MEMORY_PRESENTATION.md)：定义冻结编辑命令、权威来源重验、设置草稿、预算读取与关闭排空。
+- [macOS 资料库与工作组组装](architecture/MAC_LIBRARY_COMPOSITION.md)：定义新宿主的库／工作组所有权、受限本地恢复、维护／导出／关闭排空及平台通知隔离；原生展示层已直接接入，完整交互验收仍待完成。
 - [通用领域模型、本地存储与恢复](architecture/DOMAIN_AND_STORAGE.md)：定义 ID、时间、修订、Typed JSON、Blob、事务、数据约束、LocalJob、备份与恢复；不定义版本排期。
+- [库级授权与持久维护记录](architecture/AGENT_LIBRARY_MAINTENANCE.md)：定义独立库身份、维护意图与代次原子推进、工具业务提交检查，维护协调器、库作用域处理器、事务接纳校验及尚待完成的知识清理和备份屏障。
+- [会话隐私维护](architecture/AGENT_SESSION_PRIVACY.md)：定义跨会话依赖闭包、删除前持久计划、可见历史保留、物理正文验证及已接通的记忆遗忘处理器。
+- [模型配置与路线选择](architecture/AGENT_MODEL_CONFIGURATION.md)：定义开放设置描述、共享业务配置、作用域选择、冻结路线和当前配置复核。
+- [macOS 凭据设置与清理](architecture/MAC_CREDENTIAL_SETTINGS.md)：定义工作组凭据所有权、先写引用日志、配置提交与当前引用保护；核心不依赖 Keychain。
+- [模型发现与资料目录](architecture/AGENT_MODEL_DISCOVERY.md)：定义独立发现模块、操作所有权、连接快照复核以及不构成能力验证的建议数据。
+- [上下文来源授权](architecture/AGENT_SOURCE_AUTHORIZATION.md)：定义必填发送目标、作用域领域权威、日志来源以及派发和所有可见终态的当前授权检查。
+- [持久会话消费者](architecture/AGENT_SESSION_CONSUMERS.md)：定义模块注册、有限批次遍历、领域作业与业务检查点的原子提交，以及与查询投影的隔离。
+- [有限模型重试](architecture/AGENT_MODEL_RETRY.md)：定义显式失败分类、同一步骤的持久尝试、冻结请求复用和预算／取消／恢复边界。
+- [实时可见输出与持久状态通知](architecture/AGENT_LIVE_OUTPUT.md)：定义累计回答／思考快照、独立节拍、撤销与实际生产者排空的边界。
+- [新核心会话读取与查询投影](architecture/AGENT_SESSION_READS.md)：定义固定提交前缀、原始用户证据、可重建查询缓存及其与业务授权的边界。
 - [对话执行、流式与工具运行时](architecture/RUNTIME.md)：定义 Conversation 持久化、Turn / Step / Attempt、工具交换、权限管线、状态机、取消、恢复与错误边界。
+- [注册式模型能力探测](architecture/AGENT_MODEL_PROBES.md)：定义合成请求、模块目录、原子候选快照、期限／关闭排空及显式能力保存。
+- [macOS 资料库设置与切换](architecture/MAC_LIBRARY_SETTINGS.md)：定义 Data 页面、独立恢复、宿主选择日志、通知退役与重启继续。
 - [模型服务商接口与路由](architecture/PROVIDERS.md)：定义 Provider 契约、路线解析、冻结与重试边界、协议兼容性、端点安全、能力和用量。
 - [提示词、上下文、召回与压缩](architecture/CONTEXT.md)：定义 Prompt、Context 生命周期、预算、请求快照、来源引用、Memory 检索和 Compact；不重复记忆写入规则。
 - [记忆与知识领域设计](architecture/MEMORY_AND_KNOWLEDGE.md)：定义记忆提取、来源、抑制、演化、工作记忆及资料版本与解析；用户可见行为在产品规范中定义。
@@ -91,7 +119,7 @@ Core 不依赖 Apple UI 与平台实现，不等于 Core 必须使用非 Apple �
 
 1. macOS 和未来 iOS 使用各自原生 UI。
 2. 共享 Domain、Application、Agent Runtime、Context、Memory、Knowledge、Provider Contract 和数据模型。
-3. 本地数据库是规范事实源，远程服务不是主存储。
+3. 会话日志及独立领域数据库分别拥有各自规范事实；查询投影可删除重建，远程服务不是主存储。
 4. Conversation、Execution、Memory、Knowledge Source 和 Structured Record 具有清晰边界。
 5. 所有影响模型行为的重要输入可以重建或审计。
 6. 自动记忆不会把 Assistant 建议误当成用户决定。
@@ -115,7 +143,7 @@ Core 不依赖 Apple UI 与平台实现，不等于 Core 必须使用非 Apple �
 
 ### INV-001：Local Store Is Canonical
 
-核心业务对象先写入本地数据库或 Blob Store。远程模型、Apple Calendar、Apple Reminders 和未来同步端都不是 Mira 规范事实源。
+会话接纳、执行状态及原始消息先写入本地已确认日志，正文使用独立保留存储；领域业务对象写入本地数据库。远程模型、Apple Calendar、Apple Reminders 和未来同步端都不是 Mira 规范事实源。
 
 ### INV-002：No Secret in Normal Data
 

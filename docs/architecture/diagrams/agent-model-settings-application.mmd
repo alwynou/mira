@@ -1,0 +1,15 @@
+flowchart TB
+    Host[平台设置与会话展示层] --> Service[工作组拥有的模型设置应用服务]
+    Service --> Owned[有界操作：任务与库访问租约]
+    Owned --> Read[查询：返回前复核租约]
+    Owned --> Write[命令：携带准确库授权]
+    Owned --> Catalog[短期冻结模块目录]
+    Catalog --> Schema[纯描述符与路线参数校验]
+    Read --> Store[当前设置 SQLite 存储]
+    Write --> Fence[写事务内核对库 ID、代次与维护状态]
+    Fence --> Store
+    Store --> CAS[配置与修订比较；模型池原子提交]
+    Stop[关闭或维护] --> Drain[拒绝新操作；取消并等待真实工作退出]
+    Drain --> Owned
+    Schema --> Release[释放目录与操作租约]
+    CAS --> Release

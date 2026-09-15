@@ -2,7 +2,7 @@
 
 **文档版本：** v1.2  
 **更新日期：** 2026-09-05  
-**状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
+**状态：** 新核心的生产 HTTP 适配器已直接采用下述 Agent 契约；开放设置描述、持久配置和路线选择已有[新配置契约](AGENT_MODEL_CONFIGURATION.md)，发现与原生宿主正在整体切换，阶段证据见[核心验证记录](../engineering/AGENT_CORE_VERIFICATION.md)。原生产品此前的配置验收见[实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
 
 定义 Provider 契约、路线解析、冻结与重试边界、协议兼容性、端点安全、能力和用量。
 
@@ -50,7 +50,7 @@
 
 某种用途对应的 Connection + Model + 参数。
 
-#### ResolvedModelRouteSnapshot
+#### AgentModelRoute
 
 某次 ModelCall 最终冻结的路线，记录：
 
@@ -58,28 +58,29 @@
 - Connection Revision、规范 Base URL / origin、Credential Reference 与凭据版本（不含凭据值）；
 - Model ID；
 - Adapter Version；
-- 参数；
+- 适配器拥有的不透明配置；
 - 能力快照；
-- 价格目录版本；
-- 用户显式选择来源。
+- 输入窗口和输出预留。
+
+价格目录和用户选择记录由配置／用量领域拥有，不是驱动器选择协议的依据。当前 HTTP 配置格式和厂商规则位于 MiraProviders，具体约束见[HTTP 适配器契约](AGENT_HTTP_ADAPTER.md)。
 
 <a id="s14-02"></a>
 
-### 1.2 Canonical Provider Port
+### 1.2 Agent Model Adapter
 
 Core 使用统一协议：
 
 ```swift
-protocol ModelProviderPort: Sendable {
-    func stream(
-        request: CanonicalModelRequest,
-        route: ResolvedModelRouteSnapshot,
-        cancellation: CancellationToken
-    ) -> AsyncThrowingStream<CanonicalStreamEvent, Error>
+protocol AgentModelAdapter: Sendable {
+    var identity: AgentAdapterIdentity { get }
+    func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest
+    func stream(_ request: AgentPreparedModelRequest, route: AgentModelRoute) -> AgentModelOperation
+    func replay(_ messages: [AgentModelMessage], from source: AgentModelRoute,
+                to target: AgentModelRoute, boundary: AgentReplayBoundary) throws -> AgentReplayDecision
 }
 ```
 
-Provider 私有 JSON 不进入 Core Domain。
+核心负责身份、预算、来源授权和持久化；适配器私有 JSON 作为不透明值保留，核心不解释厂商字段。准备没有副作用，持久化请求后才能执行。`AgentModelOperation.close()` 必须取消并排空实际生产者，不能只结束事件流。适配器通过模块注册，不需要在核心增加厂商枚举分支。
 
 <a id="s14-03"></a>
 
@@ -191,7 +192,7 @@ estimatedCost?
 | OpenAIChatCompletionsCompatible | 用户 Base URL 下的 `/chat/completions`，可选 `/models` | 文本 SSE、function tools、Tool Call ID、取消、错误与可选 Usage |
 | AnthropicMessages | `/v1/messages`，明确 `anthropic-version` | 文本 content blocks、tool_use / tool_result、SSE、取消与 Usage |
 
-Chat Completions 兼容不等于 OpenAI Responses 兼容；需要另一协议的模型显示不受支持，不静默转换或换模型。Responses Adapter、OAuth、Provider 托管工具、音视频和高级 reasoning 续接不在首个 MVP；关闭这些选项，避免向未知端点发送未验证参数。
+Chat Completions 兼容不等于 OpenAI Responses 兼容；需要另一协议的模型显示不受支持，不静默转换或换模型。Responses、OAuth、Provider 托管工具及音视频不在当前实现范围。已有 thinking 协议必须完整保留，不能关闭 thinking 来掩盖不完整适配；具体边界见 [Thinking](THINKING.md)。
 
 能力分别记录 `unknown / declared / verified / failed` 与验证时间：普通文本、流式、工具、结构化提取、上下文窗口和 Usage。聊天能力通过不自动启用 Agent 或自动记忆。无法确定窗口时要求用户填写有效上限；手工 Model ID 可保存，但受影响的执行用途在能力满足前不可启动。
 
@@ -220,10 +221,12 @@ SSE Parser 按字节增量解码 UTF-8，支持跨网络块拆分、多行 data�
 
 内部工具名如 `memory.search` 编码为兼容的 wire 名 `memory_search`，在注册时拒绝映射冲突。OpenAI 使用 function tools / tool_calls / tool messages；Anthropic 使用 tool_use 与连续同批 tool_result blocks。完整调用参数经过 JSON 对象语法验证才交给 Runtime；Runtime 再进行 Schema 与权限检查。
 
-取消标识使用每 Attempt 的 `request.dispatchID`，同一 Execution 中不同网络请求互不影响。Capability 缺失时不携带工具；Adapter 也在读取凭据前检查工具历史配对与能力。thinking / signed continuation 尚未接入，不伪造不透明续接内容。
+取消使用每次调用独立的 `HTTPTransportOperation` 关闭句柄，绑定实际 URLSession task；步骤 ID Header 只用于关联，不能用于查找待取消任务。Capability 缺失时不携带工具；Adapter 在读取凭据前检查工具历史配对与能力。thinking 和 signed continuation 作为不透明数据保留，格式与重放判断属于适配器。
 
 
-## Current configuration implementation
+## 切换前配置领域与宿主
+
+以下描述仍待直接替换的配置／宿主调用方。它们尚未接入新 Agent 核心；`HTTPModelProvider` 已删除，不提供旧 `ModelProviderPort` 包装器，中间阶段宿主不能作为可运行产品验收。整体切换将删除旧的快照和执行权威路径。
 
 `ProviderConnection` owns a shared protocol, endpoint, and immutable Keychain reference/version. `ModelDescriptor` owns the model ID, window, capabilities, and the connection revision those observations describe. `ModelRoute` is a named preset selecting a descriptor plus output and usage parameters. `RouteBinding` selects a preset for a purpose at Global, Workspace, or Conversation scope.
 
@@ -235,7 +238,7 @@ Connection deletion removes its live models, presets, and bindings. Execution sn
 
 ## 3. Provider activation and the model pool
 
-`ProviderConnection.isEnabled` and `ModelDescriptor.isEnabled` are independent, required stored fields with checked SQLite mirrors. Schema v9 directly replaces the development schema; earlier libraries and backup formats are rejected intact. Host-created connections saved with Save start inactive. Enabling a provider persists the enabled state after local validation and a nonempty entered or stored credential is available; it does not probe the network or require a selected test model. A bad credential is discovered by an explicit Test action or the first model request. Enabling a provider never enables its model descriptors or assigns purpose bindings.
+`ProviderConnection.isEnabled` and `ModelDescriptor.isEnabled` are independent, required stored fields with checked SQLite mirrors. Schema v9 directly replaces the development schema; earlier libraries and backup formats are rejected intact. Host-created connections saved with Save start inactive. Enabling a provider persists the enabled state after local validation and a nonempty entered or stored credential is available; it does not probe the network or require a selected test model. A bad credential is discovered by an explicit Test action or the first model request. Enabling a provider never enables its model descriptors. Under the current model configuration contract, it may initialize an absent conversation binding from models already enabled in its canonical pool; it never assigns a memory-extraction binding.
 
 `ModelDescriptor.poolRouteID` uses the descriptor UUID in the route ID domain. `savePoolModel` saves the descriptor and its canonical `ModelRoute` in one transaction with revision checks for both records. A conflicting route update rolls back the descriptor update. Model IDs are unique within a connection. Model pool queries require an enabled descriptor, enabled parent, and an actually persisted matching canonical route; they never invent missing routes. Other internal route APIs retain explicit snapshot and binding semantics.
 

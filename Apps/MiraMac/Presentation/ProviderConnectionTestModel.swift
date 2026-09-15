@@ -2,43 +2,44 @@ import Foundation
 import MiraCore
 import MiraProviders
 
-/// A selected model and its frozen settings for an explicit synthetic connection check.
-/// This value contains no credentials and never changes model-pool membership.
+/// A saved model plus its selected invocation. This is retained for the
+/// optional connectivity check and never gates saving or enabling a model.
 struct ProviderConnectionTestModel: Identifiable, Sendable, Equatable {
-    let model: ModelDescriptor
-    let route: ModelRoute
+    let model: AgentConfiguredModel
+    let preset: AgentRoutePreset
     let isSaved: Bool
+
     var id: String { model.modelID }
 
-    init(model: ModelDescriptor, route: ModelRoute) {
-        self.model = model; self.route = route; isSaved = true
+    init(model: AgentConfiguredModel, preset: AgentRoutePreset) {
+        self.model = model; self.preset = preset; isSaved = true
     }
 
-    init(catalog: CatalogModel, connection: ProviderConnection) {
-        let metadata = catalog.metadata
-        model = ModelDescriptor(connectionID: connection.id, connectionRevision: connection.revision,
-                                modelID: catalog.id, contextWindow: metadata.contextWindow,
-                                textCapability: metadata.task == .textGeneration ? .declared : .unknown,
-                                toolCapability: metadata.toolCall == true ? .declared : .unknown,
-                                protocolMode: catalog.suggestedProtocolMode, catalogMetadata: metadata)
-        let output = max(1, min(8192, metadata.maxOutputTokens ?? 8192, (metadata.contextWindow ?? 8193) - 1))
-        let mode = catalog.suggestedProtocolMode
-        route = ModelRoute(id: model.poolRouteID, name: String(catalog.id.prefix(100)), modelDescriptorID: model.id,
-                           maxOutputTokens: output,
-                           thinking: .init(mode: mode == .anthropicManual || mode == .anthropicAdaptive ? .enabled : .providerDefault))
+    init(catalog: CatalogModel, connection: AgentConfiguredConnection) throws {
+        let configured = try catalog.makeModel(connection: connection)
+        self.model = configured.model
+        self.preset = configured.preset
         isSaved = false
     }
 
-    func snapshot(for connection: ProviderConnection) -> ResolvedModelRouteSnapshot {
-        var snapshot = ResolvedModelRouteSnapshot(route: route, model: model, connection: connection,
-                                                  purpose: .conversation, selection: .explicit)
-        // This temporary declaration permits only the requested synthetic text check.
-        // No capability observation is written back to the user's model.
-        snapshot.textCapability = .declared
-        return snapshot
+    func candidate(for connection: AgentConfiguredConnection) -> AgentModelRouteCandidate {
+        .init(connection: connection, model: model, preset: preset)
     }
 
-    func canTest(with connection: ProviderConnection) -> Bool {
-        (try? snapshot(for: connection).validateForSending()) != nil
+    func canTest(with connection: AgentConfiguredConnection) -> Bool {
+        let capabilities = model.invocations
+        guard let invocation = capabilities.first(where: { $0.id == preset.invocationID }) else { return false }
+        let updated = AgentConfiguredModel(
+            id: model.id, revision: model.revision, authorizationRevision: model.authorizationRevision,
+            reference: model.reference, displayName: model.displayName, isEnabled: model.isEnabled,
+            invocations: capabilities.map { value in
+                guard value.id == invocation.id else { return value }
+                var states = value.capabilities; states[AgentModelCapabilityID.streamingText] = .declared
+                return AgentModelInvocationSpec(id: value.id, revision: value.revision, adapter: value.adapter,
+                    endpointID: value.endpointID, contextWindow: value.contextWindow,
+                    maximumOutputTokens: value.maximumOutputTokens, capabilities: states,
+                    configuration: value.configuration, parameterSchema: value.parameterSchema)
+            }, facts: model.facts)
+        return (try? AgentModelRouteCandidate(connection: connection, model: updated, preset: preset).validate()) != nil
     }
 }

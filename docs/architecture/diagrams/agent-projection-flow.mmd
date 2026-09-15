@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Caller as 查询调用方
+    participant Pump as 投影协调器
+    participant Log as 权威日志
+    participant Cache as SQLite 查询投影
+    Caller->>Pump: 请求追赶会话
+    Pump->>Log: 捕获已确认 head
+    Pump->>Log: 验证目标批次身份
+    Pump->>Cache: 读取已投影 head
+    Pump->>Log: 验证缓存游标属于已提交批次
+    loop 直到捕获的目标
+        Pump->>Log: 有界读取下一页
+        Pump->>Pump: 检查序号、边界与必需扩展
+        Pump->>Cache: 原子应用一批与游标
+    end
+    Pump-->>Caller: 返回达到的 head
+    Note over Pump,Cache: 已有更晚且有效的投影不回退

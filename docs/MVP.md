@@ -9,6 +9,18 @@
 
 Thinking is now part of the M1–M2 implementation scope: provider controls, separate streaming display, durable drafts and protocol-correct tool continuation. The contract is [Thinking](architecture/THINKING.md); acceptance and remaining live checks are recorded in [Thinking verification](engineering/THINKING_VERIFICATION.md).
 
+Formula rendering now validates and resolves native images before drawing, with verbatim LaTeX fallback for undrawable images. Scoped regression and native acceptance evidence is recorded in [formula rendering verification](engineering/MATH_RENDERING_VERIFICATION.md).
+
+已形成借鉴 DSH、坚持核心优先的 Swift [Agent 核心架构方案](architecture/AGENT_CORE_PROPOSAL.md)与[实施计划](engineering/AGENT_CORE_IMPLEMENTATION_PLAN.md)，包含作用域扩展、拟议会话日志方案、核心架构图和执行流程图。用户已于 2026-09-13 授权通过 Goal 在 `codex/agent-core` 分支实施；iOS 暂不实现。新会话以日志为权威，业务事实保留在独立领域 SQLite，各阶段通过证据验收，不提前标记核心已完成。
+
+新核心已实现会话日志与正文、执行循环、作用域模块、模型与工具、调度与审批、来源授权、业务回执、记忆／知识／任务、持久维护及独立资料库恢复。macOS 的会话、工作区、记忆、Data 和 Provider 设置直接使用新服务，完整 App 已恢复构建；没有旧会话 SQL 仓库、旧模型协议或兼容运行时。核心继续只依赖 Foundation，平台能力由宿主模块组装。
+
+当前验收与准确测试结果统一记录在[核心验证记录](engineering/AGENT_CORE_VERIFICATION.md)。持久偏移索引与完整状态检查点已实现并可从日志重建；会话全文检索与宿主服务已实现；六类[公开扩展挑战](engineering/AGENT_CORE_EXTENSION_CHALLENGE.md)已通过，默认循环和会话归约器未为案例修改；另已通过[16 个真实进程终止与恢复场景](engineering/AGENT_PROCESS_CRASH_VERIFICATION.md)。[历史记忆状态查询](architecture/AGENT_MEMORY_HISTORY.md)及宿主提示刷新已接通；[独立后台提取状态与费用查询](architecture/AGENT_EXTRACTION_QUERIES.md)已接入检查器；[规模实测](engineering/AGENT_CORE_SCALE_VERIFICATION.md)已覆盖十万真实消息的文件读取路径及一万记忆／五万知识片段的领域检索，修复候选正文排序超时、短语排名和启动全库正文遍历问题；同库核心启动 P95 已从约 7.00 秒降至 2.45 秒，恢复摘要保持日志与必需扩展校验；联合参考库、完整上下文及原生启动仍未通过验收。剩余失败矩阵、尚未关闭的原生行为边界与完整原生流程列为后续验收；首轮本地演示不代替这些验收。原验收行为与未关闭缺口见[验收承接清单](engineering/AGENT_CORE_ACCEPTANCE_TRANSFER.md)。用户于 2026-09-14 确认收缩范围，以已确认正确性修复、核心关键链路及集成回归、中文文档与图示收尾；该范围的[核心重建已完成](engineering/AGENT_CORE_COMPLETION.md)。联合规模、严格 P95、完整原生矩阵、Instruments 和穷举故障窗口列为后续产品验收，不再自动扩大本次 Goal；iOS 不实现。
+
+BYOK 模型层已按[批准方案](architecture/BYOK_MODEL_LAYER_PROPOSAL.md)完成直接重写：连接与多调用规格分离、字段事实解析、完整发现缓存和公共资料刷新、日志会话选择，以及有序输出／独立隐藏续接均已接通。Chat、Anthropic、Responses 的合成协议验收与完整包 1,040 项测试通过；宿主 267 项通过、1 项真实账号测试按开关跳过，最终 App 构建及本机原生检查完成。未知模型 ID 可保存和启用，无内置目录或强制探测门槛；缺少明确上下文限制时发送前提示补充。中文架构图、执行流程图、数据清理及真实端点／在线刷新等未验证范围见[BYOK 验收记录](engineering/BYOK_MODEL_LAYER_VERIFICATION.md)。不保留旧格式兼容层。
+
+普通回复误触发块数量上限及重试重复回答已修复：传输片段合并到稳定语义块，Thinking 完整追加；用户重试先清理该问题的旧生成数据，再在原回答位置重新生成。删除失败阻止新派发，重开补完清理。完整包 1,052 项、宿主 269 项通过（另 1 项真实账号测试跳过），App 构建与本机演示停止／重试／重开检查完成；证据和线上端点等剩余范围见[修复验收](engineering/STREAM_RETRY_CORRECTION.md)。
+
 Historical M1 streaming layout, auto-follow, and bounded appended-text fades passed local native checks; evidence and remaining scale/platform limits are recorded in [streaming performance](engineering/STREAMING_PERFORMANCE.md). The follow-up [long-conversation measurements](engineering/LONG_CONVERSATION_PERFORMANCE.md) cover 100 retained messages and smooth automatic scrolling. This improves streaming service latency but does not close the strict 100 ms/frame-hitch or manual platform gates.
 
 After the isolated [MarkdownView/ListViewKit comparison](engineering/RENDERER_COMPARISON.md), the user approved direct adoption. Mira now uses MarkdownView with ListViewKit, and the previous renderer source and dependencies are removed. [Replacement verification](engineering/RENDERER_REPLACEMENT.md) records local evidence and remaining native/platform acceptance gaps. The [core workflow follow-up](engineering/CORE_WORKFLOW_VERIFICATION.md) fixes memory navigation/receipt and knowledge source-presentation defects, with synthetic application-reopen and backup continuity checks. These checks improve v0.1 readiness without closing the remaining real-model, native interaction, or delivery gates. The [streaming layout correction](engineering/MARKDOWN_LAYOUT_VERIFICATION.md) fixes post-layout metric changes and stale fade snapshot restoration, with failing-before/passing-after overlap coverage and native stable-prefix checks. The [floating composer](engineering/FLOATING_COMPOSER.md) uses `NSVisualEffectView` with window-local blending, full material opacity, and a 14 pt bottom gap.
@@ -32,7 +44,7 @@ Settings now has a standalone SwiftUI Window scene and NavigationSplitView follo
 
 Conversation switching now activates independent cached pages without reloading snapshots, retaining drafts and native viewports. A bounded recent-page cache releases older rendering resources while preserving reading state. New Conversation reuses one unsent draft; first send atomically creates the conversation and queued turn without empty records on failure. Native first placement targets the destination before display. A centered circular glass Jump to latest action remains available during scrolling, with bottom-edge visibility tolerance; verification and remaining performance limits are recorded in [conversation switching](engineering/CONVERSATION_SWITCHING.md).
 
-The conversation window uses an AppKit split controller and toolbar with SwiftUI pane content. [Window-shell verification](engineering/APPKIT_WINDOW_SHELL.md) covers the 850 pt inspector layout, native commands, retained drafts, and pane-state synchronization; platform and performance limits remain explicit. Its [native scroll-edge titlebar](engineering/CONVERSATION_TITLEBAR.md) now samples the transcript beneath native chrome, with focused viewport checks and light/dark native evidence.
+The conversation window uses an AppKit split controller and toolbar with SwiftUI pane content. The macOS 26 conversation title is leading-aligned to the detail pane with a 16 pt local inset and additional native-button clearance when the sidebar is collapsed. Assistant rows use a compact expandable activity line in place of the repeated Mira avatar; live status moves from thinking to answering, and bounded tool summaries remain inspectable. Cancellation or interruption preserves visible partial output for continuation or retry without replaying incomplete tools or opaque continuation data. [Focused conversation-flow verification](engineering/CONVERSATION_FLOW_VERIFICATION.md) records phase, history, authorization, and native UI checks. Completion now hands the last streamed body to durable content without clearing or rebuilding identical Markdown; [focused completion-rendering verification](engineering/COMPLETION_RENDERING_VERIFICATION.md) records retention, fade, and native continuity checks. [Window-shell verification](engineering/APPKIT_WINDOW_SHELL.md) covers the 850 pt inspector layout, native commands, retained drafts, and pane-state synchronization; platform and performance limits remain explicit. Its [native scroll-edge titlebar](engineering/CONVERSATION_TITLEBAR.md) now samples the transcript beneath native chrome, with focused viewport checks and light/dark native evidence.
 
 The [appearance transition fix](engineering/APPEARANCE_TRANSITIONS.md) removes competing application/SwiftUI overrides so Dark → Follow System restores hosted panes consistently, with failing-before/passing-after native hosting coverage.
 
@@ -44,7 +56,7 @@ The [appearance transition fix](engineering/APPEARANCE_TRANSITIONS.md) removes c
 
 - 首个 MVP 聚焦对话、可纠正记忆、Markdown 文件检索和最小 Agent 工具循环。
 - Task / Reminder 在紧接着的下一版本推进。
-- 首批接入 OpenAI 兼容接口与 Anthropic Messages；首版 OpenAI 兼容范围明确为 Chat Completions。
+- 首批接入 Chat Completions、Anthropic Messages；2026-09-14 按已批准 BYOK 重设计增加完整 OpenAI Responses，本增量不实现 Google 原生。
 - 支持 2024 年发布的 macOS 15 及后续版本，采用直接下载安装，不走 Mac App Store。
 - 文档按职责拆分，PRD 与架构总览不承担全部详细设计。
 
@@ -81,7 +93,7 @@ The [appearance transition fix](engineering/APPEARANCE_TRANSITIONS.md) removes c
 | `memory.remember` | 当前用户原文引用、内容、主体和 Scope；返回已提交 Memory 或明确失败 / 待确认 | 内部写入；明确用户意图或有效确认，M3 |
 | `knowledge.search` | query 与 Source 过滤；返回有界 Chunk 预览和证据句柄 | 只读；M4 |
 | `source.open` | Source ID / version；返回元数据、标题和有界目录 / 预览 | 只读；M4 |
-| `source.readChunk` | Chunk ID；返回已授权版本正文与定位 | 只读；M4 |
+| `source.read_chunk` | Chunk ID；返回已授权版本正文与定位 | 只读；M4 |
 
 M2 使用 Fake Tool 验证完整管线，测试工具不进入发布注册表。Memory 编辑、遗忘、候选批准与 Source 导入由明确 UI 操作完成；首版不开放通用 `memory.update`、任意数据库查询或文件写入工具。检索普通默认只使用 Active Memory；候选审核通过 UI 完成。
 
@@ -241,6 +253,14 @@ Working Memory 只组合用户固定项与当前 Workspace 的有效决定；尚
 
 Apple Calendar / Reminders 单向发布作为其后的独立增量：实现 NotificationDelivery / ExternalProjectionLink 的切换、失败、状态不确定与去重核对后再开放；不阻塞本地 Task / Reminder 先使用。CalendarEvent、EventRecord 与财务范围分别按真实需求继续拆分。
 
+Ordered multiround conversation activity now preserves reasoning, intermediate text, tool arguments and full results across reopening. Running process rows avoid a duplicate turn header, reasoning expansion hides its summary, and tools use a shared Input/Output card. Disclosure chevrons follow the text on hover, failed tool triggers use a semantic failure color, and JSON sections stay on a compact horizontally scrollable line. Completed process groups include final-round reasoning and keep only final answer text outside. Focused evidence and remaining limits: [multiround process verification](engineering/MULTIROUND_PROCESS_VERIFICATION.md).
+
+Conversation model selection now initializes the first active pool model as the default, supports fixed or follow-last defaults, and exposes a provider-grouped picker with the actual model name. Focused persistence, settings, localization, and native UI evidence: [model selection verification](engineering/MODEL_SELECTION_VERIFICATION.md).
+
+The composer model selector now uses a compact native grouped menu. Provider information respects saved capability declarations and displays dated official DeepSeek peak/off-peak price ranges; [focused model information evidence](engineering/MODEL_INFORMATION_VERIFICATION.md) records source verification and native checks.
+
+The first composer focus no longer initializes the macOS OTP AutoFill panel. The documented app configuration now requires explicit one-time-code fields; [focused first-focus evidence](engineering/COMPOSER_FIRST_FOCUS_VERIFICATION.md) records the reproduced system window and correction.
+
 ## 4. 明确后置项及启动条件
 
 | 后置能力 | 重新启动的条件 |
@@ -264,3 +284,5 @@ Apple Calendar / Reminders 单向发布作为其后的独立增量：实现 Noti
 **发布时满足的条件：** 所有适用质量门槛、备份恢复演练、真实使用记录，以及对外下载安装所需签名身份与公证。环境或凭据暂不可用时，标记对应验证未完成，不让它阻塞无依赖的 M0 工作，也不将其误写成已通过。
 
 完成每个里程碑时更新本文件的状态和证据链接；规范变更写回唯一负责文档，评审记录只保留理由和定位。
+
+Code blocks now use a shared height limit with native two-axis scrolling and final-line scrollbar clearance. Focused rendering and native evidence is recorded in [code block scrolling verification](engineering/CODE_BLOCK_SCROLLING_VERIFICATION.md).

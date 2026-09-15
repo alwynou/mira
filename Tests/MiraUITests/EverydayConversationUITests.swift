@@ -5,6 +5,54 @@ import XCTest
 /// They verify the UI/runtime boundary, not model memory intelligence.
 @MainActor
 final class EverydayConversationUITests: XCTestCase {
+    func testMathFallbackEnglishLight() throws {
+        try exerciseMathFallback(language: "en", dark: false)
+    }
+
+    func testMathFallbackChineseDarkMinimumWindow() throws {
+        try exerciseMathFallback(language: "zh-CN", dark: true)
+    }
+
+    private func exerciseMathFallback(language: String, dark: Bool) throws {
+        try withApplication(language: language, extraArguments: ["-app.displayMode", dark ? "dark" : "light"]) { app in
+            if dark {
+                let window = app.windows.firstMatch
+                let corner = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1))
+                    .withOffset(CGVector(dx: -2, dy: -2))
+                let target = window.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: 848, dy: 618))
+                corner.press(forDuration: 0.1, thenDragTo: target)
+            }
+            let source = #"Synthetic formulas: $\frac{a}{b}+x^2$; empty geometry: $\quad$; tail remains visible."#
+            try enter(source, in: app)
+            app.buttons["conversation.send"].click()
+            let reply = app.staticTexts.matching(NSPredicate(
+                format: "value CONTAINS %@ AND value CONTAINS %@",
+                "Mira Local Demo", "Deterministic local streaming"
+            )).firstMatch
+            try require(reply.waitForExistence(timeout: 45), "The completed formula reply did not appear.")
+            XCTAssertTrue((reply.value as? String)?.contains(source) == true)
+            try require(app.buttons["conversation.send"].waitForExistence(timeout: 45), "The formula reply did not finish.")
+            XCTAssertEqual(app.state, .runningForeground)
+            let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+            attachment.name = "Math fallback - \(language) - completed"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "conversation.row."))
+            try require(rows.firstMatch.waitForExistence(timeout: 10), "The formula conversation was not persisted.")
+            let rowID = rows.firstMatch.identifier
+            app.terminate()
+            try launchWindow(app)
+            try require(app.buttons[rowID].waitForExistence(timeout: 10), "The formula conversation identity was lost.")
+            app.buttons[rowID].click()
+            try require(app.descendants(matching: .any)["conversation.transcript"].waitForExistence(timeout: 10),
+                        "The formula conversation did not reopen.")
+            try require(reply.waitForExistence(timeout: 10), "The persisted formula reply did not reappear.")
+            XCTAssertTrue((reply.value as? String)?.contains(source) == true)
+            XCTAssertTrue(app.buttons["conversation.send"].exists)
+        }
+    }
+
     func testEnglishConversationPersistsAfterRelaunch() throws {
         try exerciseConversation(language: "en", sendLabel: "Send")
     }
@@ -84,10 +132,10 @@ final class EverydayConversationUITests: XCTestCase {
         }
     }
 
-    private func withApplication(language: String, body: (XCUIApplication) throws -> Void) throws {
+    private func withApplication(language: String, extraArguments: [String] = [], body: (XCUIApplication) throws -> Void) throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Mira-UI-\(UUID())", isDirectory: true)
         let app = XCUIApplication()
-        app.launchArguments = ["--demo", "--data-directory", directory.path, "-app.language", language, "-AppleLanguages", "(en)"]
+        app.launchArguments = ["--demo", "--data-directory", directory.path, "-app.language", language, "-AppleLanguages", "(en)"] + extraArguments
         defer {
             app.terminate()
             try? FileManager.default.removeItem(at: directory)

@@ -1,18 +1,24 @@
 import Foundation
 
-public protocol TaskStore: Sendable {
-    func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) throws -> [MiraTask]
-    func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> MiraTask
-    func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) throws -> [TaskRevision]
-    func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus, expectedRevision: Int?, operationID: UUID, at: Date) throws -> MiraTask
-    func taskProposals(workspaceID: WorkspaceID?) throws -> [TaskProposal]
-    func resolveTaskProposal(_ id: UUID, workspaceID: WorkspaceID?, accept: Bool, correctedDraft: TaskDraft?, at: Date) throws -> TaskWriteReceipt
-    /// Revalidates the persisted invocation, source, scope and proposal within the commit transaction.
-    func performTaskTool(arguments: JSONValue, context: ToolContext, at: Date) throws -> TaskWriteReceipt
-    func taskToolReference(context: ToolContext) throws -> TaskEvidence
-    func reminderWork(limit: Int) throws -> [MiraTask]
-    /// Scheduler-only existence check, independent of the bounded work page.
-    func reminderTaskExists(_ id: MiraTaskID) throws -> Bool
-    func setReminderDelivery(_ id: MiraTaskID, expectedRevision: Int, state: ReminderDeliveryState, error: MiraError?, at: Date) throws -> Bool
-    func resumeReminder(_ id: MiraTaskID, workspaceID: WorkspaceID?, expectedRevision: Int, at: Date) throws
+/// Business records only. Callers own a library access lease; no method reads session projections.
+public protocol TaskReadStore: Sendable {
+    func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) async throws -> [MiraTask]
+    func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> MiraTask
+    func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> [TaskRevision]
+    func taskProposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal]
+}
+
+public protocol TaskStore: TaskReadStore {
+    func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus,
+                  expectedRevision: Int?, operationID: UUID, authorization: AgentLibraryAuthorization, at: Date) async throws -> MiraTask
+    /// Accepted proposals require fresh original journal evidence; the transaction verifies the
+    /// complete stored reference, source body, clock, workspace and current library authorization.
+    func resolveTaskProposal(_ id: UUID, workspaceID: WorkspaceID?, accept: Bool, correctedDraft: TaskDraft?,
+                             source: SessionUserEvidence?, authorization: AgentLibraryAuthorization, at: Date) async throws -> TaskWriteReceipt
+    func reminderWork(limit: Int) async throws -> [MiraTask]
+    func reminderTaskExists(_ id: MiraTaskID) async throws -> Bool
+    func setReminderDelivery(_ id: MiraTaskID, expectedRevision: Int, state: ReminderDeliveryState,
+                             error: MiraError?, authorization: AgentLibraryAuthorization, at: Date) async throws -> Bool
+    func resumeReminder(_ id: MiraTaskID, workspaceID: WorkspaceID?, expectedRevision: Int,
+                        authorization: AgentLibraryAuthorization, at: Date) async throws
 }

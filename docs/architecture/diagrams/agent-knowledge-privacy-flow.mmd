@@ -1,0 +1,19 @@
+flowchart TD
+  Begin[同事务校验来源 revision 与范围上限] --> Pending[提交 pending 与新代次\n关闭接纳、排空所有工作组]
+  Pending --> Scope[保存或读取原领域范围\n保留历史版本、片段及操作身份]
+  Scope --> Plan[保存或读取原会话依赖计划]
+  Plan --> Business[清除依赖执行的业务结果]
+  Business --> Action{维护动作}
+  Action -->|撤权| Revoke[关闭远程使用\n保留本地资料及可见历史]
+  Action -->|删除| Delete[清除全部资料版本和片段\n保留无正文墓碑与操作身份]
+  Revoke --> Sessions[按原计划提交会话失效\n删除指定正文、排除后续上下文]
+  Delete --> Sessions
+  Sessions --> Scan[扫描所有保留版本的引用\n包含历史、失败及共享资料]
+  Scan --> GC[删除无引用文件及暂存\n验证实际文件集合]
+  GC --> Projection[重建并验证查询投影]
+  Projection --> Verify[核对领域、业务结果、日志和文件]
+  Verify --> Done[完成持久维护操作]
+  Scope -.失败或确认丢失.-> Retry[保留 pending\n重开后复用原范围、计划和批次]
+  GC -.失败或确认丢失.-> Retry
+  Verify -.未通过.-> Retry
+  Retry --> Scope

@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant Module as 能力模块
+  participant C as 消费协调器
+  participant J as 会话日志
+  participant D as 业务库消费者
+  Module->>Module: 在能力注册表登记消费者
+  Module->>C: 触发有限遍历
+  C->>J: 捕获已确认 head
+  C->>D: 读取业务检查点
+  C->>J: 校验前缀并读取一个完整批次
+  C->>D: 消费批次与期望的前一 head
+  D->>J: 异步准备并核对原始证据
+  D->>D: 保留库租约，开始 SQLite 事务
+  D->>D: 比较身份、游标和批次摘要
+  D->>D: 创建领域作业及去重事实
+  D->>D: 保存检查点并提交同一事务
+  D-->>C: 已确认的新检查点
+  C-->>Module: 有界进度，剩余工作留待下一次

@@ -2,15 +2,15 @@ import SwiftUI
 import MiraCore
 
 struct MessageRow: View {
-    let role: MessageRole
+    let role: SessionMessageRole
     let text: String
-    let status: MessageStatus?
+    let status: ExecutionStatus?
 
     var body: some View {
         HStack {
             Spacer(minLength: 48)
             VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-                if let status, status != .committed {
+                if let status, status != .completed {
                     Text("Incomplete").font(MiraTheme.Typography.caption).foregroundStyle(.orange)
                 }
                 Text(verbatim: text)

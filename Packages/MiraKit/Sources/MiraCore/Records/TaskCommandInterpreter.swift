@@ -12,6 +12,7 @@ public enum TaskCommandInterpreter {
     }()
 
     public static func proposal(arguments: JSONValue, reference: TaskEvidence, workspaceID: WorkspaceID?, operationID: UUID, at: Date) throws -> TaskProposal {
+        try reference.validate()
         guard let operation = arguments["operation"]?.stringValue.flatMap(TaskOperation.init(rawValue:)),
               let title = arguments["title"]?.stringValue, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               arguments["quote"]?.stringValue == reference.quote else { throw invalid }

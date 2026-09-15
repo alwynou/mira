@@ -1,0 +1,26 @@
+{
+  "format": "mira-archive-case-alias-regression-v1",
+  "date": "2026-09-14",
+  "test": "caseAliasCannotHideAnUnlistedPhysicalFile",
+  "before": {
+    "exitCode": 1,
+    "tests": 1,
+    "issues": 1,
+    "seconds": 0.045,
+    "issue": "An error was expected but none was thrown."
+  },
+  "fixture": "Synthetic archive with an unlisted root file and a catalog alias through Sessions/PAYLOADS on the case-insensitive test volume.",
+  "fix": "Compare actual directory entry paths and catalog paths in order, including case, and require both iterators to exhaust.",
+  "after": {
+    "exitCode": 0,
+    "focusedTests": 15,
+    "focusedSuites": 3,
+    "focusedSeconds": 0.102,
+    "caseAliasSeconds": 0.049,
+    "finalPackageRegisteredTests": 997,
+    "finalPackagePassed": 995,
+    "finalPackageSkipped": 2,
+    "finalPackageSuites": 141,
+    "finalPackageSeconds": 9.435
+  }
+}
