@@ -381,6 +381,14 @@ private actor HiddenCommitJournal: SessionJournal, SessionPayloadStore {
     private let base: FileSessionLibrary
     private var armed = false
 
+    func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? {
+        try await base.activeDraft(sessionID: sessionID)
+    }
+    func saveActiveDraft(_ draft: SessionActiveDraft) async throws { try await base.saveActiveDraft(draft) }
+    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) async throws {
+        try await base.removeActiveDraft(sessionID: sessionID, attemptID: attemptID)
+    }
+
     init(base: FileSessionLibrary) { self.base = base }
 
     func armNextAppend() { armed = true }

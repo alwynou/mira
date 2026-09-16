@@ -81,7 +81,7 @@ struct TaskToolSequenceTests {
 
             let completion = try #require(state.executions[address.executionID]?.completion)
             let replayReference = try #require(completion.replay)
-            let replay = try SessionCodec.decode(AgentReplayRecord.self, from: await fixture.library.read(replayReference))
+            let replay = try await AgentReplayManifest.read(replayReference, state: state, payloads: fixture.library)
             #expect(replay.messages.last?.text == "Task change completed")
             #expect(replay.sources.contains(.domain(namespace: "tasks", id: task.id.rawValue, revision: 1)))
         }

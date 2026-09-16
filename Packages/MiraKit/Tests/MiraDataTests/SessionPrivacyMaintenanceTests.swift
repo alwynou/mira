@@ -85,14 +85,14 @@ struct SessionPrivacyMaintenanceTests {
             }
             #expect(
                 Set(hidden.map(\.kind)).isSuperset(of: [
-                    .request, .modelOutput, .toolCall, .effectIntent, .toolResult, .replay, .draft, .executionPlan,
+                    .request, .requestComponent, .modelOutput, .toolCall, .effectIntent, .toolResult, .replay, .executionPlan,
                 ]))
             let visible = original.references.values.filter { [.userText, .visibleAnswer].contains($0.kind) }
             let visibleBytes = try await visible.asyncPrivacyBytes(from: f.library)
             // A cancelled command can leave staged bytes with no published journal owner.
             let orphan = try await f.library.stage(
                 Data([0xff]) + Data("Unpublished private draft".utf8), sessionID: address.sessionID,
-                batchID: UUID(), retentionGroup: UUID(), kind: .draft)
+                batchID: UUID(), retentionGroup: UUID(), kind: .module)
             let orphanURL = f.directory.appendingPathComponent("sessions/payloads")
                 .appendingPathComponent(address.sessionID.rawValue.uuidString).appendingPathComponent(
                     orphan.batchID.uuidString
@@ -547,7 +547,7 @@ private func makeCompleted(_ runtime: SessionRuntime, sources: [AgentSourceRefer
     let finished = await runtime.commit(id: UUID()) { context in
         let answer = try await context.stageBytes(answerText, kind: .visibleAnswer, retentionGroup: UUID())
         let thinking = try await context.stageBytes(thinkingText, kind: .visibleThinking, retentionGroup: UUID())
-        let replayReference = try await context.stage(replay, kind: .replay, retentionGroup: UUID())
+        let replayReference = try await AgentReplayManifest.stage(replay, execution: context.state.executions[executionID]!, context: context)
         return [
             .finished(
                 .init(

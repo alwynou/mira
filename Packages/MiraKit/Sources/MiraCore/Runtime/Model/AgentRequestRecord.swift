@@ -11,6 +11,7 @@ public struct AgentRequestRecord: Codable, Sendable, Equatable {
     public let adapter: AgentAdapterIdentity
     public let estimatedInputTokens: Int
     private let currentUserMessageIndex: Int
+    var currentUserMessageIndexValue: Int { currentUserMessageIndex }
 
     public var sources: [AgentSourceReference] {
         AgentContextBuild.orderedSources(inheritedSources + evidence.flatMap(\.sources))
@@ -39,6 +40,48 @@ public struct AgentRequestRecord: Codable, Sendable, Equatable {
         adapter = build.prepared.adapter
         estimatedInputTokens = build.prepared.estimatedInputTokens
         currentUserMessageIndex = index
+        try validate()
+    }
+
+    /// Materializes a durable request manifest and its directly referenced message
+    /// components. The manifest is the only request payload persisted by the new
+    /// execution path; the initializer above remains useful for in-memory checks.
+    static func stage(_ build: AgentContextBuild, context: SessionCommandContext) async throws ->
+        (request: SessionPayloadReference, contents: [SessionPayloadReference]) {
+        let record = try AgentRequestRecord(build)
+        return try await AgentRequestManifest.stage(record: record, context: context)
+    }
+
+    /// Reads a manifest and resolves its direct message components. No historical
+    /// snapshot decoder is attempted here: an invalid or old payload is rejected.
+    static func read(_ reference: SessionPayloadReference,
+                     payloads: any SessionPayloadReader) async throws -> AgentRequestRecord {
+        try await AgentRequestManifest.read(reference: reference, payloads: payloads)
+    }
+
+    /// Reads only manifest metadata. This intentionally does not resolve message
+    /// bodies and is used by privacy/dependency scans.
+    static func metadata(from reference: SessionPayloadReference,
+                         payloads: any SessionPayloadReader) async throws -> AgentRequestManifest.Metadata {
+        guard reference.kind == .request else { throw Self.invalid }
+        let data = try await payloads.read(reference)
+        return try AgentRequestManifest.decodeMetadata(data, sessionID: reference.sessionID)
+    }
+
+    init(manifest: AgentRequestManifest, header: AgentRequestManifest.Header, messages: [AgentModelMessage]) throws {
+        guard messages.indices.contains(manifest.currentUserMessageIndex) else { throw Self.invalid }
+        request = manifest.request
+        input = AgentModelInput(stepID: manifest.stepID, executionID: manifest.executionID,
+                                instructions: header.instructions, messages: messages,
+                                tools: header.tools, allowsToolCalls: header.allowsToolCalls,
+                                prefixMessageCount: manifest.prefixMessageCount,
+                                outputTokenLimit: header.outputTokenLimit)
+        inheritedSources = manifest.inheritedSources
+        evidence = manifest.evidence
+        omissions = manifest.omissions
+        adapter = header.adapter
+        estimatedInputTokens = manifest.estimatedInputTokens
+        currentUserMessageIndex = manifest.currentUserMessageIndex
         try validate()
     }
 

@@ -2,7 +2,7 @@ import Foundation
 
 /// Operational bounds are checked before allocation and before durable publication.
 public enum SessionFormatLimits {
-    public static let version = 4
+    public static let version = 5
     public static let maximumBatchBytes = 2 * 1_024 * 1_024
     public static let maximumEventsPerBatch = 256
     public static let maximumPayloadBytes = 32 * 1_024 * 1_024
@@ -11,7 +11,7 @@ public enum SessionFormatLimits {
 
 public enum SessionPayloadKind: String, Codable, Sendable {
     case title, userText, visibleAnswer, visibleThinking, executionPlan, request, modelOutput
-    case toolCall, effectIntent, toolResult, replay, draft, error, module
+    case toolCall, effectIntent, toolResult, replay, error, module, requestComponent
 }
 
 public enum SessionPayloadStorage: String, Codable, Sendable {
@@ -141,11 +141,16 @@ public protocol SessionJournal: Sendable {
     func close() async throws
 }
 
-public protocol SessionPayloadReader: Sendable {
+public protocol SessionPayloadReader: SessionActiveDraftReader {
     func read(_ reference: SessionPayloadReference) async throws -> Data
 }
 
-public protocol SessionPayloadStore: SessionPayloadReader {
+public extension SessionPayloadReader {
+    /// Read-only archives have no in-progress sidecar.
+    func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? { nil }
+}
+
+public protocol SessionPayloadStore: SessionPayloadReader, SessionActiveDraftStore {
     /// Staged bytes remain unreadable until a valid committed batch references them.
     func stage(_ data: Data, sessionID: ConversationID, batchID: UUID,
                retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference

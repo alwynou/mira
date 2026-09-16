@@ -16,6 +16,45 @@ actor AgentToolExecutor {
     private let maximumParallelTools: Int
     private var owner: (executionID: ExecutionID, task: Task<[SessionToolResolution], any Error>)?
     private var recovering = false
+    private var settlementGate: SettlementGate?
+
+    private actor SettlementGate {
+        private let order: [UUID]
+        private var position = 0
+        private var aborted = false
+        private var waiters: [UUID: CheckedContinuation<Void, any Error>] = [:]
+        private var cancelled: Set<UUID> = []
+        init(order: [UUID]) { self.order = order }
+        func wait(for id: UUID) async throws {
+            try Task.checkCancellation()
+            guard !aborted else { throw CancellationError() }
+            guard order.firstIndex(of: id) != position else { return }
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                    if aborted || cancelled.remove(id) != nil || Task.isCancelled { continuation.resume(throwing: CancellationError()) }
+                    else if order.firstIndex(of: id) == position { continuation.resume() }
+                    else { waiters[id] = continuation }
+                }
+            } onCancel: { Task { await self.cancelWaiter(id) } }
+        }
+        func finish(_ id: UUID) {
+            guard !aborted, order.firstIndex(of: id) == position else { return }
+            position += 1
+            if position < order.count, let continuation = waiters.removeValue(forKey: order[position]) {
+                continuation.resume()
+            }
+        }
+        func abort() {
+            guard !aborted else { return }
+            aborted = true
+            let pending = waiters.values; waiters.removeAll()
+            for continuation in pending { continuation.resume(throwing: CancellationError()) }
+        }
+        private func cancelWaiter(_ id: UUID) {
+            if let continuation = waiters.removeValue(forKey: id) { continuation.resume(throwing: CancellationError()) }
+            else { cancelled.insert(id) }
+        }
+    }
 
     init(runtime: SessionRuntime, payloads: any SessionPayloadReader, libraryLease: AgentLibraryAccessLease, catalog: AgentToolCatalog,
          policy: any AgentToolPolicy, authority: any AgentEffectAuthority, business: any AgentBusinessEffects,
@@ -76,13 +115,16 @@ actor AgentToolExecutor {
         let state = await runtime.snapshot()
         try Self.validateFreshBatch(state, attemptID: attemptID, executionID: executionID)
         let attempt = state.attempts[attemptID]!
-        let build = try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(attempt.attempt.request))
+        let build = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
         guard build.request.sessionID == state.id, build.request.executionID == executionID,
               build.request.authorizationEpoch == state.authorizationEpoch,
               build.input.tools == catalog.definitions else {
             throw MiraError(.conflict, "The tool catalog differs from the frozen model request.")
         }
         let invocations = attempt.invocationIDs.compactMap { state.invocations[$0]?.invocation }
+        let gate = SettlementGate(order: invocations.map(\.id))
+        settlementGate = gate
+        defer { Task { await gate.abort() }; settlementGate = nil }
         var index = 0
         while index < invocations.count {
             try await checkEligibility(executionID, epoch: build.request.authorizationEpoch)
@@ -209,7 +251,9 @@ actor AgentToolExecutor {
         case .localWrite:
             let outcome = await timed(milliseconds: entry.descriptor.timeoutMilliseconds) { await self.business.commit(proof) }
             switch outcome {
-            case .success(.committed(let receipt)): try await publish(receipt, invocation: invocation)
+            case .success(.committed(let receipt)):
+                try await waitForSettlement(invocation.id)
+                try await publish(receipt, invocation: invocation)
             case .success(.notCommitted): try await resolve(invocation, status: .failed)
             case .success(.indeterminate): try await reconcile(proof, invocation: invocation, absentStatus: .failed)
             case .failure(let failure):
@@ -219,11 +263,13 @@ actor AgentToolExecutor {
             }
         case .read(let tool):
             let outcome = await timed(milliseconds: entry.descriptor.timeoutMilliseconds) { try await tool.execute(proposal.plan, context: context) }
+            try await waitForSettlement(invocation.id)
             guard try await mayPublish(outcome, invocation: invocation, proposal: proposal,
                                        context: context, authorization: authorization, policy: invocationPolicy, isRead: true) else { return }
             try await publish(outcome, invocation: invocation, descriptor: entry.descriptor, isRead: true)
         case .externalWrite(let tool):
             let outcome = await timed(milliseconds: entry.descriptor.timeoutMilliseconds) { try await tool.execute(proposal.plan, context: context) }
+            try await waitForSettlement(invocation.id)
             guard try await mayPublish(outcome, invocation: invocation, proposal: proposal,
                                        context: context, authorization: authorization, policy: invocationPolicy, isRead: false) else { return }
             try await publish(outcome, invocation: invocation, descriptor: entry.descriptor, isRead: false)
@@ -325,6 +371,7 @@ actor AgentToolExecutor {
 
     private func resolve(_ invocation: SessionInvocation, status: ToolResultStatus, bytes: Data? = nil,
                          receipt: AgentBusinessReceiptReference? = nil, purged: Bool = false, known: Bool = true) async throws {
+        try await waitForSettlement(invocation.id)
         let result = await runtime.commit(id: environment.uuid()) { command in
             let reference: SessionPayloadReference?
             if let bytes { reference = try await command.stageBytes(bytes, kind: .toolResult, retentionGroup: UUID()) }
@@ -343,8 +390,14 @@ actor AgentToolExecutor {
             }
             return facts
         }
-        try AgentDurabilityFailure.requireCommitted(result)
+        do { try AgentDurabilityFailure.requireCommitted(result) }
+        catch { await settlementGate?.abort(); throw error }
+        await settlementGate?.finish(invocation.id)
         if let receipt, case .committed(let cursor) = result { try await business.acknowledge(receipt, at: cursor) }
+    }
+
+    private func waitForSettlement(_ invocationID: UUID) async throws {
+        try await settlementGate?.wait(for: invocationID)
     }
 
     private func publish(_ receipt: AgentBusinessReceipt, invocation: SessionInvocation) async throws {

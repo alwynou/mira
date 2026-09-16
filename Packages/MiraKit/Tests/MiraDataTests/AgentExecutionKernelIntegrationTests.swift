@@ -17,17 +17,18 @@ struct AgentExecutionKernelIntegrationTests {
                 try #require(JSONSerialization.jsonObject(with: Data($0)) as? [String: Any])
             }
             let types = Set(rows.compactMap { $0["type"] as? String })
-            #expect(types.isSuperset(of: ["session_meta", "turn_started", "model_request", "model_response",
-                                         "tool_call", "tool_result", "turn_completed", "transaction_commit"]))
+            #expect(types.isSuperset(of: ["session", "turn/start", "request/start", "assistant/message",
+                                         "tool/call", "tool/result", "turn/end", "transaction_commit"]))
             #expect(rows.allSatisfy { $0["record"] == nil && $0["payloads"] == nil })
-            let requestRows = rows.filter { $0["type"] as? String == "model_request" }
+            let requestRows = rows.filter { $0["type"] as? String == "request/start" }
             #expect(requestRows.count == 2)
             for row in requestRows {
                 let payload = try #require(row["payload"] as? [String: Any])
                 let node = try #require(payload["request"] as? [String: Any])
                 let request = try #require(node["json"] as? [String: Any])
-                #expect(request["input"] is [String: Any])
-                #expect(request["wirePayload"] == nil && request["prepared"] == nil)
+                #expect(request["header"] is [String: Any])
+                #expect(request["entries"] is [Any])
+                #expect(request["wirePayload"] == nil && request["prepared"] == nil && request["input"] == nil)
             }
             // Synthetic data only; this opt-in artifact is useful for inspecting
             // the actual runtime output without publishing personal conversations.
@@ -259,19 +260,18 @@ struct AgentExecutionKernelIntegrationTests {
 
             let state = await fixture.runtime.snapshot()
             let secondReplay = try #require(state.executions[secondID]?.completion?.replay)
-            let secondRecord = try await fixture.library.read(secondReplay)
-            let secondValue = try SessionCodec.decode(AgentReplayRecord.self, from: secondRecord)
+            let secondValue = try await AgentReplayManifest.read(secondReplay, state: state, payloads: fixture.library)
             #expect(secondValue.sources == [firstSource])
             let secondSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: secondID)
             let thirdReplay = try #require(state.executions[thirdID]?.completion?.replay)
-            let thirdValue = try SessionCodec.decode(AgentReplayRecord.self, from: try await fixture.library.read(thirdReplay))
+            let thirdValue = try await AgentReplayManifest.read(thirdReplay, state: state, payloads: fixture.library)
             #expect(Set(thirdValue.sources) == Set([firstSource, secondSource]))
             let thirdExecution = try #require(state.executions[thirdID])
             #expect(thirdExecution.completion?.status == .completed)
             #expect(thirdExecution.attemptIDs.count == 1)
             let attemptID = try #require(thirdExecution.attemptIDs.first)
             let attempt = try #require(state.attempts[attemptID])
-            let request = try SessionCodec.decode(AgentRequestRecord.self, from: await fixture.library.read(attempt.attempt.request))
+            let request = try await AgentRequestRecord.read(attempt.attempt.request, payloads: fixture.library)
             #expect(Set(request.inheritedSources) == Set([firstSource, secondSource]))
             #expect(request.sources == thirdValue.sources)
             #expect(request.request.executionID == thirdID)
@@ -286,11 +286,11 @@ struct AgentExecutionKernelIntegrationTests {
                 let reopenedState = await reopened.snapshot()
                 let reopenedSecond = try #require(reopenedState.executions[secondID]?.completion?.replay)
                 let reopenedThird = try #require(reopenedState.executions[thirdID]?.completion?.replay)
-                let secondAfter = try SessionCodec.decode(AgentReplayRecord.self, from: try await reopenedLibrary.read(reopenedSecond))
-                let thirdAfter = try SessionCodec.decode(AgentReplayRecord.self, from: try await reopenedLibrary.read(reopenedThird))
+                let secondAfter = try await AgentReplayManifest.read(reopenedSecond, state: reopenedState, payloads: reopenedLibrary)
+                let thirdAfter = try await AgentReplayManifest.read(reopenedThird, state: reopenedState, payloads: reopenedLibrary)
                 #expect(secondAfter.sources == [firstSource])
                 #expect(Set(thirdAfter.sources) == Set([firstSource, secondSource]))
-                let requestAfter = try SessionCodec.decode(AgentRequestRecord.self, from: await reopenedLibrary.read(attempt.attempt.request))
+                let requestAfter = try await AgentRequestRecord.read(attempt.attempt.request, payloads: reopenedLibrary)
                 #expect(requestAfter == request)
                 await reopened.close(); try await reopenedLibrary.close()
             } catch { await reopenedRuntime?.close(); try? await reopenedLibrary.close(); throw error }
@@ -315,7 +315,7 @@ struct AgentExecutionKernelIntegrationTests {
             let thirdState = await fixture.runtime.snapshot()
             let thirdAttemptID = try #require(thirdState.executions[thirdID]?.attemptIDs.last)
             let thirdAttempt = try #require(thirdState.attempts[thirdAttemptID])
-            let thirdBuild = try SessionCodec.decode(AgentRequestRecord.self, from: await fixture.library.read(thirdAttempt.attempt.request))
+            let thirdBuild = try await AgentRequestRecord.read(thirdAttempt.attempt.request, payloads: fixture.library)
             let firstSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: fixture.executionID)
             let secondSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: secondID)
             #expect(Set(thirdBuild.inheritedSources) == Set([firstSource, secondSource]))

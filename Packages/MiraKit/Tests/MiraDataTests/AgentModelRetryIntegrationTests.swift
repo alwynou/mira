@@ -22,8 +22,7 @@ struct AgentModelRetryIntegrationTests {
             #expect(attempts[0].attempt.request == attempts[1].attempt.request)
             var builds: [AgentRequestRecord] = []
             for attempt in attempts {
-                builds.append(try SessionCodec.decode(AgentRequestRecord.self,
-                    from: await fixture.library.read(attempt.attempt.request)))
+                builds.append(try await AgentRequestRecord.read(attempt.attempt.request, payloads: fixture.library))
             }
             #expect(builds[0] == builds[1])
             #expect(builds[0].input == inputs[0])

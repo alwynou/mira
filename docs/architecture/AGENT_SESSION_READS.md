@@ -105,7 +105,7 @@ flowchart TD
 
 ## 持久偏移索引与状态检查点
 
-`FileSessionLibrary` 不再常驻全部 `SessionBatch`。每个会话保存批次身份、连续序号、事务起始文件偏移、事务字节长度、原始事务摘要和前缀摘要链；正文引用与失效组仍属于日志存储层的派生元数据。typed event 行及其最终 `transaction_commit` 一同受校验和保护，正文节点直接从语义字段读取；`external` 引用仍经正文端口读取。分页通过序号二分定位，再用 `pread` 读取完整提交事务，重新检查原始字节摘要、事件行、提交校验和、inline 原始字节哈希和身份。普通页只解码所请求的事务，归档校验与缺失缓存后的严格扫描是独立路径。
+`FileSessionLibrary` 不再常驻全部 `SessionBatch`。每个会话保存批次身份、连续序号、事务起始文件偏移、事务字节长度、原始事务摘要和前缀摘要链；正文引用与失效组仍属于日志存储层的派生元数据。v5 semantic event 行及其最终 `transaction_commit` 一同受校验和保护，正文节点直接从语义字段读取；`external` 引用仍经正文端口读取。分页通过序号二分定位，再用 `pread` 读取完整提交事务，重新检查原始字节摘要、事件行、提交校验和、inline 原始字节哈希和身份。普通页只解码所请求的事务，归档校验与缺失缓存后的严格扫描是独立路径。
 
 `indexes/<session>.index` 可删除、可重建，并绑定当前 JSONL 记录格式、每个已提交事务的起始字节偏移／总长度／摘要以及正文引用元数据；索引偏移只指向完整提交事务，不指向单个 payload 或事件行。inline 正文通过其所属事件的语义字段和正文 ID 定位。启动时缓存命中先验证库写入器签发的 HMAC、当前格式及结构，再流式计算**整个源日志**的 SHA-256，与索引绑定的字节数和摘要比较；不因缓存命中而逐个解码 inline 正文。缓存缺失、损坏、格式不符、来自别库或源字节不匹配时，从日志逐事务扫描并重新建立批次索引；完整日志记录损坏仍明确失败。索引／缓存必须绑定完整源日志前缀摘要，不能仅凭单条事务或 payload 哈希复用。实际 inline 读取时再校验正文 UTF-8、长度和 digest。符号链接、硬链接及不安全目录直接拒绝，不作为缓存丢失处理。
 
@@ -151,7 +151,7 @@ flowchart TB
 
 ## 历史执行来源
 
-历史上下文读取还可选择取消或中断执行的已保留可见回答；thinking 阶段中断且没有可见回答时，仍保留原始用户消息和一个中性的中断提示。此交换只由原始用户消息、可选的标记为 `isIncomplete` 的 assistant text 和中性的中断提示组成；持久正文保持原文。成功 replay、思考正文、协议续接和未配对工具交换均不从失败执行推导。读取器从该执行已提交的请求证据重建来源集合，按当前目的地重新授权，并在正文保留组失效、来源撤权或重开后正文不可读时舍弃交换。提示属于交换消息，因此计入历史消息和字节预算。
+历史上下文读取还可选择取消或中断执行的已保留可见回答；thinking 阶段中断且没有可见回答时，仍保留原始用户消息和一个中性的中断提示。此交换只由原始用户消息、可选的标记为 `isIncomplete` 的 assistant text 和中性的中断提示组成；持久正文保持原文。成功路径读取 settled assistant blocks 与 replay manifest references；失败路径不从未结算的 active-draft sidecar 推导模型历史。读取器从该执行已提交的 request manifest 证据重建来源集合，按当前目的地重新授权，并在正文保留组失效、来源撤权或重开后正文不可读时舍弃交换。提示属于交换消息，因此计入历史消息和字节预算。
 
 `AgentSourceReference` 直接采用两种类型，不把不同权威来源拼接成字符串，也不解码旧的无类型对象：
 
@@ -283,6 +283,6 @@ sequenceDiagram
 
 ## Ordered execution activity reads
 
-`executionActivities` reads each selected execution's attempts in step/attempt order and projects only visible model-output blocks and tool argument/result payloads. It does not expose request snapshots or provider continuation. The previous latest-eight summary cap is removed; the shared page byte budget still bounds actual payload reads, including all patches needed to reconstruct the current draft. Missing or purged payloads have explicit presentation states. Pending model tool blocks can appear before invocation registration; once registered, their durable arguments/results are correlated by model order and validated against the canonical call. No presentation identity is randomly generated while reading.
+`executionActivities` reads each selected execution's attempts in step/attempt order and projects only visible model-output blocks and tool argument/result payloads. It does not expose request snapshots or provider continuation. The previous latest-eight summary cap is removed; the shared page byte budget still bounds actual payload reads, including the bounded active-draft snapshot when an attempt is still running. Missing or purged payloads have explicit presentation states. Pending model tool blocks can appear before invocation registration; once registered, their durable arguments/results are correlated by model order and validated against the canonical call. No presentation identity is randomly generated while reading.
 
 Only a retained draft belonging to the latest attempt without committed output can supplement that attempt. Earlier resolved steps cannot be overwritten by the draft from a later model round. Cancelled/interrupted final visible message text remains available through the existing message query even when private draft material has been retired.

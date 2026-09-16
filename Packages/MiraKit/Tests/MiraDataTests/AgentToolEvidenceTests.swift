@@ -65,8 +65,6 @@ struct AgentToolEvidenceTests {
                     Issue.record("A forged tool context reached the business commit boundary")
                 } catch is MiraError {
                     // The resolver is the required journal gate before a business adapter runs.
-                } catch {
-                    Issue.record("Unexpected forged-context error: \(error)")
                 }
                 #expect(await fixture.business.commitCount == 0)
             }
@@ -83,8 +81,6 @@ struct AgentToolEvidenceTests {
                     Issue.record("A forged prepared request reached the read tool")
                 } catch is MiraError {
                     // Context validation precedes preparation and execution.
-                } catch {
-                    Issue.record("Unexpected forged read request error: \(error)")
                 }
                 #expect(await fixture.readProbe.prepareCount == 0)
                 #expect(await fixture.readProbe.executeCount == 0)
@@ -275,21 +271,27 @@ private final class ToolEvidenceFixture: Sendable {
         let inherited: AgentSourceReference = .domain(namespace: "tests.context", id: UUID(), revision: 1)
         let build = AgentContextBuild(request: request, prepared: prepared,
             inheritedSources: tamper == .missingInheritedSource ? [inherited] : [], evidence: [], omissions: [])
-        var requestBytes = try SessionCodec.encode(AgentRequestRecord(build))
-        if tamper == .adapter || tamper == .destination {
-            // Corrupt the persisted record after valid construction, exercising
-            // the reader's rejection before any tool effect can be dispatched.
-            var object = try #require(JSONSerialization.jsonObject(with: requestBytes) as? [String: Any])
-            if tamper == .adapter { object["adapter"] = ["id": "synthetic.forged", "revision": 1] }
-            else { object["route"] = try JSONSerialization.jsonObject(with: SessionCodec.encode(originalRoute)) }
-            requestBytes = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
-        }
-        let frozenRequestBytes = requestBytes
         let started = await runtime.commit(id: UUID()) { context in
-            let reference = try await context.stageBytes(frozenRequestBytes, kind: .request, retentionGroup: UUID())
+            // Keep the canonical manifest well formed so each case exercises the
+            // semantic authorization boundary, rather than a missing schema key.
+            let header = AgentRequestManifest.Header(instructions: input.instructions,
+                tools: input.tools, allowsToolCalls: input.allowsToolCalls,
+                outputTokenLimit: input.outputTokenLimit,
+                adapter: tamper == .adapter ? .init(id: "synthetic.forged", revision: 1) : adapter)
+            let group = UUID()
+            let headerRef = try await context.stage(header, kind: .requestComponent, retentionGroup: group)
+            let bodyRef = try await context.stage(input.messages[0], kind: .requestComponent, retentionGroup: group)
+            let recordedRequest = AgentContextRequest(sessionID: request.sessionID, executionID: request.executionID,
+                workspaceID: request.workspaceID, userText: request.userText, authorizationEpoch: request.authorizationEpoch,
+                destination: tamper == .destination ? .model(originalRoute) : request.destination)
+            let manifest = AgentRequestManifest(request: recordedRequest, executionID: input.executionID,
+                stepID: input.stepID, header: headerRef, prefixMessageCount: input.prefixMessageCount,
+                estimatedInputTokens: 1, currentUserMessageIndex: 0, inheritedSources: build.inheritedSources,
+                evidence: [], omissions: [], entries: [.init(reference: bodyRef, representation: .message)])
+            let reference = try await context.stage(manifest, kind: .request, retentionGroup: group)
             return [.phaseChanged(executionID: retryExecutionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: retryExecutionID, stepID: stepID,
-                        stepIndex: 1, attemptIndex: 1, request: reference))]
+                        stepIndex: 1, attemptIndex: 1, request: reference, contents: [headerRef, bodyRef]))]
         }
         try requireCommitted(started)
         let settled = await runtime.commit(id: UUID()) { context in

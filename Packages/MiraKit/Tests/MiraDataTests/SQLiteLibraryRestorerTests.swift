@@ -418,12 +418,15 @@ private func stageRestorationDraft(_ fixture: TaskWorkflowFixture, source: Agent
                 runtimeID: UUID(), catalogGeneration: 1, driverID: "mira.default", driverRevision: 1,
                 instructions: "Retain this draft.", limits: .init(), priority: .foreground, route: fixture.route)
             let planReference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+            // Exercise catalog ordering with both an active draft and an external body.
+            let external = try await context.stageBytes(Data([0xff, 0xfe]), kind: .module, retentionGroup: UUID())
             return [
                 .opened(.init(workspaceID: nil, title: title)),
                 .admitted(
                     .init(
                         executionID: address.executionID, userMessageID: .init(), userBody: user,
                         plan: planReference, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC")),
+                .extensionRecorded(namespace: "tests.archive.external", schemaVersion: 1, required: false, body: external),
             ]
         }
         try taskRequireCommitted(admitted)
@@ -442,33 +445,22 @@ private func stageRestorationDraft(_ fixture: TaskWorkflowFixture, source: Agent
                 prepared: .init(
                     adapter: fixture.route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                 inheritedSources: [source], evidence: [], omissions: [])
-            let requestReference = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
+            let staged = try await AgentRequestRecord.stage(build, context: context)
             return [
                 .phaseChanged(executionID: address.executionID, phase: .preparing),
                 .attemptStarted(
                     .init(
                         id: attemptID, executionID: address.executionID, stepID: stepID,
-                        stepIndex: 1, attemptIndex: 1, request: requestReference)),
+                        stepIndex: 1, attemptIndex: 1, request: staged.request, contents: staged.contents)),
             ]
         }
         try taskRequireCommitted(started)
-        let checkpoint = await runtime.commit(id: UUID()) { context in
-            var facts: [SessionFact] = []
-            for (part, text): (SessionDraftPart, String) in [
-                (.answer, "Draft from retained memory"), (.thinking, "Thinking from retained memory"),
-            ] {
-                let bytes = Data(text.utf8)
-                let reference = try await context.stageBytes(bytes, kind: .draft, retentionGroup: UUID())
-                facts.append(
-                    .draftCheckpoint(
-                        .init(
-                            executionID: address.executionID, attemptID: attemptID,
-                            part: part, baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0,
-                            replacement: reference, resultByteCount: bytes.count)))
-            }
-            return facts
-        }
-        try taskRequireCommitted(checkpoint)
+        let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
+        let request = try #require(requestValue)
+        try await runtime.saveActiveDraft(.init(request: request, executionID: address.executionID, attemptID: attemptID,
+            authorizationEpoch: 0, revision: 1, blocks: [
+                .init(id: "answer", content: .text("Draft from retained memory")),
+                .init(id: "thinking", content: .thinking("Thinking from retained memory"))]))
         await runtime.close()
         return address
     } catch {

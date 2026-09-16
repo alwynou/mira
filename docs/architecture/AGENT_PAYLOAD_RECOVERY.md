@@ -6,7 +6,7 @@
 
 ## 权威与职责
 
-已提交的 JSONL 事务、事务内事件和正文引用共同决定哪些内容存在、属于哪个保留组、是否已经失效。当前格式为 v4 typed events：每个事件是独立 JSON 对象行，语义正文节点直接嵌入字段并携带 `id`、`retention_group`、`kind`、`byte_count`、`sha256`；可精确还原原始字节的 canonical JSON 正文使用 `json`；用户消息、可见回复／思考、标题、草稿及其余可 inline 正文使用 `text`，大正文或非 UTF-8 正文使用既有 external 文件。事务末尾的 `transaction_commit` 行携带 `format_version`、事务身份、`session_id`、`expected_sequence`、`event_count` 和此前所有事件行（含 LF）的精确字节校验和。只有有效提交行发布事务中的全部事实。事务最多为 8 MiB 加 256 字节封装余量、元数据不超过 2 MiB、最多 256 个事件；inline 单正文和批次预算仍为 256 KiB／2 MiB。
+已提交的 JSONL 事务、事务内事件和正文引用共同决定哪些内容存在、属于哪个保留组、是否已经失效。当前格式为 v5 typed semantic events：事件行使用 `session`、`turn/start`、`request/start`、`assistant/message`、`assistant/attempt`、`tool/call`、`tool/result` 和 `turn/end` 等边界。模型输出在结算时作为有序 blocks 一次发布；进行中的输出保存在有界 active-drafts sidecar，不写入 canonical JSONL。请求行携带 manifest、header 和直接 message-component 引用；重放使用独立的 manifest references。语义正文节点直接嵌入字段并携带 `id`、`retention_group`、`kind`、`byte_count`、`sha256`；事务末尾的 `transaction_commit` 行携带格式版本、事务身份、`session_id`、`expected_sequence`、`event_count` 和此前所有事件行（含 LF）的精确字节校验和。只有有效提交行发布事务中的全部事实。事务最多为 8 MiB 加 256 字节封装余量、元数据不超过 2 MiB、最多 256 个事件；inline 单正文和批次预算仍为 256 KiB／2 MiB。
 
 正常追加严格保持 JSONL 记录不可变；只有显式隐私物理擦除在 durable invalidation 之后，才允许按下文协议重写记录以移除 inline 正文。
 
@@ -77,3 +77,16 @@ inline stage 只在内存中组装，并随事件行与提交行构成的原子�
 `withSnapshot` 仍验证全部未被物理擦除的 external 文件身份、长度和摘要，并验证 typed event 正文节点的摘要与引用；逻辑退休正文仍属于规范物理历史，可以随快照／归档保留。普通正文读取对 invalidated 组抛出 `notFound`；内部 `readRetainedPayload` 可以读取仍保留的已退休正文，但对已经 erased 的正文返回 `nil`。只有 `erasedRetentionGroups` 的 external 文件必须不存在，且其 inline 正文必须已从重写后的事件／提交中移除。归档复制规范 JSONL（其中包含未擦除的 inline 字节，包括逻辑退休历史）和未擦除的 external 文件，不复制待发布目录；目标严格验证仍拒绝额外文件。独立恢复器关闭私有写入器后移除其派生元数据，再从规范文件重新验证，不能用元数据清理冒充正文验证。
 
 应用级 `recoverStartup` 当前仍逐会话恢复执行状态；本契约只调整文件库的正文 I/O 责任，未宣称已解决全部应用启动成本或通过十万消息的原生启动门槛。
+
+## Current v5 semantic boundary
+
+The v5 writer is a direct format change and does not decode v4 records. A committed
+transaction remains the bounded unit. Recovery removes an uncommitted final
+transaction as a whole, while a complete commit without its final delimiter is
+preserved and repaired. Normal writes remain append-only JSONL with commit markers;
+explicit, durably authorized privacy erasure is the only rewrite exception.
+
+Visible final answer and thinking snapshots retain separate privacy lifetimes from
+hidden model-output, continuation, and replay references. This preserves visible
+history while allowing hidden generated history to be erased; the remaining visible
+summary duplication is intentional and is not claimed to be zero duplication.

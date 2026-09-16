@@ -218,6 +218,15 @@ private actor PreparationGate {
 }
 
 private actor RuntimeJournalFixture: SessionCheckpointJournal, SessionPayloadStore {
+    private var activeDrafts: [ConversationID: SessionActiveDraft] = [:]
+    func activeDraft(sessionID: ConversationID) -> SessionActiveDraft? { activeDrafts[sessionID] }
+    func saveActiveDraft(_ draft: SessionActiveDraft) throws {
+        try draft.validate(); activeDrafts[draft.request.sessionID] = draft
+    }
+    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) {
+        if activeDrafts[sessionID]?.attemptID == attemptID { activeDrafts.removeValue(forKey: sessionID) }
+    }
+
     enum Mode { case normal, commitWithoutAcknowledgement, uncertainBeforePublication }
     private var mode: Mode = .normal
     private var batches: [SessionBatch] = []

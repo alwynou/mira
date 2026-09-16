@@ -6,23 +6,23 @@ import MiraCore
 enum FileSessionEventCodec {
     static let maximumBytes = FileSessionRecord.maximumBytes + 256
     private static let eventNames = [
-        "opened": "session_meta", "modelSelectionChanged": "model_selection", "renamed": "session_title",
-        "archived": "session_archived", "admitted": "turn_started", "phaseChanged": "execution_phase",
-        "attemptStarted": "model_request", "attemptResolved": "model_response", "toolProposed": "tool_call",
+        "opened": "session", "modelSelectionChanged": "model_selection", "renamed": "session_title",
+        "archived": "session_archived", "admitted": "turn/start", "phaseChanged": "execution_phase",
+        "attemptStarted": "request/start", "attemptResolved": "assistant/message", "toolProposed": "tool/call",
         "toolPrepared": "tool_prepared", "toolApprovalRequested": "tool_approval_requested",
         "toolApprovalResolved": "tool_approval_resolved", "toolDispatched": "tool_dispatched",
-        "toolResolved": "tool_result", "draftCheckpoint": "response_delta", "finished": "turn_completed",
+        "toolResolved": "tool/result", "finished": "turn/end",
         "invalidated": "content_invalidated", "retryCleared": "retry_retired", "extensionRecorded": "extension"
     ]
     private static let unlabeled: Set<String> = [
         "opened", "admitted", "attemptStarted", "attemptResolved", "toolProposed", "toolPrepared",
-        "toolResolved", "draftCheckpoint", "finished", "invalidated", "retryCleared"
+        "toolResolved", "finished", "invalidated", "retryCleared"
     ]
-    private static let textKinds: Set<SessionPayloadKind> = [.title, .userText, .visibleAnswer, .visibleThinking, .draft]
+    private static let textKinds: Set<SessionPayloadKind> = [.title, .userText, .visibleAnswer, .visibleThinking]
     private static let contentFields = [
         "opened": ["title"], "renamed": ["title"], "admitted": ["userBody", "plan"],
-        "attemptStarted": ["request"], "attemptResolved": ["output", "error"], "toolProposed": ["call"],
-        "toolPrepared": ["proposal"], "toolResolved": ["result"], "draftCheckpoint": ["replacement"],
+        "attemptStarted": ["request", "contents"], "attemptResolved": ["output", "error"], "toolProposed": ["call"],
+        "toolPrepared": ["proposal"], "toolResolved": ["result"],
         "finished": ["answer", "visibleThinking", "replay", "error"], "extensionRecorded": ["body"]
     ]
     private static let nodeKeys: Set<String> = [
@@ -102,7 +102,7 @@ enum FileSessionEventCodec {
         guard Set(value.keys) == ["timestamp", "type", "id", "sequence", "payload"],
               value["payload"] is [String: Any] else { throw FileSessionIO.failure() }
         let header = try SessionCodec.decode(Header.self, from: line)
-        guard header.sequence > 0, eventNames.values.contains(header.type),
+        guard header.sequence > 0, (eventNames.values.contains(header.type) || header.type == "assistant/attempt"),
               formatter().date(from: header.timestamp) != nil else { throw FileSessionIO.failure() }
         return false
     }
@@ -114,13 +114,16 @@ enum FileSessionEventCodec {
         var seen: Set<UUID> = [], preceding = Data()
         for event in record.batch.events {
             let fact = try object(SessionCodec.encode(event.fact))
-            guard fact.count == 1, let key = fact.keys.first, let type = eventNames[key], let body = fact[key] else {
+            guard fact.count == 1, let key = fact.keys.first, var type = eventNames[key], let body = fact[key] else {
                 throw FileSessionIO.failure()
             }
             var payload = try embed(body, references: references, record: record, seen: &seen)
             if unlabeled.contains(key) {
                 guard let container = payload as? [String: Any], let value = container["_0"] else { throw FileSessionIO.failure() }
                 payload = value
+            }
+            if key == "attemptResolved", let value = payload as? [String: Any] {
+                type = value["output"] == nil ? "assistant/attempt" : "assistant/message"
             }
             preceding.append(try orderedObject([
                 ("timestamp", dateFormatter.string(from: event.occurredAt)), ("type", type),
@@ -158,7 +161,8 @@ enum FileSessionEventCodec {
             guard try !isCommit(data) else { throw FileSessionIO.failure() }
             let header = try SessionCodec.decode(Header.self, from: data)
             guard header.sequence == commit.expected_sequence + Int64(index) + 1,
-                  let key = eventNames.first(where: { $0.value == header.type })?.key,
+                  let key = eventNames.first(where: { $0.value == header.type })?.key
+                    ?? (header.type == "assistant/attempt" ? "attemptResolved" : nil),
                   let date = dateFormatter.date(from: header.timestamp),
                   var payload = try object(data)["payload"] as? [String: Any] else {
                 throw FileSessionIO.failure()
@@ -169,6 +173,12 @@ enum FileSessionEventCodec {
                 if let content = payload[field] {
                     payload[field] = try restore(content, sessionID: ConversationID(commit.session_id), batchID: commit.id,
                                                  payloads: &payloads, references: &references)
+                }
+            }
+            if key == "attemptResolved" {
+                guard (header.type == "assistant/message") == (payload["output"] != nil),
+                      header.type == "assistant/message" || header.type == "assistant/attempt" else {
+                    throw FileSessionIO.failure()
                 }
             }
             let body: Any

@@ -220,7 +220,7 @@ public struct JournalSessionReader: Sendable {
         for id in execution.attemptIDs {
             guard let attempt = snapshot.state.attempts[id], attempt.resolution?.status == .completed else { continue }
             try requireAvailable(attempt.attempt.request)
-            let record = try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(attempt.attempt.request))
+            let record = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
             guard record.request.sessionID == snapshot.state.id,
                   record.request.executionID == executionID,
                   record.request.workspaceID == job.workspaceID,
@@ -305,7 +305,7 @@ public struct JournalSessionReader: Sendable {
             guard resolution.status == .completed else { continue }
             let reference = attempt.attempt.request
             try requireAvailable(reference)
-            let record = try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(reference))
+            let record = try await AgentRequestRecord.read(reference, payloads: payloads)
             guard record.request.sessionID == sessionID, record.request.executionID == executionID,
                   record.request.workspaceID == state.header?.workspaceID,
                   record.request.destination.modelRoute == route,

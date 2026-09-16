@@ -31,7 +31,7 @@ final class FileSessionIndex {
         let erased: Set<UUID>
     }
 
-    static let initialDigest = FileSessionIO.digest(Data("MIRA-SESSION-PREFIX-4".utf8))
+    static let initialDigest = FileSessionIO.digest(Data("MIRA-SESSION-PREFIX-5".utf8))
     let sessionID: ConversationID
     var records: [Record] = []
     var references: [SessionPayloadReference] = []
@@ -59,8 +59,8 @@ final class FileSessionIndex {
     /// Unsafe filesystem objects are rejected before the recoverable cache decode.
     static func load(at url: URL, journal: URL, sessionID: ConversationID,
                      authentication: FileSessionCacheAuthentication) throws -> FileSessionIndex? {
-        guard let snapshot = try FileSessionCacheIO.load(Snapshot.self, at: url, format: "MIRA-SESSION-INDEX-4", authentication: authentication),
-              snapshot.version == 4, snapshot.sessionID == sessionID,
+        guard let snapshot = try FileSessionCacheIO.load(Snapshot.self, at: url, format: "MIRA-SESSION-INDEX-5", authentication: authentication),
+              snapshot.version == 5, snapshot.sessionID == sessionID,
               snapshot.journalByteCount >= 0 else { return nil }
         let index = FileSessionIndex(sessionID: sessionID)
         index.records = snapshot.records; index.references = snapshot.references
@@ -81,10 +81,10 @@ final class FileSessionIndex {
         guard let sourceIdentity, sourceIdentity == (try FileSessionIO.identity(journal)) else { throw FileSessionIO.failure() }
         let source = try BackupFileIO.inspect(journal, limit: Int.max)
         guard source.byteCount == byteCount, sourceIdentity == (try FileSessionIO.identity(journal)) else { throw FileSessionIO.failure() }
-        let snapshot = Snapshot(version: 4, sessionID: sessionID,
+        let snapshot = Snapshot(version: 5, sessionID: sessionID,
             journalByteCount: source.byteCount, journalDigest: source.digest,
             records: records, references: references, invalidated: invalidated, erased: erased)
-        if try FileSessionCacheIO.save(snapshot, at: url, format: "MIRA-SESSION-INDEX-4",
+        if try FileSessionCacheIO.save(snapshot, at: url, format: "MIRA-SESSION-INDEX-5",
             authentication: authentication,
             beforeWrite: { try fault(.beforeIndexWrite) }, afterWrite: { try fault(.afterIndexWrite) },
             beforePublication: { try fault(.beforeIndexPublication) }, afterPublication: { try fault(.afterIndexPublication) }) {

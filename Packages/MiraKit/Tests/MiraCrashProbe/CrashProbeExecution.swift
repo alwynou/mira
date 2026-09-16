@@ -27,34 +27,29 @@ enum CrashProbeExecution {
         let fixture = try await CrashProbeFixture.open(context)
         var application: AgentApplicationRuntime?
         do {
-            let reader = JournalSessionReader(journal: fixture.journal, payloads: fixture.library)
             if scenario == "thinkingDraft" {
-                let batches = try await fixture.journal.read(sessionID: execution.sessionID, after: 0, limit: 128)
-                guard
-                    let draftBatch = batches.last(where: { batch in
-                        batch.events.contains { event in
-                            if case .draftCheckpoint(let value) = event.fact { return value.part == .transcript }
-                            return false
-                        }
-                    })
-                else { throw MiraError(.storage, "The process did not stop after a durable thinking draft.") }
-                let prefix = try await reader.snapshot(
-                    through: .init(cursor: draftBatch.cursor, batchID: draftBatch.id)
-                ).state
-                let drafts = try await SessionDraftReader(journal: fixture.journal, payloads: fixture.library)
-                    .read(state: prefix, executionID: execution.executionID)
-                try probeRequire(
-                    drafts[.thinking] == Data(CrashProbeFixture.interruptedThought.utf8),
-                    "The durable thinking text changed.")
-                guard let transcript = drafts[.transcript],
-                    let continuation = try SessionCodec.decode(JSONValue.self, from: transcript)["continuation"]
-                else {
-                    throw MiraError(.storage, "The durable draft lost its opaque continuation.")
+                let before = try await JournalSessionReader(journal: fixture.journal, payloads: fixture.library)
+                    .snapshot(sessionID: execution.sessionID).state
+                let blocks: [AgentModelBlock]
+                let continuation: AgentModelContinuation?
+                if before.executions[execution.executionID]?.completion == nil {
+                    guard let draft = try await fixture.library.activeDraft(sessionID: execution.sessionID) else {
+                        throw MiraError(.storage, "The process did not stop after a durable active draft.")
+                    }
+                    blocks = draft.blocks; continuation = draft.continuation
+                } else {
+                    guard let attemptID = before.executions[execution.executionID]?.attemptIDs.last,
+                          let reference = before.attempts[attemptID]?.resolution?.output else {
+                        throw MiraError(.storage, "The settled interrupted message is missing.")
+                    }
+                    let output = try SessionCodec.decode(AgentModelOutput.self, from: await fixture.library.read(reference))
+                    blocks = output.blocks; continuation = output.continuation
                 }
-                let value = try SessionCodec.decode(
-                    AgentModelContinuation.self, from: SessionCodec.encode(continuation))
                 try probeRequire(
-                    value == CrashProbeFixture.interruptedContinuation,
+                    blocks.contains { $0.content == .thinking(CrashProbeFixture.interruptedThought) },
+                    "The durable thinking text changed.")
+                try probeRequire(
+                    continuation == CrashProbeFixture.interruptedContinuation,
                     "The opaque continuation changed across process termination.")
             }
             let app = try await fixture.openApplication()

@@ -53,7 +53,7 @@ struct SessionPayloadRecoveryTests {
         let batch = payloadBatch(session: session, batchID: committedID, reference: committed)
         #expect(await library.append(batch) == .committed(batch.cursor))
         let orphan = try await library.stage(externalFixture(), sessionID: session, batchID: orphanID,
-                                             retentionGroup: UUID(), kind: .draft)
+                                             retentionGroup: UUID(), kind: .module)
         try await library.close()
         let orphanPath = payloadURL(root, reference: orphan)
         #expect(FileManager.default.fileExists(atPath: orphanPath.path))
@@ -75,7 +75,7 @@ struct SessionPayloadRecoveryTests {
         }
         await #expect(throws: MiraError.self) {
             _ = try await library.stage(externalFixture(), sessionID: ConversationID(), batchID: UUID(),
-                                        retentionGroup: UUID(), kind: .draft)
+                                        retentionGroup: UUID(), kind: .module)
         }
         try? await library.close()
         let reopened = try FileSessionLibrary(directory: root)
@@ -95,7 +95,7 @@ struct SessionPayloadRecoveryTests {
         let reference = try await failing.stage(committedBytes, sessionID: session, batchID: batchID,
                                                 retentionGroup: UUID(), kind: .userText)
         let unreferenced = try await failing.stage(externalFixture(), sessionID: session, batchID: batchID,
-                                                   retentionGroup: UUID(), kind: .draft)
+                                                   retentionGroup: UUID(), kind: .module)
         let batch = payloadBatch(session: session, batchID: batchID, reference: reference)
         #expect(await failing.append(batch) == .committed(batch.cursor))
         #expect(!FileManager.default.fileExists(atPath: payloadURL(root, reference: unreferenced).path))

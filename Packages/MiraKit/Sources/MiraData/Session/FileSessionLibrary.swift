@@ -13,19 +13,24 @@ public enum SessionStorageFaultStage: Sendable, Equatable {
     case beforeRecoverySummaryWrite, afterRecoverySummaryWrite, beforeRecoverySummaryPublication, afterRecoverySummaryPublication
     case beforeInlinePurgeWrite, afterInlinePurgeWrite, beforeInlinePurgePublication, afterInlinePurgePublication
     case beforePendingPayloadMark, afterPendingPayloadMark, beforePendingPayloadClear, afterPendingPayloadClear
+    case beforeActiveDraftWrite, afterActiveDraftWrite, beforeActiveDraftSync, afterActiveDraftSync
+    case beforeActiveDraftPublication, afterActiveDraftPublication
+    case beforeActiveDraftDelete, afterActiveDraftDelete
 }
 public typealias SessionStorageFaultInjector = @Sendable (SessionStorageFaultStage) throws -> Void
 
 /// A single serial queue owns mutable indexes and all blocking filesystem operations.
-public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadMaintenance, @unchecked Sendable {
+public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadMaintenance, SessionActiveDraftStore, @unchecked Sendable {
     private typealias IO = FileSessionIO
     private let root: URL
     private let sessionsURL: URL
     private let payloadsURL: URL
     private let indexesURL: URL
     private let checkpointsURL: URL
+    private let activeDraftsURL: URL
     private let checkpoints: FileSessionCheckpoints
     private let pendingPayloads: FileSessionPendingPayloads
+    private let activeDrafts: FileSessionActiveDrafts
     private let cacheAuthentication: FileSessionCacheAuthentication
     private let lockFD: Int32
     private let queue = DispatchQueue(label: "mira.session-library", qos: .utility)
@@ -64,6 +69,7 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
         payloadsURL = root.appendingPathComponent("payloads", isDirectory: true)
         indexesURL = root.appendingPathComponent("indexes", isDirectory: true)
         checkpointsURL = root.appendingPathComponent("checkpoints", isDirectory: true)
+        activeDraftsURL = root.appendingPathComponent("active-drafts", isDirectory: true)
         fault = faultInjector ?? { _ in }
         pendingPayloads = FileSessionPendingPayloads(
             directory: root.appendingPathComponent("pending-payloads", isDirectory: true), fault: fault)
@@ -72,6 +78,7 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
         try IO.checkDirectory(payloadsURL, allowMissing: true)
         try IO.checkDirectory(indexesURL, allowMissing: true)
         try IO.checkDirectory(checkpointsURL, allowMissing: true)
+        try IO.checkDirectory(activeDraftsURL, allowMissing: true)
         let fd = Darwin.open(root.appendingPathComponent(".lock").path, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { throw IO.failure() }
         do { try IO.requireRegular(fd) } catch { Darwin.close(fd); throw error }
@@ -82,8 +89,9 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
         do {
             cacheAuthentication = try FileSessionCacheAuthentication(directory: root)
             checkpoints = FileSessionCheckpoints(directory: checkpointsURL, authentication: cacheAuthentication, fault: fault)
+            activeDrafts = try FileSessionActiveDrafts(directory: activeDraftsURL, authentication: cacheAuthentication, fault: fault)
             try IO.ensureDirectory(sessionsURL); try IO.ensureDirectory(payloadsURL)
-            try IO.ensureDirectory(indexesURL); try IO.ensureDirectory(checkpointsURL)
+            try IO.ensureDirectory(indexesURL); try IO.ensureDirectory(checkpointsURL); try IO.ensureDirectory(activeDraftsURL)
             try FileSessionCacheIO.removeInterruptedWrites(in: indexesURL)
             try FileSessionCacheIO.removeInterruptedWrites(in: checkpointsURL)
             try IO.syncDirectory(root)
@@ -271,8 +279,42 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
                         live[reference] = url
                     }
                 }
+                var activeDraft = try self.activeDrafts.load(sessionID: id)
+                if let draft = activeDraft {
+                    try draft.validate()
+                    guard draft.request.sessionID == id,
+                        draft.request.kind == .request,
+                        retained.references[draft.request.id] == draft.request,
+                        !retained.invalidated.contains(draft.request.retentionGroup) else {
+                        throw IO.failure()
+                    }
+                    var epoch: UInt64?
+                    var started: SessionAttempt?
+                    var resolved = false
+                    var finished = false
+                    for value in values {
+                        for event in value.events {
+                            switch event.fact {
+                            case .admitted(let admission) where admission.executionID == draft.executionID:
+                                epoch = admission.authorizationEpoch
+                            case .attemptStarted(let attempt) where attempt.id == draft.attemptID:
+                                started = attempt
+                            case .attemptResolved(let resolution) where resolution.attemptID == draft.attemptID:
+                                resolved = true
+                            case .finished(let completion) where completion.executionID == draft.executionID:
+                                finished = true
+                            default: break
+                            }
+                        }
+                    }
+                    if started?.request != draft.request || started?.executionID != draft.executionID ||
+                        epoch != draft.authorizationEpoch || resolved || finished {
+                        activeDraft = nil
+                    }
+                }
                 sessions.append(.init(id: id, head: .init(cursor: last.cursor, batchID: last.id),
-                    journalURL: self.journalURL(id), payloads: live, invalidated: retained.invalidated, erased: retained.erased))
+                    journalURL: self.journalURL(id), payloads: live, invalidated: retained.invalidated,
+                    erased: retained.erased, activeDraft: activeDraft))
             }
             let snapshot = FileSessionSnapshot(sessions: sessions)
             return try operation(snapshot)
@@ -353,6 +395,51 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
             return try self.payloadBytes(reference)
         }
     }
+
+    public func saveActiveDraft(_ draft: SessionActiveDraft) async throws {
+        try await performThrowing {
+            try self.requireOpen()
+            guard self.fencedBatch == nil else { throw MiraError(.busy, "An uncertain session batch requires reconciliation.") }
+            try draft.validate()
+            guard let committed = self.references[draft.request.id], committed == draft.request,
+                  draft.request.kind == .request,
+                  !self.invalidated[draft.request.sessionID, default: []].contains(draft.request.retentionGroup) else {
+                throw MiraError(.unauthorized, "The active draft request is not a live committed request.")
+            }
+            if let existing = try self.activeDrafts.load(sessionID: draft.request.sessionID) {
+                if existing == draft {
+                    try self.activeDrafts.synchronize(sessionID: draft.request.sessionID)
+                    return
+                }
+                guard existing.attemptID != draft.attemptID || draft.revision > existing.revision else {
+                    throw MiraError(.conflict, "The active draft revision is stale or belongs to an older owner.")
+                }
+            }
+            try self.activeDrafts.save(draft)
+        }
+    }
+
+    public func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? {
+        try await performThrowing {
+            try self.requireOpen()
+            guard let draft = try self.activeDrafts.load(sessionID: sessionID) else { return nil }
+            guard draft.request.sessionID == sessionID,
+                  self.references[draft.request.id] == draft.request,
+                  !self.invalidated[sessionID, default: []].contains(draft.request.retentionGroup) else {
+                try self.activeDrafts.remove(sessionID: sessionID)
+                return nil
+            }
+            return draft
+        }
+    }
+
+    public func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) async throws {
+        try await performThrowing {
+            try self.requireOpen()
+            guard self.fencedBatch == nil else { throw MiraError(.busy, "An uncertain session batch requires reconciliation.") }
+            try self.activeDrafts.remove(sessionID: sessionID, attemptID: attemptID)
+        }
+    }
     public func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws {
         try await performThrowing {
             try self.requireOpen()
@@ -363,6 +450,9 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
             try self.purgeInline(sessionID: sessionID, retentionGroups: retentionGroups)
             for reference in self.references.values where reference.sessionID == sessionID && retentionGroups.contains(reference.retentionGroup) && reference.storage == .external {
                 try self.deletePayload(reference)
+            }
+            if let draft = try self.activeDrafts.load(sessionID: sessionID), retentionGroups.contains(draft.request.retentionGroup) {
+                try self.activeDrafts.remove(sessionID: sessionID)
             }
         }
     }
@@ -383,6 +473,9 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
                 var info = stat()
                 guard lstat(url.path, &info) == -1, errno == ENOENT else { throw IO.failure() }
             }
+            if let draft = try self.activeDrafts.load(sessionID: sessionID), retentionGroups.contains(draft.request.retentionGroup) {
+                throw IO.failure()
+            }
         }
     }
 
@@ -392,6 +485,7 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
             guard self.fencedBatch == nil else { throw IO.failure() }
             try self.removeInterruptedPurges()
             try self.sweepOrphans()
+            try self.activeDrafts.removeAll()
             for address in try self.pendingPayloads.addresses() { try self.pendingPayloads.clear(address) }
             self.staged.removeAll(); self.stagedInline.removeAll()
         }
@@ -405,6 +499,8 @@ public final class FileSessionLibrary: SessionCheckpointJournal, SessionPayloadM
             guard !entries.contains(where: { $0.lastPathComponent.hasPrefix(".purge-") }) else { throw IO.failure() }
             try self.sweepOrphans(delete: false)
             guard try self.pendingPayloads.addresses().isEmpty else { throw IO.failure() }
+            let activeDrafts = try FileManager.default.contentsOfDirectory(at: self.activeDraftsURL, includingPropertiesForKeys: nil)
+            guard !activeDrafts.contains(where: { $0.pathExtension == "json" }) else { throw IO.failure() }
         }
     }
 

@@ -185,7 +185,7 @@ struct InlineSessionJournalTests {
             let journal = try String(contentsOf: journalURL(directory, session), encoding: .utf8)
             #expect(!journal.contains("erase me") && journal.contains("keep me"))
             try await library.verifyPurged(sessionID: session, retentionGroups: [targetGroup])
-            let later = try await library.stage(Data("later".utf8), sessionID: session, batchID: UUID(), retentionGroup: UUID(), kind: .draft)
+            let later = try await library.stage(Data("later".utf8), sessionID: session, batchID: UUID(), retentionGroup: UUID(), kind: .module)
             let laterBatch = extensionBatch(session: session, batchID: later.batchID, expected: head.cursor.sequence,
                                              references: [later])
             #expect(await library.append(laterBatch) == .committed(laterBatch.cursor))

@@ -8,12 +8,15 @@ public struct FileSessionSnapshot: Sendable {
         public let head: SessionJournalHead
         public let journalURL: URL
         public let payloads: [SessionPayloadReference: URL]
+        public let activeDraft: SessionActiveDraft?
         let invalidated: Set<UUID>
         let erased: Set<UUID>
         init(id: ConversationID, head: SessionJournalHead, journalURL: URL,
-             payloads: [SessionPayloadReference: URL], invalidated: Set<UUID> = [], erased: Set<UUID> = []) {
+             payloads: [SessionPayloadReference: URL], invalidated: Set<UUID> = [], erased: Set<UUID> = [],
+             activeDraft: SessionActiveDraft? = nil) {
             self.id = id; self.head = head; self.journalURL = journalURL
             self.payloads = payloads; self.invalidated = invalidated; self.erased = erased
+            self.activeDraft = activeDraft
         }
     }
     public let sessions: [Session]
@@ -84,15 +87,23 @@ public enum FileSessionArchive {
     public static func inspect(directory: URL) throws -> FileSessionSnapshot {
         guard directory.isFileURL else { throw FileSessionIO.failure() }
         let root = directory.standardizedFileURL
-        let roots = try FileSessionIO.directoryEntries(root, limit: 2)
-        guard Set(roots.map(\.lastPathComponent)) == ["sessions", "payloads"] else { throw FileSessionIO.failure() }
+        let roots = try FileSessionIO.directoryEntries(root, limit: 3)
+        let rootNames = Set(roots.map(\.lastPathComponent))
+        guard rootNames == ["sessions", "payloads"] || rootNames == ["sessions", "payloads", "drafts"] else {
+            throw FileSessionIO.failure()
+        }
         let sessionsURL = root.appendingPathComponent("sessions", isDirectory: true)
         let payloadsURL = root.appendingPathComponent("payloads", isDirectory: true)
+        let draftsURL = root.appendingPathComponent("drafts", isDirectory: true)
         try FileSessionIO.checkDirectory(payloadsURL)
+        if rootNames.contains("drafts") { try FileSessionIO.checkDirectory(draftsURL) }
         let entries = try FileSessionIO.directoryEntries(sessionsURL, limit: maximumSessions)
         var sessions: [FileSessionSnapshot.Session] = []
         var expectedFiles: Set<String> = []
         var expectedDirectories: Set<String> = []
+        var attemptEligibility: [ConversationID: [UUID: (attempt: SessionAttempt, epoch: UInt64)]] = [:]
+        var resolvedAttempts: [ConversationID: Set<UUID>] = [:]
+        var finishedExecutions: [ConversationID: Set<ExecutionID>] = [:]
         var referenceCount = 0
         for journal in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let stem = journal.deletingPathExtension().lastPathComponent
@@ -102,6 +113,26 @@ public enum FileSessionArchive {
             let id = ConversationID(uuid)
             let batches = try FileSessionIO.scanStrict(journal, sessionID: id, maximumRecords: maximumRecords)
             guard let last = batches.last else { throw FileSessionIO.failure() }
+            var epochs: [ExecutionID: UInt64] = [:]
+            var attempts: [UUID: (attempt: SessionAttempt, epoch: UInt64)] = [:]
+            var resolved: Set<UUID> = []
+            var finished: Set<ExecutionID> = []
+            for batch in batches {
+                for event in batch.events {
+                    switch event.fact {
+                    case .admitted(let admission): epochs[admission.executionID] = admission.authorizationEpoch
+                    case .attemptStarted(let attempt):
+                        guard let epoch = epochs[attempt.executionID] else { throw FileSessionIO.failure() }
+                        attempts[attempt.id] = (attempt, epoch)
+                    case .attemptResolved(let resolution): resolved.insert(resolution.attemptID)
+                    case .finished(let completion): finished.insert(completion.executionID)
+                    default: break
+                    }
+                }
+            }
+            attemptEligibility[id] = attempts
+            resolvedAttempts[id] = resolved
+            finishedExecutions[id] = finished
             let retained = try references(in: batches)
             _ = try FileSessionIO.scanStrict(journal, sessionID: id, maximumRecords: maximumRecords) { record in
                 try validateInline(record, erased: retained.erased)
@@ -147,6 +178,48 @@ public enum FileSessionArchive {
         }
         try walk(payloadsURL, prefix: "", depth: 0)
         guard seenFiles == expectedFiles, seenDirectories == expectedDirectories else { throw FileSessionIO.failure() }
+        if rootNames.contains("drafts") {
+            let entries = try FileSessionIO.directoryEntries(draftsURL, limit: maximumSessions)
+            var drafts: [ConversationID: SessionActiveDraft] = [:]
+            for file in entries {
+                let stem = file.deletingPathExtension().lastPathComponent
+                guard file.pathExtension == "json", let uuid = UUID(uuidString: stem), uuid.uuidString == stem else {
+                    throw FileSessionIO.failure()
+                }
+                try LibraryArchiveIO.requireSingleFile(file)
+                var info = stat()
+                guard lstat(file.path, &info) == 0, info.st_size >= 0,
+                    info.st_size <= off_t(SessionActiveDraft.maximumBytes) else { throw FileSessionIO.failure() }
+                let bytes = try FileSessionIO.readBounded(file, expectedCount: Int(info.st_size))
+                let draft = try SessionCodec.decode(SessionActiveDraft.self, from: bytes)
+                guard try SessionCodec.encode(draft) == bytes, drafts[ConversationID(uuid)] == nil else {
+                    throw FileSessionIO.failure()
+                }
+                try draft.validate()
+                guard let sessionIndex = sessions.firstIndex(where: { $0.id == ConversationID(uuid) }) else {
+                    throw FileSessionIO.failure()
+                }
+                guard let eligibility = attemptEligibility[ConversationID(uuid)]?[draft.attemptID],
+                    draft.request.sessionID == ConversationID(uuid),
+                    eligibility.attempt.request == draft.request,
+                    eligibility.attempt.executionID == draft.executionID,
+                    eligibility.epoch == draft.authorizationEpoch,
+                    !resolvedAttempts[ConversationID(uuid), default: []].contains(draft.attemptID),
+                    !finishedExecutions[ConversationID(uuid), default: []].contains(draft.executionID),
+                    sessions[sessionIndex].payloads[draft.request] != nil || draft.request.storage == .inline,
+                    draft.request.kind == .request,
+                    !sessions[sessionIndex].invalidated.contains(draft.request.retentionGroup) else {
+                    throw FileSessionIO.failure()
+                }
+                drafts[ConversationID(uuid)] = draft
+            }
+            for index in sessions.indices {
+                sessions[index] = .init(id: sessions[index].id, head: sessions[index].head,
+                    journalURL: sessions[index].journalURL, payloads: sessions[index].payloads,
+                    invalidated: sessions[index].invalidated, erased: sessions[index].erased,
+                    activeDraft: drafts[sessions[index].id])
+            }
+        }
         return .init(sessions: sessions)
     }
 

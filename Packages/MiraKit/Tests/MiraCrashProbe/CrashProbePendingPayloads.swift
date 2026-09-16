@@ -39,13 +39,14 @@ enum CrashProbePendingPayloads {
                 try context.save(Input(scenario: scenario, sessionID: sessionID, initialBatch: initial,
                                       newBatch: next, oldTitle: oldTitle, newTitle: nil, unused: nil))
                 gate.arm(scenario == "pendingPayloadMarked" ? .afterPendingPayloadMark : .afterPayloadSync)
-                _ = try await library.stage(Data("never returned".utf8), sessionID: sessionID, batchID: nextID,
-                                            retentionGroup: UUID(), kind: .title)
+                // Non-UTF-8 bytes force the external-payload path being interrupted here.
+                _ = try await library.stage(Data([0xff, 0xfe]), sessionID: sessionID, batchID: nextID,
+                                            retentionGroup: UUID(), kind: .module)
             case "pendingPayloadClearing", "pendingPayloadCleared":
                 let title = try await library.stage(Data("New crash probe title".utf8), sessionID: sessionID,
                                                      batchID: nextID, retentionGroup: UUID(), kind: .title)
-                let draft = try await library.stage(Data("Unreferenced same-batch draft".utf8), sessionID: sessionID,
-                                                     batchID: nextID, retentionGroup: UUID(), kind: .draft)
+                let draft = try await library.stage(Data([0xff, 0xfe]), sessionID: sessionID,
+                                                     batchID: nextID, retentionGroup: UUID(), kind: .module)
                 next = SessionBatch(id: nextID, sessionID: sessionID, expectedSequence: 1, events: [
                     .init(sequence: 2, occurredAt: Date(timeIntervalSince1970: 1_800_000_002),
                           fact: .renamed(title: title, revision: 2))

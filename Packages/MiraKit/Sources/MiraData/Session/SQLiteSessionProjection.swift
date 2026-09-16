@@ -272,7 +272,7 @@ public final class SQLiteSessionProjection: SessionProjectionStore, @unchecked S
                 try db.execute(sql: "INSERT OR IGNORE INTO projection_invalidated_groups(session_id, group_id) VALUES (?, ?)", arguments: [session, group.uuidString])
             }
         case .attemptResolved, .toolProposed, .toolPrepared, .toolApprovalRequested, .toolApprovalResolved,
-             .toolDispatched, .toolResolved, .draftCheckpoint, .extensionRecorded: break
+             .toolDispatched, .toolResolved, .extensionRecorded: break
         }
         try db.execute(sql: "UPDATE projection_sessions SET updated_at = MAX(updated_at, ?) WHERE session_id = ?", arguments: [time, session])
         try requireChangedRow(db)

@@ -82,9 +82,7 @@ struct AgentSourceDispatchTests {
             do {
                 try await taskEventually { await f.model.streamHeld }
                 try await taskEventually {
-                    let state = try await f.runtime.sessionSnapshot(id: sessionID)
-                    guard let id = state.activeExecutionID else { return false }
-                    return state.executions[id]?.drafts[.answer] != nil
+                    return try await f.library.activeDraft(sessionID: sessionID) != nil
                 }
                 if revoked { try await revoke("workspace", workspace: workspace, in: f) }
                 await f.runtime.cancel(sessionID: sessionID)
@@ -122,7 +120,7 @@ struct AgentSourceDispatchTests {
                 #expect(completion.answer != nil && completion.replay != nil)
                 let attemptID = try #require(state.executions[address.executionID]?.attemptIDs.last)
                 let reference = try #require(state.attempts[attemptID]?.attempt.request)
-                let build = try SessionCodec.decode(AgentRequestRecord.self, from: await f.library.read(reference))
+                let build = try await AgentRequestRecord.read(reference, payloads: f.library)
                 #expect(build.request.destination == .model(f.route))
                 #expect(build.sources.contains(.domain(namespace: "tasks", id: task.id.rawValue, revision: task.revision)))
                 await f.model.append([[.blockStarted(.init(id: "text", content: .text("Fresh answer"))), .blockFinished(id: "text"), .finished(.stop)]])

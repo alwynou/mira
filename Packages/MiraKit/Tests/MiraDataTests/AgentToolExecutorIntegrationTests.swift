@@ -117,6 +117,9 @@ struct AgentToolExecutorIntegrationTests {
             #expect(await fixture.gate.maximumActive == 2)
             #expect(await fixture.gate.entered("tests.ordered") == false)
             await fixture.gate.release("tests.b")
+            try await Task.sleep(for: .milliseconds(50))
+            let beforeA = await fixture.runtime.snapshot()
+            #expect(beforeA.invocations[fixture.invocationIDs[1]]?.resolution == nil)
             await fixture.gate.release("tests.a")
             await fixture.gate.waitUntilEntered(["tests.ordered"])
             await fixture.gate.release("tests.ordered")
@@ -124,6 +127,31 @@ struct AgentToolExecutorIntegrationTests {
             #expect(resolutions.map(\.invocationID) == fixture.invocationIDs)
             #expect(resolutions.allSatisfy { $0.status == .succeeded })
             #expect(await fixture.gate.maximumActive == 2)
+            let batches = try await fixture.library.read(sessionID: fixture.sessionID, after: 0, limit: 32)
+            let resolved = batches.flatMap(\.events).compactMap { event -> UUID? in
+                if case .toolResolved(let value) = event.fact { return value.invocationID }
+                return nil
+            }
+            #expect(resolved == fixture.invocationIDs)
+        }
+    }
+
+    @Test func cancellationWhileLaterParallelResultWaitsDoesNotDeadlock() async throws {
+        let fixture = try await ParallelToolFixture.make()
+        try await withParallelFixture(fixture) { fixture in
+            let task = Task { try await fixture.executor.execute(attemptID: fixture.attemptID, executionID: fixture.executionID) }
+            await fixture.gate.waitUntilEntered(["tests.a", "tests.b"])
+            await fixture.gate.release("tests.b")
+            try await Task.sleep(for: .milliseconds(50))
+            task.cancel()
+            await fixture.gate.release("tests.a")
+            await fixture.gate.release("tests.ordered")
+            do {
+                _ = try await task.value
+                Issue.record("Cancelled parallel execution unexpectedly completed")
+            } catch { }
+            let state = await fixture.runtime.snapshot()
+            #expect(state.invocations[fixture.invocationIDs[1]]?.resolution != nil)
         }
     }
 
@@ -512,10 +540,10 @@ private final class ToolExecutorFixture: Sendable {
         let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1)
         let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: sources, evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
+            let staged = try await AgentRequestRecord.stage(build, context: context)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
-                        attemptIndex: 1, request: requestRef))]
+                        attemptIndex: 1, request: staged.request, contents: staged.contents))]
         }
         try requireCommitted(started)
         let finished = await runtime.commit(id: UUID()) { context in
@@ -723,10 +751,10 @@ private final class ParallelToolFixture: Sendable {
             prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
             inheritedSources: [], evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
+            let staged = try await AgentRequestRecord.stage(build, context: context)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
-                        attemptIndex: 1, request: requestRef))]
+                        attemptIndex: 1, request: staged.request, contents: staged.contents))]
         }
         try requireCommitted(started)
         let finished = await runtime.commit(id: UUID()) { context in
@@ -862,10 +890,10 @@ private final class CancellationToolFixture: Sendable {
             prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
             inheritedSources: [], evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
+            let staged = try await AgentRequestRecord.stage(build, context: context)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
-                        attemptIndex: 1, request: requestRef))]
+                        attemptIndex: 1, request: staged.request, contents: staged.contents))]
         }
         try requireCommitted(started)
         let finished = await runtime.commit(id: UUID()) { context in

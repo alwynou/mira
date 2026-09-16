@@ -102,8 +102,8 @@ struct ScaleProbe {
                     retentionGroup: identifier(11, key), kind: .visibleAnswer)
                 let replay = try await library.stage(
                     SessionCodec.encode(
-                        AgentReplayRecord(
-                            messages: [.init(role: .assistant, blocks: [.init(id: "text", content: .text(text))])], sources: [])), sessionID: sessionID,
+                        LocalReplayFixture(executionID: executionID, sources: [],
+                            items: [.local(.init(role: .assistant, blocks: [.init(id: "text", content: .text(text))]))])), sessionID: sessionID,
                     batchID: batchID, retentionGroup: identifier(12, key), kind: .replay)
                 try await append(
                     [
@@ -258,4 +258,13 @@ struct ScaleProbe {
     }
 
     static func failure(_ message: String) -> MiraError { .init(.invalidInput, message) }
+}
+
+/// Mirrors the local-message case of the canonical replay manifest for this
+/// public-port-only synthetic measurement executable.
+private struct LocalReplayFixture: Encodable {
+    enum Item: Encodable { case local(AgentModelMessage) }
+    let executionID: ExecutionID
+    let sources: [AgentSourceReference]
+    let items: [Item]
 }

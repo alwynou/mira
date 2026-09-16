@@ -23,6 +23,8 @@ flowchart TB
   Bodies --> Payloads[typed event inline 正文或 external 文件]
 ```
 
+会话正文现在由 v5 语义 JSONL 事件引用和独立活动草稿 sidecar 共同承载。请求 manifest 保存直接组件引用，结算后的助手尝试保存有序内容块和必要的 replay manifest 引用；隐私计划必须沿这些引用闭包传播。sidecar 通过发布后同步和原子替换保证崩溃恢复，不能作为日志事实或维护计划的替代品。
+
 查看 [Mermaid 源文件](diagrams/agent-session-privacy-architecture.mmd)。
 
 维护计划不是可以丢弃的查询投影。请求／重放被删除后，计划中的来源身份仍是后续维护判断历史依赖的必要事实，必须随资料库备份。计划只包含操作身份、来源身份、日志前缀、失效批次及依赖；不复制用户文字、提示词、工具参数或模型输出。

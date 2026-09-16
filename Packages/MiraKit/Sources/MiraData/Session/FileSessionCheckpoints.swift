@@ -35,7 +35,7 @@ final class FileSessionCheckpoints {
                          index: FileSessionIndex) throws -> SessionRecoverySummary? {
         try FileSessionIO.checkDirectory(directory)
         if let stored = try FileSessionCacheIO.load(RecoveryStored.self, at: recoveryURL(head.cursor.sessionID),
-            format: "MIRA-SESSION-RECOVERY-4", authentication: authentication),
+            format: "MIRA-SESSION-RECOVERY-5", authentication: authentication),
            stored.version == SessionStateCheckpointFormat.version, stored.extensionSchemas == schemas,
            stored.summary.head == head, let digest = Self.prefix(head, index: index),
            digest == stored.prefixDigest {
@@ -63,7 +63,7 @@ final class FileSessionCheckpoints {
         } else {
             try FileSessionIO.checkDirectory(directory)
             guard let disk = try FileSessionCacheIO.load(Stored.self, at: url(head.cursor.sessionID),
-                format: "MIRA-SESSION-STATE-4", authentication: authentication) else { return nil }
+                format: "MIRA-SESSION-STATE-5", authentication: authentication) else { return nil }
             stored = disk
         }
         guard stored.version == SessionStateCheckpointFormat.version,
@@ -109,7 +109,7 @@ final class FileSessionCheckpoints {
         guard dirty, let hot else { return }
         do {
             try FileSessionIO.checkDirectory(directory)
-            if try FileSessionCacheIO.save(hot, at: url(hot.snapshot.head.cursor.sessionID), format: "MIRA-SESSION-STATE-4",
+            if try FileSessionCacheIO.save(hot, at: url(hot.snapshot.head.cursor.sessionID), format: "MIRA-SESSION-STATE-5",
                 authentication: authentication,
                 beforeWrite: { try fault(.beforeCheckpointWrite) }, afterWrite: { try fault(.afterCheckpointWrite) },
                 beforePublication: { try fault(.beforeCheckpointPublication) }, afterPublication: { try fault(.afterCheckpointPublication) }) {
@@ -130,7 +130,7 @@ final class FileSessionCheckpoints {
         do {
             try FileSessionIO.checkDirectory(directory)
             try FileSessionCacheIO.save(stored, at: recoveryURL(stored.summary.head.cursor.sessionID),
-                format: "MIRA-SESSION-RECOVERY-4", authentication: authentication,
+                format: "MIRA-SESSION-RECOVERY-5", authentication: authentication,
                 beforeWrite: { try fault(.beforeRecoverySummaryWrite) },
                 afterWrite: { try fault(.afterRecoverySummaryWrite) },
                 beforePublication: { try fault(.beforeRecoverySummaryPublication) },

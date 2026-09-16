@@ -90,7 +90,7 @@ struct AgentModelExecutorTests {
             #expect(firstState.attempts[fixture.attemptID]?.attempt.stepID == fixture.build.prepared.input.stepID)
             let invocation = try #require(first.invocations.first)
             try AgentDurabilityFailure.requireCommitted(await fixture.runtime.commit(id: UUID()) { context in
-                let result = try await context.stageBytes(Data("Observation".utf8), kind: .toolResult, retentionGroup: UUID())
+                let result = try await context.stageBytes(Data("\"Observation\"".utf8), kind: .toolResult, retentionGroup: UUID())
                 let prepared = try await fixture.prepareIntent(context: context, invocation: invocation, effect: .read)
                 return [prepared, .toolDispatched(invocationID: invocation.id, authorizationEpoch: 0),
                         .toolResolved(.init(invocationID: invocation.id, status: .succeeded, result: result))]
@@ -113,11 +113,15 @@ struct AgentModelExecutorTests {
             let state = await fixture.runtime.snapshot()
             #expect(nextID != nextStepID)
             #expect(state.attempts[nextID]?.attempt.stepID == nextStepID)
-            let drafts = try await SessionDraftReader(journal: fixture.store, payloads: fixture.store).read(state: state, executionID: fixture.executionID)
-            #expect(drafts[.thinking] == Data("First thought. Second thought.".utf8))
-            #expect(drafts[.answer] == Data("Final answer".utf8))
-            let transcript = try SessionCodec.decode(JSONValue.self, from: #require(drafts[.transcript]))
-            #expect(transcript["continuation"]?["payload"] == nextContinuation.payload)
+            #expect(try await fixture.store.activeDraft(sessionID: fixture.request.sessionID) == nil)
+            let outputReference = try #require(state.attempts[nextID]?.resolution?.output)
+            let output = try SessionCodec.decode(AgentModelOutput.self, from: await fixture.store.read(outputReference))
+            #expect(output.text == "Final answer")
+            #expect(output.thinkingText == "Second thought.")
+            #expect(output.continuation == nextContinuation)
+            let draft = try await SessionDraftReader(journal: fixture.store, payloads: fixture.store)
+                .read(state: state, executionID: fixture.executionID)
+            #expect(String(data: try #require(draft[.thinking]), encoding: .utf8) == "First thought. Second thought.")
             let stale = await AgentExecutionFinalizer(runtime: fixture.runtime, authorizer: fixture.authority).finish(
                 .init(executionID: fixture.executionID, expectedAttemptID: fixture.attemptID, status: .completed, answer: "Stale answer"))
             guard case .notCommitted(let error) = stale else { Issue.record("An old attempt finalized newer work"); return }
@@ -181,10 +185,13 @@ struct AgentModelExecutorTests {
             do { _ = try await fixture.execute(); Issue.record("Missing finish was accepted") }
             catch let error as MiraError { #expect(error.code == .malformedStream) }
             let state = await fixture.runtime.snapshot()
-            let drafts = try await SessionDraftReader(journal: fixture.store, payloads: fixture.store).read(state: state, executionID: fixture.executionID)
-            #expect(drafts[.answer] == Data("Partial answer".utf8))
             let failed = try #require(state.attempts[fixture.attemptID]?.resolution)
             #expect(failed.status == .failed)
+            let partialReference = try #require(failed.output)
+            let partial = try SessionCodec.decode(AgentModelOutput.self, from: await fixture.store.read(partialReference))
+            #expect(partial.text == "Partial answer")
+            #expect(try await SessionDraftReader(journal: fixture.store, payloads: fixture.store)
+                .read(state: state, executionID: fixture.executionID)[.answer] == Data("Partial answer".utf8))
             let record = try SessionCodec.decode(AgentModelAttemptFailureRecord.self,
                 from: await fixture.store.read(#require(failed.error)))
             #expect(record.failure.error.code == .malformedStream)
@@ -197,7 +204,7 @@ struct AgentModelExecutorTests {
             let settled = await fixture.runtime.snapshot()
             #expect(settled.attempts[fixture.attemptID]?.resolution == failed)
             #expect(settled.executions[fixture.executionID]?.completion?.status == .interrupted)
-            #expect(settled.executions[fixture.executionID]?.drafts.isEmpty == true)
+            #expect(try await fixture.store.activeDraft(sessionID: fixture.request.sessionID) == nil)
         }
     }
 
@@ -753,6 +760,7 @@ private actor ModelOperationStore: SessionJournal, SessionPayloadStore {
     var uncertainty: Uncertainty = .none
     private var batches: [SessionBatch] = []
     private var bytes: [SessionPayloadReference: Data] = [:]
+    private var drafts: [ConversationID: SessionActiveDraft] = [:]
     func setUncertainty(_ value: Uncertainty) { uncertainty = value }
     func allBatches() -> [SessionBatch] { batches }
     func append(_ batch: SessionBatch) -> SessionAppendOutcome {
@@ -793,6 +801,11 @@ private actor ModelOperationStore: SessionJournal, SessionPayloadStore {
             throw MiraError(.notFound, "The synthetic payload is unavailable.")
         }
         return data
+    }
+    func activeDraft(sessionID: ConversationID) -> SessionActiveDraft? { drafts[sessionID] }
+    func saveActiveDraft(_ draft: SessionActiveDraft) throws { drafts[draft.request.sessionID] = draft }
+    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) throws {
+        if drafts[sessionID]?.attemptID == attemptID { drafts[sessionID] = nil }
     }
     func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) {
         bytes = bytes.filter { $0.key.sessionID != sessionID || !retentionGroups.contains($0.key.retentionGroup) }

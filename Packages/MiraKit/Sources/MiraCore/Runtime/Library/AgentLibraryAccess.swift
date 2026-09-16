@@ -482,6 +482,9 @@ private final class AgentLibraryRevocation: @unchecked Sendable {
 private struct AgentLibraryPayloadReader: SessionPayloadReader {
     let lease: AgentLibraryAccessLease
     let payloads: any SessionPayloadReader
+    func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? {
+        try await lease.read { try await payloads.activeDraft(sessionID: sessionID) }
+    }
     func read(_ reference: SessionPayloadReference) async throws -> Data {
         try await lease.read(reference, from: payloads)
     }

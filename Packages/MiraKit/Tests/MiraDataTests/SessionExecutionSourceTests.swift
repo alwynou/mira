@@ -201,8 +201,7 @@ private final class SharedSourceFixture: Sendable {
         try requireCommitted(settling)
         let finished = await runtime.commit(id: UUID()) { context in
             let answer = try await context.stageBytes(Data("Visible answer".utf8), kind: .visibleAnswer, retentionGroup: UUID())
-            let replay = try await context.stage(AgentReplayRecord(messages: [.init(role: .assistant, blocks: [.init(id: "text", content: .text("Historical"))])], sources: []),
-                kind: .replay, retentionGroup: UUID())
+            let replay = try await AgentReplayManifest.stage(.init(messages: [.init(role: .assistant, blocks: [.init(id: "text", content: .text("Historical"))])], sources: []), execution: context.state.executions[executionID]!, context: context)
             return [.finished(.init(executionID: executionID, status: .completed, assistantMessageID: MessageID(),
                 answer: answer, replay: replay))]
         }
@@ -344,7 +343,7 @@ private final class SourceFixture: Sendable {
             if let answer { answerRef = try await context.stageBytes(Data(answer.utf8), kind: .visibleAnswer, retentionGroup: UUID()) }
             else { answerRef = nil }
             let replayRef: SessionPayloadReference?
-            if let replay { replayRef = try await context.stage(replay, kind: .replay, retentionGroup: UUID()) }
+                if let replay { replayRef = try await AgentReplayManifest.stage(replay, execution: context.state.executions[executionID]!, context: context) }
             else { replayRef = nil }
             let thinkingRef: SessionPayloadReference?
             if let thinking { thinkingRef = try await context.stageBytes(Data(thinking.utf8), kind: .visibleThinking, retentionGroup: UUID()) }

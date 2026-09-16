@@ -179,7 +179,6 @@ final class CrashProbeFixture: Sendable {
 final class ProbeCrashGate: @unchecked Sendable {
     private let lock = NSLock()
     private var scenario: String?
-    private var transcriptCheckpointCount = 0
     private let context: CrashProbeContext
     init(context: CrashProbeContext) { self.context = context }
     func arm(_ scenario: String) { lock.withLock { self.scenario = scenario } }
@@ -188,7 +187,9 @@ final class ProbeCrashGate: @unchecked Sendable {
         if lock.withLock({ scenario == "businessCommitted" }) { try context.pause() }
     }
     func storage(_ stage: SessionStorageFaultStage) throws {
-        if stage == .afterPayloadDelete, lock.withLock({ scenario == "privacyBodyDeleted" }) { try context.pause() }
+        if stage == .afterPayloadDelete || stage == .afterInlinePurgePublication,
+           lock.withLock({ scenario == "privacyBodyDeleted" }) { try context.pause() }
+        if stage == .afterActiveDraftPublication, lock.withLock({ scenario == "thinkingDraft" }) { try context.pause() }
     }
     func appended(_ batch: SessionBatch) throws {
         let scenario = lock.withLock { self.scenario }
@@ -198,12 +199,6 @@ final class ProbeCrashGate: @unchecked Sendable {
                 case .toolResolved(let value): return scenario == "toolResultPublished" && value.businessReceipt != nil
                 case .invalidated: return scenario == "privacyInvalidated"
                 case .admitted: return scenario == "admissionPublished"
-                case .draftCheckpoint(let value):
-                    guard scenario == "thinkingDraft" && value.part == .transcript else { return false }
-                    transcriptCheckpointCount += 1
-                    // The first checkpoint can precede a separately delivered continuation event.
-                    // Pause after the next complete transcript so recovery verifies opaque data.
-                    return transcriptCheckpointCount >= 2
                 case .finished: return scenario == "terminalPublished"
                 default: return false
                 }
@@ -269,9 +264,9 @@ private struct ProbeModel: AgentModelAdapter {
                 }
                 try Task.checkCancellation()
                 if gate.emitsInterruptedThinking {
-                    continuation.yield(.blockStarted(.init(id: "thinking", content: .thinking(CrashProbeFixture.interruptedThought))))
                     continuation.yield(.continuation(CrashProbeFixture.interruptedContinuation))
-                    // Simulate an open transport. The journal checkpoint, rather than elapsed time, triggers the crash.
+                    continuation.yield(.blockStarted(.init(id: "thinking", content: .thinking(CrashProbeFixture.interruptedThought))))
+                    // Simulate an open transport. Sidecar publication triggers the crash.
                     try await Task.sleep(for: .seconds(60))
                     throw MiraError(.timeout, "The stalled probe transport was not interrupted.")
                 }

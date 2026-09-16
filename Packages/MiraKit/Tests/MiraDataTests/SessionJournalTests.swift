@@ -44,7 +44,7 @@ struct SessionJournalTests {
 
     @Test func invalidationPermitsPhysicalPurgeWhileKeepingJournalMetadata() async throws {
         let dir = try temp(); defer { remove(dir) }; let store = try FileSessionLibrary(directory: dir); let sid = ConversationID(); let bid = UUID(); let group = UUID()
-        let ref = try await store.stage(Data("erase".utf8), sessionID: sid, batchID: bid, retentionGroup: group, kind: .draft)
+        let ref = try await store.stage(Data("erase".utf8), sessionID: sid, batchID: bid, retentionGroup: group, kind: .module)
         let body = SessionBatch(id: bid, sessionID: sid, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "x", schemaVersion: 1, required: false, body: ref))]); #expect(await store.append(body) == .committed(body.cursor))
         let invalid = SessionBatch(id: UUID(), sessionID: sid, expectedSequence: 1, events: [SessionEvent(sequence: 2, occurredAt: Date(), fact: .invalidated(SessionInvalidation(operationID: UUID(), executionIDs: [], retentionGroups: [group], authorizationEpoch: 1, reason: .forgotten))) ]); #expect(await store.append(invalid) == .committed(invalid.cursor))
         try await store.purge(sessionID: sid, retentionGroups: [group]); await #expect(throws: MiraError.self) { try await store.read(ref) }; #expect(try await store.batch(id: bid, sessionID: sid) == body); try await store.close()
@@ -105,7 +105,7 @@ struct SessionJournalTests {
     }
 
     @Test func invalidationImmediatelyHidesPayloadAndPurgeCanResumeAfterFailure() async throws {
-        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let group = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(externalFixture(), sessionID: sid, batchID: bid, retentionGroup: group, kind: .draft)
+        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let group = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(externalFixture(), sessionID: sid, batchID: bid, retentionGroup: group, kind: .module)
         let body = SessionBatch(id: bid, sessionID: sid, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "x", schemaVersion: 1, required: false, body: ref))]); #expect(await store.append(body) == .committed(body.cursor))
         let invalid = SessionBatch(id: UUID(), sessionID: sid, expectedSequence: 1, events: [SessionEvent(sequence: 2, occurredAt: Date(), fact: .invalidated(SessionInvalidation(operationID: UUID(), executionIDs: [], retentionGroups: [group], authorizationEpoch: 1, reason: .forgotten))) ]); #expect(await store.append(invalid) == .committed(invalid.cursor)); await #expect(throws: MiraError.self) { try await store.read(ref) }
         try await store.close()
@@ -117,7 +117,7 @@ struct SessionJournalTests {
     }
 
     @Test func stagePublicationFaultLeavesNoReadableOrphanAfterReopen() async throws {
-        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let faults = Faults(.afterPayloadPublication); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(externalFixture(), sessionID: sid, batchID: UUID(), retentionGroup: UUID(), kind: .draft) }; try await store.close(); let reopened = try FileSessionLibrary(directory: dir); #expect((try? await reopened.sessions(after: nil, limit: 10))?.isEmpty == true); try await reopened.close()
+        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let faults = Faults(.afterPayloadPublication); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(externalFixture(), sessionID: sid, batchID: UUID(), retentionGroup: UUID(), kind: .module) }; try await store.close(); let reopened = try FileSessionLibrary(directory: dir); #expect((try? await reopened.sessions(after: nil, limit: 10))?.isEmpty == true); try await reopened.close()
     }
 
     @Test func committedReferenceCanBeReusedByLaterBatch() async throws {
@@ -152,11 +152,11 @@ struct SessionJournalTests {
     }
 
     @Test func directorySyncFaultsHaveExplicitBoundaries() async throws {
-        let dir = try temp(); defer { remove(dir) }; let faults = Faults(.beforeDirectorySync); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(externalFixture(), sessionID: ConversationID(), batchID: UUID(), retentionGroup: UUID(), kind: .draft) }; try? await store.close()
+        let dir = try temp(); defer { remove(dir) }; let faults = Faults(.beforeDirectorySync); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(externalFixture(), sessionID: ConversationID(), batchID: UUID(), retentionGroup: UUID(), kind: .module) }; try? await store.close()
     }
 
     @Test func samePayloadIDWithMutatedMetadataIsRejected() async throws {
-        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(Data("x".utf8), sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .draft); let first = SessionBatch(id: bid, sessionID: sid, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "a", schemaVersion: 1, required: false, body: ref))]); #expect(await store.append(first) == .committed(first.cursor)); let mutated = SessionPayloadReference(id: ref.id, sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .module, byteCount: ref.byteCount, digest: ref.digest, storage: ref.storage); let second = SessionBatch(id: UUID(), sessionID: sid, expectedSequence: 1, events: [SessionEvent(sequence: 2, occurredAt: Date(), fact: .extensionRecorded(namespace: "b", schemaVersion: 1, required: false, body: mutated))]); if case .notCommitted = await store.append(second) {} else { Issue.record("mutated payload metadata was accepted") }; try await store.close()
+        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(Data("x".utf8), sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .module); let first = SessionBatch(id: bid, sessionID: sid, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "a", schemaVersion: 1, required: false, body: ref))]); #expect(await store.append(first) == .committed(first.cursor)); let mutated = SessionPayloadReference(id: ref.id, sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .module, byteCount: ref.byteCount, digest: ref.digest, storage: ref.storage); let second = SessionBatch(id: UUID(), sessionID: sid, expectedSequence: 1, events: [SessionEvent(sequence: 2, occurredAt: Date(), fact: .extensionRecorded(namespace: "b", schemaVersion: 1, required: false, body: mutated))]); if case .notCommitted = await store.append(second) {} else { Issue.record("mutated payload metadata was accepted") }; try await store.close()
     }
 
     @Test func headTracksOnlyAcknowledgedBatchesAndReconcileAdvancesIt() async throws {

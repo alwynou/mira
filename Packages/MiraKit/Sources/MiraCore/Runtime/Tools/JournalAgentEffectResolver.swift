@@ -35,7 +35,7 @@ public struct JournalAgentEffectResolver: AgentEffectIntentResolver {
               proposal.effect == invocation.invocation.effect, proposal.callDigest == invocation.invocation.call.digest else {
             throw Self.invalidIntent
         }
-        let build = try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(attempt.attempt.request))
+        let build = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
         let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
         guard let route = plan.route else { throw Self.invalidIntent }
         try build.validate(for: route)

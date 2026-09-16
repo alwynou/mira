@@ -27,20 +27,19 @@ struct JournalRuntimeIntegrationTests {
                         stepIndex: 1, attemptIndex: 1, request: request))]
         }
         guard case .committed = started else { Issue.record("Attempt preparation failed"); return }
-        let thinking = Data("Synthetic partial thinking".utf8)
-        let checkpoint = await runtime.commit(id: UUID()) { context in
-            let replacement = try await context.stageBytes(thinking, kind: .draft, retentionGroup: UUID())
-            return [.draftCheckpoint(.init(executionID: executionID, attemptID: attemptID, part: .thinking,
-                baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0, replacement: replacement, resultByteCount: thinking.count))]
-        }
-        guard case .committed = checkpoint else { Issue.record("Thinking checkpoint failed"); return }
+        let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
+        let request = try #require(requestValue)
+        try await runtime.saveActiveDraft(.init(request: request, executionID: executionID, attemptID: attemptID,
+            authorizationEpoch: 0, revision: 1,
+            blocks: [.init(id: "thinking", content: .thinking("Synthetic partial thinking"))]))
         let original = await runtime.snapshot()
-        let reference = try #require(original.executions[executionID]?.drafts[.thinking]?.checkpoint.replacement)
+        let draftValue = try await library.activeDraft(sessionID: sessionID)
+        let draft = try #require(draftValue)
         await runtime.close(); try await library.close()
         let reopenedLibrary = try FileSessionLibrary(directory: directory)
         let reopened = try await SessionRuntime.open(id: sessionID, journal: reopenedLibrary, payloads: reopenedLibrary)
         #expect(await reopened.snapshot() == original)
-        #expect(try await reopenedLibrary.read(reference) == thinking)
+        #expect(try await reopenedLibrary.activeDraft(sessionID: sessionID) == draft)
         let settlement = await reopened.commit(id: UUID()) { _ in
             [.phaseChanged(executionID: executionID, phase: .cancelling),
              .attemptResolved(.init(attemptID: attemptID, status: .interrupted)),

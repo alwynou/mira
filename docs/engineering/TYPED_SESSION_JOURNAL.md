@@ -1,8 +1,8 @@
 # Typed session event journal
 
-Date: 2026-09-16. Replaces the physical v3 layout from `8e8f8d2`; no historical decoder or migration.
+Date: 2026-09-16. Replaces the v4 token-patch layout directly; no historical decoder or migration.
 
-Follow-up: the user rejected this increment's remaining stream-checkpoint granularity and mismatch with conversation presentation. Its tests validate the implemented codec, not acceptance of the requested logging model. [DSH source research and replacement design](DSH_SESSION_LOG_RESEARCH.md) records the semantic step boundaries and ordering contract still to implement.
+The v5 implementation uses semantic session and step boundaries. The canonical log records settled output; one replaceable sidecar preserves unfinished output for recovery.
 
 ## Problem and reference
 
@@ -17,23 +17,22 @@ The inspected Mira example was 80,512 bytes, with 33 events packed into 18 lines
 Every domain event occupies one line, with keys written in this order for human inspection:
 
 ```json
-{"timestamp":"2026-09-16T10:00:00.000Z","type":"session_meta","id":"...","sequence":1,"payload":{"title":{"id":"...","retention_group":"...","kind":"title","byte_count":9,"sha256":"...","text":"Synthetic"}}}
+{"timestamp":"2026-09-16T10:00:00.000Z","type":"session","id":"...","sequence":1,"payload":{"title":{"id":"...","retention_group":"...","kind":"title","byte_count":9,"sha256":"...","text":"Synthetic"}}}
 ```
 
 The example is abbreviated, not an importable transaction. The actual codec emits complete UUIDs and checksums.
 
 | Event | Payload purpose |
 |---|---|
-| `session_meta`, `model_selection`, `session_title` | Conversation metadata and model selection |
-| `turn_started` | User message, frozen execution plan and queued execution admission |
-| `model_request` | Semantic request input, frozen route, source evidence and attempt identity |
-| `response_delta` | Bounded byte patches for recoverable draft components |
-| `model_response` | Completed model output, continuation and usage |
-| `tool_call`, `tool_prepared`, `tool_dispatched`, `tool_result` | Tool call and effect lifecycle |
-| `turn_completed` | Terminal outcome, visible reply/thinking and replay |
+| `session`, `model_selection`, `session_title` | Conversation metadata and model selection |
+| `turn/start` | User message, frozen execution plan and queued execution admission |
+| `request/start` | Request manifest, header and direct message-component references |
+| `assistant/message`, `assistant/attempt` | Settled ordered model blocks, or an attempt without surface output |
+| `tool/call`, `tool_prepared`, `tool_dispatched`, `tool/result` | Tool call and effect lifecycle |
+| `turn/end` | Terminal outcome and accounting |
 | `content_invalidated`, `retry_retired` | Explicit erasure authorization or logical retry retirement |
 
-Bodies appear at the relevant semantic field, such as `payload.userBody.text`, `payload.request.json`, or `payload.answer.text`. Native JSON is used only when canonical decoding/re-encoding preserves the exact original bytes. User text, visible output, titles and draft patches remain strings, even when their contents happen to parse as JSON. Noncanonical or numerically lossy JSON remains verbatim text. Large and non-UTF-8 bodies still use managed external files.
+Bodies appear at the relevant semantic field, such as `payload.userBody.text`, `payload.request.json`, or `payload.answer.text`. Native JSON is used only when canonical decoding/re-encoding preserves the exact original bytes. User text, visible output, and titles remain strings, even when their contents happen to parse as JSON. Noncanonical or numerically lossy JSON remains verbatim text. Large and non-UTF-8 bodies still use managed external files.
 
 Content nodes omit the redundant session/current-transaction IDs. References to earlier transactions carry `source_batch`; a repeated reference in the same transaction does not repeat its body. Retention groups remain independent: identical bytes in distinct privacy lifetimes are not merged.
 
@@ -41,33 +40,32 @@ Ordered model blocks use explicit `type` values (`text`, `thinking`, `tool_call`
 
 ## Atomicity, recovery and erasure
 
-An internal `SessionBatch` is one atomic transaction containing event lines followed by a `transaction_commit` line. Its fields are `format_version: 4`, transaction `id`, `session_id`, `expected_sequence`, `event_count`, and a SHA-256 `checksum` of the exact preceding event lines including their LF delimiters. A batch's internal API remains an atomic admission unit; it is no longer the serialized per-line layout.
+An internal `SessionBatch` is one atomic transaction containing event lines followed by a `transaction_commit` line. Its fields are `format_version: 5`, transaction `id`, `session_id`, `expected_sequence`, `event_count`, and a SHA-256 `checksum` of the exact preceding event lines including their LF delimiters. A batch's internal API remains an atomic admission unit; it is no longer the serialized per-line layout.
 
 Only a valid commit publishes the events. Recovery removes an unfinished final transaction, including complete event lines that lack a commit. A complete corrupt/unknown line or invalid commit fails closed. A valid final commit missing only LF is preserved and receives its delimiter. Read-only archive validation rejects all incomplete tails without changing the source. Reads are bounded to one transaction (8 MiB plus 256 bytes); the existing 2 MiB metadata, 256-event, 256 KiB inline-body and 2 MiB inline-budget limits remain.
 
 Normal writes and retries preserve prior bytes. Explicit, durably authorized privacy erasure is the physical rewrite exception: remove the selected inline content, retain event/transaction identities, recompute commit checksums, and rebuild source-bound indexes/checkpoints. Retired history remains physically present until explicit erasure. Archive proof reads can inspect retained historical tool content while ordinary reads deny retired content.
 
-Index/checkpoint formats advance to v4. Index offsets span complete transactions, including internal newlines. Event construction normalizes timestamps to milliseconds so ISO8601 persistence and reconciliation agree exactly.
+Index/checkpoint formats advance to v5. Index offsets span complete transactions, including internal newlines. Event construction normalizes timestamps to milliseconds so ISO8601 persistence and reconciliation agree exactly. Active drafts use a replaceable sidecar with request, execution, attempt, authorization epoch, revision, ordered blocks, continuation and usage; they are retired after settled output is durable.
 
 ## Semantic request persistence
 
-`AgentContextBuild` is ephemeral and no longer Codable. `AgentRequestRecord` persists one semantic `AgentModelInput`, route, adapter identity, conservative token estimate, and source/omission evidence. Its current user text and execution ID come from the input; a validated current-user-message index replaces the duplicate context string. Wire JSON is not in the session journal.
+`AgentContextBuild` is ephemeral. Each persisted request is a bounded manifest with frozen route/adapter metadata, context-selection evidence, a header reference and ordered message references. Original user messages, settled model output and tool results are reused from their originating events. The manifest preserves block identities and the tool-observation wrapper, so materialization reproduces the exact `AgentModelInput`. Headers and synthetic context components can be reused within an execution; reference ownership preserves independent privacy lifetimes.
 
-Foreground dispatch and automatic retry retain the frozen in-memory prepared request. Production adapters continue to reconstruct and compare the prepared request before sending. Disk recovery does not restart model calls. Audit, history, source authorization, tool resolution, privacy maintenance, background memory prefix retrieval and the native request inspector read the new record directly. Frozen-route budget checks are preserved.
+Foreground dispatch and automatic retry retain the frozen in-memory prepared request. Production adapters reconstruct and compare prepared input before sending. Disk recovery does not restart model calls. Audit, history, source authorization, tool resolution, privacy maintenance, background memory prefix retrieval and the native request inspector resolve the manifest through the payload port. Frozen-route budget checks remain in place.
 
-A synthetic fixture with a long stable instruction prefix measured **42,379 → 21,577 bytes (49.1% smaller)** for the request snapshot, preserving ordered messages and opaque continuation. This is a request-fixture measurement, not a whole-library compression claim.
+Execution replay uses references to settled model messages and tool results. Local responses and tool denials without a prior result body are stored as small local replay items. Visible final answer/thinking summaries retain a separate privacy lifetime from hidden model output and continuation for `.retainVisibleHistory`. This remaining summary duplication is intentional. Background memory job storage is a separate contract.
 
-Per-attempt semantic inputs still include their complete selected history. Drafts, model output, visible terminal output and hidden replay retain their existing distinct recovery/retention roles and may overlap. This increment does not claim normalized history references or elimination of every repeated string. Background memory job storage is a separate contract; its SQLite attempt snapshots are not changed here.
+The earlier **42,379 → 21,577 byte** measurement concerned v4 removal of the copied provider wire request. It is historical evidence, not a measurement of v5 or whole-library compression.
 
 ## Verification
 
-- **185 package tests in 20 directly affected suites passed**: `/tmp/mira-typed-final.log`. Coverage includes byte-boundary transaction cuts, missing delimiters, corruption, sequence overflow, large lines crossing read buffers, exact text/JSON preservation, indexes/checkpoints, recovery, retry, archives, privacy erasure, model/tool/source evidence, request inspection and memory extraction prefix retrieval.
-- **1 native composition recovery test passed**: `/tmp/mira-typed-host.log` (`MiraCompositionTests/LibraryRecoveryTests`).
-- **3 focused library directory tests passed**: `/tmp/mira-typed-finder-tests.log`. Ordinary Finder metadata survives opening/reopening; linked metadata and unsupported legacy files remain rejected.
-- Unsigned macOS Debug app build passed: `/tmp/mira-typed-app-build.log`.
-- Language policy passed with 2,094 bilingual strings; `git diff --check` passed.
-- A real kernel using synthetic model/tool adapters wrote `/tmp/mira-typed-session-example.jsonl`; its integration test checked typed JSON fields and identical reduced state after reopening.
-- An isolated native `--demo` run generated a 24-line / 15,315-byte session, completed normally, and displayed the recorded semantic request, ordered message JSON and token estimate in the Chinese request inspector. This run performed no network or Keychain access. No layout, token, navigation or localized label changes were made; this is a data-integration check, not a new appearance/minimum-window/platform matrix.
+Focused checks passed for semantic ordering, request materialization, active drafts,
+privacy, archive restoration, parallel tool settlement and all 16 process-termination
+scenarios. Native composition/recovery passed 20 tests; localization passed 5 tests
+and the language policy check. The app build and offline native multi-step/reopen
+check passed. Exact commands, logs and limitations are recorded in
+[semantic journal verification](SEMANTIC_SESSION_JOURNAL_VERIFICATION.md).
 
 Two forged-context fixtures were adapted to corrupt persisted semantic records after valid construction, retaining executor/resolver rejection tests. One source-dispatch expectation was stale since `08e2083`: task source authorization reads immutable historical revisions. The test now verifies completion and retained historical task/tool replay after an update, matching `AGENT_SOURCE_AUTHORIZATION.md`; production task authorization was not changed in this increment.
 
@@ -77,6 +75,6 @@ No full package suite, paid model endpoint, unrelated UI matrix, macOS 15 runtim
 
 The app was stopped before clearing obsolete conversation/domain data and recreating `Sessions`, `Knowledge`, and `Projections` at `/Users/alwyn/Library/Application Support/Mira`. Associated memory/extraction/vector, tool receipt, consumer checkpoint and task/knowledge development records were cleared in a foreign-key-checked transaction. The database was vacuumed and its WAL truncated. No backup or compatibility library was created.
 
-Provider/model settings were retained and their complete row digest matched before and after cleanup (1 connection, 2 model descriptors, 2 presets, 1 binding). Library identity, Keychain credentials and the shared local embedding model are separate resources and were retained. The normal app was then reopened against the same development path.
+Provider/model settings were retained and their complete row digest matched before and after cleanup (1 connection, 2 model descriptors, 2 presets, 1 binding). Library identity, Keychain credentials and the shared local embedding model are separate resources and were retained. The final app reopened against this same development path after build verification. The reset also restored the privacy store schema marker and rebuilt empty full-text indexes; see the linked verification note.
 
 Reopening exposed a root-directory validation bug: inspecting the library in Finder could leave `.DS_Store`, which was treated as an unsupported library file. Runtime composition now tolerates an ordinary single-link `.DS_Store` without reading or archiving it; linked files and other unknown entries remain rejected. The final native check reached the empty conversation screen with the existing DeepSeek model selected and no library error. No provider request was sent.

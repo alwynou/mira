@@ -29,9 +29,10 @@ struct MemoryHistoryWorkflowTests {
             let completed = await runtime.commit(id: UUID()) { context in
                 let answer = try await context.stageBytes(Data("Synthetic local answer".utf8), kind: .visibleAnswer,
                                                           retentionGroup: UUID())
-                let replay = try await context.stage(AgentReplayRecord(messages: [
+                let replayValue = AgentReplayRecord(messages: [
                     .init(role: .assistant, blocks: [.init(id: "answer", content: .text("Synthetic local answer"))])
-                ], sources: []), kind: .replay, retentionGroup: UUID())
+                ], sources: [])
+                let replay = try await AgentReplayManifest.stage(replayValue, execution: context.state.executions[executionID]!, context: context)
                 return [.phaseChanged(executionID: executionID, phase: .settling),
                         .finished(.init(executionID: executionID, status: .completed,
                                        assistantMessageID: MessageID(), answer: answer, replay: replay))]

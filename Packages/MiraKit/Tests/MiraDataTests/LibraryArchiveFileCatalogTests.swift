@@ -209,7 +209,7 @@ struct LibraryArchiveFileCatalogTests {
 
     @Test func inventoryOrdersDirectoryPrefixesAndRejectsUndeclaredEmptyDirectories() throws {
         try withDirectory { directory in
-            for path in ["Sessions/sessions", "Sessions/payloads"] {
+            for path in ["Sessions/sessions", "Sessions/payloads", "Sessions/drafts"] {
                 try FileManager.default.createDirectory(at: directory.appendingPathComponent(path),
                                                         withIntermediateDirectories: true)
             }

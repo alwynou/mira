@@ -25,6 +25,7 @@ Data 的锁定顺序固定为 **FileSessionLibrary 串行队列 → 共享 Datab
   Business.sqlite
   Sessions/
     sessions/<SESSION-UUID>.jsonl
+    drafts/<SESSION-UUID>.json
     payloads/<SESSION-UUID>/<BATCH-UUID>/<PAYLOAD-UUID>.bin
   <模块声明的附件相对路径>
 ```
@@ -48,7 +49,9 @@ flowchart TD
 
 会话头包含最后已提交事务身份和事件序列。归档复制规范 JSONL（包括每个已提交事务中仍保留及逻辑退休的 typed event 正文节点）和已提交且仍保留物理历史的 external 引用文件；retryCleared 等逻辑退休不从归档删除正文，暂存文件和无引用文件不进入归档。归档清单的整份 JSONL 哈希和文件计数包含 inline 字节，但不为 inline 建立独立 manifest 条目；每个 inline 摘要／长度仍由事件正文节点校验。归档验证器必须根据正文引用核对 inline 原始字节哈希、长度和存储枚举，并允许正文缺失仅当最终 durable invalidation 已在日志中；逻辑退休正文仍存在时不得误报为物理缺失，已 erased inline 正文不能仍出现在有效事件／提交事务中。已 erased 的 external 正文必须实际不存在，不能因为清单忽略它就通过隐私验证。已提交的失效事实和原引用仍保留在日志中，解释正文缺口。
 
-不导出运行锁文件、SQLite WAL／SHM、会话查询投影、索引／检查点及其认证材料、待发布正文恢复目录或平台授权。API Key 仍属于 Keychain；归档模块不能把凭据正文作为附件声明。历史冻结配置中的凭据引用是身份元数据，不是凭据本身。恢复时如何重新配置服务商与暂停作业由对应模块负责，当前导出器不擅自改写业务数据库。
+每个会话最多导出一个当前 `SessionActiveDraft` 恢复快照到 `Sessions/drafts/<SESSION-UUID>.json`。它是有界、规范 JSON，并且必须引用同一归档中已提交且未失效的 request；它不是 canonical token event，也不复制任何签名密钥。恢复器在核心恢复前把快照重新写入目标会话库的受保护 sidecar，完成结算后删除归档草稿暂存目录，再验证关闭后的规范文件；核心仍重新检查最新 attempt 与授权代次，不能仅凭归档快照恢复执行权限。
+
+不导出运行锁文件、SQLite WAL／SHM、会话查询投影、索引／检查点及其认证材料、待发布正文临时目录或平台授权；当前活动恢复快照仅按上文 `Sessions/drafts` 规则导出。API Key 仍属于 Keychain；归档模块不能把凭据正文作为附件声明。历史冻结配置中的凭据引用是身份元数据，不是凭据本身。恢复时如何重新配置服务商与暂停作业由对应模块负责，当前导出器不擅自改写业务数据库。
 
 ## 可扩展的存储模块
 

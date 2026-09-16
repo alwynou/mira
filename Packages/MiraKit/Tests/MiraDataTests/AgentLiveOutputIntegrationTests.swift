@@ -68,16 +68,12 @@ struct AgentLiveOutputIntegrationTests {
                 try await taskEventually { await clock.isEntered(.durable) }
 
                 let beforeHead = try await fixture.library.head(sessionID: address.sessionID)
-                let beforeState = try await fixture.runtime.sessionSnapshot(id: address.sessionID)
-                #expect(beforeState.executions[address.executionID]?.drafts[.answer] == nil)
-                #expect(beforeState.executions[address.executionID]?.drafts[.thinking] == nil)
+                #expect(try await fixture.library.activeDraft(sessionID: address.sessionID) == nil)
 
                 await clock.release(.visible)
                 try await taskEventually { await probe.hasValue(executionID: address.executionID, answer: "Hello", thinking: "Plan") }
                 #expect(try await fixture.library.head(sessionID: address.sessionID) == beforeHead)
-                let afterOutputTick = try await fixture.runtime.sessionSnapshot(id: address.sessionID)
-                #expect(afterOutputTick.executions[address.executionID]?.drafts[.answer] == nil)
-                #expect(afterOutputTick.executions[address.executionID]?.drafts[.thinking] == nil)
+                #expect(try await fixture.library.activeDraft(sessionID: address.sessionID) == nil)
 
                 observer.cancel()
                 await observer.value

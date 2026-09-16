@@ -249,13 +249,14 @@ private struct WorkerFixture: Sendable {
             let build = AgentContextBuild(request: .init(sessionID: sessionID, executionID: executionID,
                 workspaceID: nil, userText: "I prefer compact interfaces", authorizationEpoch: 0,
                 destination: .model(routeInfo.route)), prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
-            let request = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
+            let staged = try await AgentRequestRecord.stage(build, context: context)
+            let request = staged.request
             let output = try await context.stage(AgentModelOutput(blocks: [.init(id: "answer", content: .text("Understood."))], continuation: nil, usage: .init(), finishReason: .stop),
                 kind: .modelOutput, retentionGroup: UUID())
             let answer = try await context.stageBytes(Data("Understood.".utf8), kind: .visibleAnswer, retentionGroup: UUID())
             return [
                 .phaseChanged(executionID: executionID, phase: .preparing),
-                .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID, stepIndex: 1, attemptIndex: 1, request: request)),
+                .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID, stepIndex: 1, attemptIndex: 1, request: request, contents: staged.contents)),
                 .attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
                 .phaseChanged(executionID: executionID, phase: .settling),
                 .finished(.init(executionID: executionID, status: .completed, assistantMessageID: .init(), answer: answer)),
@@ -649,6 +650,15 @@ private actor WorkerMaintenanceStore: AgentLibraryMaintenanceStore {
 }
 
 private actor WorkerJournal: SessionJournal, SessionPayloadStore {
+    private var activeDrafts: [ConversationID: SessionActiveDraft] = [:]
+    func activeDraft(sessionID: ConversationID) -> SessionActiveDraft? { activeDrafts[sessionID] }
+    func saveActiveDraft(_ draft: SessionActiveDraft) throws {
+        try draft.validate(); activeDrafts[draft.request.sessionID] = draft
+    }
+    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) {
+        if activeDrafts[sessionID]?.attemptID == attemptID { activeDrafts.removeValue(forKey: sessionID) }
+    }
+
     private var batches: [SessionBatch] = []
     private var bytes: [SessionPayloadReference: Data] = [:]
     func append(_ batch: SessionBatch) async -> SessionAppendOutcome {
