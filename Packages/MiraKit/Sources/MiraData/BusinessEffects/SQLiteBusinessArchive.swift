@@ -148,11 +148,7 @@ extension SQLiteBusinessEffects {
                         "SELECT command_digest, result_digest FROM business_operations WHERE namespace = ? AND business_key = ?",
                     arguments: [namespace, key]), (operation["result_digest"] as String?) == resultDigest
             else { throw LibraryArchiveIO.invalid }
-            if let url = snapshot.session(proof.sessionID)?.payloads[proof.proposal] {
-                let bytes = try BackupFileIO.read(url, limit: proof.proposal.byteCount)
-                guard bytes.count == proof.proposal.byteCount, digest(bytes) == proof.proposal.digest else {
-                    throw LibraryArchiveIO.invalid
-                }
+            if let bytes = try snapshot.readRetainedPayload(proof.proposal) {
                 let proposal = try SessionCodec.decode(AgentToolProposal.self, from: bytes)
                 try proposal.validate()
                 guard proposal.businessNamespace == namespace, proposal.effect == .localWrite,
@@ -160,6 +156,8 @@ extension SQLiteBusinessEffects {
                     proposal.callDigest == intent.invocation.call.digest,
                     digest(try SessionCodec.encode(proposal.plan.input)) == (operation["command_digest"] as String?)
                 else { throw LibraryArchiveIO.invalid }
+            } else {
+                throw LibraryArchiveIO.invalid
             }
             let reference = AgentBusinessReceiptReference(
                 id: id, invocationID: invocationID,

@@ -67,6 +67,9 @@ public struct SessionState: Sendable, Equatable, Codable {
     public private(set) var invocations: [UUID: SessionInvocationState] = [:]
     public private(set) var excludedExecutionIDs: Set<ExecutionID> = []
     public private(set) var invalidatedRetentionGroups: Set<UUID> = []
+    /// Groups retired by retry remain logically unavailable but are physically erasable only
+    /// after a later explicit privacy operation authorizes their removal.
+    public private(set) var erasedRetentionGroups: Set<UUID> = []
     public private(set) var references: [UUID: SessionPayloadReference] = [:]
     private var eventIDs: Set<UUID> = []
     private var batchIDs: Set<UUID> = []
@@ -88,7 +91,9 @@ public struct SessionState: Sendable, Equatable, Codable {
         Set(references.values.compactMap { reference in
             guard let owner = retentionOwners[reference.retentionGroup],
                   let executionID = owner.executionID, executionIDs.contains(executionID) else { return nil }
-            if !owner.visible { return reference.retentionGroup }
+            if !owner.visible || invalidatedRetentionGroups.contains(reference.retentionGroup) {
+                return reference.retentionGroup
+            }
             if retention == .purgeGeneratedHistory,
                reference.kind == .visibleAnswer || reference.kind == .visibleThinking { return reference.retentionGroup }
             return nil
@@ -423,13 +428,15 @@ public struct SessionState: Sendable, Equatable, Codable {
             guard executions.allSatisfy({ executionID, execution in
                 !affectedMessages.contains(execution.admission.userMessageID) || value.executionIDs.contains(executionID)
             }), retentionOwners.allSatisfy({ group, owner in
-                guard let executionID = owner.executionID, value.executionIDs.contains(executionID), !owner.visible else { return true }
-                return value.retentionGroups.contains(group) || invalidatedRetentionGroups.contains(group)
+                guard let executionID = owner.executionID, value.executionIDs.contains(executionID),
+                      !owner.visible || invalidatedRetentionGroups.contains(group) else { return true }
+                return value.retentionGroups.contains(group) || erasedRetentionGroups.contains(group)
             }) else { throw invalid("Invalidation must include retry descendants and their hidden payloads.") }
             invalidationIDs.insert(value.operationID)
             authorizationEpoch = value.authorizationEpoch
             excludedExecutionIDs.formUnion(value.executionIDs)
             invalidatedRetentionGroups.formUnion(value.retentionGroups)
+            erasedRetentionGroups.formUnion(value.retentionGroups)
 
         case .retryCleared(let value):
             guard activeExecutionID == value.retryExecutionID,

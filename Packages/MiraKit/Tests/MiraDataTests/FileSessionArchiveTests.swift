@@ -34,22 +34,92 @@ struct FileSessionArchiveTests {
         #expect(throws: MiraError.self) { try FileSessionArchive.inspect(directory: root) }
     }
 
-    @Test func snapshotIncludesOnlyCommittedLiveBodiesAndRejectsMissingOrChangedBytes() async throws {
+    @Test func inlineBodiesRoundTripAndMissingOrCorruptBodiesRejectCapture() async throws {
         let fixture = try await Fixture.make()
         do {
-            _ = try await fixture.library.stage(
-                Data("unpublished".utf8), sessionID: fixture.id,
-                batchID: UUID(), retentionGroup: UUID(), kind: .module)
-            let files = try await fixture.library.withSnapshot { snapshot in
+            let (journal, bytes) = try await fixture.library.withSnapshot { snapshot in
                 #expect(try snapshot.readBatches(sessionID: fixture.id).map(\.id) == [fixture.batch.id])
-                return try #require(snapshot.sessions.first).payloads
+                let session = try #require(snapshot.sessions.first)
+                #expect(session.payloads.isEmpty)
+                guard let body = try snapshot.readRetainedPayload(fixture.title) else { throw MiraError(.storage, "Missing inline fixture body.") }
+                return (session.journalURL, body)
             }
-            #expect(files.count == 1)
-            let body = try #require(files[fixture.title])
-            try Data("wrong".utf8).write(to: body)
+            #expect(bytes == Data("Archive title".utf8))
+            let archive = fixture.root.appendingPathComponent("inline-archive")
+            try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: false)
+            try FileManager.default.createDirectory(at: archive.appendingPathComponent("sessions"), withIntermediateDirectories: false)
+            try FileManager.default.createDirectory(at: archive.appendingPathComponent("payloads"), withIntermediateDirectories: false)
+            try FileManager.default.copyItem(at: journal, to: archive.appendingPathComponent("sessions").appendingPathComponent(journal.lastPathComponent))
+            let inspected = try FileSessionArchive.inspect(directory: archive)
+            #expect(try inspected.readRetainedPayload(fixture.title) == bytes)
+
+            let original = try Data(contentsOf: journal)
+            let record = try FileSessionIO.decodeRecord(Data(original.dropLast()))
+            let missing = FileSessionRecord(batch: record.batch, payloads: [:])
+            try (FileSessionIO.envelope(try SessionCodec.encode(missing)) + Data([10])).write(to: journal)
             await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
-            try FileManager.default.removeItem(at: body)
+
+            let corruptPayloads = [fixture.title.id.uuidString: "Archive titlX"]
+            let corrupt = FileSessionRecord(batch: record.batch, payloads: corruptPayloads)
+            let corruptLine = FileSessionIO.envelope(try SessionCodec.encode(corrupt)) + Data([10])
+            try corruptLine.write(to: journal)
             await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
+        } catch {
+            await fixture.close()
+            throw error
+        }
+        await fixture.close()
+    }
+
+    @Test func externalBodiesRemainInPayloadTreeAndReadThroughSnapshot() async throws {
+        let fixture = try await Fixture.make()
+        do {
+            let batchID = UUID()
+            let bytes = Data(repeating: 0x61, count: FileSessionRecord.maximumInlineBytes + 1)
+            let reference = try await fixture.library.stage(
+                bytes, sessionID: fixture.id, batchID: batchID, retentionGroup: UUID(), kind: .module)
+            let batch = SessionBatch(
+                id: batchID, sessionID: fixture.id, expectedSequence: 1,
+                events: [.init(sequence: 2, occurredAt: Date(), fact: .extensionRecorded(
+                    namespace: "archive.test", schemaVersion: 1, required: false, body: reference))])
+            #expect(await fixture.library.append(batch) == .committed(batch.cursor))
+            try await fixture.library.withSnapshot { snapshot in
+                let session = try #require(snapshot.sessions.first)
+                #expect(session.payloads[reference] != nil)
+                #expect(try snapshot.readRetainedPayload(reference) == bytes)
+            }
+        } catch {
+            await fixture.close()
+            throw error
+        }
+        await fixture.close()
+    }
+
+    @Test func retryClearedRetiresContentButArchiveKeepsItsPhysicalBody() async throws {
+        let fixture = try await Fixture.make()
+        do {
+            let cleanup = SessionBatch(
+                id: UUID(), sessionID: fixture.id, expectedSequence: 1,
+                events: [.init(sequence: 2, occurredAt: Date(), fact: .retryCleared(.init(
+                    sourceExecutionID: ExecutionID(), retryExecutionID: ExecutionID(),
+                    retentionGroups: [fixture.title.retentionGroup])))])
+            #expect(await fixture.library.append(cleanup) == .committed(cleanup.cursor))
+            try await fixture.library.withSnapshot { snapshot in
+                #expect(try snapshot.readRetainedPayload(fixture.title) == Data("Archive title".utf8))
+                let session = try #require(snapshot.sessions.first)
+                #expect(session.payloads.isEmpty)
+            }
+            let journal = fixture.root.appendingPathComponent("live/sessions/\(fixture.id.rawValue.uuidString).jsonl")
+            let archive = fixture.root.appendingPathComponent("retired-archive")
+            try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: false)
+            try FileManager.default.createDirectory(at: archive.appendingPathComponent("sessions"), withIntermediateDirectories: false)
+            try FileManager.default.createDirectory(at: archive.appendingPathComponent("payloads"), withIntermediateDirectories: false)
+            try FileManager.default.copyItem(at: journal, to: archive.appendingPathComponent("sessions").appendingPathComponent(journal.lastPathComponent))
+            let inspected = try FileSessionArchive.inspect(directory: archive)
+            #expect(try inspected.readRetainedPayload(fixture.title) == Data("Archive title".utf8))
+            let line = try #require(Data(contentsOf: journal).split(separator: 10).first)
+            let record = try FileSessionIO.decodeRecord(Data(line))
+            #expect(record.payloads[fixture.title.id.uuidString] == "Archive title")
         } catch {
             await fixture.close()
             throw error
@@ -60,9 +130,6 @@ struct FileSessionArchiveTests {
     @Test func invalidationExplainsMissingBodyButRemnantBlocksCapture() async throws {
         let fixture = try await Fixture.make()
         do {
-            let body = try await fixture.library.withSnapshot {
-                try #require($0.sessions.first?.payloads[fixture.title])
-            }
             let invalidate = SessionBatch(
                 id: UUID(), sessionID: fixture.id, expectedSequence: 1,
                 events: [
@@ -77,7 +144,11 @@ struct FileSessionArchiveTests {
             #expect(await fixture.library.append(invalidate) == .committed(invalidate.cursor))
             await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
             try await fixture.library.purge(sessionID: fixture.id, retentionGroups: [fixture.title.retentionGroup])
-            #expect(!FileManager.default.fileExists(atPath: body.path))
+            try await fixture.library.withSnapshot { snapshot in
+                let session = try #require(snapshot.sessions.first)
+                #expect(session.payloads.isEmpty)
+                #expect(try snapshot.readRetainedPayload(fixture.title) == nil)
+            }
             let archive = fixture.root.appendingPathComponent("captured")
             try FileManager.default.createDirectory(
                 at: archive.appendingPathComponent("sessions"), withIntermediateDirectories: true)
@@ -90,7 +161,9 @@ struct FileSessionArchiveTests {
                     at: session.journalURL,
                     to: archive.appendingPathComponent("sessions/\(fixture.id.rawValue.uuidString).jsonl"))
             }
-            #expect(try FileSessionArchive.inspect(directory: archive).sessions.first?.head.cursor.sequence == 2)
+            let inspected = try FileSessionArchive.inspect(directory: archive)
+            #expect(inspected.sessions.first?.head.cursor.sequence == 2)
+            #expect(try inspected.readRetainedPayload(fixture.title) == nil)
         } catch {
             await fixture.close()
             throw error

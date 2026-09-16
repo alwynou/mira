@@ -90,25 +90,25 @@ struct JournalSessionReaderTests {
             let mutatedBodies = [
                 SessionPayloadReference(id: UUID(), sessionID: body.sessionID, batchID: body.batchID,
                                         retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
+                                        byteCount: body.byteCount, digest: body.digest, storage: body.storage),
                 SessionPayloadReference(id: body.id, sessionID: otherSession, batchID: body.batchID,
                                         retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
+                                        byteCount: body.byteCount, digest: body.digest, storage: body.storage),
                 SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: UUID(),
                                         retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
+                                        byteCount: body.byteCount, digest: body.digest, storage: body.storage),
                 SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
                                         retentionGroup: UUID(), kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
+                                        byteCount: body.byteCount, digest: body.digest, storage: body.storage),
                 SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
                                         retentionGroup: body.retentionGroup, kind: .title,
-                                        byteCount: body.byteCount, digest: body.digest),
+                                        byteCount: body.byteCount, digest: body.digest, storage: body.storage),
                 SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
                                         retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount + 1, digest: body.digest),
+                                        byteCount: body.byteCount + 1, digest: body.digest, storage: body.storage),
                 SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
                                         retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: String(repeating: "f", count: 64))
+                                        byteCount: body.byteCount, digest: String(repeating: "f", count: 64), storage: body.storage)
             ]
             let candidates = mutatedBodies.map { body in
                 SessionEvidenceReference(sessionID: valid.reference.sessionID, originalExecutionID: valid.reference.originalExecutionID,
@@ -167,7 +167,7 @@ struct JournalSessionReaderTests {
 
     @Test("A missing physical user payload is a storage error")
     func missingUserPayloadIsStorageError() async throws {
-        try await withReaderFixture { fixture in
+        try await withReaderFixture(userBytes: Data([0xff, 0xfe, 0xfd, 0xfc])) { fixture in
             let payloadURL = fixture.directory.appendingPathComponent("payloads", isDirectory: true)
                 .appendingPathComponent(fixture.userBody.sessionID.rawValue.uuidString, isDirectory: true)
                 .appendingPathComponent(fixture.userBody.batchID.uuidString, isDirectory: true)

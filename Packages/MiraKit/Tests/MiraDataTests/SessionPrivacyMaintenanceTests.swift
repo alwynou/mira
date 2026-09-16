@@ -8,8 +8,12 @@ import Testing
 @Suite("Session privacy maintenance", .timeLimit(.minutes(1)))
 struct SessionPrivacyMaintenanceTests {
     @Test func selectingARetryAlsoInvalidatesItsOriginalFailedExecution() async throws {
-        try await withTaskWorkflow(outputs: [[], [.blockStarted(.init(id: "text", content: .text("Retry answer"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
+        let retiredText = "Retired synthetic reply before an interrupted stream"
+        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text(retiredText))), .blockFinished(id: "text")], [.blockStarted(.init(id: "text", content: .text("Retry answer"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
             let failed = try await f.run("A recoverable statement", expectedStatus: .failed)
+            let journalURL = f.directory.appendingPathComponent("sessions/sessions/\(failed.sessionID.rawValue.uuidString).jsonl")
+            let prefix = try Data(contentsOf: journalURL)
+            #expect(String(decoding: prefix, as: UTF8.self).contains(retiredText))
             let retried = ExecutionID()
             let command = AgentSubmitCommand(
                 id: UUID(), sessionID: failed.sessionID, executionID: retried,
@@ -20,10 +24,19 @@ struct SessionPrivacyMaintenanceTests {
             #expect(
                 try await f.runtime.sessionSnapshot(id: failed.sessionID).executions[retried]?.completion?.status
                     == .completed)
+            let afterRetry = try Data(contentsOf: journalURL)
+            #expect(afterRetry.starts(with: prefix))
+            let retriedState = try await f.runtime.sessionSnapshot(id: failed.sessionID)
+            let retired = retriedState.references.values.filter { retriedState.invalidatedRetentionGroups.contains($0.retentionGroup) }
+            #expect(!retired.isEmpty && retriedState.erasedRetentionGroups.isEmpty)
+            for reference in retired { await #expect(throws: MiraError.self) { try await f.library.read(reference) } }
             #expect(await f.runtime.shutdown().isSettled)
             await f.tasks.close()
             await f.reminders.close()
             await f.scope.dispose()
+            try await f.library.close()
+            let journal = try FileSessionLibrary(directory: f.directory.appendingPathComponent("sessions"))
+            #expect(try Data(contentsOf: journalURL) == afterRetry)
             let expected = try await f.authority.authorization()
             let source = AgentSourceReference.sessionExecution(sessionID: failed.sessionID, executionID: retried)
             let request = AgentLibraryMaintenanceRequest(
@@ -32,24 +45,29 @@ struct SessionPrivacyMaintenanceTests {
             let operation = try await f.access.begin(request, expected: expected)
             let plans = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
             do {
-                let engine = SessionPrivacyMaintenance(journal: f.library, payloads: f.library, plans: plans)
+                let engine = SessionPrivacyMaintenance(journal: journal, payloads: journal, plans: plans)
                 let plan = try await engine.prepare(
                     operation: operation, roots: [source], retention: .preserveVisibleHistory, reason: .forgotten)
                 let change = try #require(plan.changes.first)
                 #expect(Set(change.dependencies.map(\.executionID)) == [failed.executionID, retried])
                 try await engine.apply(operation: operation)
                 try await engine.verify(operation: operation)
-                let state = try await JournalSessionReader(journal: f.library, payloads: f.library).snapshot(
+                let state = try await JournalSessionReader(journal: journal, payloads: journal).snapshot(
                     sessionID: failed.sessionID
                 ).state
                 #expect(state.excludedExecutionIDs == [failed.executionID, retried])
                 let body = try #require(state.executions[failed.executionID]?.admission.userBody)
-                #expect(try await f.library.read(body) == Data("A recoverable statement".utf8))
+                #expect(try await journal.read(body) == Data("A recoverable statement".utf8))
+                #expect(!String(decoding: try Data(contentsOf: journalURL), as: UTF8.self).contains(retiredText))
+                let replacement = try #require(state.executions[retried]?.completion?.answer)
+                #expect(try await journal.read(replacement) == Data("Retry answer".utf8))
             } catch {
                 await plans.close()
+                try? await journal.close()
                 throw error
             }
             await plans.close()
+            try await journal.close()
         }
     }
 
@@ -73,7 +91,7 @@ struct SessionPrivacyMaintenanceTests {
             let visibleBytes = try await visible.asyncPrivacyBytes(from: f.library)
             // A cancelled command can leave staged bytes with no published journal owner.
             let orphan = try await f.library.stage(
-                Data("Unpublished private draft".utf8), sessionID: address.sessionID,
+                Data([0xff]) + Data("Unpublished private draft".utf8), sessionID: address.sessionID,
                 batchID: UUID(), retentionGroup: UUID(), kind: .draft)
             let orphanURL = f.directory.appendingPathComponent("sessions/payloads")
                 .appendingPathComponent(address.sessionID.rawValue.uuidString).appendingPathComponent(
@@ -261,7 +279,7 @@ struct SessionPrivacyMaintenanceTests {
         "Journal and delete faults resume the original plan",
         arguments: [SessionStorageFaultStage.beforePayloadDelete, .afterJournalSync])
     func deleteFaultReopensFromPersistentPlan(stage: SessionStorageFaultStage) async throws {
-        try await withPrivacyFixture { fixture in
+        try await withPrivacyFixture(externalPlan: true) { fixture in
             let plans = try SQLiteSessionPrivacyPlanStore(
                 database: fixture.database, libraryID: fixture.authority.libraryID)
             do {
@@ -409,7 +427,7 @@ private final class PrivacyFixture: @unchecked Sendable {
     let root: AgentSourceReference
     let date = Date(timeIntervalSince1970: 1_900_000_000)
 
-    static func make() async throws -> PrivacyFixture {
+    static func make(externalPlan: Bool = false) async throws -> PrivacyFixture {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "mira-session-privacy-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -433,7 +451,7 @@ private final class PrivacyFixture: @unchecked Sendable {
             for id in ids {
                 runtimes.append(try await SessionRuntime.open(id: id, journal: sessions, payloads: sessions))
             }
-            let a = try await makeCompleted(runtimes[0], sources: [root])
+            let a = try await makeCompleted(runtimes[0], sources: [root], externalPlan: externalPlan)
             let b = try await makeCompleted(runtimes[1], sources: [a.source])
             let c = try await makeCompleted(runtimes[2], sources: [b.source])
             let unrelated = try await makeCompleted(runtimes[3], sources: [])
@@ -493,7 +511,7 @@ private final class PrivacyFixture: @unchecked Sendable {
     }
 }
 
-private func makeCompleted(_ runtime: SessionRuntime, sources: [AgentSourceReference]) async throws -> SyntheticSession
+private func makeCompleted(_ runtime: SessionRuntime, sources: [AgentSourceReference], externalPlan: Bool = false) async throws -> SyntheticSession
 {
     let sessionID = runtime.id
     let executionID = ExecutionID()
@@ -501,11 +519,14 @@ private func makeCompleted(_ runtime: SessionRuntime, sources: [AgentSourceRefer
     let admission = await runtime.commit(id: UUID()) { context in
         let title = try await context.stageBytes(Data("session".utf8), kind: .title, retentionGroup: UUID())
         let user = try await context.stageBytes(Data("user".utf8), kind: .userText, retentionGroup: UUID())
-        let plan = try await context.stage(
-            AgentExecutionPlan(
+        let planValue = AgentExecutionPlan(
                 runtimeID: UUID(), catalogGeneration: 1,
                 driverID: "mira.default", driverRevision: 1, instructions: "Fixture", limits: .init(),
-                priority: .foreground, route: nil), kind: .executionPlan, retentionGroup: UUID())
+                priority: .foreground, route: nil)
+        var planBytes = try SessionCodec.encode(planValue)
+        // Valid JSON whitespace forces the external path without changing the plan semantics.
+        if externalPlan { planBytes.append(Data(repeating: 32, count: 256 * 1_024 + 1)) }
+        let plan = try await context.stageBytes(planBytes, kind: .executionPlan, retentionGroup: UUID())
         return [
             .opened(.init(workspaceID: nil, title: title)),
             .admitted(
@@ -554,8 +575,8 @@ private func requireCommitted(_ result: SessionCommitResult) throws {
     }
 }
 
-private func withPrivacyFixture<T>(_ body: (PrivacyFixture) async throws -> T) async throws -> T {
-    let fixture = try await PrivacyFixture.make()
+private func withPrivacyFixture<T>(externalPlan: Bool = false, _ body: (PrivacyFixture) async throws -> T) async throws -> T {
+    let fixture = try await PrivacyFixture.make(externalPlan: externalPlan)
     do {
         let value = try await body(fixture)
         await fixture.close()

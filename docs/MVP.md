@@ -23,7 +23,7 @@ Formula rendering now validates and resolves native images before drawing, with 
 
 已形成借鉴 DSH、坚持核心优先的 Swift [Agent 核心架构方案](architecture/AGENT_CORE_PROPOSAL.md)与[实施计划](engineering/AGENT_CORE_IMPLEMENTATION_PLAN.md)，包含作用域扩展、拟议会话日志方案、核心架构图和执行流程图。用户已于 2026-09-13 授权通过 Goal 在 `codex/agent-core` 分支实施；iOS 暂不实现。新会话以日志为权威，业务事实保留在独立领域 SQLite，各阶段通过证据验收，不提前标记核心已完成。
 
-新核心已实现会话日志与正文、执行循环、作用域模块、模型与工具、调度与审批、来源授权、业务回执、记忆／知识／任务、持久维护及独立资料库恢复。macOS 的会话、工作区、记忆、Data 和 Provider 设置直接使用新服务，完整 App 已恢复构建；没有旧会话 SQL 仓库、旧模型协议或兼容运行时。核心继续只依赖 Foundation，平台能力由宿主模块组装。
+新核心已实现会话日志与正文（当前追加式 JSONL 批次内 inline UTF-8 与受管 external 两种存储，见[实现与验证记录](engineering/INLINE_SESSION_JOURNAL.md)）、执行循环、作用域模块、模型与工具、调度与审批、来源授权、业务回执、记忆／知识／任务、持久维护及独立资料库恢复。macOS 的会话、工作区、记忆、Data 和 Provider 设置直接使用新服务，完整 App 已恢复构建；没有旧会话 SQL 仓库、旧模型协议或兼容运行时。核心继续只依赖 Foundation，平台能力由宿主模块组装。
 
 当前验收与准确测试结果统一记录在[核心验证记录](engineering/AGENT_CORE_VERIFICATION.md)。持久偏移索引与完整状态检查点已实现并可从日志重建；会话全文检索与宿主服务已实现；六类[公开扩展挑战](engineering/AGENT_CORE_EXTENSION_CHALLENGE.md)已通过，默认循环和会话归约器未为案例修改；另已通过[16 个真实进程终止与恢复场景](engineering/AGENT_PROCESS_CRASH_VERIFICATION.md)。[历史记忆状态查询](architecture/AGENT_MEMORY_HISTORY.md)及宿主提示刷新已接通；[独立后台提取状态与费用查询](architecture/AGENT_EXTRACTION_QUERIES.md)已接入检查器；[规模实测](engineering/AGENT_CORE_SCALE_VERIFICATION.md)已覆盖十万真实消息的文件读取路径及一万记忆／五万知识片段的领域检索，修复候选正文排序超时、短语排名和启动全库正文遍历问题；同库核心启动 P95 已从约 7.00 秒降至 2.45 秒，恢复摘要保持日志与必需扩展校验；联合参考库、完整上下文及原生启动仍未通过验收。剩余失败矩阵、尚未关闭的原生行为边界与完整原生流程列为后续验收；首轮本地演示不代替这些验收。原验收行为与未关闭缺口见[验收承接清单](engineering/AGENT_CORE_ACCEPTANCE_TRANSFER.md)。用户于 2026-09-14 确认收缩范围，以已确认正确性修复、核心关键链路及集成回归、中文文档与图示收尾；该范围的[核心重建已完成](engineering/AGENT_CORE_COMPLETION.md)。联合规模、严格 P95、完整原生矩阵、Instruments 和穷举故障窗口列为后续产品验收，不再自动扩大本次 Goal；iOS 不实现。
 

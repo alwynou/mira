@@ -17,8 +17,8 @@ struct SQLiteLibraryArchiveTests {
             let manifest = try await exporter.export(to: destination, authorization: fixture.authorization)
             var files: [LibraryArchiveManifest.File] = []
             try LibraryArchiveFileCatalog.forEachFile(in: destination, manifest: manifest) { files.append($0) }
-            let payload = try #require(files.first { $0.path.hasPrefix("Sessions/payloads/") })
-            let alias = payload.path.replacingOccurrences(of: "Sessions/payloads/", with: "Sessions/PAYLOADS/")
+            let payload = try #require(files.first { $0.path.hasPrefix("Sessions/sessions/") })
+            let alias = payload.path.replacingOccurrences(of: "Sessions/sessions/", with: "Sessions/SESSIONS/")
             if try destination.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
                 .volumeSupportsCaseSensitiveNames == false {
                 #expect(FileManager.default.fileExists(atPath: destination.appendingPathComponent(alias).path))
@@ -57,7 +57,7 @@ struct SQLiteLibraryArchiveTests {
             #expect(manifest.modules.contains(fixture.module.identity))
             #expect(files.contains { $0.path == "Business.sqlite" })
             #expect(files.contains { $0.path.hasPrefix("Sessions/sessions/") && $0.path.hasSuffix(".jsonl") })
-            #expect(files.contains { $0.path.hasPrefix("Sessions/payloads/") && $0.path.hasSuffix(".bin") })
+            #expect(!files.contains { $0.path.hasPrefix("Sessions/payloads/") })
             #expect(!files.contains { $0.path.contains("/indexes/") || $0.path.contains("/checkpoints/") || $0.path.contains(".cache-authentication") })
             #expect(files.contains { $0.path == fixture.attachmentPath })
             let copied = try Data(contentsOf: destination.appendingPathComponent(fixture.attachmentPath))

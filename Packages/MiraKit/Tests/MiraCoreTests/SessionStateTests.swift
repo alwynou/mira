@@ -30,6 +30,13 @@ struct SessionStateTests {
         ], id: retryBatchID))
 
         #expect(fixture.state.invalidatedRetentionGroups == groups)
+        #expect(fixture.state.erasedRetentionGroups.isEmpty)
+        #expect(fixture.state.privacyGroups(for: [fixture.executionID], retention: .preserveVisibleHistory).isSuperset(of: groups))
+        #expect(throws: MiraError.self) {
+            try fixture.state.apply(fixture.batch([.invalidated(.init(operationID: UUID(),
+                executionIDs: [fixture.executionID, retryID], retentionGroups: [], authorizationEpoch: 1,
+                reason: .forgotten))]))
+        }
         #expect(fixture.state.references.values.contains { $0.kind == .userText &&
             !fixture.state.invalidatedRetentionGroups.contains($0.retentionGroup) })
         #expect(fixture.state.references.values.contains { $0.kind == .executionPlan &&
@@ -254,6 +261,7 @@ struct SessionStateTests {
         try fixture.apply([.invalidated(.init(operationID: UUID(), executionIDs: [fixture.executionID],
             retentionGroups: hidden, authorizationEpoch: 1, reason: .forgotten))])
         #expect(fixture.state.excludedExecutionIDs == [fixture.executionID])
+        #expect(fixture.state.erasedRetentionGroups == hidden)
         #expect(fixture.state.references.values.filter { $0.kind == .userText }
             .allSatisfy { !fixture.state.invalidatedRetentionGroups.contains($0.retentionGroup) })
         #expect(throws: MiraError.self) { try fixture.apply([.phaseChanged(executionID: fixture.executionID, phase: .preparing)]) }

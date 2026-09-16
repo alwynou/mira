@@ -143,7 +143,7 @@ Core 不依赖 Apple UI 与平台实现，不等于 Core 必须使用非 Apple �
 
 ### INV-001：Local Store Is Canonical
 
-会话接纳、执行状态及原始消息先写入本地已确认日志，正文使用独立保留存储；领域业务对象写入本地数据库。远程模型、Apple Calendar、Apple Reminders 和未来同步端都不是 Mira 规范事实源。
+会话接纳、执行状态及原始消息先写入本地已确认日志；正文引用可解析到批次内 inline UTF-8 字典或独立 external 保留存储。领域业务对象写入本地数据库。远程模型、Apple Calendar、Apple Reminders 和未来同步端都不是 Mira 规范事实源。
 
 ### INV-002：No Secret in Normal Data
 

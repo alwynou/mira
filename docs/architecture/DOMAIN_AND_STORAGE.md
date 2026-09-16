@@ -210,7 +210,7 @@ Mira.sqlite
 Blob Store
 ```
 
-SQLite 保存结构化对象、正文文本、关系、Revision 和索引元数据；大型二进制文件保存在 Blob Store。
+SQLite 保存领域结构化对象、关系、Revision 和索引元数据；大型二进制文件保存在 Blob Store。新核心会话事实由每会话 JSONL 日志承载：正文引用可指向批次内 inline UTF-8 字典或受管 external 文件，SQLite 会话查询表仅为可重建投影。
 
 <a id="s24-02"></a>
 

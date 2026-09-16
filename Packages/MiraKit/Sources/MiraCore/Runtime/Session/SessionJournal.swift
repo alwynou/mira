@@ -2,7 +2,7 @@ import Foundation
 
 /// Operational bounds are checked before allocation and before durable publication.
 public enum SessionFormatLimits {
-    public static let version = 2
+    public static let version = 3
     public static let maximumBatchBytes = 2 * 1_024 * 1_024
     public static let maximumEventsPerBatch = 256
     public static let maximumPayloadBytes = 32 * 1_024 * 1_024
@@ -14,6 +14,10 @@ public enum SessionPayloadKind: String, Codable, Sendable {
     case toolCall, effectIntent, toolResult, replay, draft, error, module
 }
 
+public enum SessionPayloadStorage: String, Codable, Sendable {
+    case inline, external
+}
+
 /// The digest describes bytes, not authorization. Retention groups never deduplicate each other.
 public struct SessionPayloadReference: Codable, Sendable, Equatable, Hashable {
     public let id: UUID
@@ -23,12 +27,13 @@ public struct SessionPayloadReference: Codable, Sendable, Equatable, Hashable {
     public let kind: SessionPayloadKind
     public let byteCount: Int
     public let digest: String
+    public let storage: SessionPayloadStorage
 
     public init(id: UUID, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID,
-                kind: SessionPayloadKind, byteCount: Int, digest: String) {
+                kind: SessionPayloadKind, byteCount: Int, digest: String, storage: SessionPayloadStorage = .inline) {
         self.id = id; self.sessionID = sessionID; self.batchID = batchID
         self.retentionGroup = retentionGroup; self.kind = kind
-        self.byteCount = byteCount; self.digest = digest
+        self.byteCount = byteCount; self.digest = digest; self.storage = storage
     }
 
     public func validate() throws {
@@ -140,7 +145,8 @@ public protocol SessionPayloadStore: SessionPayloadReader {
     /// Staged bytes remain unreadable until a valid committed batch references them.
     func stage(_ data: Data, sessionID: ConversationID, batchID: UUID,
                retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference
-    /// Requires committed invalidation facts for the selected groups before physical deletion.
+    /// Requires committed privacy invalidation facts for the selected groups before physical deletion.
+    /// Logical retry retirement remains readable only as unavailable history until this explicit cleanup.
     func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws
 }
 

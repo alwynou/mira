@@ -36,7 +36,7 @@ struct SessionJournalTests {
     @Test func crossSessionAndMutatedReferencesAreRejected() async throws {
         let dir = try temp(); defer { remove(dir) }; let store = try FileSessionLibrary(directory: dir); let a = ConversationID(); let b = ConversationID(); let bid = UUID()
         let ref = try await store.stage(Data("x".utf8), sessionID: a, batchID: bid, retentionGroup: UUID(), kind: .module)
-        let wrong = SessionPayloadReference(id: ref.id, sessionID: b, batchID: bid, retentionGroup: ref.retentionGroup, kind: ref.kind, byteCount: ref.byteCount, digest: ref.digest)
+        let wrong = SessionPayloadReference(id: ref.id, sessionID: b, batchID: bid, retentionGroup: ref.retentionGroup, kind: ref.kind, byteCount: ref.byteCount, digest: ref.digest, storage: ref.storage)
         let batch = SessionBatch(id: bid, sessionID: b, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "x", schemaVersion: 1, required: false, body: wrong))])
         if case .notCommitted = await store.append(batch) {} else { Issue.record("cross-session payload was accepted") }
         try await store.close()
@@ -105,7 +105,7 @@ struct SessionJournalTests {
     }
 
     @Test func invalidationImmediatelyHidesPayloadAndPurgeCanResumeAfterFailure() async throws {
-        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let group = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(Data("secret".utf8), sessionID: sid, batchID: bid, retentionGroup: group, kind: .draft)
+        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let group = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(externalFixture(), sessionID: sid, batchID: bid, retentionGroup: group, kind: .draft)
         let body = SessionBatch(id: bid, sessionID: sid, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "x", schemaVersion: 1, required: false, body: ref))]); #expect(await store.append(body) == .committed(body.cursor))
         let invalid = SessionBatch(id: UUID(), sessionID: sid, expectedSequence: 1, events: [SessionEvent(sequence: 2, occurredAt: Date(), fact: .invalidated(SessionInvalidation(operationID: UUID(), executionIDs: [], retentionGroups: [group], authorizationEpoch: 1, reason: .forgotten))) ]); #expect(await store.append(invalid) == .committed(invalid.cursor)); await #expect(throws: MiraError.self) { try await store.read(ref) }
         try await store.close()
@@ -117,7 +117,7 @@ struct SessionJournalTests {
     }
 
     @Test func stagePublicationFaultLeavesNoReadableOrphanAfterReopen() async throws {
-        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let faults = Faults(.afterPayloadPublication); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(Data("orphan".utf8), sessionID: sid, batchID: UUID(), retentionGroup: UUID(), kind: .draft) }; try await store.close(); let reopened = try FileSessionLibrary(directory: dir); #expect((try? await reopened.sessions(after: nil, limit: 10))?.isEmpty == true); try await reopened.close()
+        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let faults = Faults(.afterPayloadPublication); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(externalFixture(), sessionID: sid, batchID: UUID(), retentionGroup: UUID(), kind: .draft) }; try await store.close(); let reopened = try FileSessionLibrary(directory: dir); #expect((try? await reopened.sessions(after: nil, limit: 10))?.isEmpty == true); try await reopened.close()
     }
 
     @Test func committedReferenceCanBeReusedByLaterBatch() async throws {
@@ -148,15 +148,15 @@ struct SessionJournalTests {
     @Test func malformedOversizedSingleLineIsRejectedAndEnvelopeIsValidJSON() async throws {
         let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let store = try FileSessionLibrary(directory: dir); let b = simple(sid, expected: 0); #expect(await store.append(b) == .committed(b.cursor)); try await store.close()
         let journal = dir.appendingPathComponent("sessions/\(sid.rawValue.uuidString).jsonl"); let line = try Data(contentsOf: journal).dropLast(); #expect((try JSONSerialization.jsonObject(with: line)) is [String: Any])
-        try (Data(repeating: 65, count: SessionFormatLimits.maximumBatchBytes + 1024) + Data([10])).write(to: journal); #expect(throws: MiraError.self) { _ = try FileSessionLibrary(directory: dir) }
+        try (Data(repeating: 65, count: FileSessionRecord.maximumBytes + 1024) + Data([10])).write(to: journal); #expect(throws: MiraError.self) { _ = try FileSessionLibrary(directory: dir) }
     }
 
     @Test func directorySyncFaultsHaveExplicitBoundaries() async throws {
-        let dir = try temp(); defer { remove(dir) }; let faults = Faults(.beforeDirectorySync); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(Data("x".utf8), sessionID: ConversationID(), batchID: UUID(), retentionGroup: UUID(), kind: .draft) }; try? await store.close()
+        let dir = try temp(); defer { remove(dir) }; let faults = Faults(.beforeDirectorySync); let store = try FileSessionLibrary(directory: dir, faultInjector: faults.call); await #expect(throws: MiraError.self) { _ = try await store.stage(externalFixture(), sessionID: ConversationID(), batchID: UUID(), retentionGroup: UUID(), kind: .draft) }; try? await store.close()
     }
 
     @Test func samePayloadIDWithMutatedMetadataIsRejected() async throws {
-        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(Data("x".utf8), sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .draft); let first = SessionBatch(id: bid, sessionID: sid, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "a", schemaVersion: 1, required: false, body: ref))]); #expect(await store.append(first) == .committed(first.cursor)); let mutated = SessionPayloadReference(id: ref.id, sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .module, byteCount: ref.byteCount, digest: ref.digest); let second = SessionBatch(id: UUID(), sessionID: sid, expectedSequence: 1, events: [SessionEvent(sequence: 2, occurredAt: Date(), fact: .extensionRecorded(namespace: "b", schemaVersion: 1, required: false, body: mutated))]); if case .notCommitted = await store.append(second) {} else { Issue.record("mutated payload metadata was accepted") }; try await store.close()
+        let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let bid = UUID(); let store = try FileSessionLibrary(directory: dir); let ref = try await store.stage(Data("x".utf8), sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .draft); let first = SessionBatch(id: bid, sessionID: sid, expectedSequence: 0, events: [SessionEvent(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(namespace: "a", schemaVersion: 1, required: false, body: ref))]); #expect(await store.append(first) == .committed(first.cursor)); let mutated = SessionPayloadReference(id: ref.id, sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .module, byteCount: ref.byteCount, digest: ref.digest, storage: ref.storage); let second = SessionBatch(id: UUID(), sessionID: sid, expectedSequence: 1, events: [SessionEvent(sequence: 2, occurredAt: Date(), fact: .extensionRecorded(namespace: "b", schemaVersion: 1, required: false, body: mutated))]); if case .notCommitted = await store.append(second) {} else { Issue.record("mutated payload metadata was accepted") }; try await store.close()
     }
 
     @Test func headTracksOnlyAcknowledgedBatchesAndReconcileAdvancesIt() async throws {
@@ -232,6 +232,7 @@ struct SessionJournalTests {
 
     private func simple(_ sid: ConversationID, expected: Int64) -> SessionBatch { SessionBatch(id: UUID(), sessionID: sid, expectedSequence: expected, events: [SessionEvent(sequence: expected + 1, occurredAt: Date(), fact: .archived(revision: Int(expected + 1)))]) }
     private func nilReference(_ sid: ConversationID, _ bid: UUID) -> SessionPayloadReference { SessionPayloadReference(id: UUID(), sessionID: sid, batchID: bid, retentionGroup: UUID(), kind: .module, byteCount: 0, digest: String(repeating: "0", count: 64)) }
+    private func externalFixture() -> Data { Data([0xff, 0xfe, 0xfd, 0xfc]) }
     private func temp() throws -> URL { let u = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("mira-session-\(UUID().uuidString)"); try FileManager.default.createDirectory(at: u, withIntermediateDirectories: false); return u }
     private func remove(_ u: URL) { try? FileManager.default.removeItem(at: u) }
     private func runPython(_ script: String, argument: String) throws -> Int32 {

@@ -76,7 +76,7 @@ struct SessionRecoverySummaryTests {
                 if damage == "truncated" { bytes = Data(bytes.prefix(max(1, bytes.count / 2))) }
                 else if damage == "damaged" { bytes[bytes.count - 1] ^= 1 }
                 else {
-                    let format = "MIRA-SESSION-RECOVERY-2", prefix = Data((format + "\n").utf8)
+                    let format = "MIRA-SESSION-RECOVERY-3", prefix = Data((format + "\n").utf8)
                     var value = try #require(JSONSerialization.jsonObject(with: bytes.dropFirst(prefix.count + 65)) as? [String: Any])
                     switch damage {
                     case "version": value["version"] = 999

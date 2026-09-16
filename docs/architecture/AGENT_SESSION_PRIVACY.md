@@ -15,15 +15,15 @@ flowchart TB
   Roots --> Engine
   Engine --> Journal[SessionJournal\n会话事实与已提交前缀]
   Engine --> Plans[SessionPrivacyPlanStore\n不可变清理计划与无正文依赖]
-  Engine --> Bodies[SessionPayloadMaintenance\n正文删除及物理存在性检查]
+  Engine --> Bodies[SessionPayloadMaintenance\n逻辑失效与显式物理擦除]
   Domain --> Business[领域正文、业务回执、Blob\n各自清除与验证]
   Domain --> Projection[SessionPrivacyProjections\n重建并核对可见历史元数据]
   Plans --> SQLite[共享业务库中的维护权威]
   Journal --> Files[JSONL 会话日志]
-  Bodies --> Payloads[独立正文文件]
+  Bodies --> Payloads[inline 字典或 external 文件]
 ```
 
-查看[核心架构图](diagrams/agent-session-privacy-architecture.png)或 [Mermaid 源文件](diagrams/agent-session-privacy-architecture.mmd)。
+查看 [Mermaid 源文件](diagrams/agent-session-privacy-architecture.mmd)。
 
 维护计划不是可以丢弃的查询投影。请求／重放被删除后，计划中的来源身份仍是后续维护判断历史依赖的必要事实，必须随资料库备份。计划只包含操作身份、来源身份、日志前缀、失效批次及依赖；不复制用户文字、提示词、工具参数或模型输出。
 
@@ -42,8 +42,8 @@ flowchart TD
   Persist --> Match
   Match --> Heads[复核所有头仍是原前缀或原计划的失效批次]
   Heads --> Append[提交全部会话失效批次\n确认丢失时只核对原批次]
-  Append --> Purge[删除计划指定的正文分组]
-  Purge --> Verify[再次核对日志头、排除状态\n并检查实际文件不存在]
+  Append --> Purge[处理计划指定的正文分组]
+  Purge --> Verify[再次核对日志头、排除状态\n仅对 erased 组检查物理不存在]
   Verify --> Domain[交回领域处理器\n完整跨存储验证后才可完成库维护]
   Persist -->|确认丢失| Pending[保持 pending\n重试读取原计划]
   Append -->|未确认| Pending
@@ -52,9 +52,9 @@ flowchart TD
   Pending --> Saved
 ```
 
-查看[执行流程图](diagrams/agent-session-privacy-flow.png)或 [Mermaid 源文件](diagrams/agent-session-privacy-flow.mmd)。
+查看 [Mermaid 源文件](diagrams/agent-session-privacy-flow.mmd)。
 
-所有会话的失效记录提交后才开始主动删除。文件适配器重新打开时可以根据已提交失效事实继续删除；完整计划已经先于这些事实持久化，因此后续会话仍可按原批次继续，依赖闭包不依赖已删除请求的正文。 普通启动使用[待发布批次记录](AGENT_PAYLOAD_RECOVERY.md)定向清理遗留暂存内容；该启动优化不能代替本契约最后的全库孤儿扫描和物理验证。
+所有会话的失效记录提交后才开始主动维护。`SessionState.invalidatedRetentionGroups` 包含所有当前不可读组，包括 retryCleared 的逻辑退休组；`erasedRetentionGroups` 仅包含显式隐私物理擦除授权。重试清理只追加逻辑事实，保留原始 JSONL 和 external 字节；普通 `SessionPayloadReader.read` 对 invalidated 组抛出 `notFound`，归档内部校验仍可读取未物理擦除的历史证明，UI／上下文隐藏该正文。只有显式隐私维护在 durable invalidation 之后，才可将受影响（包括此前退休的）inline 正文以临时 JSONL 文件写入、同步、原子 rename 和目录同步移除，并按 external 删除屏障物理清理文件；重写必须重新计算记录 checksum、偏移和前缀摘要，只保留逻辑批次／事件 ID、head 及仍保留的 inline 正文，不改写逻辑事实。普通启动使用[待发布批次记录](AGENT_PAYLOAD_RECOVERY.md)定向清理遗留 external 暂存内容；该启动优化不能代替本契约最后的全库孤儿扫描和物理验证。
 
 普通调用方取消不能让库关口自动恢复 ready；外层维护协调器拥有实际工作。引擎单实例拒绝重入。出现不属于原计划的新会话、额外追加或错误批次时拒绝继续。不能把新头当作成功、现场缩小清理范围，或重新生成同一操作的批次身份。
 
@@ -71,7 +71,7 @@ flowchart TD
 
 两种规则均永久排除所选执行及其传递后代的模型上下文资格。保留历史不授予重放或自动提取权限。具体领域选择哪种规则由其产品契约决定；第二种不是删除整个 Conversation 的接口。会话标题和不属于执行的模块数据需由拥有其业务含义的处理器另行处理。
 
-分组所有权来自 `SessionState` 归约器，不能由工具名称或查询投影推测。可见历史与隐藏正文具有不同保留周期，即使字节相同也不能共用分组。`verifyPurged` 检查受管路径下实际文件不存在；正文读取因失效返回拒绝并不能证明字节已经删除。全部工作排空后，还要回收整个会话库中没有已提交事实拥有的暂存／孤儿文件，并扫描实际目录验证没有未发布正文。待核对批次存在时拒绝该回收；不靠删除临时内容来绕过不确定提交。
+分组所有权来自 `SessionState` 归约器，不能由工具名称或查询投影推测。`invalidatedRetentionGroups` 是读取资格集合，`erasedRetentionGroups` 才是物理擦除集合；可见历史、逻辑退休历史与隐藏正文具有不同保留周期，即使字节相同也不能共用分组。普通正文读取对 invalidated 组抛出 `notFound`，归档内部校验仍可读取未物理擦除的历史证明，但归档仍保留尚未 erased 的物理历史。`verifyPurged` 只检查 erased 组的 external 路径实际不存在，并检查其 inline 正文不再出现在有效 JSONL 记录中；`purged` 读取状态本身不能证明字节已经删除。全部工作排空后，还要回收整个会话库中没有已提交事实拥有的 external 暂存／孤儿文件，并扫描实际目录验证没有未发布正文。inline 重写的临时文件、旧文件和索引／缓存必须在恢复路径中清理或重建。待核对批次存在时拒绝该回收；不靠删除临时内容来绕过不确定提交。
 
 ## 记忆遗忘处理器
 
@@ -85,11 +85,11 @@ flowchart TD
 2. 展开目标记忆的全部连续历史修订和原始用户来源执行，保存完整会话隐私计划。
 3. 在业务库事务中清除计划所选执行关联的共享业务结果正文；保留回执 ID、提交证明、已发布／待发布状态和结果摘要。同一业务操作被多个回执引用时，所有引用看到同一个已清除结果。
 4. 清除目标记忆及全部修订正文、证据摘录／哈希、搜索索引、断言／提取方面元数据和关联操作的结果副本；来源写入遗忘抑制，清除该来源提取作业的请求、输出、决定和错误。已发生用量及必要作业身份保留。同来源的其他独立确认记忆保留。
-5. 提交全部计划失效批次，删除隐藏会话正文与无提交所有者的暂存内容。
+5. 提交该隐私计划的显式 invalidation 批次；对计划覆盖的全部正文（包括此前 retryCleared 的逻辑退休正文）执行 durable invalidation 和 physical erase，按 external 屏障清理文件，并按 inline 重写协议从 JSONL 记录移除正文；清除无提交所有者的 external 暂存内容。MemoryForgetHandler 不在此步骤执行 retryCleared。
 6. 重建受影响会话的查询元数据；按原日志前缀核对执行、用户／助手消息身份、引用和失效标记，检测漏行。允许保留的历史仍存在，但不再取得模型上下文资格。
 7. 分别验证领域、业务结果、实际文件和投影，全部通过才由库协调器写入完成事实。
 
-当前提取请求只包含其精确原始用户消息、时间和时区，不复制其他记忆或聊天历史。因此来源级提取清理不会漏掉另一作业中的记忆上下文副本；以后若扩展提取输入，必须同时扩展其持久来源和清理契约。保留其他独立确认记忆不等于解除原来源的自动提取抑制。
+提取输入遵循[记忆与知识契约](MEMORY_AND_KNOWLEDGE.md#1.11-提取输入与提交条件)：它可以包含有界用户消息窗口及必要的批量对话前缀，所有来源身份和版本必须随作业保存并参与清理闭包。来源级提取清理必须覆盖该持久来源集合；保留其他独立确认记忆不等于解除原来源的自动提取抑制。
 
 领域清理后发生中断时，原始来源身份、连续修订身份及无正文 purge 回执仍能重新构造相同来源根，处理器加载原计划及原批次继续。业务清理适配器和投影适配器由库拥有，关闭普通应用不能提前关闭它们。不能通过捕获异常、略过验证或重新创建操作 ID 来解除 pending。
 

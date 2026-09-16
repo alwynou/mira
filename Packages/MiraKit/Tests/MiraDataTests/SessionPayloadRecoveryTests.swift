@@ -31,7 +31,7 @@ struct SessionPayloadRecoveryTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let session = ConversationID(), batchID = UUID()
         let library = try FileSessionLibrary(directory: root)
-        let reference = try await library.stage(Data("durable body".utf8), sessionID: session, batchID: batchID,
+        let reference = try await library.stage(largeUTF8Fixture(), sessionID: session, batchID: batchID,
                                                 retentionGroup: UUID(), kind: .userText)
         let batch = payloadBatch(session: session, batchID: batchID, reference: reference)
         #expect(await library.append(batch) == .committed(batch.cursor))
@@ -48,17 +48,17 @@ struct SessionPayloadRecoveryTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let session = ConversationID(), committedID = UUID(), orphanID = UUID()
         let library = try FileSessionLibrary(directory: root)
-        let committed = try await library.stage(Data("keep".utf8), sessionID: session, batchID: committedID,
+        let committed = try await library.stage(externalFixture(), sessionID: session, batchID: committedID,
                                                 retentionGroup: UUID(), kind: .userText)
         let batch = payloadBatch(session: session, batchID: committedID, reference: committed)
         #expect(await library.append(batch) == .committed(batch.cursor))
-        let orphan = try await library.stage(Data("orphan".utf8), sessionID: session, batchID: orphanID,
+        let orphan = try await library.stage(externalFixture(), sessionID: session, batchID: orphanID,
                                              retentionGroup: UUID(), kind: .draft)
         try await library.close()
         let orphanPath = payloadURL(root, reference: orphan)
         #expect(FileManager.default.fileExists(atPath: orphanPath.path))
         let reopened = try FileSessionLibrary(directory: root)
-        #expect(try await reopened.read(committed) == Data("keep".utf8))
+        #expect(try await reopened.read(committed) == externalFixture())
         #expect(!FileManager.default.fileExists(atPath: orphanPath.path))
         let metrics = await reopened.readMetrics()
         #expect(metrics.recoveredPayloadBatches == 1 && metrics.sweptPayloadBatches == 0)
@@ -74,7 +74,7 @@ struct SessionPayloadRecoveryTests {
             if current == stage { throw MiraError(.storage, "Synthetic pending payload fault.") }
         }
         await #expect(throws: MiraError.self) {
-            _ = try await library.stage(Data("uncommitted".utf8), sessionID: ConversationID(), batchID: UUID(),
+            _ = try await library.stage(externalFixture(), sessionID: ConversationID(), batchID: UUID(),
                                         retentionGroup: UUID(), kind: .draft)
         }
         try? await library.close()
@@ -91,9 +91,10 @@ struct SessionPayloadRecoveryTests {
         let failing = try FileSessionLibrary(directory: root) { current in
             if current == stage { throw MiraError(.storage, "Synthetic pending clear fault.") }
         }
-        let reference = try await failing.stage(Data("committed despite fault".utf8), sessionID: session, batchID: batchID,
+        let committedBytes = externalFixture()
+        let reference = try await failing.stage(committedBytes, sessionID: session, batchID: batchID,
                                                 retentionGroup: UUID(), kind: .userText)
-        let unreferenced = try await failing.stage(Data("same batch orphan".utf8), sessionID: session, batchID: batchID,
+        let unreferenced = try await failing.stage(externalFixture(), sessionID: session, batchID: batchID,
                                                    retentionGroup: UUID(), kind: .draft)
         let batch = payloadBatch(session: session, batchID: batchID, reference: reference)
         #expect(await failing.append(batch) == .committed(batch.cursor))
@@ -101,7 +102,7 @@ struct SessionPayloadRecoveryTests {
         try? await failing.close()
         let reopened = try FileSessionLibrary(directory: root)
         #expect(try await reopened.batch(id: batchID, sessionID: session) == batch)
-        #expect(try await reopened.read(reference) == Data("committed despite fault".utf8))
+        #expect(try await reopened.read(reference) == committedBytes)
         try await reopened.close()
         let second = try FileSessionLibrary(directory: root)
         #expect(try await second.batch(id: batchID, sessionID: session) == batch)
@@ -113,7 +114,8 @@ struct SessionPayloadRecoveryTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let session = ConversationID(), batchID = UUID()
         let library = try FileSessionLibrary(directory: root)
-        let reference = try await library.stage(Data("retained".utf8), sessionID: session, batchID: batchID,
+        let retainedBytes = externalFixture()
+        let reference = try await library.stage(retainedBytes, sessionID: session, batchID: batchID,
                                                 retentionGroup: UUID(), kind: .userText)
         let batch = payloadBatch(session: session, batchID: batchID, reference: reference)
         #expect(await library.append(batch) == .committed(batch.cursor))
@@ -128,7 +130,7 @@ struct SessionPayloadRecoveryTests {
         let reopened = try FileSessionLibrary(directory: root)
         #expect(FileManager.default.fileExists(atPath: pending.path))
         #expect(!FileManager.default.fileExists(atPath: orphanFile.path))
-        #expect(try await reopened.read(reference) == Data("retained".utf8))
+        #expect(try await reopened.read(reference) == retainedBytes)
         try await reopened.close()
     }
 
@@ -179,3 +181,7 @@ private func payloadURL(_ root: URL, reference: SessionPayloadReference) -> URL 
 private func markerURL(_ root: URL, session: ConversationID, batch: UUID) -> URL {
     root.appendingPathComponent("pending-payloads").appendingPathComponent("\(session.rawValue.uuidString).\(batch.uuidString)")
 }
+
+private func externalFixture() -> Data { Data([0xff, 0xfe, 0xfd, 0xfc]) }
+
+private func largeUTF8Fixture() -> Data { Data(repeating: 0x78, count: 256 * 1024 + 1) }

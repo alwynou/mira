@@ -8,6 +8,13 @@ public struct FileSessionSnapshot: Sendable {
         public let head: SessionJournalHead
         public let journalURL: URL
         public let payloads: [SessionPayloadReference: URL]
+        let invalidated: Set<UUID>
+        let erased: Set<UUID>
+        init(id: ConversationID, head: SessionJournalHead, journalURL: URL,
+             payloads: [SessionPayloadReference: URL], invalidated: Set<UUID> = [], erased: Set<UUID> = []) {
+            self.id = id; self.head = head; self.journalURL = journalURL
+            self.payloads = payloads; self.invalidated = invalidated; self.erased = erased
+        }
     }
     public let sessions: [Session]
     private let sessionOffsets: [ConversationID: Int]
@@ -30,6 +37,41 @@ public struct FileSessionSnapshot: Sendable {
             throw FileSessionIO.failure()
         }
         return batches
+    }
+
+    /// Archive validation reads retained physical history, including retired tool
+    /// proofs. This is not a conversation read authorization API. Only an explicit
+    /// erasure can explain a missing body. Inline text is loaded on demand.
+    func readRetainedPayload(_ reference: SessionPayloadReference) throws -> Data? {
+        guard let session = session(reference.sessionID) else { throw FileSessionIO.failure() }
+        var verified = false
+        var result: Data?
+        let batches = try FileSessionIO.scanStrict(session.journalURL, sessionID: session.id,
+            maximumRecords: FileSessionArchive.maximumRecords) { record in
+            guard record.batch.events.flatMap(\.fact.payloadReferences).contains(reference) else { return }
+            verified = true
+            if reference.storage == .inline {
+                guard let text = record.payloads[reference.id.uuidString] else {
+                    // A missing body is valid only when the exact reference was purged.
+                    return
+                }
+                let bytes = Data(text.utf8)
+                guard bytes.count == reference.byteCount, FileSessionIO.digest(bytes) == reference.digest else {
+                    throw FileSessionIO.failure()
+                }
+                result = bytes
+            }
+        }
+        guard let last = batches.last, last.id == session.head.batchID, last.cursor == session.head.cursor,
+            verified else { throw FileSessionIO.failure() }
+        if session.erased.contains(reference.retentionGroup) { return nil }
+        if let result { return result }
+        guard reference.storage == .external, let url = session.payloads[reference] else {
+            throw FileSessionIO.failure()
+        }
+        let bytes = try FileSessionIO.readBounded(url, expectedCount: reference.byteCount)
+        guard FileSessionIO.digest(bytes) == reference.digest else { throw FileSessionIO.failure() }
+        return bytes
     }
 }
 
@@ -61,10 +103,14 @@ public enum FileSessionArchive {
             let batches = try FileSessionIO.scanStrict(journal, sessionID: id, maximumRecords: maximumRecords)
             guard let last = batches.last else { throw FileSessionIO.failure() }
             let retained = try references(in: batches)
+            _ = try FileSessionIO.scanStrict(journal, sessionID: id, maximumRecords: maximumRecords) { record in
+                try validateInline(record, erased: retained.erased)
+            }
             referenceCount += retained.references.count
             guard referenceCount <= maximumReferences else { throw FileSessionIO.failure() }
             var live: [SessionPayloadReference: URL] = [:]
-            for reference in retained.references.values where !retained.invalidated.contains(reference.retentionGroup) {
+            for reference in retained.references.values
+                where reference.storage == .external && !retained.erased.contains(reference.retentionGroup) {
                 let sessionPath = id.rawValue.uuidString
                 let batchPath = sessionPath + "/" + reference.batchID.uuidString
                 let path = batchPath + "/" + reference.id.uuidString + ".bin"
@@ -76,7 +122,8 @@ public enum FileSessionArchive {
                 expectedDirectories.formUnion([sessionPath, batchPath])
             }
             sessions.append(
-                .init(id: id, head: .init(cursor: last.cursor, batchID: last.id), journalURL: journal, payloads: live))
+                .init(id: id, head: .init(cursor: last.cursor, batchID: last.id), journalURL: journal,
+                    payloads: live, invalidated: retained.invalidated, erased: retained.erased))
         }
         var seenFiles: Set<String> = []
         var seenDirectories: Set<String> = []
@@ -104,10 +151,11 @@ public enum FileSessionArchive {
     }
 
     static func references(in batches: [SessionBatch]) throws -> (
-        references: [UUID: SessionPayloadReference], invalidated: Set<UUID>
+        references: [UUID: SessionPayloadReference], invalidated: Set<UUID>, erased: Set<UUID>
     ) {
         var references: [UUID: SessionPayloadReference] = [:]
         var invalidated: Set<UUID> = []
+        var erased: Set<UUID> = []
         for batch in batches {
             for event in batch.events {
                 for reference in event.fact.payloadReferences {
@@ -122,11 +170,33 @@ public enum FileSessionArchive {
                 }
                 switch event.fact {
                 case .invalidated(let fact): invalidated.formUnion(fact.retentionGroups)
+                    erased.formUnion(fact.retentionGroups)
                 case .retryCleared(let fact): invalidated.formUnion(fact.retentionGroups)
                 default: break
                 }
             }
         }
-        return (references, invalidated)
+        return (references, invalidated, erased)
+    }
+
+    /// Validates the record-local inline map against physically erased groups.
+    /// Retired-but-retained content remains present; erased content must be absent.
+    static func validateInline(_ record: FileSessionRecord, erased: Set<UUID>) throws {
+        var owned: [String: SessionPayloadReference] = [:]
+        for reference in record.batch.events.flatMap(\.fact.payloadReferences)
+            where reference.batchID == record.batch.id && reference.storage == .inline {
+            owned[reference.id.uuidString] = reference
+        }
+        for (id, text) in record.payloads {
+            guard UUID(uuidString: id)?.uuidString == id, let reference = owned[id],
+                !erased.contains(reference.retentionGroup) else { throw FileSessionIO.failure() }
+            let bytes = Data(text.utf8)
+            guard bytes.count == reference.byteCount, FileSessionIO.digest(bytes) == reference.digest else {
+                throw FileSessionIO.failure()
+            }
+        }
+        for (id, reference) in owned where !erased.contains(reference.retentionGroup) {
+            guard record.payloads[id] != nil else { throw FileSessionIO.failure() }
+        }
     }
 }

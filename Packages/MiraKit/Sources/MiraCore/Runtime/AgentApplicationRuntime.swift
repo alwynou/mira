@@ -665,20 +665,6 @@ public actor AgentApplicationRuntime {
                 await releaseAdmission(command.id)
                 return .notCommitted(.init(.storage, "The reconciled execution admission is unavailable."))
             }
-            // Admission and retirement are one durable batch. Keep the command
-            // reserved until physical deletion succeeds, before any new dispatch.
-            if case .retry = command.input {
-                do {
-                    guard let batch = try await journal.batch(id: command.id, sessionID: command.sessionID),
-                          case .retryCleared(let cleanup) = batch.events.last?.fact else {
-                        throw Self.commandConflict()
-                    }
-                    try await payloads.purge(sessionID: command.sessionID, retentionGroups: cleanup.retentionGroups)
-                } catch {
-                    admissions[command.id]?.phase = .uncertain; publish()
-                    return .indeterminate(batchID: command.id, error: Self.safe(error))
-                }
-            }
             if cancellationIntents.contains(Self.address(command)) || phase == .closing {
                 await runtime.requestCancellation(executionID: command.executionID)
             }
@@ -747,12 +733,10 @@ public actor AgentApplicationRuntime {
                 guard summary.activeExecutionID != nil else { continue }
                 let runtime = try await session(sessionID)
                 let state = await runtime.snapshot()
+                if !state.erasedRetentionGroups.isEmpty {
+                    try await payloads.purge(sessionID: sessionID, retentionGroups: state.erasedRetentionGroups)
+                }
                 if let executionID = state.activeExecutionID {
-                    // A crash after retry admission must finish its recorded
-                    // cleanup before recovering the queued execution.
-                    if !state.invalidatedRetentionGroups.isEmpty {
-                        try await payloads.purge(sessionID: sessionID, retentionGroups: state.invalidatedRetentionGroups)
-                    }
                     let address = AgentExecutionAddress(sessionID: sessionID, executionID: executionID)
                     launch(recovery(runtime, executionID: executionID), address: address, startup: true)
                     _ = await executions[address]?.task.value

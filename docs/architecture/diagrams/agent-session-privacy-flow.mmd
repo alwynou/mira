@@ -8,8 +8,8 @@ flowchart TD
   Persist --> Match
   Match --> Heads[复核所有头仍是原前缀或原计划的失效批次]
   Heads --> Append[提交全部会话失效批次\n确认丢失时只核对原批次]
-  Append --> Purge[删除计划指定的正文分组]
-  Purge --> Verify[再次核对日志头、排除状态\n并检查实际文件不存在]
+  Append --> Purge[处理计划指定的正文分组]
+  Purge --> Verify[再次核对日志头、排除状态\n仅对 erased 组检查物理不存在]
   Verify --> Domain[交回领域处理器\n完整跨存储验证后才可完成库维护]
   Persist -->|确认丢失| Pending[保持 pending\n重试读取原计划]
   Append -->|未确认| Pending
