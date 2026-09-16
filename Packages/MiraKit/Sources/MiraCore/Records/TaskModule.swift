@@ -44,10 +44,13 @@ public struct TaskSourceAuthority: AgentDomainSourceAuthority {
     public func validate(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {
         for source in sources {
             guard case .domain(let namespace, let id, let revision) = source, namespace == self.namespace else { throw Self.unavailable }
-            let task: MiraTask
-            do { task = try await store.taskDetail(.init(id), workspaceID: request.workspaceID) }
-            catch let error as MiraError where error.code == .notFound { throw Self.unavailable }
-            guard task.workspaceID == request.workspaceID, task.revision == revision else { throw Self.unavailable }
+            do {
+                let historical = try await store.taskRevision(.init(id), revision: revision, workspaceID: request.workspaceID)
+                guard historical.task.id.rawValue == id, historical.task.workspaceID == request.workspaceID,
+                      historical.task.revision == revision else { throw Self.unavailable }
+            } catch let error as MiraError where error.code == .notFound {
+                throw Self.unavailable
+            }
         }
     }
     private static var unavailable: MiraError { .init(.unauthorized, "The context source is unavailable for this destination.") }

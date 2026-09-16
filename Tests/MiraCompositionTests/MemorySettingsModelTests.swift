@@ -7,26 +7,19 @@
     @MainActor
     struct MemorySettingsModelTests {
         @Test
-        func extractionRouteUsesCurrentGlobalAndWorkspaceBindings() async throws {
-            try await withContainer { container, library in
-                let group = try await library.workloads()
-                let workspace = Workspace(id: .init(), name: "Memory settings workspace")
-                try await group.workspaces.save(workspace, expectedRevision: nil)
-                try await group.modelSettings.saveBinding(
-                    .init(
-                        scope: .workspace(workspace.id), purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: MacDemoModule.routeID, revision: 1), expectedRevision: nil)
-
+        func observesReadyLibraryAndStopsItsLocalStatusPolling() async throws {
+            try await withContainer { container, _, embedding in
                 let model = MemorySettingsModel(container: container)
                 let observation = Task { @MainActor in await model.observe() }
                 do {
-                    try await eventually {
-                        model.budget != nil && model.hasMemoryExtractionRoute
-                            && model.workspaces.contains { $0.id == workspace.id }
+                    try await eventuallyAsync {
+                        guard container.status.phase == .ready, model.localModelStatus == .ready else { return false }
+                        return await embedding.statusCallCount > 0
                     }
-                    #expect(model.hasMemoryExtractionRoute)
-                    #expect(model.workspaces.contains { $0.id == workspace.id })
+                    #expect(model.error == nil)
+
                     await model.stop()
+                    #expect(model.localModelStatus == .unavailable)
                     observation.cancel()
                     await observation.value
                 } catch {
@@ -39,81 +32,15 @@
         }
 
         @Test
-        func saveUsesCapturePolicyCASAndKeepsTheCurrentSettingsBaseline() async throws {
-            try await withContainer { container, library in
+        func maintenanceRebindsObservationWithoutStaleErrors() async throws {
+            try await withContainer { container, library, embedding in
                 let model = MemorySettingsModel(container: container)
                 let observation = Task { @MainActor in await model.observe() }
                 do {
-                    try await eventually { model.budget != nil }
-                    model.mode = .candidateOnly
-                    model.dailyTokenLimitText = "1200"
-                    model.markDirty()
-                    model.startSave()
-                    try await eventually { !model.isSaving && model.statusKey != nil }
-
-                    let group = try await library.workloads()
-                    let policy = try await group.memories.capturePolicy()
-                    #expect(policy.revision == 2)
-                    #expect(policy.mode == .candidateOnly)
-                    #expect(policy.dailyTokenLimit == 1200)
-                    #expect(!model.isDirty)
-                    #expect(model.statusKey == "Memory capture settings saved.")
-
-                    await model.stop()
-                    observation.cancel()
-                    await observation.value
-                } catch {
-                    observation.cancel()
-                    await observation.value
-                    await model.stop()
-                    throw error
-                }
-            }
-        }
-
-        @Test
-        func stopAndRestartRetainsAnUnsavedDraft() async throws {
-            try await withContainer { container, _ in
-                let model = MemorySettingsModel(container: container)
-                let observation = Task { @MainActor in await model.observe() }
-                do {
-                    try await eventually { model.budget != nil }
-                    model.mode = .candidateOnly
-                    model.dailyTokenLimitText = "1400"
-                    model.markDirty()
-
-                    await model.stop()
-                    observation.cancel()
-                    await observation.value
-                    #expect(model.isDirty)
-                    #expect(model.dailyTokenLimitText == "1400")
-
-                    let restarted = Task { @MainActor in await model.observe() }
-                    try await eventually { model.budget != nil && model.isDirty }
-                    #expect(model.mode == .candidateOnly)
-                    #expect(model.dailyTokenLimitText == "1400")
-                    await model.stop()
-                    restarted.cancel()
-                    await restarted.value
-                } catch {
-                    observation.cancel()
-                    await observation.value
-                    await model.stop()
-                    throw error
-                }
-            }
-        }
-
-        @Test
-        func maintenanceReloadsMetadataWithoutReplacingADirtyDraft() async throws {
-            try await withContainer { container, library in
-                let model = MemorySettingsModel(container: container)
-                let observation = Task { @MainActor in await model.observe() }
-                do {
-                    try await eventually { model.budget != nil }
-                    model.mode = .automaticWithUndo
-                    model.dailyTokenLimitText = "2300"
-                    model.markDirty()
+                    try await eventuallyAsync {
+                        container.status.phase == .ready && model.localModelStatus == .ready
+                    }
+                    let initialStatusCalls = await embedding.statusCallCount
                     let oldGroup = try await library.workloads()
                     let request = AgentLibraryMaintenanceRequest(
                         id: UUID(), namespace: "knowledge.collect", revision: 1,
@@ -124,11 +51,11 @@
                         container.status.phase == .ready && container.workgroup != nil
                             && container.workgroup !== oldGroup
                     }
-                    try await eventually {
-                        model.budget != nil && model.isDirty
-                            && model.mode == .automaticWithUndo
-                            && model.dailyTokenLimitText == "2300"
+                    try await eventuallyAsync {
+                        guard model.error == nil, model.localModelStatus == .ready else { return false }
+                        return await embedding.statusCallCount > initialStatusCalls
                     }
+
                     await model.stop()
                     observation.cancel()
                     await observation.value
@@ -142,32 +69,18 @@
         }
 
         @Test
-        func editsAfterSaveStartsRemainTheCurrentDraft() async throws {
-            try await withContainer { container, library in
+        func preparingLocalModelDoesNotOutliveSettingsLifecycle() async throws {
+            try await withContainer { container, _, embedding in
                 let model = MemorySettingsModel(container: container)
                 let observation = Task { @MainActor in await model.observe() }
                 do {
-                    try await eventually { model.budget != nil }
-                    model.mode = .candidateOnly
-                    model.dailyTokenLimitText = "1200"
-                    model.markDirty()
-                    model.startSave()
-
-                    // startSave captures the submitted policy before this edit.
-                    model.mode = .automaticWithUndo
-                    model.dailyTokenLimitText = "1300"
-                    model.markDirty()
-                    try await eventually { !model.isSaving && model.statusKey != nil }
-
-                    let group = try await library.workloads()
-                    let policy = try await group.memories.capturePolicy()
-                    #expect(policy.mode == .candidateOnly)
-                    #expect(policy.dailyTokenLimit == 1200)
-                    #expect(model.mode == .automaticWithUndo)
-                    #expect(model.dailyTokenLimitText == "1300")
-                    #expect(model.isDirty)
-
+                    try await eventuallyAsync {
+                        container.status.phase == .ready && model.localModelStatus == .ready
+                    }
+                    model.prepareLocalModel()
+                    try await eventuallyAsync { await embedding.prepareCallCount > 0 }
                     await model.stop()
+                    #expect(model.localModelStatus == .unavailable)
                     observation.cancel()
                     await observation.value
                 } catch {
@@ -180,14 +93,15 @@
         }
 
         private func withContainer<T: Sendable>(
-            _ body: @escaping @MainActor (AppContainer, MacLibrary) async throws -> T
+            _ body: @escaping @MainActor (AppContainer, MacLibrary, SettingsTestEmbedding) async throws -> T
         ) async throws -> T {
             let directory = FileManager.default.temporaryDirectory
                 .appendingPathComponent("mira-memory-settings-\(UUID().uuidString)", isDirectory: true)
             defer { try? FileManager.default.removeItem(at: directory) }
             let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
+            let embedding = SettingsTestEmbedding()
             let container = AppContainer(launch: launch) { launch in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: embedding,
                     directory: launch.directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { [MacDemoModule(registry: $0)] })
                 do {
@@ -201,7 +115,7 @@
             await container.start()
             do {
                 let library = try #require(container.library)
-                let result = try await body(container, library)
+                let result = try await body(container, library, embedding)
                 #expect(await container.close().isSettled)
                 return result
             } catch {
@@ -221,5 +135,40 @@
                 try await Task.sleep(for: .milliseconds(5))
             }
         }
+
+        private func eventuallyAsync(
+            _ condition: @escaping @MainActor () async -> Bool
+        ) async throws {
+            let deadline = ContinuousClock.now + .seconds(10)
+            while !(await condition()) {
+                guard ContinuousClock.now < deadline else {
+                    throw MiraError(.timeout, "The memory settings condition was not reached.")
+                }
+                try await Task.sleep(for: .milliseconds(5))
+            }
+        }
+    }
+
+    private actor SettingsTestEmbedding: MemoryEmbeddingService {
+        nonisolated let identity = MemoryEmbeddingIdentity(fingerprint: "settings-test", dimensions: 1)
+        private(set) var statusCallCount = 0
+        private(set) var prepareCallCount = 0
+
+        func status() -> MemoryEmbeddingStatus {
+            statusCallCount += 1
+            return .ready
+        }
+
+        func prepare() async throws { prepareCallCount += 1 }
+
+        func embed(_ input: MemoryEmbeddingInput) async throws -> [[Float]] {
+            switch input {
+            case .query: return [[1]]
+            case .documents(let values): return Array(repeating: [1], count: values.count)
+            }
+        }
+
+        func unload() async {}
+        func close() async {}
     }
 #endif

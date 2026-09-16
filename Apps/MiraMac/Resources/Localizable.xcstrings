@@ -1,6 +1,55 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Extraction model": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Extraction model"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "提取模型"}}}},
+    "Memory extraction exceeds the current request context limit.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Memory extraction exceeds the current request context limit."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取超过当前请求的上下文限制。"}}}},
+    "Startup status": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Startup status"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "启动状态"}}}},
+    "Memory status": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Memory status"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆状态"}}}},
+    "The local embedding model is paused during memory pressure.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model is paused during memory pressure."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "内存紧张时，本地向量模型会暂停。"}}}},
+    "The local embedding service is closed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding service is closed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量服务已关闭。"}}}},
+    "The local embedding model is unavailable or invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model is unavailable or invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量模型不可用或无效。"}}}},
+    "The local embedding service is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding service is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量服务不可用。"}}}},
+    "The local embedding model is not prepared.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model is not prepared."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量模型尚未就绪。"}}}},
+    "A document embedding dispatch supports one to four documents.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "A document embedding dispatch supports one to four documents."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "一次向量处理支持 1 至 4 段文本。"}}}},
+    "Embedding input cannot be empty.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Embedding input cannot be empty."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "向量处理的输入不能为空。"}}}},
+    "Local embedding inference failed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Local embedding inference failed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量推理失败。"}}}},
+    "Embedding input exceeds its token limit.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Embedding input exceeds its token limit."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "向量处理的输入超出了词元限制。"}}}},
+    "The embedding model returned an invalid vector.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The embedding model returned an invalid vector."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "向量模型返回了无效向量。"}}}},
+    "The embedding model returned a zero vector.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The embedding model returned a zero vector."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "向量模型返回了零向量。"}}}},
+    "The local embedding model could not be installed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model could not be installed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "无法安装本地向量模型。"}}}},
+    "The embedding model download was rejected.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The embedding model download was rejected."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "向量模型下载请求被拒绝。"}}}},
+    "The local embedding model could not be downloaded.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model could not be downloaded."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "无法下载本地向量模型。"}}}},
+    "The local embedding model could not be published.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model could not be published."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "无法完成本地向量模型的安装。"}}}},
+    "The local embedding model is not installed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model is not installed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "尚未安装本地向量模型。"}}}},
+    "The local embedding model has an invalid file set.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model has an invalid file set."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量模型的文件不完整或无效。"}}}},
+    "The local embedding model failed integrity validation.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding model failed integrity validation."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量模型未通过完整性校验。"}}}},
+    "The local memory embedding space does not match the index.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local memory embedding space does not match the index."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地记忆向量模型与索引不匹配。"}}}},
+    "The local embedding result is invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local embedding result is invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地向量结果无效。"}}}},
+    "Automatic memory extraction requires at least one source.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Automatic memory extraction requires at least one source."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "自动记忆提取至少需要一条来源信息。"}}}},
+    "Automatic memory output must use version 3 and only its required top-level keys.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Automatic memory output must use version 3 and only its required top-level keys."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "自动记忆输出必须使用版本 3，且只能包含要求的顶层字段。"}}}},
+    "Automatic memory inputIndex is out of bounds.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Automatic memory inputIndex is out of bounds."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "自动记忆来源索引超出范围。"}}}},
+    "Automatic memory item content is required and must be at most 8 KiB.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Automatic memory item content is required and must be at most 8 KiB."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "自动记忆内容不能为空，且不能超过 8 KiB。"}}}},
+    "The memory replacement index is invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The memory replacement index is invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆更正的目标索引无效。"}}}},
+    "The extraction batch crosses workspace scope.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction batch crosses workspace scope."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "提取批次跨越了工作区范围。"}}}},
+    "A batched memory source authorization has changed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "A batched memory source authorization has changed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "批次中的记忆来源授权已发生变化。"}}}},
+    "The extraction conversation context changed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction conversation context changed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "用于提取记忆的对话上下文已发生变化。"}}}},
+    "The extraction batch is empty or exceeds its turn bound.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction batch is empty or exceeds its turn bound."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "提取批次为空或超过了对话轮数限制。"}}}},
+    "The extraction context exceeds its bounded input budget.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction context exceeds its bounded input budget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取的上下文超出了输入预算。"}}}},
+    "The automatic memory turn is invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The automatic memory turn is invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "自动记忆的对话轮次无效。"}}}},
+    "The extraction batch lineage is inconsistent.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction batch lineage is inconsistent."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "提取批次的来源记录不一致。"}}}},
+    "The extraction claim exceeds its bounded source set.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction claim exceeds its bounded source set."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "提取任务超出了来源数量限制。"}}}},
+    "The extraction conversation context is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction conversation context is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "用于记忆提取的对话上下文不可用。"}}}},
+    "Automatic": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Automatic"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "自动"}}}},
+    "Embedding model": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Embedding model"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "向量模型"}}}},
+    "Local memory search": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Local memory search"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地记忆搜索"}}}},
+    "Memories are indexed on this Mac. No embedding API key is needed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Memories are indexed on this Mac. No embedding API key is needed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆在这台 Mac 上建立索引，无需向量模型 API 密钥。"}}}},
+    "Mira saves useful memories in the background after several turns or a pause, without asking each time.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Mira saves useful memories in the background after several turns or a pause, without asking each time."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Mira 会在几轮对话或暂停后，在后台保存有用的记忆，无需逐条确认。"}}}},
+    "Only memories you ask Mira to save are stored.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Only memories you ask Mira to save are stored."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "只保存你要求 Mira 记住的信息。"}}}},
+    "Prepare local model": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Prepare local model"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "准备本地模型"}}}},
+    "Preparing local model…": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Preparing local model…"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "正在准备本地模型…"}}}},
+    "Ready for semantic search": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Ready for semantic search"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "语义搜索已就绪"}}}},
+    "The local model is unavailable. Keyword search remains available. Try preparing the model again.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local model is unavailable. Keyword search remains available. Try preparing the model again."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地模型暂不可用，仍可使用关键词搜索。请重试准备模型。"}}}},
+    "The tool proposal context exceeds its supported bounds.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool proposal context exceeds its supported bounds."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具提案的上下文超出支持的范围。"}}}},
     "Pricing source · %@": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Pricing source · %@"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "价格来源 · %@"}}}},
     "The model input modalities are invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The model input modalities are invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "模型输入模态无效。"}}}},
     "The model invocation is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The model invocation is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "模型调用规格不可用。"}}}},
@@ -374,7 +423,6 @@
     "The memory extraction attempt is out of date.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The memory extraction attempt is out of date."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取尝试已过期。"}}}},
     "The memory extraction source or policy is no longer available.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The memory extraction source or policy is no longer available."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取来源或策略已不再可用。"}}}},
     "The memory extraction record is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The memory extraction record is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取记录不可用。"}}}},
-    "Memory extraction exceeds the current request or daily token budget.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Memory extraction exceeds the current request or daily token budget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取超过当前请求限制或每日 token 预算。"}}}},
     "The memory extraction queue returned an invalid batch.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The memory extraction queue returned an invalid batch."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取队列返回了无效批次。"}}}},
     "The memory extraction queue returned an ineligible job.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The memory extraction queue returned an ineligible job."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取队列返回了不符合条件的作业。"}}}},
     "The extraction adapter changed its prepared model input.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction adapter changed its prepared model input."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "提取适配器更改了已准备的模型输入。"}}}},
@@ -3045,6 +3093,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "对话模型"
+          }
+        }
+      }
+    },
+    "Used for new conversations and background memory extraction.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used for new conversations and background memory extraction."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于新对话和后台记忆提取。"
           }
         }
       }
@@ -12033,36 +12098,104 @@
         }
       }
     },
-    "Daily extraction budget": {
+    "Mira saves useful memories automatically after several turns or a pause, using the conversation’s model.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Daily extraction budget"
+            "value": "Mira saves useful memories automatically after several turns or a pause, using the conversation’s model."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "每日提取预算"
+            "value": "Mira 会在几轮对话后或暂停时自动保存有用记忆，使用当前会话的模型。"
           }
         }
       }
     },
-    "Daily token limit": {
+    "Automatic extraction uses extra tokens. Sensitive memories stay local.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Daily token limit"
+            "value": "Automatic extraction uses extra tokens. Sensitive memories stay local."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "每日 Token 上限"
+            "value": "自动提取会额外消耗 Token。敏感记忆仅保存在本地。"
+          }
+        }
+      }
+    },
+    "Background extraction": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background extraction"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台提取"
+          }
+        }
+      }
+    },
+    "Mira automatically extracts useful memories after a few turns or a pause, without asking each time.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mira automatically extracts useful memories after a few turns or a pause, without asking each time."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mira 会在几轮对话后或暂停时自动提取有用记忆，无需每次询问。"
+          }
+        }
+      }
+    },
+    "Uses the current conversation model": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses the current conversation model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用当前会话模型"
+          }
+        }
+      }
+    },
+    "Extraction reuses the current conversation model and its cached prefix when possible. Sensitive memories stay local.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extraction reuses the current conversation model and its cached prefix when possible. Sensitive memories stay local."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提取会尽量复用当前会话模型及其缓存的前缀。敏感记忆仅保存在本地。"
           }
         }
       }
@@ -12097,23 +12230,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "符合条件的捕获内容会成为待您审核的候选项；不会自动进入召回。"
-          }
-        }
-      }
-    },
-    "Enter a daily token limit from 1 to 10,000,000.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter a daily token limit from 1 to 10,000,000."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请输入 1 到 10,000,000 之间的每日 Token 上限。"
           }
         }
       }
@@ -20741,40 +20857,6 @@
         }
       }
     },
-    "Daily token budget for automatic memory. Resets at 00:00 UTC.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Daily token budget for automatic memory. Resets at 00:00 UTC."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自动记忆的每日 token 额度，于 UTC 00:00 重置。"
-          }
-        }
-      }
-    },
-    "Remaining today": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remaining today"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日剩余"
-          }
-        }
-      }
-    },
     "Only memories you save or approve are stored.": {
       "extractionState": "manual",
       "localizations": {
@@ -21920,7 +22002,14 @@
     "The demo source is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The demo source is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "演示来源不可用。"}}}},
     "%lld tool calls · %lld messages": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "%lld tool calls · %lld messages"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "%lld 次工具调用 · %lld 条消息"}}}},
     "Follow last selected model": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Follow last selected model"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "跟随上一个选择模型"}}}},
-    "The synthetic source could not be read.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The synthetic source could not be read."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "无法读取模拟来源。"}}}}
+    "The synthetic source could not be read.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The synthetic source could not be read."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "无法读取模拟来源。"}}}},
+    "The requested output limit must exceed the Anthropic thinking budget.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The requested output limit must exceed the Anthropic thinking budget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "请求的输出上限必须大于 Anthropic 思考预算。"}}}},
+    "The conversation model or extraction prefix is no longer available.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The conversation model or extraction prefix is no longer available."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "对话模型或提取前缀已不可用。"}}}},
+    "A tool-disabled cached prefix must be followed by exactly one user message.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "A tool-disabled cached prefix must be followed by exactly one user message."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "禁用工具的缓存前缀后必须紧跟一条用户消息。"}}}},
+    "The model output limit exceeds the frozen route budget.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The model output limit exceeds the frozen route budget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "模型输出上限超过了冻结路由预算。"}}}},
+    "The requested model output limit must be positive.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The requested model output limit must be positive."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "请求的模型输出上限必须为正数。"}}}},
+    "The frozen route cannot fit the Anthropic thinking budget.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The frozen route cannot fit the Anthropic thinking budget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "冻结路由无法容纳 Anthropic 思考预算。"}}}},
+    "The extraction prefix or output budget does not match the conversation model.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The extraction prefix or output budget does not match the conversation model."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "提取前缀或输出预算与对话模型不匹配。"}}}}
   },
   "version": "1.0"
 }

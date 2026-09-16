@@ -8,7 +8,7 @@ import Testing
 struct LibraryRecoveryTests {
     @Test func pendingMaintenancePreservesUnrelatedDraftsButStillSuppressesRevokedSources() async throws {
         try await withDirectory { directory in
-            let storage = try await MacLibraryStorage.open(directory: directory)
+            let storage = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
             var addresses: [AgentExecutionAddress] = []
             do {
                 let authorization = try await storage.authority.authorization()
@@ -41,12 +41,12 @@ struct LibraryRecoveryTests {
                 throw error
             }
 
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             #expect(await library.status().phase == .ready)
             #expect(await library.pendingMaintenance() == nil)
             #expect(await library.close().isSettled)
-            let reopened = try await MacLibraryStorage.open(directory: directory)
+            let reopened = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
             do {
                 for (index, address) in addresses.enumerated() {
                     let reader = JournalSessionReader(journal: reopened.sessions, payloads: reopened.sessions)

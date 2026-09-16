@@ -333,7 +333,7 @@ private final class BusinessJournalFixture: Sendable {
             "required": .array([.string("ok")]), "additionalProperties": .bool(false)])
         let descriptor = AgentToolDescriptor(definition: toolDefinition, revision: 1, outputSchema: output,
             executionMode: .exclusive, timeoutMilliseconds: 1_000, maximumResultBytes: 1_024)
-        return .init(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: callDigest,
+        return .init(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: callDigest, inheritedSources: [],
             plan: .init(input: .object([:]), sources: [], targets: []))
     }
 

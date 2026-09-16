@@ -93,6 +93,8 @@ Rank / Deduplicate
 Typed SearchResult
 ```
 
+Memory semantic recall applies a cosine admission floor before top-K selection. The current pinned Qwen 4-bit memory-query space uses 0.50; low-scoring neighbors are discarded even when fewer than six eligible memories exist. This is a relevance heuristic, not an answerability or truth guarantee, and must be reevaluated when the embedding space or query instruction changes. Keyword retrieval remains independent and can return a literal match below the semantic floor. Empty recall queries return no memories; the separate management-list operation may still list records with an empty query. Truncation means eligible matching candidates were actually omitted, not merely that the result count equals the requested limit. Focused evidence and calibration limits are in [memory search relevance](../engineering/MEMORY_SEARCH_RELEVANCE.md).
+
 <a id="s25-02"></a>
 
 ### 1.2 FTS 双路径基线
@@ -173,13 +175,17 @@ SearchResult
 
 ### 1.5 Vector Index
 
-向量检索是可选增强：
+记忆使用本地 Qwen3-Embedding-0.6B 4-bit DWQ（固定修订 `6c3ae70858513f1a78e9cdca3cae330d9075cd2a`），通过 macOS MLX 生成 1,024 维、Float32 归一化向量。量化的是模型权重，存储的向量不量化。无需远程 embedding API key，未准备好或推理失败时保留词法召回。
 
-- 索引可重建；
-- 记录 Embedding Model、维度和版本；
-- 不把向量数据库作为事实源；
-- Provider 不可用时 FTS 仍可工作；
-- 隐私策略决定哪些内容可以发送远程 Embedding。
+- SQLite 规范记忆与修订是事实源；向量及 outbox 是可重建派生数据。
+- 每次规范写入同事务失效旧向量，任务携带记忆修订、正文散列及索引代次；晚到结果重新检查后才提交。
+- 指纹包括权重修订、量化、tokenizer/右侧 padding/最后有效 token pooling、维数、归一化及查询模板。指纹变化重建整个索引，禁止混合空间。
+- Scope、来源工作区、状态、时效、发送许可和连接过滤在向量 top-K 之前执行。准确点积扫描当前合格的向量；模型相关性不授予发送权限。
+- 语义结果优先，容量大于一时为独有词法结果保留一个位置；不使用原型中效果较差的等权排名融合。
+- 上下文最多六条，最多两条沟通/语言偏好档案占用该总额度。查询工具仍用于进一步检索。返回主体与权威性，并保留内容中的时间限定。
+- 归档不携带派生向量，恢复后按规范记录重新排队；模型文件存储在库目录外的 Application Support/MiraModels。
+
+生产大规模检索质量与端到端 p95 延迟仍需单独验收，不能用原型点积耗时替代完整 SQL、权限检查、推理与上下文构建耗时。
 
 <a id="s25-06"></a>
 

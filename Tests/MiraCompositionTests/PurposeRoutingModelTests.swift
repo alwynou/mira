@@ -38,7 +38,7 @@ struct PurposeRoutingModelTests {
         }
     }
 
-    @Test func scopeAndPurposeFilterBindingsAndCapabilities() async throws {
+    @Test func scopeFiltersConversationBindings() async throws {
         try await withRoutingLibrary { library, fixture in
             let group = try await library.workloads()
             try await group.modelSettings.saveBinding(
@@ -47,7 +47,7 @@ struct PurposeRoutingModelTests {
                     routeID: fixture.textRoute, revision: 1), expectedRevision: nil)
             try await group.modelSettings.saveBinding(
                 .init(
-                    scope: .workspace(fixture.workspaceID), purpose: AgentModelPurposeID.memoryExtraction,
+                    scope: .workspace(fixture.workspaceID), purpose: AgentModelPurposeID.conversation,
                     routeID: fixture.jsonRoute, revision: 1), expectedRevision: nil)
 
             let conversation = PurposeRoutingModel(
@@ -55,13 +55,15 @@ struct PurposeRoutingModelTests {
             await conversation.refresh(options: fixture.options)
             #expect(conversation.options.map(\.id) == [fixture.textRoute, fixture.jsonRoute])
             #expect(conversation.routeID == fixture.textRoute)
+            #expect(!conversation.options.contains { $0.id == fixture.unsupportedRoute })
 
-            let extraction = PurposeRoutingModel(
-                scope: .workspace(fixture.workspaceID), purpose: AgentModelPurposeID.memoryExtraction,
+            let workspace = PurposeRoutingModel(
+                scope: .workspace(fixture.workspaceID), purpose: AgentModelPurposeID.conversation,
                 library: library, isDemo: false)
-            await extraction.refresh(options: fixture.options)
-            #expect(extraction.options.map(\.id) == [fixture.jsonRoute])
-            #expect(extraction.routeID == fixture.jsonRoute)
+            await workspace.refresh(options: fixture.options)
+            #expect(workspace.options.map(\.id) == [fixture.textRoute, fixture.jsonRoute])
+            #expect(workspace.routeID == fixture.jsonRoute)
+            #expect(!workspace.options.contains { $0.id == fixture.unsupportedRoute })
         }
     }
 
@@ -70,15 +72,15 @@ struct PurposeRoutingModelTests {
             let group = try await library.workloads()
             try await group.modelSettings.saveBinding(
                 .init(
-                    scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                    routeID: fixture.textRoute, revision: 1), expectedRevision: nil)
+                    scope: .global, purpose: AgentModelPurposeID.conversation,
+                    routeID: fixture.unsupportedRoute, revision: 1), expectedRevision: nil)
 
             let model = PurposeRoutingModel(
-                scope: .global, purpose: AgentModelPurposeID.memoryExtraction, library: library, isDemo: false)
+                scope: .global, purpose: AgentModelPurposeID.conversation, library: library, isDemo: false)
             await model.refresh(options: fixture.options)
 
-            #expect(model.options.map(\.id) == [fixture.jsonRoute])
-            #expect(model.routeID == fixture.textRoute)
+            #expect(model.options.map(\.id) == [fixture.textRoute, fixture.jsonRoute])
+            #expect(model.routeID == fixture.unsupportedRoute)
             #expect(model.canSave == false)
         }
     }
@@ -138,6 +140,7 @@ private struct RoutingFixture {
     let workspaceID: WorkspaceID
     let textRoute: RouteID
     let jsonRoute: RouteID
+    let unsupportedRoute: RouteID
     let options: [PurposeRoutingOption]
 }
 
@@ -147,7 +150,7 @@ private func withRoutingLibrary(
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("mira-purpose-routing-\(UUID().uuidString)", isDirectory: true)
     defer { try? FileManager.default.removeItem(at: directory) }
-    let library = try await MacLibrary.open(
+    let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
         directory: directory, notifications: CompositionNotifications(),
         credentials: CompositionCredentials(), modules: { [RoutingModule(registry: $0)] })
     do {
@@ -191,16 +194,22 @@ private func seedRoutingData(in group: MacLibraryWorkloads) async throws -> Rout
     let jsonModel = model("json", capabilities: [
         AgentModelCapabilityID.streamingText: .declared, AgentModelCapabilityID.jsonOutput: .declared
     ])
+    let unsupportedModel = model("unsupported", capabilities: [:])
     let textPreset = AgentRoutePreset(
         id: .init(textModel.id.rawValue), revision: 1, name: "Text route",
         modelDescriptorID: textModel.id, invocationID: "default", maximumOutputTokens: 128, configuration: routeConfiguration)
     let jsonPreset = AgentRoutePreset(
         id: .init(jsonModel.id.rawValue), revision: 1, name: "JSON route",
         modelDescriptorID: jsonModel.id, invocationID: "default", maximumOutputTokens: 128, configuration: routeConfiguration)
+    let unsupportedPreset = AgentRoutePreset(
+        id: .init(unsupportedModel.id.rawValue), revision: 1, name: "Unsupported route",
+        modelDescriptorID: unsupportedModel.id, invocationID: "default", maximumOutputTokens: 128, configuration: routeConfiguration)
     try await group.modelSettings.savePoolModel(
         textModel, preset: textPreset, expectedModelRevision: nil, expectedPresetRevision: nil)
     try await group.modelSettings.savePoolModel(
         jsonModel, preset: jsonPreset, expectedModelRevision: nil, expectedPresetRevision: nil)
+    try await group.modelSettings.savePoolModel(
+        unsupportedModel, preset: unsupportedPreset, expectedModelRevision: nil, expectedPresetRevision: nil)
 
     // These card tests establish explicit binding baselines; pool auto-initialization has separate data coverage.
     if let initial = try await group.modelSettings.bindings(scope: .global).first(where: { $0.purpose == AgentModelPurposeID.conversation }) {
@@ -212,9 +221,11 @@ private func seedRoutingData(in group: MacLibraryWorkloads) async throws -> Rout
         workspaceID: workspace.id,
         textRoute: textPreset.id,
         jsonRoute: jsonPreset.id,
+        unsupportedRoute: unsupportedPreset.id,
         options: [
             .init(id: textPreset.id, title: textPreset.name),
             .init(id: jsonPreset.id, title: jsonPreset.name),
+            .init(id: unsupportedPreset.id, title: unsupportedPreset.name),
         ])
 }
 

@@ -11,7 +11,7 @@ struct ProviderLibraryModelTests {
         try await withDirectory { directory in
             let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
             let container = AppContainer(launch: launch) { launch in
-                try await MacLibrary.open(
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: launch.directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
             }
@@ -110,7 +110,7 @@ struct ProviderLibraryModelTests {
         try await withDirectory { directory in
             let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
             let container = AppContainer(launch: launch) { launch in
-                try await MacLibrary.open(
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: launch.directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
             }
@@ -185,7 +185,7 @@ struct ProviderLibraryModelTests {
     ) -> AppContainer {
         let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
         return AppContainer(launch: launch) { launch in
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: launch.directory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(), modules: modules)
             guard seedDemo else { return library }

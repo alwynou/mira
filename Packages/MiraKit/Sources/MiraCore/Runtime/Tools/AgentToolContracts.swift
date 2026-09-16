@@ -29,6 +29,7 @@ public struct AgentToolDescriptor: Codable, Sendable, Equatable {
 /// Preparation may resolve concrete revisions, but never performs a mutation.
 public struct AgentToolPlan: Codable, Sendable, Equatable {
     public let input: JSONValue
+    /// Sources selected by this tool during preparation, excluding inherited model context.
     public let sources: [AgentSourceReference]
     public let targets: [AgentSourceReference]
     public init(input: JSONValue, sources: [AgentSourceReference], targets: [AgentSourceReference]) {
@@ -103,13 +104,24 @@ public struct AgentToolProposal: Codable, Sendable, Equatable {
     public let businessNamespace: String?
     public let callDigest: String
     public let plan: AgentToolPlan
+    /// The complete context that informed the model call, retained separately from tool-owned reads.
+    public let inheritedSources: [AgentSourceReference]
+    public var sources: [AgentSourceReference] {
+        AgentContextBuild.orderedSources(plan.sources + inheritedSources)
+    }
     public init(descriptor: AgentToolDescriptor, effect: SessionEffectKind, businessNamespace: String?,
-                callDigest: String, plan: AgentToolPlan) {
+                callDigest: String, inheritedSources: [AgentSourceReference], plan: AgentToolPlan) {
         self.descriptor = descriptor; self.effect = effect; self.businessNamespace = businessNamespace
         self.callDigest = callDigest; self.plan = plan
+        self.inheritedSources = inheritedSources
     }
     public func validate() throws {
         try descriptor.validate(); try plan.validate()
+        guard inheritedSources.count <= 8_192, Set(inheritedSources).count == inheritedSources.count,
+              sources.count <= 8_192, try SessionCodec.encode(self).count <= 1_114_112 else {
+            throw MiraError(.invalidInput, "The tool proposal context exceeds its supported bounds.")
+        }
+        for source in inheritedSources { try source.validate() }
         guard Self.isDigest(callDigest), (effect == .localWrite) == (businessNamespace != nil),
               businessNamespace.map({ SessionState.validIdentifier($0, maximumBytes: 128) }) ?? true else {
             throw MiraError(.invalidInput, "The tool proposal identity is invalid.")

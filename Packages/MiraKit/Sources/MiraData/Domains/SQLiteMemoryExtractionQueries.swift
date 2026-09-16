@@ -16,7 +16,7 @@ extension SQLiteMemoryExtractionStore {
         else { throw MiraError(.invalidInput, "The extraction status page request is invalid.") }
         return try await owner.read { db in
             var arguments: StatementArguments = [Self.key(sessionID), Self.key(executionID), workspaceID.map(Self.key)]
-            var predicate = "session_id = ? AND execution_id = ? AND workspace_id IS ?"
+            var predicate = "session_id = ? AND EXISTS (SELECT 1 FROM memory_extraction_sources s WHERE s.job_id=memory_extraction_jobs.id AND s.execution_id=?) AND workspace_id IS ?"
             if let before {
                 predicate += " AND (created_at, id) < (?, ?)"
                 arguments += [before.createdAt.timeIntervalSince1970, Self.key(before.jobID)]
@@ -28,6 +28,7 @@ extension SQLiteMemoryExtractionStore {
                     + " ORDER BY created_at DESC, id DESC LIMIT ?",
                 arguments: arguments
             ).map(Self.job)
+            guard jobs.allSatisfy({ $0.origin.completedExecutionID == executionID || $0.turns.contains { $0.completedExecutionID == executionID } }) else { throw Self.invalid }
             let visible = Array(jobs.prefix(limit))
             let cursor =
                 jobs.count > limit
@@ -48,10 +49,11 @@ extension SQLiteMemoryExtractionStore {
                 let row = try Row.fetchOne(
                     db,
                     sql:
-                        "SELECT * FROM memory_extraction_jobs WHERE id = ? AND session_id = ? AND execution_id = ? AND workspace_id IS ?",
+                        "SELECT * FROM memory_extraction_jobs WHERE id = ? AND session_id = ? AND EXISTS (SELECT 1 FROM memory_extraction_sources s WHERE s.job_id=memory_extraction_jobs.id AND s.execution_id=?) AND workspace_id IS ?",
                     arguments: [Self.key(id), Self.key(sessionID), Self.key(executionID), workspaceID.map(Self.key)])
             else { throw Self.missing }
             let job = try Self.job(row)
+            guard job.origin.completedExecutionID == executionID || job.turns.contains(where: { $0.completedExecutionID == executionID }) else { throw Self.invalid }
             let attempts = try Row.fetchAll(
                 db,
                 sql: "SELECT " + Self.accountingColumns
@@ -73,7 +75,7 @@ extension SQLiteMemoryExtractionStore {
     // Deliberately excludes the multi-megabyte request/output JSON column. The compact
     // record is written atomically with the attempt, and archive/mutation reads verify equality.
     static let accountingColumns =
-        "id, job_id, ordinal, status, budget_day, reserved_tokens, charged_tokens, accounting_digest, accounting"
+        "id, job_id, ordinal, status, reserved_tokens, charged_tokens, accounting_digest, accounting"
 
     static func accounting(_ row: Row) throws -> MemoryExtractionAttemptUsage {
         let bytes: Data = row["accounting"]
@@ -86,7 +88,6 @@ extension SQLiteMemoryExtractionStore {
             Self.key(value.jobID) == row["job_id"] as String,
             value.ordinal == row["ordinal"] as Int,
             value.state.rawValue == row["status"] as String,
-            value.budgetDay?.timeIntervalSince1970 == row["budget_day"] as Double?,
             value.reservedTokens == row["reserved_tokens"] as Int,
             value.chargedTokens == row["charged_tokens"] as Int
         else { throw invalid }

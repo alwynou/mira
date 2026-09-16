@@ -1,10 +1,10 @@
 # 记忆领域的新核心实现契约
 
-**状态：正在直接重写，尚未验收。** 本文定义新架构，不要求保留旧 SQL 会话接口。旧包测试的通过记录只代表对应提交；当前接口切换造成的编译缺口，必须在完成调用方和测试替换后重新验收。产品语义见[记忆与知识](MEMORY_AND_KNOWLEDGE.md)。
+**状态：已接入当前核心，正在完成原生与质量验收。** 本文描述生产路径。验证证据与剩余范围见[本地向量记忆实施记录](../engineering/LOCAL_MEMORY_IMPLEMENTATION.md)。产品语义见[记忆产品规范](../product/MEMORY_AND_KNOWLEDGE.md)。
 
 ## 边界与所有权
 
-`MiraCore` 只依赖 Foundation。`MemoryApplication` 承接明确的用户操作；`MemoryModule` 注册工具、上下文贡献与来源权威；`MemoryReadStore`、`MemoryStore`、`MemoryCapturePolicyStore` 分别提供领域读取、领域修改与捕获设置。模块不访问 UI、平台文件、SQL 会话表或服务商网络。
+`MiraCore` 只依赖 Foundation。`MemoryApplication` 承接明确的用户操作；`MemoryModule` 注册工具、上下文贡献与来源权威；`MemoryReadStore`、`MemoryStore` 分别提供领域读取与领域修改。模块不访问 UI、平台文件、SQL 会话表或服务商网络。
 
 `SQLiteMemoryStore` 是独立业务适配器，与库授权、业务回执和其他领域共享业务数据库。会话 journal 是消息和执行事实源，业务数据库不创建 `messages`、`conversations` 或 `executions` 的副本来证明用户授权。查询投影仅用于展示和搜索，不能授予写入权。
 
@@ -13,7 +13,7 @@ flowchart TD
     Host[macOS 宿主与展示模型] --> Application[MemoryApplication\n明确用户操作与实际任务所有权]
     Host --> Runtime[AgentApplicationRuntime\n新执行内核]
     Runtime --> Module[MemoryModule\n读取工具、保存提案、上下文贡献]
-    Module --> Policy[模块固有策略 + 宿主策略\n一次审批与当前状态复核]
+    Module --> Policy[模块固有策略 + 宿主策略\n当前状态与发送权限复核]
     Module --> Read[MemoryReadStore\n绑定目标的有界召回]
     Application --> Reader[JournalSessionReader\n原始用户证据、历史来源证明]
     Application --> Write[MemoryStore\n操作标识、修订 CAS、库授权]
@@ -35,6 +35,10 @@ flowchart TD
 
 `MemorySourceInput.userMessage` 必须携带完整 `SessionEvidenceReference`：会话、原始执行、用户消息、接纳事件、接纳序列以及不可变正文引用。只提供消息 UUID 或摘录不足以证明来源。重试仍指向最初接纳，不把重试生成的新执行误当成新陈述。
 
+自动提取使用完成的用户回合作为来源单位。持久 dirty 队列按 journal admission sequence 保存来源；达到四个完成回合、约 2,000 个输入 token、最近完成后空闲 120 秒或最早回合达到 600 秒时合并。每个批次最多 16 个回合和 8,192 个输入 token。消费者写 dirty 行或生成批次作业时与 journal checkpoint 同事务提交；周期空闲 flush 则在独立业务事务中将已有 dirty 行转换为作业，回滚必须保留 dirty 行并阻止 checkpoint 前进。消费者只读 journal 和领域状态，不调用模型；工作器在每次调度前和派发／提交前重新校验全批次来源、workspace、抑制和隐私状态。
+
+批次请求使用 v3 JSON。每个用户回合有 host 分配的 `inputIndex`，模型只用它标识支撑回合；模型输出的是简洁改写后的 `content`，不要求或接受 quote、可见 citation。bounded assistant reply 只在没有辅助来源时作为上下文出现，永远不能作为用户事实来源。请求同时携带最多 32 条 bounded current active memories，供明确同主题修订使用；`replacesIndex` 必须指向该列表并在提交时以旧 revision 做 CAS。
+
 应用入口在租约内读取最新 journal 前缀，取得只能由 `JournalSessionReader` 构造的 `SessionUserEvidence`，然后传递 `MemoryWriteSource`。业务事务验证完整引用、精确摘录、来源工作区和写入规则。工具来源由执行核心的 effect resolver 同样解析，模型不能提供或替换这些字段。
 
 人工输入使用独立 `manualEntry(UUID)`，不是伪造的会话消息。同一人工来源标识只绑定一个陈述。遗忘清除其正文和散列后，新的人工输入必须使用新来源标识。
@@ -51,41 +55,43 @@ flowchart TD
     Evidence --> Prepare[校验精确引用与有界参数\n准备不可变提案]
     Prepare --> Decision{模块策略与宿主策略}
     Decision -->|拒绝| Denied[持久失败结果\n无记忆写入]
-    Decision -->|需要审批| Review[展示完整有界提案\n一次宿主审批]
     Decision -->|允许| Check[复核当前策略、来源与库授权]
-    Review --> Check
     Check --> Intent[持久 effect intent 与派发事实]
     Intent --> Transaction[同一业务事务\n当前路线、工作区、记忆策略复核]
     Transaction --> Commit[记忆 / 去重结果 + 业务回执 + outbox]
     Commit --> Result[持久工具结果\n报告实际提交的发送策略]
 ```
 
-`memory.remember` 是 `AgentLocalWriteTool`，只准备提案，不自行执行 SQL 写入。其固有策略使用 `.constrained` 与宿主限制共同执行，不能被宿主的允许策略绕过。完整、锚定的记住前缀，当前范围，非敏感内容及精确摘录可以直接允许；模糊的明确保存意图需要审批。自动捕获开启时，普通陈述的错误保存工具调用直接拒绝，不能弹人工审批来替代后台捕获。
+`memory.remember` 是 `AgentLocalWriteTool`，只准备提案，不自行执行 SQL 写入。标准非敏感记忆允许按 standard remote 发送策略执行，不增加一次性的额外审批；敏感记忆保持本地处理并遵守本地权限。其固有策略与宿主限制共同执行，不能被宿主允许策略绕过。自动捕获不通过该工具，也不把模型提案送入人工候选收件箱。
 
-审批必须让用户审阅完整提案；超过当前审批正文上限时明确拒绝该提案，不截断后冒充完整审阅。新工具保存始终是本地使用。断言去重复用已有记忆时保留已经审阅的发送策略，工具结果必须报告实际提交结果，不能将远程可用的既有记忆误报成本地专用。
+新工具保存的标准记忆允许在所属范围内用于后续模型请求，敏感记忆仅本地保存。断言去重复用已有记忆时保留实际发送策略，回执必须反映真实结果。不得在提交前承诺已保存，也不得把本地专用结果描述为后续模型可召回。
 
-修订只改措辞和元数据，不变更记忆身份、主体和范围。语义替代产生新记忆及持久关系；同一事务更新当前投影。竞争替代保留为候选，并持久记录全部有界冲突目标。确认时同时检查候选修订和所选当前目标的修订；所选目标须属于至少一条提议的替代链。只有指定目标被替代，其余待审提议关闭、其他有效记忆保留。含待审关系的候选不能绕过目标选择直接激活。遗忘新记忆不会自动恢复旧记忆。
+修订只改措辞和元数据，不变更记忆身份、主体和范围。自动提取只保存高置信度、直接、稳定的标准用户事实、偏好和约束，范围可以是 user 或 workspace。推断、含糊、临时、假设、第三方、引用及敏感断言跳过，不创建候选 backlog，也不把任意模型输出标为 active。明确直接修订可通过 `replacesIndex` 创建新记忆并以 CAS supersede 旧记忆；冲突、过期或权限不相容时跳过。显式人工替代继续使用独立确认事务。
 
 ## 召回与引用
 
 所有召回显式携带 `AgentContextRequest.destination`。适配器在一个业务读取快照内检查冻结路线当前身份、目标工作区策略、记忆范围、状态、修订、有效期、远程发送许可、连接限制，以及原来源工作区的当前发送许可。全局记忆不能绕过来源工作区限制。
 
-普通召回只返回当前有效 Active 记忆，排除候选、归档、拒绝、移除、替代、删除、遗忘、未生效和过期内容。中文和英文采用有界词法召回；保持短词处理、确定性顺序和截断标记，不能因无关键词匹配注入无关记忆。平台分词实现属于 Data，核心只接收业务结果。
+普通召回只返回当前有效 Active 记忆，排除候选、归档、拒绝、移除、替代、删除、遗忘、未生效和过期内容。中文和英文保留有界词法召回，支持短词处理、确定性顺序和截断标记。语义路径允许无字面重合的候选；近似相关不能证明用户未陈述的事实。平台分词实现属于 Data，核心只接收业务结果。
+
+语义索引由本地 Qwen 4-bit 模型和 macOS adapter 提供；向量身份包含模型 fingerprint、预处理版本和 1,024 维 Float32 空间。索引写入走 durable vector outbox，不能成为记忆提交的权限来源。召回以 semantic 结果为主，保留小的 lexical reserve 和 small-profile 结果以覆盖字面命中及未索引事实。derived index 属于可重建投影，归档时省略，不能改变原始记忆、证据或修订事实。
 
 读取工具在准备时冻结返回内容及精确 `.domain(namespace: "memories", id, revision)` 来源，执行和发布前重新核验。上下文贡献有条数和字节上限，实际进入请求的来源随 `AgentContextBuild` 持久化；读取工具不另写一套 SQL execution usage 表。
 
-引用格式保持 `[memory:<UUID>@<revision>]`。语法有效不代表有权打开。应用必须从指定会话与已完成执行的 journal 请求证明实际使用了该精确版本，再读取对应本地历史修订。`JournalSessionReader.recordedContextEvidence` 提供冻结路线、工作区与来源，是跨领域的历史来源证明，不含 Memory 类型，也不授予当前领域或发送权限。失败执行、不存在的会话、被排除的执行、已清理正文及未记录来源均不能建立引用权限。后续措辞修订不能悄悄把旧引用重定向到新版本。
+Semantic top-K is an upper bound, not a minimum result count. Low-relevance vectors are filtered before selection under the [search admission contract](SEARCH.md); an unrelated query may return an empty result. `memory.search` does not append the automatic contributor's communication/language profile. Literal keyword recall remains available when vectors are absent or below the semantic floor.
+
+普通回答不要求显示引用，内部仍保留真实会话/批次谱系。需要显式历史查看时，引用格式保持 `[memory:<UUID>@<revision>]`。语法有效不代表有权打开。应用必须从指定会话与已完成执行的 journal 请求证明实际使用了该精确版本，再读取对应本地历史修订。`JournalSessionReader.recordedContextEvidence` 提供冻结路线、工作区与来源，是跨领域的历史来源证明，不含 Memory 类型，也不授予当前领域或发送权限。失败执行、不存在的会话、被排除的执行、已清理正文及未记录来源均不能建立引用权限。后续措辞修订不能悄悄把旧引用重定向到新版本。
 
 ## 遗忘与后台捕获
 
-遗忘必须经过库维护协调器：持久撤销旧库授权，停止并排空生产者，执行领域正文清理、会话依赖传递失效、工具与请求正文清理，并验证实际结果后完成维护。`MemoryStore.purgeMemory` 只承担领域事务，不是可直接暴露给用户的完整遗忘操作。完整维护处理器接通前，不能把领域 purge 误报为已完成遗忘。
+遗忘必须经过库维护协调器：持久撤销旧库授权，停止并排空生产者，执行领域正文清理、会话依赖传递失效、工具与请求正文清理，并验证实际结果后完成维护。`MemoryStore.purgeMemory` 只承担领域事务，不是可直接暴露给用户的完整遗忘操作。完整维护处理器已接通；不能把单独的领域 purge 误报为已完成遗忘。
 
 抑制保留完整无正文来源身份，强度只增不减：遗忘高于拒绝，高于移除。清除记忆、修订、摘录、散列、搜索及操作回执中的正文；保留必要身份、关系、状态和清理标记。已提交的用户消息、助手回复及可见思考保留为带状态标签的本地历史，隐含工具内容和受影响的后续重放必须清除。晚到的任务不得在维护后重新写回正文。
 
-后台捕获使用持久会话消费者将完成事件转成领域作业，与消费者检查点同事务提交。消费者内不能调用模型。独立作业领取、冻结模型路线、预算预留、派发、结算和失败恢复都必须重验来源、当前捕获策略与库授权。提取尝试标识与候选断言标识分离。关闭捕获时不运行模型，不把候选当成普通事实。原有保守判定、冲突候选及撤销语义仍是需求，新工作器与独立业务存储已替换旧提取循环，详细状态、预算及执行图见[自动记忆执行契约](AUTOMATIC_MEMORY_IMPLEMENTATION.md)；宿主唤醒和完整维护仍须独立接通。
+后台捕获使用持久会话消费者将完成事件写入 dirty 队列，并按阈值合并为有界领域作业，与消费者检查点同事务提交。消费者内不能调用模型。独立作业领取、从 journal 冻结批次末轮实际使用的会话路线、请求准备、revocation、uncertain-dispatch 处理、派发、结算和失败恢复都必须重验全批次来源、当前发送权限与库授权。提取尝试标识与断言 inputIndex 分离。不提供捕获模式开关或每日提取额度；模型上下文与单次输出限制仍需满足；不合格输出跳过且不进入候选收件箱。详细状态、用量及执行图见[自动记忆执行契约](AUTOMATIC_MEMORY_IMPLEMENTATION.md)。
 
 ## 验收边界
 
-本次切换必须补齐：原始证据串换、跨工作区限制、修订 CAS、操作重试与断言去重、替代冲突、审批拒绝及撤权、事务回滚、正文清理与晚写阻止、应用关闭排空、真实新内核工具往返，以及消费者恢复和后台预算边界。旧测试按业务行为移到新架构，不添加旧接口解码器来维持通过数。
+本次切换必须补齐：原始证据串换、跨工作区限制、修订 CAS、操作重试与断言去重、替代冲突、审批拒绝及撤权、事务回滚、正文清理与晚写阻止、应用关闭排空、真实新内核工具往返，以及消费者恢复、无每日额度阻断和模型上下文边界。旧测试按业务行为移到新架构，不添加旧接口解码器来维持通过数。
 
-当前仍需完成旧领域调用方及测试替换、自动捕获的宿主恢复／唤醒、传递隐私维护、备份和 macOS 直接组装。真实模型质量、人工标注数据、原生交互及平台接受度另行记录；合成测试不能关闭这些验收项。
+当前已接通宿主恢复／唤醒、维护与备份路径。大规模质量、人工标注数据、内存压力下原生交互和 macOS 15 实机验收仍需独立记录；合成测试不代替这些验收项。

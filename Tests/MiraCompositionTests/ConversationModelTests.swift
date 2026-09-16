@@ -480,7 +480,7 @@
         }
 
         private static func openDemoLibrary(directory: URL, stress: Bool) async throws -> MacLibrary {
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(),
                 modules: { [MacDemoModule(registry: $0, stress: stress)] })
@@ -629,7 +629,7 @@
         }
 
         private static func openDemoLibrary(directory: URL) async throws -> MacLibrary {
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(),
                 modules: { [MacDemoModule(registry: $0)] })

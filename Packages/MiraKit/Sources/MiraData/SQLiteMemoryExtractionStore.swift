@@ -11,7 +11,7 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
     public init(database: DatabaseQueue, libraryID: UUID) throws {
         owner = try SQLiteDomainDatabase(database: database, libraryID: libraryID, label: "mira.memory-extraction")
         try database.write { db in
-            guard try db.tableExists("memory_policy"), try db.tableExists("memory_sources") else { throw Self.invalid }
+            guard try db.tableExists("memory_sources") else { throw Self.invalid }
             try SQLiteMemoryExtractionSchema.initialize(in: db)
         }
     }
@@ -86,8 +86,27 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
         }
     }
 
-    public func memoryExtractionBudget(at: Date) async throws -> MemoryExtractionBudget {
-        try await owner.read { try Self.budget(at: at, in: $0) }
+
+    public func flushDirtyMemoryExtraction(at: Date, authorization: AgentLibraryAuthorization) async throws {
+        try Self.date(at)
+        try await owner.write(authorization: authorization) { db in
+            let sessions = try String.fetchAll(db, sql: "SELECT DISTINCT session_id FROM memory_extraction_dirty ORDER BY session_id LIMIT 128")
+            for session in sessions {
+                let rows = try Row.fetchAll(db, sql: "SELECT json, workspace_id FROM memory_extraction_dirty WHERE session_id = ? ORDER BY admission_sequence LIMIT ?", arguments: [session, MemoryExtractionBatching.maximumTurns])
+                let turns = try rows.map { try Self.decode(MemoryExtractionTurn.self, $0["json"]) }
+                guard let trigger = MemoryExtractionBatching.trigger(turns: turns, now: at) else { continue }
+                let bounded = MemoryExtractionBatching.bounded(turns)
+                guard let first = bounded.first else { continue }
+                let origin = MemoryExtractionOrigin(source: first.source, completedExecutionID: first.completedExecutionID, completionEventID: first.completionEventID, completionHead: first.completionHead)
+                let workspace: WorkspaceID? = (rows.first?["workspace_id"] as String?)
+                    .flatMap { UUID(uuidString: $0) }.map { WorkspaceID($0) }
+                let job = MemoryExtractionJob(id: .init(), origin: origin, workspaceID: workspace,
+                    createdAt: at, updatedAt: at, turns: bounded)
+                try Self.write(job, insert: true, in: db)
+                _ = trigger
+                for turn in bounded { try db.execute(sql: "DELETE FROM memory_extraction_dirty WHERE source_key = ?", arguments: [try Self.sourceKey(turn.source)]) }
+            }
+        }
     }
 
     public func claimMemoryExtraction(
@@ -100,10 +119,6 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             var job = try Self.job(id, in: db)
             guard job.state == .queued, job.attemptCount == expectedAttemptCount else { return nil }
             guard job.attemptCount < 100 else { throw Self.limit }
-            let policy = try SQLiteMemoryStore.currentCapturePolicy(in: db)
-            guard policy.revision == job.policyRevision, policy.mode != .manualOnly,
-                let enabledAt = policy.enabledAt, source.admittedAt >= enabledAt
-            else { throw Self.unauthorized }
             try Self.validateSource(source, job: job, in: db)
             try Self.validateSelection(selection, job: job, in: db)
             guard
@@ -117,10 +132,23 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             job.attemptCount += 1
             job.updatedAt = max(at, job.updatedAt)
             job.error = nil
-            let claim = MemoryExtractionClaim(
-                job: job, source: source, policy: policy, selection: selection,
+            var claim = MemoryExtractionClaim(
+                job: job, source: source, selection: selection,
                 leaseID: UUID(), leaseExpiresAt: at.addingTimeInterval(300), attemptID: UUID())
+            let request = AgentContextRequest(sessionID: source.reference.sessionID, executionID: claim.executionID,
+                workspaceID: source.workspaceID, userText: source.text,
+                authorizationEpoch: source.sessionAuthorizationEpoch, destination: .model(claim.route))
+            let candidates = try SQLiteMemoryStore.search(query: "", workspaceID: source.workspaceID,
+                states: [.active], request: request, limit: 32, at: at, in: db).memories
+            var contextBytes = 0
+            claim.existingMemories = candidates.filter { memory in
+                contextBytes += memory.draft?.content.utf8.count ?? 0
+                return contextBytes <= 8_192
+            }
             try claim.validate()
+            for memory in claim.existingMemories {
+                try db.execute(sql: "INSERT OR REPLACE INTO memory_extraction_dependencies(job_id, memory_id, revision) VALUES (?, ?, ?)", arguments: [Self.key(job.id), Self.key(memory.id), memory.revision])
+            }
             let attempt = Attempt(identity: try ClaimIdentity(claim))
             try Self.write(job, in: db)
             try Self.write(attempt, insert: true, in: db)
@@ -143,15 +171,14 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             }
             guard attempt.status == .claimed else { throw Self.conflict }
             // Byte count is a conservative estimate independent of adapter-specific token heuristics.
-            let requestBytes = try Self.encode(request).count
+            let requestBytes = try Self.encode(request.wirePayload, maximum: 4_194_304).count
             let input = max(requestBytes, request.estimatedInputTokens)
-            let (ceiling, overflow) = input.addingReportingOverflow(claim.route.maximumOutputTokens)
-            guard !overflow, ceiling > 0, ceiling <= claim.route.contextWindow,
-                ceiling <= (try Self.budget(at: at, in: db)).remainingTokens
+            let outputLimit = request.input.outputTokenLimit ?? claim.route.maximumOutputTokens
+            let (ceiling, overflow) = input.addingReportingOverflow(outputLimit)
+            guard !overflow, ceiling > 0, ceiling <= claim.route.contextWindow
             else { throw Self.limit }
             attempt.request = request
             attempt.reservedTokens = ceiling
-            attempt.budgetDay = try Self.day(at)
             attempt.status = .prepared
             try Self.write(attempt, in: db)
             return ceiling
@@ -166,13 +193,6 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             let (_, prior) = try Self.current(claim, source: source, at: at, in: db)
             var attempt = prior
             guard attempt.status == .prepared, attempt.request != nil else { throw Self.conflict }
-            let today = try Self.day(at)
-            if attempt.budgetDay != today {
-                guard attempt.reservedTokens <= (try Self.budget(at: at, in: db)).remainingTokens else {
-                    throw Self.limit
-                }
-                attempt.budgetDay = today
-            }
             attempt.dispatchedAt = at
             attempt.status = .dispatched
             try Self.write(attempt, in: db)
@@ -193,10 +213,10 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             var (job, attempt) = try Self.current(claim, source: source, at: at, in: db)
             guard attempt.status == .dispatched else { throw Self.conflict }
             try Self.validate(output, route: claim.route)
-            let proposals = try MemoryExtractionValidator.validate(
-                output: output.text, source: source, mode: claim.policy.mode)
-            let result = try SQLiteMemoryStore.commitExtractionProposals(
-                proposals, claim: claim, source: source, at: at, in: db)
+            let batchSources = claim.batchSources
+            let proposals = try MemoryExtractionValidator.validate(output: output.text, sources: batchSources)
+            let result = try SQLiteMemoryStore.commitExtractionBatchProposals(
+                proposals, claim: claim, sources: batchSources, at: at, in: db)
             let charge: Int
             if let input = output.usage.totalInputTokens, let count = output.usage.outputTokens {
                 let (sum, overflow) = input.addingReportingOverflow(count)
@@ -261,16 +281,6 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             var job = try Self.job(id, in: db)
             guard [.paused, .failed].contains(job.state), job.attemptCount < 100 else { throw Self.conflict }
             try Self.validateSource(source, job: job, in: db)
-            let policy = try SQLiteMemoryStore.currentCapturePolicy(in: db)
-            guard policy.mode != .manualOnly, let enabledAt = policy.enabledAt, source.admittedAt >= enabledAt else {
-                throw Self.unauthorized
-            }
-            if policy.revision != job.policyRevision {
-                guard let next = try Self.enqueue(origin: job.origin, source: source, at: at, in: db) else {
-                    throw Self.unauthorized
-                }
-                return next.id
-            }
             job.state = .queued
             job.error = nil
             job.updatedAt = max(at, job.updatedAt)
@@ -288,7 +298,6 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
                     "SELECT * FROM memory_extraction_attempts WHERE status IN ('claimed','prepared','dispatched') LIMIT 2"
             )
             guard rows.count <= 1 else { throw Self.invalid }
-            let policy = try SQLiteMemoryStore.currentCapturePolicy(in: db)
             for row in rows {
                 var attempt = try Self.attempt(row)
                 var job = try Self.job(attempt.identity.job.id, in: db)
@@ -299,7 +308,7 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
                 try Self.settleFailure(
                     &attempt, job: &job,
                     error: .init(.interrupted, "Memory extraction was interrupted before settlement."), at: at)
-                if !sent && job.policyRevision == policy.revision && policy.mode != .manualOnly {
+                if !sent {
                     job.state = .queued
                     job.error = nil
                 }
@@ -319,16 +328,14 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
         try date(at)
         try MemoryExtractionRequestBuilder.validate(source: source)
         guard origin.source == source.reference else { throw conflict }
-        let policy = try SQLiteMemoryStore.currentCapturePolicy(in: db)
-        guard policy.mode != .manualOnly, let enabledAt = policy.enabledAt, source.admittedAt >= enabledAt,
-            try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(source.reference), in: db)
+        guard try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(source.reference), in: db)
         else { return nil }
         let sourceKey = try sourceKey(source.reference)
         if let row = try Row.fetchOne(
             db,
             sql:
-                "SELECT * FROM memory_extraction_jobs WHERE source_key = ? AND policy_revision = ? AND extractor_revision = ?",
-            arguments: [sourceKey, policy.revision, MemoryExtractionRequestBuilder.revision])
+                "SELECT * FROM memory_extraction_jobs WHERE source_key = ? AND extractor_revision = ?",
+            arguments: [sourceKey, MemoryExtractionRequestBuilder.revision])
         {
             let existing = try job(row)
             guard existing.origin.source == source.reference, existing.workspaceID == source.workspaceID else {
@@ -338,47 +345,72 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
         }
         let job = MemoryExtractionJob(
             id: .init(), origin: origin, workspaceID: source.workspaceID,
-            policyRevision: policy.revision, createdAt: at, updatedAt: at)
+            createdAt: at, updatedAt: at)
         try validateSource(source, job: job, in: db)
         try write(job, insert: true, in: db)
         return job
     }
 
-    static func invalidatePolicy(at: Date, in db: Database) throws {
-        let policy = try SQLiteMemoryStore.currentCapturePolicy(in: db)
-        // One live attempt, independent of queue size. The SQL queue update stores each bounded canonical job.
-        for row in try Row.fetchAll(
-            db,
-            sql: "SELECT * FROM memory_extraction_attempts WHERE status IN ('claimed','prepared','dispatched') LIMIT 2")
-        {
-            var attempt = try Self.attempt(row)
-            var job = try Self.job(attempt.identity.job.id, in: db)
-            guard job.state == .running else { throw invalid }
-            try settleFailure(&attempt, job: &job, error: unauthorized, at: at)
-            job.state = .paused
-            try write(attempt, in: db)
-            try write(job, in: db)
+    /// Records completed turns durably and emits one bounded job only when the
+    /// deterministic coalescing policy says the session is ready. The journal
+    /// consumer calls this inside its checkpoint transaction, so a crash cannot
+    /// lose a dirty turn or advance it twice.
+    static func enqueueBatch(turns: [(origin: MemoryExtractionOrigin, source: SessionUserEvidence, completedAt: Date)], at: Date, in db: Database) throws -> MemoryExtractionJob? {
+        guard !turns.isEmpty else { return nil }
+        try date(at)
+        for item in turns {
+            try item.origin.validate(); try MemoryExtractionRequestBuilder.validate(source: item.source)
+            guard item.origin.source == item.source.reference,
+                  item.source.admittedAt.timeIntervalSince1970.isFinite,
+                  !item.source.reference.body.digest.isEmpty,
+                  try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(item.source.reference), in: db) else { continue }
+            let durableSourceKey = try sourceKey(item.source.reference)
+            guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM memory_extraction_sources WHERE source_key=?)", arguments: [durableSourceKey]) != true else { continue }
+            let tokenEstimate = max(1, (item.source.text.utf8.count + 3) / 4)
+            let turn = MemoryExtractionTurn(source: item.source.reference,
+                completedExecutionID: item.origin.completedExecutionID,
+                completionEventID: item.origin.completionEventID,
+                completionHead: item.origin.completionHead,
+                admittedAt: item.source.admittedAt, completedAt: item.completedAt,
+                inputTokenEstimate: tokenEstimate)
+            try turn.validate()
+            let bytes = try encode(turn)
+            try db.execute(sql: "INSERT OR IGNORE INTO memory_extraction_dirty(source_key, session_id, workspace_id, json, created_at, admission_sequence) VALUES (?, ?, ?, ?, ?, ?)", arguments: [try sourceKey(item.source.reference), key(item.source.reference.sessionID), item.source.workspaceID.map(key), bytes, item.completedAt.timeIntervalSince1970, item.source.reference.admissionSequence])
         }
-        let cursor = try Row.fetchCursor(
-            db, sql: "SELECT * FROM memory_extraction_jobs WHERE state = 'queued' AND policy_revision != ?",
-            arguments: [policy.revision])
-        var ids: [MemoryExtractionJobID] = []
-        while let row = try cursor.next() { ids.append(try job(row).id) }
-        for id in ids {
-            var job = try job(id, in: db)
-            job.state = .paused
-            job.error = unauthorized
-            job.updatedAt = max(at, job.updatedAt)
-            try write(job, in: db)
-        }
+        guard let session = turns.first?.source.reference.sessionID else { return nil }
+        let rows = try Row.fetchAll(db, sql: "SELECT json FROM memory_extraction_dirty WHERE session_id = ? ORDER BY admission_sequence LIMIT ?", arguments: [key(session), MemoryExtractionBatching.maximumTurns])
+        let pending = try rows.map { try decode(MemoryExtractionTurn.self, $0["json"]) }
+        guard let trigger = MemoryExtractionBatching.trigger(turns: pending, now: at) else { return nil }
+        let bounded = MemoryExtractionBatching.bounded(pending)
+        guard let first = bounded.first,
+              let originRow = try Row.fetchOne(db, sql: "SELECT json FROM memory_extraction_dirty WHERE source_key = ?", arguments: [try sourceKey(first.source)]) else { return nil }
+        _ = trigger // persisted by the job's deterministic turn set; no model triage is performed.
+        let originTurn = try decode(MemoryExtractionTurn.self, originRow["json"])
+        let origin = MemoryExtractionOrigin(source: originTurn.source, completedExecutionID: originTurn.completedExecutionID, completionEventID: originTurn.completionEventID, completionHead: originTurn.completionHead)
+        let job = MemoryExtractionJob(id: .init(), origin: origin, workspaceID: turns.first?.source.workspaceID,
+            createdAt: at, updatedAt: at, turns: bounded)
+        try write(job, insert: true, in: db)
+        for turn in bounded { try db.execute(sql: "DELETE FROM memory_extraction_dirty WHERE source_key = ?", arguments: [try sourceKey(turn.source)]) }
+        return job
     }
+
 
     /// The full library maintenance owner separately invalidates journal dependencies.
     static func purge(source: MemoryEvidenceSource, at: Date, in db: Database) throws {
         guard case .userMessage(let reference) = source else { return }
+        try db.execute(sql: "DELETE FROM memory_extraction_dirty WHERE source_key=?", arguments: [try sourceKey(reference)])
         let jobs = try Row.fetchAll(
-            db, sql: "SELECT * FROM memory_extraction_jobs WHERE source_key = ?", arguments: [try sourceKey(reference)]
+            db, sql: "SELECT j.* FROM memory_extraction_jobs j JOIN memory_extraction_sources s ON s.job_id=j.id WHERE s.source_key=?", arguments: [try sourceKey(reference)]
         ).map(job)
+        try purgeJobs(jobs, at: at, in: db)
+    }
+
+    static func purgeMemoryDependencies(_ memoryID: MemoryID, at: Date, in db: Database) throws {
+        let jobs = try Row.fetchAll(db, sql: "SELECT j.* FROM memory_extraction_jobs j JOIN memory_extraction_dependencies d ON d.job_id=j.id WHERE d.memory_id=?", arguments: [key(memoryID)]).map(job)
+        try purgeJobs(jobs, at: at, in: db)
+    }
+
+    private static func purgeJobs(_ jobs: [MemoryExtractionJob], at: Date, in db: Database) throws {
         for var job in jobs {
             for row in try Row.fetchAll(
                 db, sql: "SELECT * FROM memory_extraction_attempts WHERE job_id = ? ORDER BY ordinal",
@@ -404,5 +436,5 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
     static let conflict = MiraError(.conflict, "The memory extraction attempt is out of date.")
     static let unauthorized = MiraError(.unauthorized, "The memory extraction source or policy is no longer available.")
     static let missing = MiraError(.notFound, "The memory extraction record is unavailable.")
-    static let limit = MiraError(.outputLimit, "Memory extraction exceeds the current request or daily token budget.")
+    static let limit = MiraError(.outputLimit, "Memory extraction exceeds the current request context limit.")
 }

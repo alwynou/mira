@@ -8,9 +8,13 @@ import Testing
 @Suite("Memory extraction journal consumer", .timeLimit(.minutes(1)))
 struct MemoryExtractionConsumerTests {
     @Test func completionEnqueuesOnceAndCheckpointReopens() async throws {
-        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
+        try await withTaskWorkflow(outputs: Array(repeating: [.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)], count: 4), memoryEnabled: true) { fixture in
             try await enable(fixture)
-            let address = try await fixture.run("I prefer green tea")
+            let sessionID = ConversationID()
+            let address = try await fixture.run("I prefer green tea", sessionID: sessionID)
+            _ = try await fixture.run("I prefer concise answers", sessionID: sessionID)
+            _ = try await fixture.run("I work in the morning", sessionID: sessionID)
+            _ = try await fixture.run("I prefer paper books", sessionID: sessionID)
             let batches = try await fixture.library.read(
                 sessionID: address.sessionID, after: 0, limit: SessionFormatLimits.maximumReadBatches)
             let consumer = try makeConsumer(fixture)
@@ -27,9 +31,37 @@ struct MemoryExtractionConsumerTests {
                 let store = try SQLiteMemoryExtractionStore(
                     database: fixture.database, libraryID: fixture.authority.libraryID)
                 let jobs = try await store.memoryExtractionJobs(sessionID: address.sessionID, state: .queued, limit: 10)
-                await store.close()
                 #expect(jobs.count == 1)
-                #expect(jobs.first?.origin.source == (try await fixture.evidence(address)).reference)
+                #expect(jobs.first?.turns.count == 4)
+                let turns = try #require(jobs.first?.turns)
+                #expect(turns.map(\.source.admissionSequence) == turns.map(\.source.admissionSequence).sorted())
+                for turn in turns {
+                    let page = try await store.memoryExtractionStatus(sessionID: turn.source.sessionID, executionID: turn.completedExecutionID, workspaceID: nil, before: nil, limit: 4)
+                    #expect(page.jobs.map(\.id) == jobs.map(\.id))
+                    #expect(try await store.memoryExtractionReport(jobs[0].id, sessionID: turn.source.sessionID, executionID: turn.completedExecutionID, workspaceID: nil).job.id == jobs[0].id)
+                }
+                await store.close()
+                // Rebuilding a consumer checkpoint cannot requeue sources already owned by a durable job.
+                for turn in turns {
+                    let source = try await JournalSessionReader(journal: fixture.library, payloads: fixture.library)
+                        .userEvidence(sessionID: turn.source.sessionID, executionID: turn.completedExecutionID)
+                    try await fixture.database.write { db in
+                        _ = try SQLiteMemoryExtractionStore.enqueueBatch(turns: [(
+                            origin: .init(source: turn.source, completedExecutionID: turn.completedExecutionID,
+                                completionEventID: turn.completionEventID, completionHead: turn.completionHead),
+                            source: source, completedAt: turn.completedAt)], at: TaskWorkflowFixture.now, in: db)
+                    }
+                }
+                #expect(try await fixture.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_extraction_dirty") } == 0)
+                // A long foreground turn must not count as background idle time.
+                let completed = TaskWorkflowFixture.now.addingTimeInterval(500)
+                let longTurn = MemoryExtractionTurn(source: turns[0].source,
+                    completedExecutionID: turns[0].completedExecutionID, completionEventID: turns[0].completionEventID,
+                    completionHead: turns[0].completionHead, admittedAt: TaskWorkflowFixture.now,
+                    completedAt: completed, inputTokenEstimate: 8)
+                #expect(MemoryExtractionBatching.trigger(turns: [longTurn], now: completed) == nil)
+                #expect(MemoryExtractionBatching.trigger(turns: [longTurn], now: completed.addingTimeInterval(119)) == nil)
+                #expect(MemoryExtractionBatching.trigger(turns: [longTurn], now: completed.addingTimeInterval(120)) == .idle)
                 #expect(try await consumer.checkpoint(sessionID: address.sessionID)?.head == previous)
                 await consumer.close()
                 let reopened = try makeConsumer(fixture)
@@ -42,7 +74,7 @@ struct MemoryExtractionConsumerTests {
         }
     }
 
-    @Test func jobFailureRollsBackTheCompletionCheckpoint() async throws {
+    @Test func dirtyTurnFailureRollsBackTheCompletionCheckpoint() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             try await enable(fixture)
             let address = try await fixture.run("I prefer green tea")
@@ -63,14 +95,14 @@ struct MemoryExtractionConsumerTests {
                         try await fixture.database.write { db in
                             try db.execute(
                                 sql:
-                                    "CREATE TRIGGER extraction_reject BEFORE INSERT ON memory_extraction_jobs BEGIN SELECT RAISE(ABORT, 'Synthetic failure'); END"
+                                    "CREATE TRIGGER extraction_reject BEFORE INSERT ON memory_extraction_dirty BEGIN SELECT RAISE(ABORT, 'Synthetic failure'); END"
                             )
                         }
                         await #expect(throws: MiraError.self) { try await consumer.consume(delivery) }
                         #expect(try await consumer.checkpoint(sessionID: address.sessionID)?.head == previous)
                         #expect(
                             try await fixture.database.read {
-                                try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_extraction_jobs")
+                                try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_extraction_dirty")
                             } == 0)
                         try await fixture.database.write { try $0.execute(sql: "DROP TRIGGER extraction_reject") }
                     }
@@ -79,7 +111,7 @@ struct MemoryExtractionConsumerTests {
                 }
                 #expect(
                     try await fixture.database.read {
-                        try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_extraction_jobs")
+                        try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_extraction_dirty")
                     } == 1)
                 await consumer.close()
             } catch {
@@ -151,11 +183,6 @@ struct MemoryExtractionConsumerTests {
                 access: fixture.access, scope: fixture.scope, now: { TaskWorkflowFixture.now }))
     }
     private func enable(_ fixture: TaskWorkflowFixture) async throws {
-        let store = try #require(fixture.memory)
-        try await store.saveMemoryCapturePolicy(
-            .init(
-                revision: 2, mode: .automaticWithUndo,
-                dailyTokenLimit: 100_000, enabledAt: TaskWorkflowFixture.now), expectedRevision: 1,
-            authorization: fixture.authority.authorization(), at: TaskWorkflowFixture.now)
+        _ = fixture
     }
 }

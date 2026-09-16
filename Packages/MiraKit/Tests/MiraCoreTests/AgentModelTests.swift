@@ -35,6 +35,35 @@ struct AgentModelTests {
         #expect(throws: MiraError.self) { try outOfOrder.validate(for: route) }
     }
 
+    @Test func cachedPrefixRequiresOneFinalUserAndUsesPrefixContextBoundary() throws {
+        let route = makeRoute(adapterID: "family.alpha")
+        let valid = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Instructions", messages: [
+            message(.context, text: "Retrieved context"), message(.user, text: "Earlier"),
+            message(.assistant, text: "Earlier answer"), message(.user, text: "Current")
+        ], tools: [], allowsToolCalls: false, prefixMessageCount: 3)
+        try valid.validate(for: route)
+
+        let badSuffix = AgentModelInput(stepID: valid.stepID, executionID: valid.executionID,
+            instructions: valid.instructions, messages: Array(valid.messages.dropLast()) + [message(.assistant, text: "wrong")],
+            tools: [], allowsToolCalls: false, prefixMessageCount: 3)
+        #expect(throws: MiraError.self) { try badSuffix.validate(for: route) }
+
+        let badContext = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Instructions", messages: [
+            message(.context, text: "Retrieved context"), message(.assistant, text: "Earlier answer"), message(.user, text: "Current")
+        ], tools: [], allowsToolCalls: false, prefixMessageCount: 2)
+        #expect(throws: MiraError.self) { try badContext.validate(for: route) }
+    }
+
+    @Test func perRequestOutputLimitIsBoundedByFrozenRoute() throws {
+        let route = makeRoute(adapterID: "family.alpha", maximumOutputTokens: 128)
+        let valid = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Instructions",
+            messages: [message(.user, text: "Hello")], tools: [], outputTokenLimit: 64)
+        try valid.validate(for: route)
+        let invalid = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Instructions",
+            messages: [message(.user, text: "Hello")], tools: [], outputTokenLimit: 129)
+        #expect(throws: MiraError.self) { try invalid.validate(for: route) }
+    }
+
     @Test func messageRolesAndReplayContinuationAreValidated() throws {
         let route = makeRoute(adapterID: "family.alpha")
         let adapter = route.adapter

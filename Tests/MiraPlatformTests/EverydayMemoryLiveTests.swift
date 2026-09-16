@@ -21,7 +21,6 @@ final class EverydayMemoryLiveTests: XCTestCase {
             "MIRA_EVAL_API_KEY": "synthetic-evaluation-secret",
             "MIRA_EVAL_PROTOCOL": HTTPProtocolID.chatCompletions.rawValue,
             "MIRA_EVAL_CONVERSATION_MODEL": "gpt-4",
-            "MIRA_EVAL_EXTRACTION_MODEL": "gpt-4",
             "MIRA_EVAL_CASE_IDS": "synthetic-case",
         ]
         XCTAssertThrowsError(try LiveEvaluationConfiguration(environment: environment))
@@ -32,7 +31,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         let configuration = try LiveEvaluationConfiguration(environment: environment)
         let counter = RequestAuthorizationCounter()
         let credentials = EvaluationCredentials(secret: configuration.apiKey, counter: counter, limit: 1)
-        let library = try await MacLibrary.open(
+        let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
             directory: directory.appendingPathComponent("Library"),
             notifications: LiveNoopNotifications(), credentials: credentials,
             modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
@@ -42,9 +41,9 @@ final class EverydayMemoryLiveTests: XCTestCase {
             let models = try await group.modelSettings.models(connectionID: Optional<ConnectionID>.none, after: Optional<ModelDescriptorID>.none, limit: 128)
             let presets = try await group.modelSettings.presets(modelID: Optional<ModelDescriptorID>.none, after: Optional<RouteID>.none, limit: 128)
             XCTAssertEqual(models.count, 1)
-            XCTAssertEqual(presets.count, 2)
+            XCTAssertEqual(presets.count, 1)
             XCTAssertEqual(routes.conversation.modelDescriptorID, routes.extraction.modelDescriptorID)
-            XCTAssertNotEqual(routes.conversation.id, routes.extraction.id)
+            XCTAssertEqual(routes.conversation.id, routes.extraction.id)
             XCTAssertEqual(counter.value, 0)
             _ = await library.close()
         } catch {
@@ -67,7 +66,6 @@ final class EverydayMemoryLiveTests: XCTestCase {
             corpusVersion: corpus.version, selectedCaseIDs: configuration.caseIDs,
             conversationModelID: configuration.conversationModelID,
             conversationProtocol: configuration.protocolID.rawValue,
-            extractionModelID: configuration.extractionModelID,
             extractionProtocol: configuration.protocolID.rawValue, cases: [], aggregate: .init(),
             requestAuthorizationCap: configuration.requestAuthorizationCap, requestAuthorizationCount: 0)
         try Self.writeReport(report, to: configuration.reportURL)
@@ -115,7 +113,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         var approvalTask: Task<Void, Never>?
 
         do {
-            let opened = try await MacLibrary.open(
+            let opened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: LiveNoopNotifications(), credentials: credentials,
                 modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
             library = opened
@@ -136,12 +134,6 @@ final class EverydayMemoryLiveTests: XCTestCase {
             }
             let routes = try await Self.installSettings(in: workloads, configuration: configuration)
 
-            let policy = try await workloads.memories.capturePolicy()
-            try await workloads.memories.saveCapturePolicy(
-                MemoryCapturePolicy(revision: policy.revision + 1, mode: .automaticWithUndo,
-                                    dailyTokenLimit: max(policy.dailyTokenLimit, 100_000), enabledAt: Date()),
-                expectedRevision: policy.revision)
-
             let sessionID = ConversationID()
             let executionID = ExecutionID()
             let command = Self.command(
@@ -161,7 +153,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 await workloads.wake()
                 do {
                     let observation = try await Self.waitForMemory(
-                        in: workloads, sourceExecution: executionID, timeout: 120)
+                        in: workloads, sourceSession: sessionID, sourceExecution: executionID, timeout: 240)
                     captured = observation.memories
                     extractionState = observation.state
                     extractionErrorCode = observation.errorCode
@@ -172,12 +164,6 @@ final class EverydayMemoryLiveTests: XCTestCase {
             } else {
                 terminalErrorCode = Self.errorCode(completion) ?? "execution_failed"
             }
-
-            let manual = try await workloads.memories.capturePolicy()
-            try await workloads.memories.saveCapturePolicy(
-                MemoryCapturePolicy(revision: manual.revision + 1, mode: .manualOnly,
-                                    dailyTokenLimit: manual.dailyTokenLimit, enabledAt: nil),
-                expectedRevision: manual.revision)
 
             let followupSessionID = ConversationID()
             let followupExecutionID = ExecutionID()
@@ -249,9 +235,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
     ) async throws -> EvaluationRoutes {
         let connectionID = ConnectionID()
         let conversationModelID = ModelDescriptorID()
-        let extractionModelID = ModelDescriptorID()
         let conversationRouteID = RouteID(conversationModelID.rawValue)
-        let extractionRouteID = RouteID(extractionModelID.rawValue)
         let provider = try XCTUnwrap(ProviderModelCatalog.bundled.providers.first { $0.id == "openai" })
         let connectionTemplate = try provider.makeConnection(
             id: connectionID, name: "Live evaluation", credential: nil,
@@ -270,8 +254,6 @@ final class EverydayMemoryLiveTests: XCTestCase {
         ]
         let conversationBase = try ProviderModelCatalog.bundled.configuration(
             connection: saved, modelID: configuration.conversationModelID, isEnabled: true)
-        let extractionBase = try ProviderModelCatalog.bundled.configuration(
-            connection: saved, modelID: configuration.extractionModelID, isEnabled: true)
         func explicitModel(
             _ base: AgentConfiguredModel, descriptorID: ModelDescriptorID, modelID: String, output: Int
         ) -> AgentConfiguredModel {
@@ -287,61 +269,27 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 displayName: base.displayName, isEnabled: true,
                 invocations: [invocation], facts: [])
         }
-        let sharedModelOutput = configuration.conversationModelID == configuration.extractionModelID
-            ? max(configuration.conversationOutputTokens, configuration.extractionOutputTokens)
-            : configuration.conversationOutputTokens
         let conversationModel = explicitModel(
             conversationBase.model, descriptorID: conversationModelID,
-            modelID: configuration.conversationModelID, output: sharedModelOutput)
-        let extractionModel = explicitModel(
-            extractionBase.model, descriptorID: extractionModelID,
-            modelID: configuration.extractionModelID, output: configuration.extractionOutputTokens)
+            modelID: configuration.conversationModelID, output: configuration.conversationOutputTokens)
         let conversationPreset = AgentRoutePreset(
             id: conversationRouteID, revision: 1, name: "Live conversation",
             modelDescriptorID: conversationModelID, invocationID: "default",
             maximumOutputTokens: configuration.conversationOutputTokens,
             configuration: .init(schema: conversationModel.invocations[0].configuration.schema, value: .object([:])))
-        let extractionPreset = AgentRoutePreset(
-            id: extractionRouteID, revision: 1, name: "Live extraction",
-            modelDescriptorID: extractionModelID, invocationID: "default",
-            maximumOutputTokens: configuration.extractionOutputTokens,
-            configuration: .init(schema: extractionModel.invocations[0].configuration.schema, value: .object([:])))
         try await group.modelSettings.savePoolModel(
             conversationModel, preset: conversationPreset,
             expectedModelRevision: nil, expectedPresetRevision: nil)
-        if conversationModel.modelID == extractionModel.modelID {
-            // A configured model identity is unique by connection/model/adapter;
-            // extraction gets a second preset rather than a duplicate model row.
-            let sharedPreset = AgentRoutePreset(
-                id: extractionRouteID, revision: extractionPreset.revision,
-                name: extractionPreset.name, modelDescriptorID: conversationModelID,
-                invocationID: "default",
-                maximumOutputTokens: extractionPreset.maximumOutputTokens,
-                configuration: extractionPreset.configuration)
-            try await group.modelSettings.savePreset(sharedPreset, expectedRevision: nil)
-        } else {
-            try await group.modelSettings.savePoolModel(
-                extractionModel, preset: extractionPreset,
-                expectedModelRevision: nil, expectedPresetRevision: nil)
-        }
         let bindings = try await group.modelSettings.bindings(scope: .global)
         let conversationBinding = bindings.first { $0.purpose == AgentModelPurposeID.conversation }
-        let extractionBinding = bindings.first { $0.purpose == AgentModelPurposeID.memoryExtraction }
         try await group.modelSettings.saveBinding(
             .init(scope: .global, purpose: AgentModelPurposeID.conversation,
                   routeID: conversationRouteID, revision: (conversationBinding?.revision ?? 0) + 1),
             expectedRevision: conversationBinding?.revision)
-        try await group.modelSettings.saveBinding(
-            .init(scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                  routeID: extractionRouteID, revision: (extractionBinding?.revision ?? 0) + 1),
-            expectedRevision: extractionBinding?.revision)
         let conversation = try await group.modelSettings.resolve(
             purpose: AgentModelPurposeID.conversation, explicitRouteID: conversationRouteID,
             sessionSelection: .inherit, workspaceID: nil, requiredCapabilities: [])
-        let extraction = try await group.modelSettings.resolve(
-            purpose: AgentModelPurposeID.memoryExtraction, explicitRouteID: extractionRouteID,
-            sessionSelection: .inherit, workspaceID: nil, requiredCapabilities: [AgentModelCapabilityID.jsonOutput])
-        return .init(conversation: conversation.route, extraction: extraction.route)
+        return .init(conversation: conversation.route, extraction: conversation.route)
     }
 
     private static func command(
@@ -351,25 +299,47 @@ final class EverydayMemoryLiveTests: XCTestCase {
         .init(id: UUID(), sessionID: sessionID, executionID: executionID,
               input: .message(id: MessageID(), text: text, timeZoneIdentifier: "UTC"),
               options: .init(
-                  instructions: "Answer naturally. Cite relevant memories as [memory:UUID@revision].",
+                  instructions: "Answer naturally using relevant memories. Visible citations are optional.",
                   limits: .init(modelTimeoutMilliseconds: 300_000), route: route), opening: opening)
     }
 
     private static func waitForMemory(
-        in group: MacLibraryWorkloads, sourceExecution: ExecutionID, timeout: TimeInterval
+        in group: MacLibraryWorkloads, sourceSession: ConversationID,
+        sourceExecution: ExecutionID, timeout: TimeInterval
     ) async throws -> MemoryObservationResult {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            let memories = try await captureMemories(in: group, sourceExecution: sourceExecution)
-            if !memories.isEmpty { return .init(memories: memories, state: "completed", errorCode: nil) }
+            // A batch may complete with zero accepted facts. Persisted extraction
+            // status is therefore the completion authority; active-memory presence
+            // cannot be used as a proxy for a completed job.
+            let page = try await group.memories.extractionStatus(
+                sessionID: sourceSession, executionID: sourceExecution, workspaceID: nil,
+                before: nil, limit: 16)
+            if let job = page.jobs.last {
+                switch job.state {
+                case .completed:
+                    _ = try? await group.memories.extractionReport(
+                        job.id, sessionID: sourceSession, executionID: sourceExecution, workspaceID: nil)
+                    let memories = try await captureMemories(in: group, sourceExecution: sourceExecution)
+                    return .init(memories: memories, state: job.state.rawValue, errorCode: nil)
+                case .failed, .paused, .cancelled, .suppressed:
+                    let report = try? await group.memories.extractionReport(
+                        job.id, sessionID: sourceSession, executionID: sourceExecution, workspaceID: nil)
+                    let attemptError = report?.attempts.last.map { $0.state.rawValue }
+                    return .init(memories: [], state: job.state.rawValue,
+                                 errorCode: attemptError ?? job.state.rawValue)
+                case .queued, .running:
+                    break
+                }
+            }
             let status = await group.status()
             if let failure = status.failures["extraction"] {
                 return .init(memories: [], state: "failed", errorCode: failure.code.rawValue)
             }
             try await Task.sleep(for: .milliseconds(200))
         }
-        // The host exposes extraction as a worker, not as a second job authority.
-        // Do not fabricate a terminal job state when no domain result is visible.
+        // Keep timeout distinct from a terminal zero-item extraction. The caller
+        // reports this as an evaluation mismatch rather than a successful capture.
         return .init(memories: [], state: "unavailable", errorCode: nil)
     }
 
@@ -539,7 +509,7 @@ private final class EvaluationCredentials: MacCredentialStore, @unchecked Sendab
 private struct LiveEvaluationConfiguration: Sendable {
     let corpusURL: URL; let reportURL: URL; let endpoint: String; let allowsLoopbackHTTP: Bool; let apiKey: String
     let protocolID: HTTPProtocolID; let dialectProfileID: HTTPDialectProfileID
-    let conversationModelID: String; let extractionModelID: String; let caseIDs: [String]
+    let conversationModelID: String; let caseIDs: [String]
     let requestAuthorizationCap: Int; let contextWindow: Int; let conversationOutputTokens: Int; let extractionOutputTokens: Int
 
     init(environment: [String: String]) throws {
@@ -558,7 +528,7 @@ private struct LiveEvaluationConfiguration: Sendable {
         guard FileManager.default.fileExists(atPath: corpusURL.path) else { throw MiraError(.configuration, "MIRA_EVAL_CORPUS must point to an existing file.") }
         guard FileManager.default.fileExists(atPath: reportURL.deletingLastPathComponent().path), !FileManager.default.fileExists(atPath: reportURL.path) else { throw MiraError(.configuration, "MIRA_EVAL_REPORT must be a new path in an existing directory.") }
         endpoint = try required("MIRA_EVAL_ENDPOINT"); apiKey = try required("MIRA_EVAL_API_KEY")
-        conversationModelID = try required("MIRA_EVAL_CONVERSATION_MODEL"); extractionModelID = try required("MIRA_EVAL_EXTRACTION_MODEL")
+        conversationModelID = try required("MIRA_EVAL_CONVERSATION_MODEL")
         protocolID = HTTPProtocolID(rawValue: try required("MIRA_EVAL_PROTOCOL"))
         dialectProfileID = .openAI
         allowsLoopbackHTTP = environment["MIRA_EVAL_ALLOW_LOOPBACK_HTTP"] == "1"
@@ -614,7 +584,6 @@ private struct LiveEvaluationReport: Codable {
     let selectedCaseIDs: [String]
     let conversationModelID: String
     let conversationProtocol: String
-    let extractionModelID: String
     let extractionProtocol: String
     var cases: [EverydayMemoryCaseReport]
     var aggregate: LiveEvaluationAggregate

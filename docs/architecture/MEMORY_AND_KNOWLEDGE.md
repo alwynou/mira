@@ -1,12 +1,12 @@
 # 记忆与知识领域设计
 
 **文档版本：** v1.2  
-**更新日期：** 2026-09-05  
+**更新日期：** 2026-09-16
 **状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
 
 定义记忆提取、来源、抑制、演化、工作记忆及资料版本与解析；用户可见行为在产品规范中定义。
 
-The current manual increment contract is detailed in [Memory implementation](MEMORY_IMPLEMENTATION.md); this document remains the broader domain contract.
+The current production memory contract is detailed in [Memory implementation](MEMORY_IMPLEMENTATION.md); this document remains the broader domain contract.
 
 新核心的记忆遗忘已通过独立库作用域处理器组合领域、业务回执、会话正文和查询投影，具体当前契约见[会话隐私维护](AGENT_SESSION_PRIVACY.md#记忆遗忘处理器)。生产宿主仍在直接切换，不增加旧存储兼容入口。
 
@@ -110,8 +110,8 @@ agentInference
 ```text
 Committed Message / Source
         ↓
-Triage Gate
-是否值得长期保留？
+Deterministic Batch Gate
+轮数 / 输入量 / 空闲 / 年龄 / 预算
         ↓
 Structured Extraction
 主体、Scope、时间、类型、内容、敏感度
@@ -123,7 +123,7 @@ Duplicate / Existing Memory Match
 Policy Decision
         ├── Active: explicit user
         ├── Active: clear stable user statement + Undo
-        └── Candidate: inferred / sensitive / conflict / low confidence
+        └── Skip: inferred / sensitive / ambiguous conflict / low confidence
         ↓
 Persist Memory + Evidence
         ↓
@@ -143,10 +143,10 @@ Update Search Index / Current Projection
 - 不是短期情绪；
 - Scope 可确定；
 - 不属于敏感自动捕获禁区；
-- 不替代已确认高权威 Memory；
+- 替代必须有明确纠正意图、相同主体与范围、兼容种类及当前修订；
 - 通过重复检测。
 
-未满足时进入 Candidate 或不创建。
+未满足时不自动创建，不进入后台候选审核列表。
 
 <a id="s19-06"></a>
 
@@ -162,11 +162,11 @@ Memory Candidate Key
 source ID + subject + scope + normalized assertion fingerprint
 ```
 
-提取器版本只属于任务身份，不能靠升级版本绕过 Memory 去重。候选输出在提交前同时匹配当前 Memory、来源决策和已拒绝 / 抑制记录；不确定的同义项进入候选，不能为了追求召回率复制成多个 Active。
+提取器版本只属于任务身份，不能靠升级版本绕过 Memory 去重。候选输出在提交前同时匹配当前 Memory、来源决策和已拒绝 / 抑制记录；不确定的同义项跳过，不能为了追求召回率复制成多个 Active。
 
 保存最小 `ExtractionDecision`：source ID / revision、可定位片段、candidate key、decision（accepted / rejected / suppressed）、targetMemoryId?、policyVersion 和 changedAt。它是用户处置事实，不是可随索引重建删除的缓存。
 
-撤销、拒绝或遗忘时同步写入 suppressed / rejected 决策。无法可靠定位单个断言时，保守阻止该来源继续自动提取；显式重新记住可解除相关抑制。去重与抑制在数据库提交时再次检查，避免两个后台任务同时通过预检查。
+撤销、拒绝或遗忘时同步写入 suppressed / rejected 决策。无法可靠定位单个断言时，保守阻止该来源继续自动提取；显式重新记住必须来自新的用户消息，不能解除原来源的遗忘抑制。去重与抑制在数据库提交时再次检查，避免两个后台任务同时通过预检查。
 
 <a id="s19-07"></a>
 
@@ -231,7 +231,7 @@ MemoryCurrentProjection
 
 1. 保存 Relation；
 2. 更新 Current Projection；
-3. 更新 FTS / Retrieval 可见性。
+3. 更新 FTS / Retrieval 可见性，并删除旧向量及索引任务、为新版本写入索引 outbox。
 
 同一旧记忆收到第二条不相容替代时，新关系保留为 proposed，当前有效版本不变；用户解决前不提交成两个当前事实。确认替代要求同一主体、Scope 与兼容时间范围，禁止自引用和循环；跨范围演化必须由显式用例处理。
 
@@ -256,14 +256,14 @@ ExtractionDecision 的抑制元数据不保存被遗忘正文；保留必要来�
 
 只在已提交来源上提取。输入包含有限的用户消息窗口和必要对话上下文，明确每段 speakerRole、消息 ID、版本和时间；Assistant 文字只帮助理解指代，不能作为用户已决定的证据。
 
-候选必须引用输入中真实存在的用户摘录或 Source 片段。提交前检查原文版本、Scope、Sensitivity、当前设置、重复项和已确认 Memory；来源已变更、已删除、被抑制或策略不再允许时，丢弃结果或转为需复核，不能提交过期 Job 输出。
+自动提取输出通过 inputIndex 关联真实用户消息；正文允许模型归纳，摘录与整个批次的来源由宿主生成，不要求模型提供精确引文。提交前检查原文版本、Scope、Sensitivity、当前设置、重复项和已确认 Memory；来源已变更、已删除、被抑制或策略不再允许时，丢弃结果或暂停作业，不能提交过期 Job 输出。
 
-明确“记住”通过受保护的 `memory.remember` 工具或手动保存用例完成；参数没有可靠绑定当前用户明确意图时发出确认请求，不以模型声称“用户授权”作为依据。自动提取使用同一提交用例并执行自动记忆策略。相同来源的两个路径只能得到一条业务结果。
+明确“记住”通过受保护的 `memory.remember` 工具或手动保存用例完成；宿主将来源绑定到当前真实用户消息，校验范围和抑制，无需额外确认。记忆始终自动，提取沿用会话模型；普通陈述由批量后台提取处理，工具说明要求仅在用户明确要求保存时调用。自动提取使用同一提交用例并执行自动记忆策略。相同来源的两个路径只能得到一条业务结果。
 
 后台提取成功前，前台只可显示待处理状态。手动保存与 `memory.remember` 成功回执在事务后产生，模型只能依据该回执声称“已记住”。首版不允许工具直接写 SQL 或绕过 Evidence / Triage。
 
 > **参考设计标注｜Nowledge Mem**  
-> 借鉴 Atomic Memory、来源、Working Memory 和 `replaces / enriches / confirms / challenges` 类知识演化。Mira 使用分级自动 Active / Candidate 策略，并增加可重建 Current Projection，避免每次召回递归计算完整演化链。
+> 借鉴 Atomic Memory、来源、Working Memory 和 `replaces / enriches / confirms / challenges` 类知识演化。Mira 使用自动 Active / 跳过策略，并增加可重建 Current Projection，避免每次召回递归计算完整演化链。
 
 ---
 

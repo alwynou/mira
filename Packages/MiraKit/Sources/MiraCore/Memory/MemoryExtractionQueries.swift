@@ -6,7 +6,7 @@ public enum MemoryExtractionAttemptState: String, Codable, Sendable {
 }
 
 /// Accounting has no request, response, thinking, evidence excerpt, or memory body.
-/// Reserved and charged tokens are budget facts, never substitutes for reported usage.
+/// Reserved and charged tokens are conservative per-attempt accounting facts, never a quota or a substitute for reported usage.
 public struct MemoryExtractionAttemptUsage: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let jobID: MemoryExtractionJobID
@@ -15,7 +15,6 @@ public struct MemoryExtractionAttemptUsage: Identifiable, Codable, Equatable, Se
     public let startedAt: Date
     public let dispatchedAt: Date?
     public let settledAt: Date?
-    public let budgetDay: Date?
     public let reservedTokens: Int
     public let chargedTokens: Int
     public let usage: TokenUsage?
@@ -24,7 +23,7 @@ public struct MemoryExtractionAttemptUsage: Identifiable, Codable, Equatable, Se
 
     public init(
         id: UUID, jobID: MemoryExtractionJobID, ordinal: Int, state: MemoryExtractionAttemptState,
-        startedAt: Date, dispatchedAt: Date?, settledAt: Date?, budgetDay: Date?,
+        startedAt: Date, dispatchedAt: Date?, settledAt: Date?,
         reservedTokens: Int, chargedTokens: Int, usage: TokenUsage?, route: AgentModelRoute?,
         bodyPurgedAt: Date?
     ) {
@@ -35,7 +34,6 @@ public struct MemoryExtractionAttemptUsage: Identifiable, Codable, Equatable, Se
         self.startedAt = startedAt
         self.dispatchedAt = dispatchedAt
         self.settledAt = settledAt
-        self.budgetDay = budgetDay
         self.reservedTokens = reservedTokens
         self.chargedTokens = chargedTokens
         self.usage = usage
@@ -45,7 +43,7 @@ public struct MemoryExtractionAttemptUsage: Identifiable, Codable, Equatable, Se
 
     public func validate() throws {
         guard (1...100).contains(ordinal), startedAt.timeIntervalSince1970.isFinite,
-            [dispatchedAt, settledAt, budgetDay, bodyPurgedAt].allSatisfy({
+            [dispatchedAt, settledAt, bodyPurgedAt].allSatisfy({
                 $0.map { $0.timeIntervalSince1970.isFinite } ?? true
             }), (0...10_000_000).contains(reservedTokens),
             chargedTokens >= 0, chargedTokens <= TokenUsage.maximumAggregateTokens,
@@ -55,11 +53,7 @@ public struct MemoryExtractionAttemptUsage: Identifiable, Codable, Equatable, Se
             bodyPurgedAt == nil || !state.isLive,
             dispatchedAt.map({ $0 >= startedAt }) ?? true,
             settledAt.map({ $0 >= (dispatchedAt ?? startedAt) }) ?? true,
-            bodyPurgedAt.map({ $0 >= (settledAt ?? startedAt) }) ?? true,
-            budgetDay.map({ floor($0.timeIntervalSince1970 / 86_400) * 86_400 == $0.timeIntervalSince1970 }) ?? true,
-            dispatchedAt.map({ floor($0.timeIntervalSince1970 / 86_400) * 86_400 == budgetDay?.timeIntervalSince1970 })
-                ?? true,
-            (reservedTokens > 0) == (budgetDay != nil)
+            bodyPurgedAt.map({ $0 >= (settledAt ?? startedAt) }) ?? true
         else { throw Self.invalid }
         try usage?.validate()
         try route?.validate()

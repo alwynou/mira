@@ -10,11 +10,48 @@ import Testing
 /// settings, workspace, and library-authority stores.
 @Suite("Journal memory extraction store", .timeLimit(.minutes(2)))
 struct JournalMemoryExtractionStoreTests {
+    @Test func repeatedLargeRequestsHaveNoDailyQuotaButStillRespectModelContext() async throws {
+        let reply: [AgentModelStreamEvent] = [.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]
+        try await withTaskWorkflow(outputs: Array(repeating: reply, count: 3), memoryEnabled: true) { fixture in
+            try await withExtractionStore(fixture) { store in
+                let auth = try await fixture.authority.authorization()
+                var settled = 0
+                for index in 0..<3 {
+                    let source = try await completedSource(in: fixture, text: "Synthetic stable preference \(index)")
+                    let job = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
+                    let claim = try #require(try await store.claimMemoryExtraction(job.id, expectedAttemptCount: 0,
+                        source: source, selection: .init(route: fixture.route, binding: nil), authorization: auth, at: TaskWorkflowFixture.now))
+                    let input = try MemoryExtractionRequestBuilder.input(for: claim)
+                    let oversized = AgentPreparedModelRequest(adapter: fixture.route.adapter, input: input,
+                        wirePayload: .object([:]), estimatedInputTokens: fixture.route.contextWindow)
+                    await #expect(throws: MiraError.self) {
+                        _ = try await store.prepareMemoryExtraction(claim, request: oversized, source: source,
+                            authorization: auth, at: TaskWorkflowFixture.now)
+                    }
+                    #expect(try await attemptUsage(store: store, claim: claim).state == .claimed)
+                    let request = AgentPreparedModelRequest(adapter: fixture.route.adapter, input: input,
+                        wirePayload: .object(["synthetic": .string(String(repeating: "x", count: 12_000))]), estimatedInputTokens: 12_000)
+                    let estimate = try await store.prepareMemoryExtraction(claim, request: request, source: source,
+                        authorization: auth, at: TaskWorkflowFixture.now)
+                    #expect(estimate > 10_000)
+                    try await store.markMemoryExtractionDispatched(claim, source: source, authorization: auth, at: TaskWorkflowFixture.now)
+                    let output = AgentModelOutput(blocks: [.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))],
+                        continuation: nil, usage: .init(), finishReason: .stop)
+                    let completed = try await store.completeMemoryExtraction(claim, source: source, output: output,
+                        authorization: auth, at: TaskWorkflowFixture.now)
+                    #expect(completed.state == .completed)
+                    settled += try await attemptUsage(store: store, claim: claim).chargedTokens
+                }
+                #expect(settled > 30_000)
+            }
+        }
+    }
+
     @Test func sameOriginIsEnqueuedAtMostOnce() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I prefer green tea")
             let origin = origin(for: source)
-            try await enableCapture(in: fixture)
+
 
             let first = try await enqueue(origin: origin, source: source, in: fixture)
             let second = try await enqueue(origin: origin, source: source, in: fixture)
@@ -35,7 +72,7 @@ struct JournalMemoryExtractionStoreTests {
         ) { fixture in
             let source = try await completedSource(in: fixture, text: "I work from Shanghai")
             let secondSource = try await completedSource(in: fixture, text: "I work from Hangzhou")
-            try await enableCapture(in: fixture)
+
             let job = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
             let secondJob = try #require(
                 await enqueue(origin: origin(for: secondSource), source: secondSource, in: fixture))
@@ -43,9 +80,7 @@ struct JournalMemoryExtractionStoreTests {
                 let auth = try await fixture.authority.authorization()
                 let selection = AgentModelRouteResolution(
                     route: fixture.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: fixture.route.id, revision: fixture.route.revision))
+                    binding: nil)
                 let claim = try await store.claimMemoryExtraction(
                     job.id, expectedAttemptCount: 0,
                     source: source, selection: selection, authorization: auth, at: TaskWorkflowFixture.now)
@@ -61,15 +96,13 @@ struct JournalMemoryExtractionStoreTests {
     @Test func preparedRequestIsFrozenAndSubstitutionIsRejected() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I prefer jasmine tea")
-            try await enableCapture(in: fixture)
+
             let job = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
             try await withExtractionStore(fixture) { store in
                 let auth = try await fixture.authority.authorization()
                 let selection = AgentModelRouteResolution(
                     route: fixture.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: fixture.route.id, revision: fixture.route.revision))
+                    binding: nil)
                 let claim = try #require(
                     try await store.claimMemoryExtraction(
                         job.id, expectedAttemptCount: 0,
@@ -87,8 +120,7 @@ struct JournalMemoryExtractionStoreTests {
                         claim, request: substituted, source: source,
                         authorization: auth, at: TaskWorkflowFixture.now)
                 }
-                let budget = try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now)
-                #expect(budget.reservedTokens == reserved)
+                #expect(try await attemptUsage(store: store, claim: claim).reservedTokens == reserved)
             }
         }
     }
@@ -96,15 +128,13 @@ struct JournalMemoryExtractionStoreTests {
     @Test func unsentRecoveryRequeuesButDispatchedFailurePauses() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I like quiet mornings")
-            try await enableCapture(in: fixture)
+
             try await withExtractionStore(fixture) { store in
                 let first = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
                 let auth = try await fixture.authority.authorization()
                 let selection = AgentModelRouteResolution(
                     route: fixture.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: fixture.route.id, revision: fixture.route.revision))
+                    binding: nil)
                 let claim = try #require(
                     try await store.claimMemoryExtraction(
                         first.id, expectedAttemptCount: 0,
@@ -145,15 +175,13 @@ struct JournalMemoryExtractionStoreTests {
     @Test func reservationChargesFullCeilingWhenUsageIsUnknown() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I prefer short walks")
-            try await enableCapture(in: fixture)
+
             try await withExtractionStore(fixture) { store in
                 let job = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
                 let auth = try await fixture.authority.authorization()
                 let selection = AgentModelRouteResolution(
                     route: fixture.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: fixture.route.id, revision: 1))
+                    binding: nil)
                 let claim = try #require(
                     try await store.claimMemoryExtraction(
                         job.id, expectedAttemptCount: 0,
@@ -163,18 +191,17 @@ struct JournalMemoryExtractionStoreTests {
                     claim, request: request, source: source,
                     authorization: auth, at: TaskWorkflowFixture.now)
                 #expect(reserved > 0)
-                #expect(try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now).reservedTokens == reserved)
                 try await store.markMemoryExtractionDispatched(
                     claim, source: source, authorization: auth, at: TaskWorkflowFixture.now)
                 let output = AgentModelOutput(
-                    blocks: [.init(id: "text", content: .text("{\"version\":2,\"items\":[]}"))],
+                    blocks: [.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))],
                     continuation: nil, usage: .init(), finishReason: .stop)
                 _ = try await store.completeMemoryExtraction(
                     claim, source: source, output: output,
                     authorization: auth, at: TaskWorkflowFixture.now)
-                let budget = try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now)
-                #expect(budget.reservedTokens == 0)
-                #expect(budget.chargedTokens == reserved)
+                let usage = try await attemptUsage(store: store, claim: claim)
+                #expect(usage.state == .completed && usage.chargedTokens == reserved)
+                #expect(usage.usage?.inputTokens == nil)
             }
         }
     }
@@ -182,15 +209,13 @@ struct JournalMemoryExtractionStoreTests {
     @Test func dispatchWriteFailureRollsBackWithoutLosingReservation() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I prefer a paper notebook")
-            try await enableCapture(in: fixture)
+
             try await withExtractionStore(fixture) { store in
                 let job = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
                 let auth = try await fixture.authority.authorization()
                 let selection = AgentModelRouteResolution(
                     route: fixture.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: fixture.route.id, revision: 1))
+                    binding: nil)
                 let claim = try #require(
                     try await store.claimMemoryExtraction(
                         job.id, expectedAttemptCount: 0,
@@ -209,20 +234,21 @@ struct JournalMemoryExtractionStoreTests {
                     try await store.markMemoryExtractionDispatched(
                         claim, source: source, authorization: auth, at: TaskWorkflowFixture.now)
                 }
-                let budget = try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now)
-                #expect(budget.reservedTokens == reserved)
                 #expect(
                     try await store.memoryExtractionJobs(
                         sessionID: source.reference.sessionID, state: .running, limit: 8
                     ).count == 1)
+                let usage = try await attemptUsage(store: store, claim: claim)
+                #expect(usage.state == .prepared && usage.dispatchedAt == nil)
+                #expect(usage.reservedTokens == reserved && usage.chargedTokens == 0)
             }
         }
     }
 
-    @Test func suppressedSourceIsNotEnqueuedAndPolicyDisablesFutureJobs() async throws {
+    @Test func suppressedSourceIsNotEnqueued() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I prefer decaf")
-            try await enableCapture(in: fixture)
+
             let memory = try #require(fixture.memory)
             let authorization = try await fixture.authority.authorization()
             _ = try await memory.createMemory(
@@ -234,25 +260,19 @@ struct JournalMemoryExtractionStoreTests {
                 try SQLiteMemoryStore.suppress(.userMessage(source.reference), strength: 3, in: db)
             }
             #expect(try await enqueue(origin: origin(for: source), source: source, in: fixture) == nil)
-            let policy = MemoryCapturePolicy(revision: 3, mode: .manualOnly, dailyTokenLimit: 10_000)
-            try await memory.saveMemoryCapturePolicy(
-                policy, expectedRevision: 2, authorization: authorization, at: TaskWorkflowFixture.now)
-            #expect(try await enqueue(origin: origin(for: source), source: source, in: fixture) == nil)
         }
     }
 
-    @Test func routeBindingRevisionChangeInvalidatesClaimBeforeDispatch() async throws {
+    @Test func connectionChangeInvalidatesClaimBeforeDispatch() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I prefer a standing desk")
-            try await enableCapture(in: fixture)
+
             let job = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
             try await withExtractionStore(fixture) { store in
                 let auth = try await fixture.authority.authorization()
                 let selection = AgentModelRouteResolution(
                     route: fixture.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: fixture.route.id, revision: fixture.route.revision))
+                    binding: nil)
                 let claim = try #require(
                     try await store.claimMemoryExtraction(
                         job.id, expectedAttemptCount: 0,
@@ -260,14 +280,17 @@ struct JournalMemoryExtractionStoreTests {
                 let request = try preparedRequest(claim: claim)
                 _ = try await store.prepareMemoryExtraction(
                     claim, request: request, source: source, authorization: auth, at: TaskWorkflowFixture.now)
-                let changed = AgentRouteBinding(
-                    scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                    routeID: fixture.route.id, revision: 2)
-                try await fixture.settings.saveBinding(changed, expectedRevision: 1, authorization: fixture.authority.authorization())
+                let connection = try #require(try await fixture.settings.connection(id: fixture.route.connectionID))
+                try await fixture.settings.saveConnection(.init(id: connection.id, revision: connection.revision + 1,
+                    configurationRevision: connection.configurationRevision + 1, name: connection.name,
+                    isEnabled: false, definitionID: connection.definitionID, endpoints: connection.endpoints,
+                    discovery: connection.discovery, defaultInvocation: connection.defaultInvocation),
+                    expectedRevision: connection.revision, authorization: auth)
                 await #expect(throws: MiraError.self) {
                     try await store.markMemoryExtractionDispatched(
                         claim, source: source, authorization: auth, at: TaskWorkflowFixture.now)
                 }
+                #expect(try await attemptUsage(store: store, claim: claim).state == .prepared)
             }
         }
     }
@@ -275,7 +298,7 @@ struct JournalMemoryExtractionStoreTests {
     @Test func forgettingPurgesExtractionBodiesAndPreservesSettledCost() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { f in
             let source = try await completedSource(in: f, text: "I prefer green tea")
-            try await enableCapture(in: f)
+
             let memories = try #require(f.memory)
             let auth = try await f.authority.authorization()
             let memory = try await memories.createMemory(
@@ -287,8 +310,7 @@ struct JournalMemoryExtractionStoreTests {
                 let job = try #require(try await enqueue(origin: origin(for: source), source: source, in: f))
                 let selection = AgentModelRouteResolution(
                     route: f.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction, routeID: f.route.id, revision: 1)
+                    binding: nil
                 )
                 let claim = try #require(
                     try await store.claimMemoryExtraction(
@@ -299,7 +321,7 @@ struct JournalMemoryExtractionStoreTests {
                     authorization: auth, at: TaskWorkflowFixture.now)
                 try await store.markMemoryExtractionDispatched(
                     claim, source: source, authorization: auth, at: TaskWorkflowFixture.now)
-                let output = try inferredOutput(source.text)
+                let output = try directOutput(source.text)
                 _ = try await store.completeMemoryExtraction(
                     claim, source: source, output: output,
                     authorization: auth, at: TaskWorkflowFixture.now)
@@ -350,14 +372,13 @@ struct JournalMemoryExtractionStoreTests {
     func proposalDecisionsAreAtomicDurableAndScoped(failCommit: Bool) async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { f in
             let source = try await completedSource(in: f, text: "I prefer quiet mornings")
-            try await enableCapture(in: f)
+
             try await withExtractionStore(f) { store in
                 let job = try #require(await enqueue(origin: origin(for: source), source: source, in: f))
                 let auth = try await f.authority.authorization()
                 let selection = AgentModelRouteResolution(
                     route: f.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction, routeID: f.route.id, revision: 1)
+                    binding: nil
                 )
                 let claim = try #require(
                     await store.claimMemoryExtraction(
@@ -370,7 +391,7 @@ struct JournalMemoryExtractionStoreTests {
                 try await store.markMemoryExtractionDispatched(
                     claim, source: source,
                     authorization: auth, at: TaskWorkflowFixture.now)
-                let output = try inferredOutput(source.text)
+                let output = try directOutput(source.text)
                 if failCommit {
                     try await f.database.write { db in
                         try db.execute(
@@ -388,8 +409,7 @@ struct JournalMemoryExtractionStoreTests {
                         executionID: job.origin.completedExecutionID, workspaceID: nil)
                     #expect(accounting.attempts.last?.state == .dispatched && accounting.attempts.last?.usage == nil)
                     #expect(accounting.attempts.last?.chargedTokens == 0)
-                    #expect(
-                        try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now).reservedTokens == reserved)
+                    #expect(accounting.attempts.last?.reservedTokens == reserved)
                     try await f.database.write { db in
                         #expect(try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_records") == 0)
                         #expect(try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_assertions") == 0)
@@ -414,11 +434,10 @@ struct JournalMemoryExtractionStoreTests {
                     #expect(decisions.map(\.disposition) == [.created, .reused])
                     #expect(
                         decisions.allSatisfy {
-                            $0.validationReviewReason == "Memory review required: inferred content."
+                            $0.validationReviewReason == nil
                         })
                     #expect(
-                        decisions.allSatisfy { $0.memoryID == completed.memoryIDs[0] && $0.memoryState == .candidate })
-                    #expect(try await reopened.memoryExtractionBudget(at: TaskWorkflowFixture.now).chargedTokens == 12)
+                        decisions.allSatisfy { $0.memoryID == completed.memoryIDs[0] && $0.memoryState == .active })
                     await #expect(throws: MiraError.self) {
                         _ = try await reopened.memoryExtractionDecisionReport(job.id, ordinal: 1, workspaceID: .init())
                     }
@@ -427,7 +446,7 @@ struct JournalMemoryExtractionStoreTests {
                     }
                     try await f.database.write { db in
                         var attempt = try SQLiteMemoryExtractionStore.attempt(claim.attemptID, in: db)
-                        attempt.decisions = failCommit ? [] : Array(try #require(attempt.decisions).reversed())
+                        attempt.decisions = Array(try #require(attempt.decisions).reversed())
                         // Bypass the writer to simulate corrupted on-disk facts.
                         try db.execute(
                             sql: "UPDATE memory_extraction_attempts SET json = ? WHERE id = ?",
@@ -458,7 +477,7 @@ struct JournalMemoryExtractionStoreTests {
                 let address = try await f.run(text, sessionID: sessionID)
                 sources.append(try await f.evidence(address))
             }
-            try await enableCapture(in: f)
+
             var jobs: [MemoryExtractionJob] = []
             for (index, source) in sources.enumerated() {
                 let origin = origin(for: source)
@@ -503,30 +522,24 @@ struct JournalMemoryExtractionStoreTests {
         }
     }
 
-    private func inferredOutput(_ text: String) throws -> AgentModelOutput {
+    private func directOutput(_ text: String) throws -> AgentModelOutput {
         let item: [String: Any] = [
-            "content": text, "quote": text, "kind": "preference", "subject": "user", "sensitivity": "standard",
-            "inferred": true, "stable": false, "confidence": "medium", "validFrom": NSNull(), "validUntil": NSNull(),
-            "assertion": ["mode": "inferred", "aspectKey": "daily.preference", "changeIntent": "independent"],
+            "content": text, "inputIndex": 0, "kind": "preference", "subject": "user", "sensitivity": "standard",
+            "inferred": false, "stable": true, "confidence": "high", "validFrom": NSNull(), "validUntil": NSNull(),
+            "assertion": ["mode": "directStable", "aspectKey": "daily.preference", "changeIntent": "independent"],
         ]
         let bytes = try JSONSerialization.data(
-            withJSONObject: ["version": 2, "items": [item, item]], options: [.sortedKeys])
+            withJSONObject: ["version": 3, "items": [item, item]], options: [.sortedKeys])
         return .init(
             blocks: [.init(id: "text", content: .text(String(decoding: bytes, as: UTF8.self)))], continuation: nil,
             usage: .init(inputTokens: 10, outputTokens: 2), finishReason: .stop)
     }
 
-    private func enableCapture(in fixture: TaskWorkflowFixture) async throws {
-        let auth = try await fixture.authority.authorization()
-        try await fixture.memory?.saveMemoryCapturePolicy(
-            .init(
-                revision: 2, mode: .automaticWithUndo, dailyTokenLimit: 100_000,
-                enabledAt: TaskWorkflowFixture.now), expectedRevision: 1, authorization: auth,
-            at: TaskWorkflowFixture.now)
-        try await fixture.settings.saveBinding(
-            .init(
-                scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                routeID: fixture.route.id, revision: 1), expectedRevision: nil, authorization: fixture.authority.authorization())
+    private func attemptUsage(store: SQLiteMemoryExtractionStore, claim: MemoryExtractionClaim) async throws -> MemoryExtractionAttemptUsage {
+        let report = try await store.memoryExtractionReport(claim.job.id,
+            sessionID: claim.source.reference.sessionID,
+            executionID: claim.job.origin.completedExecutionID, workspaceID: claim.job.workspaceID)
+        return try #require(report.attempts.last)
     }
 
     private func completedSource(in fixture: TaskWorkflowFixture, text: String) async throws -> SessionUserEvidence {

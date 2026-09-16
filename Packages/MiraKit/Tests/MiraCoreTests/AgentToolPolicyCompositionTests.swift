@@ -138,7 +138,7 @@ struct AgentToolPolicyCompositionTests {
             maximumResultBytes: 1_024
         )
         return AgentToolProposal(descriptor: descriptor, effect: .read, businessNamespace: nil,
-                                 callDigest: String(repeating: "a", count: 64),
+                                 callDigest: String(repeating: "a", count: 64), inheritedSources: [],
                                  plan: .init(input: .object([:]), sources: [], targets: []))
     }
 

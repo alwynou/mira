@@ -1,0 +1,382 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2B8558512305ACFD7C753A77 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 11AB039B3E39488DC445B800 /* MLX */; };
+		300F7867BDC7A5F3731FC0A7 /* EmbeddingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D768DC370688319D10B5EF2 /* EmbeddingEngine.swift */; };
+		51ACE44B026CC639A661FAA9 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = C097F982C8390D4F8866D78D /* MLXLMCommon */; };
+		74FED62CEDF59DF7F3467285 /* MLXEmbedders in Frameworks */ = {isa = PBXBuildFile; productRef = F7C7B0005CCEDDF795BDABC2 /* MLXEmbedders */; };
+		8320EC2EC49C0BC5AC5E45D8 /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 1046A013C7D9A97A245CF25B /* Tokenizers */; };
+		AE54E53217D2AC672CF1EFB0 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 58C663B1355A618F3390B273 /* libsqlite3.tbd */; };
+		B092A814FEA7E327845F729F /* PrecisionComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 544FF66900EE7C97F24A4EC3 /* PrecisionComparison.swift */; };
+		ED7881C4D05371757268BAE7 /* VectorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70D5C9B503BA94DD1EAD65B /* VectorStore.swift */; };
+		EF9A5F530C700DB7AAD58CE7 /* Prototype.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5C708E96EF37DC58AD46F0C /* Prototype.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5424094643618B3AE58FD6F1 /* MemoryEmbeddingPrototype */ = {isa = PBXFileReference; includeInIndex = 0; path = MemoryEmbeddingPrototype; sourceTree = BUILT_PRODUCTS_DIR; };
+		544FF66900EE7C97F24A4EC3 /* PrecisionComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrecisionComparison.swift; sourceTree = "<group>"; };
+		58C663B1355A618F3390B273 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		7D768DC370688319D10B5EF2 /* EmbeddingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingEngine.swift; sourceTree = "<group>"; };
+		B70D5C9B503BA94DD1EAD65B /* VectorStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VectorStore.swift; sourceTree = "<group>"; };
+		E5C708E96EF37DC58AD46F0C /* Prototype.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prototype.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B3B9E2DE490A1B1DA2C9F57B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2B8558512305ACFD7C753A77 /* MLX in Frameworks */,
+				74FED62CEDF59DF7F3467285 /* MLXEmbedders in Frameworks */,
+				51ACE44B026CC639A661FAA9 /* MLXLMCommon in Frameworks */,
+				8320EC2EC49C0BC5AC5E45D8 /* Tokenizers in Frameworks */,
+				AE54E53217D2AC672CF1EFB0 /* libsqlite3.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		23D48120067CE0D8C39ED89C /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				7D768DC370688319D10B5EF2 /* EmbeddingEngine.swift */,
+				544FF66900EE7C97F24A4EC3 /* PrecisionComparison.swift */,
+				E5C708E96EF37DC58AD46F0C /* Prototype.swift */,
+				B70D5C9B503BA94DD1EAD65B /* VectorStore.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		2405777EC7B5E083FAC476AC = {
+			isa = PBXGroup;
+			children = (
+				23D48120067CE0D8C39ED89C /* Sources */,
+				79167A1C9AB712B75A3462DE /* Frameworks */,
+				303F78B66B38742292EFEBCB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		303F78B66B38742292EFEBCB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5424094643618B3AE58FD6F1 /* MemoryEmbeddingPrototype */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		79167A1C9AB712B75A3462DE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				58C663B1355A618F3390B273 /* libsqlite3.tbd */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8FFA9121057261EFF5BB4D60 /* MemoryEmbeddingPrototype */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F081FCC85AD935CF13B0B717 /* Build configuration list for PBXNativeTarget "MemoryEmbeddingPrototype" */;
+			buildPhases = (
+				DC38D2818F890779223B1954 /* Sources */,
+				B3B9E2DE490A1B1DA2C9F57B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MemoryEmbeddingPrototype;
+			packageProductDependencies = (
+				11AB039B3E39488DC445B800 /* MLX */,
+				F7C7B0005CCEDDF795BDABC2 /* MLXEmbedders */,
+				C097F982C8390D4F8866D78D /* MLXLMCommon */,
+				1046A013C7D9A97A245CF25B /* Tokenizers */,
+			);
+			productName = MemoryEmbeddingPrototype;
+			productReference = 5424094643618B3AE58FD6F1 /* MemoryEmbeddingPrototype */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B9234545068B40AB45F11B7A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 56BD70B3015A72482C8D9DD9 /* Build configuration list for PBXProject "MemoryEmbeddingPrototype" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 2405777EC7B5E083FAC476AC;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				11966C4348576FC588122AFC /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				16D2AEECD9A1E23ACAF05B19 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				1A56FC409EE349ACE884681D /* XCRemoteSwiftPackageReference "swift-transformers" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 303F78B66B38742292EFEBCB /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8FFA9121057261EFF5BB4D60 /* MemoryEmbeddingPrototype */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DC38D2818F890779223B1954 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				300F7867BDC7A5F3731FC0A7 /* EmbeddingEngine.swift in Sources */,
+				B092A814FEA7E327845F729F /* PrecisionComparison.swift in Sources */,
+				EF9A5F530C700DB7AAD58CE7 /* Prototype.swift in Sources */,
+				ED7881C4D05371757268BAE7 /* VectorStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		43E5F073B8BA1C8C77F340A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mira.MemoryEmbeddingPrototype;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		52C628857613907452B91549 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		90E4AD89E6D6D189BD1714B8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mira.MemoryEmbeddingPrototype;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		AC9A7F96D15DCA9D54FE42E9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		56BD70B3015A72482C8D9DD9 /* Build configuration list for PBXProject "MemoryEmbeddingPrototype" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC9A7F96D15DCA9D54FE42E9 /* Debug */,
+				52C628857613907452B91549 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F081FCC85AD935CF13B0B717 /* Build configuration list for PBXNativeTarget "MemoryEmbeddingPrototype" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				43E5F073B8BA1C8C77F340A1 /* Debug */,
+				90E4AD89E6D6D189BD1714B8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		11966C4348576FC588122AFC /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 0.31.4;
+			};
+		};
+		16D2AEECD9A1E23ACAF05B19 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
+			requirement = {
+				kind = exactVersion;
+				version = 3.31.4;
+			};
+		};
+		1A56FC409EE349ACE884681D /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers";
+			requirement = {
+				kind = exactVersion;
+				version = 1.3.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1046A013C7D9A97A245CF25B /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1A56FC409EE349ACE884681D /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Tokenizers;
+		};
+		11AB039B3E39488DC445B800 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 11966C4348576FC588122AFC /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		C097F982C8390D4F8866D78D /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 16D2AEECD9A1E23ACAF05B19 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		F7C7B0005CCEDDF795BDABC2 /* MLXEmbedders */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 16D2AEECD9A1E23ACAF05B19 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXEmbedders;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = B9234545068B40AB45F11B7A /* Project object */;
+}

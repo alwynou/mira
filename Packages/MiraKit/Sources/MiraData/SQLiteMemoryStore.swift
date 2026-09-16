@@ -4,14 +4,17 @@ import GRDB
 import MiraCore
 
 /// Canonical memory business data. Original user evidence is resolved outside SQLite under a library lease.
-public final class SQLiteMemoryStore: MemoryStore, MemoryCapturePolicyStore, @unchecked Sendable {
+public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
     let owner: SQLiteDomainDatabase
-    public init(database: DatabaseQueue, libraryID: UUID) throws {
+    let embeddings: (any MemoryEmbeddingService)?
+    public init(database: DatabaseQueue, libraryID: UUID, embeddings: (any MemoryEmbeddingService)? = nil) throws {
+        self.embeddings = embeddings
         owner = try SQLiteDomainDatabase(database: database, libraryID: libraryID, label: "mira.memories")
         try database.write { db in
             guard try db.tableExists("business_workspaces") else { throw Self.corrupt }
             try Self.initialize(in: db)
             try SQLiteMemoryExtractionSchema.initialize(in: db)
+            try Self.initializeVectors(identity: embeddings?.identity ?? .qwen3FourBit, in: db)
         }
     }
     public func close() async { await owner.close() }
@@ -40,9 +43,39 @@ public final class SQLiteMemoryStore: MemoryStore, MemoryCapturePolicyStore, @un
         }
     }
     public func recallMemories(query: String, request: AgentContextRequest, limit: Int, at: Date) async throws -> MemorySearchResult {
-        try await owner.read { db in
+        guard (1...128).contains(limit), query.unicodeScalars.count <= 500 else { throw Self.invalid }
+        try await owner.read { try Self.validateDestination(request, in: $0) }
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .init(memories: []) }
+        var queryVector: [Float]?
+        if let embeddings, await embeddings.status() == .ready {
+            do {
+                let vectors = try await embeddings.embed(.query(query))
+                guard vectors.count == 1 else { throw Self.invalid }
+                queryVector = vectors[0]
+            } catch is CancellationError { throw CancellationError() } catch {
+                // Local inference is optional. Destination validation and canonical reads still fail closed below.
+                queryVector = nil
+            }
+        }
+        let vector = queryVector
+        let identity = embeddings?.identity
+        return try await owner.read { db in
             try Self.validateDestination(request, in: db)
-            return try Self.search(query: query, workspaceID: request.workspaceID, states: [.active], request: request, limit: limit, at: at, in: db)
+            let lexical = try Self.search(query: query, workspaceID: request.workspaceID, states: [.active], request: request, limit: limit, at: at, in: db)
+            guard let vector, let identity else { return lexical }
+            let semantic = try Self.semanticSearch(vector: vector, identity: identity, request: request, limit: limit, at: at, in: db)
+            guard !semantic.memories.isEmpty else { return lexical }
+            // Keep semantic ranking primary; reserve one slot for a literal lexical match or an unindexed fact.
+            // Similarity is relevance, never proof of the user's subject or an answer's truth.
+            let semanticIDs = Set(semantic.memories.map(\.id))
+            let extra = limit > 1 ? lexical.memories.first { !semanticIDs.contains($0.id) } : nil
+            var values = Array(semantic.memories.prefix(extra == nil ? limit : max(0, limit - 1)))
+            if let extra { values.append(extra) }
+            let selectedIDs = Set(values.map(\.id))
+            let omitted = semantic.memories.contains { !selectedIDs.contains($0.id) }
+                || lexical.memories.contains { !selectedIDs.contains($0.id) }
+            return .init(memories: values, isTruncated: lexical.isTruncated || semantic.isTruncated || omitted,
+                         retrieval: .hybrid)
         }
     }
     public func recallMemory(_ id: MemoryID, request: AgentContextRequest, at: Date) async throws -> Memory {
@@ -172,6 +205,7 @@ public final class SQLiteMemoryStore: MemoryStore, MemoryCapturePolicyStore, @un
             }
             var memory = try Self.mutable(id, workspaceID: workspaceID, expected: expectedRevision, in: db)
             let sources = try Self.evidence(id, in: db)
+            try SQLiteMemoryExtractionStore.purgeMemoryDependencies(id, at: at, in: db)
             memory.draft = nil; memory.forgottenAt = at; memory.revision += 1; memory.updatedAt = at
             try Self.write(memory, insert: false, in: db)
             for row in try Row.fetchAll(db, sql: "SELECT * FROM memory_revisions WHERE memory_id = ?", arguments: [Self.key(id)]) {
@@ -191,16 +225,6 @@ public final class SQLiteMemoryStore: MemoryStore, MemoryCapturePolicyStore, @un
             let receipt = MemoryForgetReceipt(memoryID: id, suppressedSources: sources.map(\.source))
             try db.execute(sql: "INSERT INTO memory_purges(operation_id, memory_id, workspace_id, expected_revision, json) VALUES (?, ?, ?, ?, ?)", arguments: [operationID, Self.key(id), workspaceID.map(Self.key), expectedRevision, try Self.encode(receipt)])
             return receipt
-        }
-    }
-    public func memoryCapturePolicy() async throws -> MemoryCapturePolicy { try await owner.read { try Self.currentCapturePolicy(in: $0) } }
-    public func saveMemoryCapturePolicy(_ policy: MemoryCapturePolicy, expectedRevision: Int, authorization: AgentLibraryAuthorization, at: Date) async throws {
-        try policy.validate(); try Self.date(at)
-        try await owner.write(authorization: authorization) { db in
-            let previous = try Self.currentCapturePolicy(in: db)
-            guard previous.revision == expectedRevision, expectedRevision < Int.max, policy.revision == expectedRevision + 1 else { throw Self.conflict }
-            try db.execute(sql: "UPDATE memory_policy SET revision = ?, json = ? WHERE id = 1", arguments: [policy.revision, try Self.encode(policy)])
-            try SQLiteMemoryExtractionStore.invalidatePolicy(at: at, in: db)
         }
     }
 
@@ -240,12 +264,5 @@ public final class SQLiteMemoryStore: MemoryStore, MemoryCapturePolicyStore, @un
         guard let row = try Row.fetchOne(db, sql: "SELECT * FROM memory_sources WHERE source_key = ?", arguments: [try sourceKey(source)]) else { return false }
         guard try sourceIdentity(row) == source else { throw corrupt }
         return row["suppression"] as Int > 0
-    }
-    static func currentCapturePolicy(in db: Database) throws -> MemoryCapturePolicy {
-        guard let row = try Row.fetchOne(db, sql: "SELECT * FROM memory_policy WHERE id = 1") else { throw corrupt }
-        let value: MemoryCapturePolicy = try decode(row["json"])
-        do { try value.validate() } catch { throw corrupt }
-        guard value.revision == row["revision"] as Int else { throw corrupt }
-        return value
     }
 }

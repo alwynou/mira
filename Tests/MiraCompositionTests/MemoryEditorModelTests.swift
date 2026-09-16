@@ -9,7 +9,7 @@
         @Test
         func manualWriteKeepsOperationIdentityAcrossRetry() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
@@ -42,7 +42,7 @@
         @Test
         func staleRevisionIsRejectedWithoutCreatingAnotherMemory() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
@@ -75,7 +75,7 @@
         @Test
         func editedDraftStartsANewOperationAfterTheOriginalSettles() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
@@ -101,7 +101,7 @@
         @Test
         func missingSourcePageStopsLoadingAndCloseClearsCachedSource() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 var observer: Task<Void, Never>?
@@ -139,7 +139,7 @@
         @Test
         func sourceIsRevalidatedAcrossLibraryGenerationBeforeWriting() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(),
                     modules: { [MacDemoModule(registry: $0)] })

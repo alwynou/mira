@@ -518,7 +518,7 @@ private struct Fixture {
         let output: JSONValue = .object(["type": .string("object"), "properties": .object(["ok": .object(["type": .string("boolean")])]), "required": .array([.string("ok")]), "additionalProperties": .bool(false)])
         let input: JSONValue = .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)])
         let descriptor = AgentToolDescriptor(definition: .init(name: "tests.write", description: "Synthetic write", inputSchema: input), revision: 1, outputSchema: output, executionMode: .exclusive, timeoutMilliseconds: 1_000, maximumResultBytes: 1_024)
-        return .init(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: String(repeating: "a", count: 64), plan: .init(input: .object([:]), sources: [], targets: []))
+        return .init(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: String(repeating: "a", count: 64), inheritedSources: [], plan: .init(input: .object([:]), sources: [], targets: []))
     }
 }
 

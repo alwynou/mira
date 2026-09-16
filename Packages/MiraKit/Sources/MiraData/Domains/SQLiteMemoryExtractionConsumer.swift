@@ -84,7 +84,7 @@ public struct SQLiteMemoryExtractionConsumer: SQLiteSessionConsumerHandler {
                         .init(
                             origin: .init(
                                 source: source.reference, completedExecutionID: completion.executionID,
-                                completionEventID: event.id, completionHead: delivery.checkpoint.head), source: source))
+                                completionEventID: event.id, completionHead: delivery.checkpoint.head), source: source, completedAt: event.occurredAt))
                 } catch let error as MiraError where [.notFound, .unauthorized, .invalidInput].contains(error.code) {
                     // Excluded/purged evidence and bounded-out sources do not create jobs or obstruct later batches.
                     continue
@@ -97,6 +97,7 @@ public struct SQLiteMemoryExtractionConsumer: SQLiteSessionConsumerHandler {
     private struct Item: Sendable {
         let origin: MemoryExtractionOrigin
         let source: SessionUserEvidence
+        let completedAt: Date
     }
     private struct Transaction: SQLiteSessionConsumerTransaction {
         let items: [Item]
@@ -109,9 +110,8 @@ public struct SQLiteMemoryExtractionConsumer: SQLiteSessionConsumerHandler {
             else {
                 throw MiraError(.unauthorized, "The memory consumer library authorization is stale.")
             }
-            for item in items {
-                _ = try SQLiteMemoryExtractionStore.enqueue(origin: item.origin, source: item.source, at: at, in: db)
-            }
+            _ = try SQLiteMemoryExtractionStore.enqueueBatch(
+                turns: items.map { (origin: $0.origin, source: $0.source, completedAt: $0.completedAt) }, at: at, in: db)
         }
         func close() async { await lease.release() }
     }

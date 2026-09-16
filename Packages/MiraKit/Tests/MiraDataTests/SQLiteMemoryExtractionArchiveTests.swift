@@ -42,7 +42,7 @@ struct SQLiteMemoryExtractionArchiveTests {
                     completedClaim, source: third, authorization: auth, at: TaskWorkflowFixture.now)
                 _ = try await store.completeMemoryExtraction(
                     completedClaim, source: third,
-                    output: .init(blocks: [.init(id: "text", content: .text("{\"version\":2,\"items\":[]}"))], continuation: nil, usage: .init(), finishReason: .stop),
+                    output: .init(blocks: [.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))], continuation: nil, usage: .init(), finishReason: .stop),
                     authorization: auth, at: TaskWorkflowFixture.now)
 
                 let liveClaim = try #require(
@@ -58,10 +58,6 @@ struct SQLiteMemoryExtractionArchiveTests {
 
                 // A dispatched attempt owns a reservation which restoration must settle into
                 // the charged total exactly once.
-                let budgetBeforeRestore = try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now)
-                #expect(budgetBeforeRestore.reservedTokens > 0)
-                let expectedChargedAfterRestore =
-                    budgetBeforeRestore.chargedTokens + budgetBeforeRestore.reservedTokens
 
                 let module = try SQLiteMemoryExtractionStore.archiveModule()
                 try await inspect(module, fixture: fixture)
@@ -94,10 +90,6 @@ struct SQLiteMemoryExtractionArchiveTests {
                     try await store.memoryExtractionJobs(
                         sessionID: third.reference.sessionID, state: .completed, limit: 8
                     ).contains { $0.id == thirdJob.id })
-                let restoredBudget = try await store.memoryExtractionBudget(
-                    at: TaskWorkflowFixture.now.addingTimeInterval(10))
-                #expect(restoredBudget.reservedTokens == 0)
-                #expect(restoredBudget.chargedTokens == expectedChargedAfterRestore)
                 try await inspect(module, fixture: fixture)
             }
         }
@@ -145,7 +137,7 @@ struct SQLiteMemoryExtractionArchiveTests {
                                     source: forged.origin.source,
                                     completedExecutionID: forged.origin.completedExecutionID,
                                     completionEventID: UUID(), completionHead: forged.origin.completionHead),
-                                workspaceID: forged.workspaceID, policyRevision: forged.policyRevision,
+                                workspaceID: forged.workspaceID,
                                 extractorRevision: forged.extractorRevision, state: forged.state,
                                 attemptCount: forged.attemptCount, createdAt: forged.createdAt,
                                 updatedAt: forged.updatedAt, error: forged.error,
@@ -168,7 +160,7 @@ struct SQLiteMemoryExtractionArchiveTests {
                                     source: forgedReference, completedExecutionID: forged.origin.completedExecutionID,
                                     completionEventID: forged.origin.completionEventID,
                                     completionHead: forged.origin.completionHead),
-                                workspaceID: forged.workspaceID, policyRevision: forged.policyRevision,
+                                workspaceID: forged.workspaceID,
                                 extractorRevision: forged.extractorRevision, state: forged.state,
                                 attemptCount: forged.attemptCount, createdAt: forged.createdAt,
                                 updatedAt: forged.updatedAt, error: forged.error,
@@ -203,19 +195,7 @@ struct SQLiteMemoryExtractionArchiveTests {
     }
 }
 
-private func enableCapture(in fixture: TaskWorkflowFixture) async throws {
-    let memory = try #require(fixture.memory)
-    let authorization = try await fixture.authority.authorization()
-    try await memory.saveMemoryCapturePolicy(
-        .init(
-            revision: 2, mode: .automaticWithUndo, dailyTokenLimit: 100_000,
-            enabledAt: TaskWorkflowFixture.now), expectedRevision: 1,
-        authorization: authorization, at: TaskWorkflowFixture.now)
-    try await fixture.settings.saveBinding(
-        .init(
-            scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-            routeID: fixture.route.id, revision: 1), expectedRevision: nil, authorization: fixture.authority.authorization())
-}
+private func enableCapture(in fixture: TaskWorkflowFixture) async throws { _ = fixture }
 
 private func completedSource(in fixture: TaskWorkflowFixture, text: String) async throws -> SessionUserEvidence {
     let address = try await fixture.run(text)
@@ -256,9 +236,7 @@ private func enqueue(
 private func selection(for fixture: TaskWorkflowFixture) -> AgentModelRouteResolution {
     .init(
         route: fixture.route,
-        binding: .init(
-            scope: .global,
-            purpose: AgentModelPurposeID.memoryExtraction, routeID: fixture.route.id, revision: 1))
+        binding: nil)
 }
 
 private func preparedRequest(claim: MemoryExtractionClaim) throws -> AgentPreparedModelRequest {

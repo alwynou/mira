@@ -44,11 +44,11 @@ struct PurposeRoutingView: View {
                 }
             }
             if let library = model.container.library {
-                ForEach([AgentModelPurposeID.conversation, AgentModelPurposeID.memoryExtraction], id: \.self) {
-                    purpose in
-                    PurposeModelCard(library: library, providerModel: model, purpose: purpose, scope: scope.routeScope)
-                        .id(scope)
-                }
+                PurposeModelCard(
+                    library: library, providerModel: model,
+                    purpose: AgentModelPurposeID.conversation, scope: scope.routeScope
+                )
+                .id(scope)
             }
             if model.hasMoreConversations {
                 Button("Load More Conversations") { Task { await model.loadMoreConversations() } }
@@ -84,9 +84,7 @@ private struct PurposeModelCard: View {
     var body: some View {
         MiraSettingsSection {
             MiraSettingsRow(
-                model.purpose == AgentModelPurposeID.conversation ? "Conversation model" : "Memory extraction model",
-                subtitle: model.purpose == AgentModelPurposeID.conversation
-                    ? "Used for new conversations." : "Used to organize memories in the background."
+                "Conversation model", subtitle: "Used for new conversations and background memory extraction."
             ) {
                 MiraSettingsSelect(
                     title: "Model",
@@ -101,8 +99,7 @@ private struct PurposeModelCard: View {
                     ),
                     options: modelOptions, identifier: "settings.models.default.\(model.purpose)",
                     placeholder: "Select a model",
-                    clearSelectionTitle: model.scope == .global
-                        ? (model.purpose == AgentModelPurposeID.conversation ? nil : "Clear Selection") : "Use Inherited Model",
+                    clearSelectionTitle: model.scope == .global ? nil : "Use Inherited Model",
                     maximumWidth: 240
                 )
                 .disabled(model.isSaving || model.isLoading)
@@ -140,9 +137,7 @@ private struct PurposeModelCard: View {
     }
     private var modelOptions: [MiraSettingsSelect.Option] {
         var options: [MiraSettingsSelect.Option] = []
-        if model.purpose == AgentModelPurposeID.conversation {
-            options.append(.init(id: "followLastSelection", title: "Follow last selected model"))
-        }
+        options.append(.init(id: "followLastSelection", title: "Follow last selected model"))
         if let id = model.routeID, !model.options.contains(where: { $0.id == id }) {
             options.append(.init(id: id.rawValue.uuidString, title: "Unavailable model"))
         }

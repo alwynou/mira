@@ -11,15 +11,13 @@
         func extractionStatusUsesBusinessCommitsAndRebindsAfterLibraryExport() async throws {
             try await withDirectory { directory in
                 let credentials = CompositionCredentials()
-                let library = try await MacLibrary.open(directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: credentials, modules: { [MacDemoModule(registry: $0)] })
                 let reader = MacSessionReadModel<MemoryExtractionStatusPage>()
                 var observer: Task<Void, Never>?
                 do {
                     let group = try await library.workloads()
                     try await MacDemoModule.seed(in: group)
-                    try await group.memories.saveCapturePolicy(.init(revision: 2, mode: .automaticWithUndo,
-                        dailyTokenLimit: 100_000, enabledAt: Date().addingTimeInterval(-1)), expectedRevision: 1)
                     let route = try await group.modelSettings.resolve(purpose: AgentModelPurposeID.conversation,
                         explicitRouteID: nil, sessionSelection: .inherit, workspaceID: nil).route
                     let command = AgentSubmitCommand(id: UUID(), sessionID: .init(), executionID: .init(),
@@ -34,14 +32,24 @@
                         }
                     }
                     try committed(await group.application.waitForExecution(id: command.executionID, sessionID: command.sessionID))
-                    // No extraction route is configured. The actual worker records a paused,
-                    // unsent job; a reservation must never become a made-up model call.
-                    try await eventually { reader.value?.jobs.first?.state == .paused }
+                    for index in 1..<4 {
+                        let next = AgentSubmitCommand(id: UUID(), sessionID: command.sessionID, executionID: .init(),
+                            input: .message(id: .init(), text: "Synthetic extraction turn \(index)", timeZoneIdentifier: "UTC"),
+                            options: .init(instructions: "Respond with the local fixture.", route: route))
+                        try committed(await group.application.submit(next))
+                        try committed(await group.application.waitForExecution(id: next.executionID, sessionID: next.sessionID))
+                    }
+                    // Memory extraction reuses the conversation route and records its
+                    // business attempt before the read model is rebound by export.
+                    try await eventually {
+                        guard let state = reader.value?.jobs.first?.state else { return false }
+                        return state == .completed || state == .paused || state == .failed
+                    }
                     let job = try #require(reader.value?.jobs.first)
                     let report = try await group.memories.extractionReport(job.id, sessionID: command.sessionID,
                         executionID: command.executionID, workspaceID: nil)
-                    #expect(report.attempts.isEmpty && report.job.attemptCount == 0)
-                    #expect(ModelCostSummary(extractionAttempts: report.attempts).callCount == 0)
+                    #expect(!report.attempts.isEmpty && report.job.attemptCount == 1)
+                    #expect(ModelCostSummary(extractionAttempts: report.attempts).callCount == 1)
                     await #expect(throws: MiraError.self) {
                         try await group.memories.extractionStatus(sessionID: command.sessionID,
                             executionID: .init(), workspaceID: nil)
@@ -74,7 +82,7 @@
         @Test
         func cancellationDrainsOwnedReadAndDoesNotLeaveLateValue() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
@@ -112,7 +120,7 @@
         @Test
         func replacementRejectsLateReadFromRetiredGeneration() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
@@ -158,7 +166,7 @@
         @Test
         func supersededNonCooperativeReadRerunsAfterTheCurrentReadDrains() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
@@ -201,7 +209,7 @@
         @Test
         func endingOldObservationCannotClearTheNewBinding() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
@@ -246,7 +254,7 @@
         @Test
         func dirtyReadNeverReappearsWhileReplacementReadWaits() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
@@ -297,7 +305,7 @@
         @Test
         func businessChangeClearsAndReloadsCitation() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()

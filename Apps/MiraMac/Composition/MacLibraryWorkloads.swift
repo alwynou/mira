@@ -78,6 +78,7 @@ actor MacLibraryWorkloads {
     private let scheduler: RuntimeScheduler
     private let settingsOwner: AgentModelSettingsApplication
     private let extraction: MemoryExtractionWorker
+    private let memoryIndex: MemoryIndexWorker
     private let consumers: AgentSessionConsumerService
     private let consumer: SQLiteSessionConsumer
     private let catalog: AgentRuntimeCatalog
@@ -96,6 +97,7 @@ actor MacLibraryWorkloads {
         tasks: TaskApplication, reminders: ReminderScheduler, discovery: AgentModelDiscoveryService,
         probes: AgentModelProbeService, modelMetadata: AgentModelMetadataService,
         approvals: RuntimeApprovalService, scheduler: RuntimeScheduler, extraction: MemoryExtractionWorker,
+        memoryIndex: MemoryIndexWorker,
         consumers: AgentSessionConsumerService, consumer: SQLiteSessionConsumer, catalog: AgentRuntimeCatalog,
         scope: RuntimeScope, registry: RuntimeRegistry<AgentCapability>, clock: any RuntimeClock
     ) {
@@ -118,6 +120,7 @@ actor MacLibraryWorkloads {
         self.scheduler = scheduler
         self.settingsOwner = modelSettings
         self.extraction = extraction
+        self.memoryIndex = memoryIndex
         self.consumers = consumers
         self.consumer = consumer
         self.catalog = catalog
@@ -189,9 +192,11 @@ actor MacLibraryWorkloads {
                 store: storage.extraction, reader: reader, settings: storage.settings, catalog: catalog,
                 scheduler: scheduler, access: access, scope: scope, environment: environment)
             cleanups.append { await extraction.close() }
+            let memoryIndex = MemoryIndexWorker(store: storage.memories, embeddings: storage.embeddings,
+                                               access: access, scope: scope)
+            cleanups.append { await memoryIndex.close() }
             let memories = MemoryApplication(
-                store: storage.memories, capturePolicyStore: storage.memories,
-                extractionBudgetReader: storage.extraction, extractionStatusReader: storage.extraction,
+                store: storage.memories, extractionStatusReader: storage.extraction,
                 reader: reader, privacyHistory: storage.privacyPlans, access: access, scope: scope, now: environment.now)
             cleanups.append { await memories.close() }
             let knowledge = KnowledgeApplication(
@@ -231,7 +236,7 @@ actor MacLibraryWorkloads {
                 memories: memories, knowledge: knowledge,
                 tasks: tasks, reminders: reminders, discovery: discovery, probes: probes,
                 modelMetadata: modelMetadata, approvals: approvals,
-                scheduler: scheduler, extraction: extraction, consumers: consumers, consumer: consumer,
+                scheduler: scheduler, extraction: extraction, memoryIndex: memoryIndex, consumers: consumers, consumer: consumer,
                 catalog: catalog, scope: scope, registry: registry, clock: environment.clock)
             do { try await group.start() } catch {
                 _ = await group.close()
@@ -245,6 +250,12 @@ actor MacLibraryWorkloads {
     }
 
     func status() -> MacWorkloadStatus { .init(isClosed: closeTask != nil, failures: failures) }
+
+    func localMemoryModelStatus() async -> MemoryEmbeddingStatus { await memoryIndex.embeddingStatus() }
+    func prepareLocalMemoryModel() async {
+        guard closeTask == nil else { return }
+        await memoryIndex.prepareModel()
+    }
 
     func observe() -> AsyncStream<MacWorkloadStatus> {
         let (stream, continuation) = AsyncStream<MacWorkloadStatus>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -264,6 +275,7 @@ actor MacLibraryWorkloads {
         guard closeTask == nil else { return }
         await consumers.wake()
         await extraction.wake()
+        await wakeMemoryIndex()
         do {
             try await reminders.reconcile()
             clearFailure("reminders")
@@ -281,6 +293,7 @@ actor MacLibraryWorkloads {
             await probes.close()
             await modelMetadata.close()
             await extraction.close()
+            await memoryIndex.close()
             await reminders.close()
             await memories.close()
             await knowledge.close()
@@ -310,6 +323,13 @@ actor MacLibraryWorkloads {
         let applicationEvents = try await application.observe()
         let consumerEvents = try await consumers.events()
         let extractionEvents = await extraction.events()
+        let businessEvents = try await changes.observe()
+        watchers.append(try await scope.ownTask { [weak self] in
+            for await event in businessEvents {
+                guard !Task.isCancelled, !event.isClosed else { break }
+                await self?.wakeMemoryIndex()
+            }
+        })
         watchers.append(
             try await scope.ownTask { [weak self] in
                 for await _ in applicationEvents {
@@ -359,6 +379,11 @@ actor MacLibraryWorkloads {
         guard closeTask == nil else { return }
         failures[source] = MiraError.safe(error)
         for observer in observers.values { observer.yield(status()) }
+    }
+    private func wakeMemoryIndex() async {
+        guard closeTask == nil else { return }
+        let state = await application.snapshot()
+        await memoryIndex.wake(isIdle: state.pendingAdmissions.isEmpty && state.ownedExecutions.isEmpty)
     }
     private func clearFailure(_ source: String) {
         guard failures.removeValue(forKey: source) != nil else { return }

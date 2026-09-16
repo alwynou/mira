@@ -44,7 +44,7 @@ public struct JournalAgentEffectResolver: AgentEffectIntentResolver {
               build.request.workspaceID == state.header?.workspaceID,
               build.prepared.input.executionID == proof.executionID,
               build.prepared.input.stepID == attempt.attempt.stepID,
-              Set(build.sources).isSubset(of: Set(proposal.plan.sources)),
+              build.sources == proposal.inheritedSources,
               build.prepared.input.tools.contains(where: { $0 == proposal.descriptor.definition }) else {
             throw Self.invalidIntent
         }

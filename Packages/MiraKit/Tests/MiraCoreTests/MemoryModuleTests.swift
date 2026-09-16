@@ -28,7 +28,7 @@ struct MemoryModuleTests {
         let authorities = RuntimeRegistry<any AgentDomainSourceAuthority>()
         let store = ModuleMemoryStore()
         let scope = RuntimeScope(kind: .application)
-        let module = MemoryModule(registry: tools, store: store, capturePolicy: store, sourceAuthorities: authorities)
+        let module = MemoryModule(registry: tools, store: store, sourceAuthorities: authorities)
         try await module.activate(in: scope)
 
         let toolSnapshot = try await tools.freeze()
@@ -49,7 +49,7 @@ struct MemoryModuleTests {
     }
 }
 
-private actor ModuleMemoryStore: MemoryReadStore, MemoryCapturePolicyStore {
+private actor ModuleMemoryStore: MemoryReadStore {
     func memoryContextNotices(references: [MemoryCitationReference], workspaceID: WorkspaceID?, connectionID: ConnectionID?, at: Date) -> [MemoryContextNotice] { [] }
     func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) async throws -> MemorySearchResult { .init(memories: []) }
     func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) async throws -> MemoryDetail { throw MiraError(.notFound, "Memory fixture has no records.") }
@@ -58,6 +58,4 @@ private actor ModuleMemoryStore: MemoryReadStore, MemoryCapturePolicyStore {
     func recallMemory(_ id: MemoryID, request: AgentContextRequest, at: Date) async throws -> Memory { throw MiraError(.notFound, "Memory fixture has no records.") }
     func validateMemorySources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date) async throws {}
     func suppressedMemorySources() async throws -> [MemoryEvidenceSource] { [] }
-    func memoryCapturePolicy() async throws -> MemoryCapturePolicy { .init() }
-    func saveMemoryCapturePolicy(_ policy: MemoryCapturePolicy, expectedRevision: Int, authorization: AgentLibraryAuthorization, at: Date) async throws {}
 }

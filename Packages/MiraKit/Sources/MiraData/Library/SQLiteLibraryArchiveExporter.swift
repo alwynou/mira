@@ -90,6 +90,18 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
                     }
                     let sqlURL = stage.stage.appendingPathComponent("Business.sqlite")
                     try Self.snapshot(db, to: sqlURL)
+                    // Strip rebuildable domain indexes from the isolated snapshot, never the live library.
+                    let exportDatabase = try DatabaseQueue(path: sqlURL.path)
+                    do {
+                        try exportDatabase.write { exported in
+                            for module in self.modules { try module.prepareExport(exported) }
+                        }
+                        try exportDatabase.writeWithoutTransaction { try $0.execute(sql: "VACUUM") }
+                        try exportDatabase.close()
+                    } catch {
+                        try? exportDatabase.close()
+                        throw error
+                    }
                     try self.fault(.afterDatabaseSnapshot)
                     try append(Self.inspectFile(sqlURL, path: "Business.sqlite"))
                     try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions"))

@@ -23,6 +23,8 @@ struct SQLiteLibraryRestorerTests {
                 source: .manualEntry(id: UUID(), statement: "A retained archive memory"),
                 operationID: UUID(), replacing: nil, expectedRevision: nil,
                 authorization: authorization, at: TaskWorkflowFixture.now)
+            let indexJob = try #require(try await memory.pendingMemoryIndexJobs(limit: 4).first)
+            #expect(try await memory.completeMemoryIndexJob(indexJob, vector: [1] + Array(repeating: Float(0), count: 1023), authorization: authorization))
             let imported = try await knowledge.importMarkdown(
                 .init(title: "Restored notes.md", bytes: Data("# Restored notes\nretained body".utf8)),
                 workspaceID: nil, updating: nil, expectedRevision: nil, operationID: UUID(),
@@ -61,6 +63,11 @@ struct SQLiteLibraryRestorerTests {
             }
             await exporter.close()
             let originalManifest = try await SQLiteLibraryArchiveExporter.validate(at: archive, modules: modules)
+            let exportedDatabase = try DatabaseQueue(path: archive.appendingPathComponent("Business.sqlite").path)
+            #expect(try await exportedDatabase.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_embeddings") } == 0)
+            #expect(try await exportedDatabase.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_embedding_jobs") } == 0)
+            try exportedDatabase.close()
+            #expect(try await fixture.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_embeddings") } == 1)
 
             let destination = fixture.directory.appendingPathComponent("restored-library")
             let gate = RestorationSourceGate()
@@ -107,6 +114,7 @@ struct SQLiteLibraryRestorerTests {
                     snapshot.sessions.map(\.head)
                 }
                 #expect(restoredHeads == result.sessions)
+                #expect(try await restoredMemory.pendingMemoryIndexJobs(limit: 4).map(\.memoryID) == [savedMemory.memory.id])
                 let memories = try await restoredMemory.memoryList(
                     workspaceID: nil, states: [.active, .candidate, .archived], query: "retained", limit: 10)
                 #expect(memories.memories.contains { $0.draft?.content == "A retained archive memory" })

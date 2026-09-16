@@ -216,17 +216,40 @@ public struct AgentModelInput: Codable, Sendable, Equatable {
     public let instructions: String
     public let messages: [AgentModelMessage]
     public let tools: [ToolDefinition]
+    /// When false, tool definitions remain in the request for prefix/cache identity,
+    /// while the provider is instructed to produce no tool calls.
+    public let allowsToolCalls: Bool
+    /// Number of messages belonging to an immutable cached prefix. When set, the
+    /// input must contain exactly one newly appended user message.
+    public let prefixMessageCount: Int?
+    /// Optional per-request output budget, bounded by the frozen route budget.
+    public let outputTokenLimit: Int?
     public init(stepID: UUID, executionID: ExecutionID, instructions: String,
-                messages: [AgentModelMessage], tools: [ToolDefinition]) {
+                messages: [AgentModelMessage], tools: [ToolDefinition],
+                allowsToolCalls: Bool = true, prefixMessageCount: Int? = nil,
+                outputTokenLimit: Int? = nil) {
         self.stepID = stepID; self.executionID = executionID; self.instructions = instructions
         self.messages = messages; self.tools = tools
+        self.allowsToolCalls = allowsToolCalls; self.prefixMessageCount = prefixMessageCount
+        self.outputTokenLimit = outputTokenLimit
     }
 
     public func validate(for route: AgentModelRoute) throws {
         try route.validate()
-        let contextIndices = messages.indices.filter { messages[$0].role == .context }
+        let contextBoundary: ArraySlice<AgentModelMessage>
+        if let prefixMessageCount {
+            guard !allowsToolCalls, (1..<messages.count).contains(prefixMessageCount),
+                  messages.count - prefixMessageCount == 1,
+                  messages.last?.role == .user else {
+                throw MiraError(.malformedStream, "A tool-disabled cached prefix must be followed by exactly one user message.")
+            }
+            contextBoundary = messages[..<prefixMessageCount]
+        } else {
+            contextBoundary = messages[...]
+        }
+        let contextIndices = contextBoundary.indices.filter { messages[$0].role == .context }
         guard contextIndices.count <= 1,
-              contextIndices.first.map({ messages.lastIndex(where: { $0.role == .user }) == $0 + 1 }) ?? true else {
+              contextIndices.first.map({ contextBoundary.lastIndex(where: { $0.role == .user }) == $0 + 1 }) ?? true else {
             throw MiraError(.malformedStream, "Retrieved context must be one data-only message immediately before the current user message.")
         }
         guard !messages.isEmpty, messages.count <= 256, tools.count <= 256,
@@ -235,6 +258,11 @@ public struct AgentModelInput: Codable, Sendable, Equatable {
               tools.allSatisfy({ SessionState.validIdentifier($0.name, maximumBytes: 64) }),
               try SessionCodec.encode(self).count <= 8_388_608 else {
             throw MiraError(.contextLimit, "The model input exceeds its supported bounds.")
+        }
+        if let outputTokenLimit {
+            guard outputTokenLimit > 0, outputTokenLimit <= route.maximumOutputTokens else {
+                throw MiraError(.contextLimit, "The model output limit exceeds the frozen route budget.")
+            }
         }
         var pending: [String] = []
         var usedIDs: Set<String> = []
@@ -281,8 +309,9 @@ public struct AgentPreparedModelRequest: Codable, Sendable, Equatable {
     }
     public func validate(for route: AgentModelRoute) throws {
         try input.validate(for: route)
+        let outputLimit = input.outputTokenLimit ?? route.maximumOutputTokens
         guard adapter == route.adapter, estimatedInputTokens >= 0,
-              estimatedInputTokens <= min(route.contextWindow - route.maximumOutputTokens, route.maximumInputTokens ?? Int.max),
+              estimatedInputTokens <= min(route.contextWindow - outputLimit, route.maximumInputTokens ?? Int.max),
               try SessionCodec.encode(self).count <= SessionFormatLimits.maximumPayloadBytes else {
             throw MiraError(.contextLimit, "The prepared model request exceeds the frozen route budget.")
         }
@@ -323,6 +352,8 @@ public final class AgentModelOperation: Sendable {
 
 public protocol AgentModelAdapter: Sendable {
     var identity: AgentAdapterIdentity { get }
+    /// Resolves a bounded per-request output budget without changing the frozen route.
+    func outputTokenLimit(for requested: Int, route: AgentModelRoute) throws -> Int
     /// Pure request construction and token estimation; no credentials, network calls or side effects.
     /// Long computations must check task cancellation. The kernel discards late results but cannot kill synchronous code.
     func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest
@@ -333,4 +364,13 @@ public protocol AgentModelAdapter: Sendable {
     /// Eligibility and source authorization are checked by the kernel before adapter-specific replay.
     func replay(_ messages: [AgentModelMessage], from source: AgentModelRoute,
                 to target: AgentModelRoute, boundary: AgentReplayBoundary) throws -> AgentReplayDecision
+}
+
+public extension AgentModelAdapter {
+    func outputTokenLimit(for requested: Int, route: AgentModelRoute) throws -> Int {
+        guard requested > 0 else {
+            throw MiraError(.configuration, "The requested model output limit must be positive.")
+        }
+        return min(requested, route.maximumOutputTokens)
+    }
 }

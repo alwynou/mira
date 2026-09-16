@@ -1,5 +1,10 @@
 import Foundation
 
+/// A small always-relevant set of explicit preferences and communication preferences.
+public protocol MemoryProfileStore: Sendable {
+    func memoryProfile(request: AgentContextRequest, at: Date) async throws -> [Memory]
+}
+
 /// Business-domain reads only. Callers own a library lease; session queries are never SQL joins.
 public protocol MemoryReadStore: Sendable {
     func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) async throws -> MemorySearchResult
@@ -30,10 +35,4 @@ public protocol MemoryStore: MemoryReadStore {
     /// Called by maintenance after admission is closed and work has drained; this only purges domain data.
     func purgeMemory(_ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int,
                      maintenance: AgentLibraryMaintenanceOperation, at: Date) async throws -> MemoryForgetReceipt
-}
-
-public protocol MemoryCapturePolicyStore: Sendable {
-    func memoryCapturePolicy() async throws -> MemoryCapturePolicy
-    func saveMemoryCapturePolicy(_ policy: MemoryCapturePolicy, expectedRevision: Int,
-                                 authorization: AgentLibraryAuthorization, at: Date) async throws
 }

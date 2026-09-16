@@ -32,12 +32,6 @@ func memoryArchiveValidatesJournalSourceAndForgottenRowsAndDisablesCaptureOnRest
             return (evidenceJSON, requestHash, receiptJSON)
         }
 
-        var policy = try await store.memoryCapturePolicy()
-        policy.revision = 2
-        policy.mode = .candidateOnly
-        policy.enabledAt = TaskWorkflowFixture.now
-        try await store.saveMemoryCapturePolicy(
-            policy, expectedRevision: 1, authorization: authorization, at: TaskWorkflowFixture.now)
         let maintenanceRequest = AgentLibraryMaintenanceRequest(
             id: UUID(), namespace: "memory.forget", revision: 1,
             scope: .sources([.domain(namespace: "memories", id: memory.id.rawValue, revision: memory.revision)]),
@@ -80,18 +74,6 @@ func memoryArchiveValidatesJournalSourceAndForgottenRowsAndDisablesCaptureOnRest
             try await fixture.library.withSnapshot { snapshot in
                 try fixture.database.read { db in try module.inspect(db, snapshot) }
             }
-        }
-        guard case .prepare(let apply, let verify) = module.restoration else {
-            Issue.record("Memory archives must disable capture during restore preparation.")
-            return
-        }
-        try await fixture.database.write { db in try apply(db, TaskWorkflowFixture.now) }
-        try await fixture.database.read { db in
-            try verify(db)
-            let restored = try SQLiteMemoryStore.currentCapturePolicy(in: db)
-            #expect(restored.revision == 2)
-            #expect(restored.mode == .manualOnly)
-            #expect(restored.enabledAt == nil)
         }
     }
 }

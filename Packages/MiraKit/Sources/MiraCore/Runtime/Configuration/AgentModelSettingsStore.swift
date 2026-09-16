@@ -32,7 +32,6 @@ public struct AgentRouteBinding: Codable, Sendable, Equatable {
 
 public enum AgentModelPurposeID {
     public static let conversation = "mira.conversation"
-    public static let memoryExtraction = "mira.memoryExtraction"
 }
 
 public struct AgentModelRouteSelection: Sendable, Equatable {

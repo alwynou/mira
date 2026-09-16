@@ -166,7 +166,7 @@ struct SQLiteMemoryPrivacyStoreTests {
                     batchID: UUID()))
             let job = MemoryExtractionJob(
                 id: .init(), origin: origin, workspaceID: evidence.workspaceID,
-                policyRevision: 1, state: .queued, attemptCount: 0,
+                state: .queued, attemptCount: 0,
                 createdAt: fixture.date, updatedAt: fixture.date)
             try await fixture.database.write { db in
                 try SQLiteMemoryExtractionStore.write(job, insert: true, in: db)

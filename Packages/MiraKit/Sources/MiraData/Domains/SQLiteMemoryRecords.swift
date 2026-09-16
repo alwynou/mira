@@ -169,6 +169,7 @@ extension SQLiteMemoryStore {
         try db.execute(sql: "INSERT INTO memory_revisions(memory_id, revision, json) VALUES (?, ?, ?)", arguments: [key(memory.id), memory.revision, try encode(revision)])
         try db.execute(sql: "DELETE FROM memory_search WHERE memory_id = ?", arguments: [key(memory.id)])
         if let draft = memory.draft { try db.execute(sql: "INSERT INTO memory_search(memory_id, content) VALUES (?, ?)", arguments: [key(memory.id), draft.content]) }
+        try invalidateVector(memory, in: db)
     }
     static func revision(_ row: Row, memoryID: MemoryID) throws -> MemoryRevision {
         let revision: MemoryRevision = try decode(row["json"])

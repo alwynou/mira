@@ -73,85 +73,9 @@ struct MemoryApplicationOwnershipTests {
         }
     }
 
-    @Test(arguments: [false, true]) func revokedAccountingReadWaitsForStoreReturnAndRejectsLateValue(status: Bool) async throws {
-        let gate = BlockingReadGate()
-        let fixture = try await MemoryApplicationFixture.make(store: MemoryTestStore(blockingBudgetGate: gate))
-        let pending = Task {
-            if status {
-                _ = try await fixture.application.extractionStatus(sessionID: fixture.sessionID,
-                    executionID: fixture.userEvidenceReference.originalExecutionID, workspaceID: nil)
-            } else { _ = try await fixture.application.extractionBudget() }
-        }
-        var operation: AgentLibraryMaintenanceOperation?
-        do {
-            await gate.waitUntilEntered()
-            let request = AgentLibraryMaintenanceRequest(
-                id: UUID(), namespace: "memory.revoke", revision: 1,
-                scope: .library, requestedAt: Date(timeIntervalSince1970: 1_700_000_000))
-            operation = try await fixture.access.begin(request, expected: fixture.authorization)
-            #expect((await fixture.access.snapshot()).activeResources == 1)
-            await gate.release()
-            let result = await pending.result
-            if case .success = result { Issue.record("A revoked budget read published a late value.") }
-            #expect((await fixture.access.snapshot()).activeResources == 0)
-            #expect(operation != nil)
-            await fixture.close()
-        } catch {
-            await gate.release()
-            _ = await pending.result
-            await fixture.close()
-            throw error
-        }
-    }
-
-    @Test(arguments: [false, true]) func closeDrainsAcceptedNonCooperativeAccountingRead(status: Bool) async throws {
-        let gate = BlockingReadGate()
-        let fixture = try await MemoryApplicationFixture.make(store: MemoryTestStore(blockingBudgetGate: gate))
-        let pending = Task {
-            if status {
-                _ = try await fixture.application.extractionStatus(sessionID: fixture.sessionID,
-                    executionID: fixture.userEvidenceReference.originalExecutionID, workspaceID: nil)
-            } else { _ = try await fixture.application.extractionBudget() }
-        }
-        let closed = CompletionFlag()
-        let closeStarted = CompletionFlag()
-        var closing: Task<Void, Never>?
-        do {
-            await gate.waitUntilEntered()
-            closing = Task {
-                closeStarted.mark()
-                await fixture.application.close()
-                closed.mark()
-            }
-            try await waitUntil {
-                guard closeStarted.value else { return false }
-                return (await fixture.access.snapshot()).activeResources == 1
-            }
-            #expect(!closed.value)
-            await gate.release()
-            _ = await pending.result
-            await closing?.value
-            #expect(closed.value)
-            #expect((await fixture.access.snapshot()).activeResources == 0)
-            #expect((await fixture.access.snapshot()).activeLeases == 0)
-            await fixture.closeAccessOnly()
-        } catch {
-            await gate.release()
-            _ = await pending.result
-            await closing?.value
-            await fixture.closeAccessOnly()
-            throw error
-        }
-    }
-
-    @Test func mutationAndCapturePolicyUseFiniteClockAndCasArguments() async throws {
+    @Test func mutationUsesFiniteClock() async throws {
         let fixture = try await MemoryApplicationFixture.make(now: { Date(timeIntervalSince1970: 1_700_000_000) })
         do {
-            let policy = MemoryCapturePolicy(
-                revision: 2, mode: .candidateOnly, dailyTokenLimit: 2_000,
-                enabledAt: Date(timeIntervalSince1970: 1_700_000_001))
-            try await fixture.application.saveCapturePolicy(policy, expectedRevision: 1)
-            #expect(await fixture.store.lastPolicy == policy)
             let memory = try await fixture.application.changeMemoryState(
                 MemoryID(), workspaceID: nil, state: .archived, expectedRevision: 1, operationID: UUID())
             #expect(memory.state == .archived)
@@ -245,8 +169,7 @@ private actor MemoryApplicationFixture {
         let payloads = MemoryPayloadReader(values: [body.id: Data("Remember this".utf8)])
         let reader = JournalSessionReader(journal: journal, payloads: payloads)
         let app = MemoryApplication(
-            store: selectedStore, capturePolicyStore: selectedStore,
-            extractionBudgetReader: selectedStore, extractionStatusReader: selectedStore, reader: reader, privacyHistory: selectedStore,
+            store: selectedStore, extractionStatusReader: selectedStore, reader: reader, privacyHistory: selectedStore,
             access: access, scope: scope, now: now)
         return .init(
             store: selectedStore, application: app, access: access, scope: scope, sessionID: sessionID,
@@ -323,22 +246,19 @@ private actor MemoryMaintenanceStore: AgentLibraryMaintenanceStore {
     }
 }
 
-private actor MemoryTestStore: MemoryStore, MemoryCapturePolicyStore, MemoryExtractionBudgetReader, MemoryExtractionStatusReader, SessionPrivacyHistoryReader {
+private actor MemoryTestStore: MemoryStore, MemoryExtractionStatusReader, SessionPrivacyHistoryReader {
     func retainedHistory(sessionID: ConversationID, operationIDs: Set<UUID>, executionIDs: Set<ExecutionID>) throws -> [SessionPrivacyHistoryRecord] {
         throw MiraError(.configuration, "The ownership fixture does not provide retained history.")
     }
     func memoryContextNotices(references: [MemoryCitationReference], workspaceID: WorkspaceID?, connectionID: ConnectionID?, at: Date) -> [MemoryContextNotice] { [] }
     let blockingGate: BlockingReadGate?
-    let blockingBudgetGate: BlockingReadGate?
     private(set) var lastOperationID: UUID?
     private(set) var lastAuthorization: AgentLibraryAuthorization?
     private(set) var lastMutationDate: Date?
-    private(set) var lastPolicy: MemoryCapturePolicy?
     private(set) var userEvidenceWriteCount = 0
     private(set) var citationReadCount = 0
-    init(blockingGate: BlockingReadGate? = nil, blockingBudgetGate: BlockingReadGate? = nil) {
+    init(blockingGate: BlockingReadGate? = nil) {
         self.blockingGate = blockingGate
-        self.blockingBudgetGate = blockingBudgetGate
     }
 
     func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) async throws
@@ -417,22 +337,8 @@ private actor MemoryTestStore: MemoryStore, MemoryCapturePolicyStore, MemoryExtr
         _ id: MemoryID, workspaceID: WorkspaceID?, expectedRevision: Int, maintenance: AgentLibraryMaintenanceOperation,
         at: Date
     ) async throws -> MemoryForgetReceipt { .init(memoryID: id, suppressedSources: []) }
-    func memoryCapturePolicy() async throws -> MemoryCapturePolicy { .init(revision: 1) }
-    func saveMemoryCapturePolicy(
-        _ policy: MemoryCapturePolicy, expectedRevision: Int, authorization: AgentLibraryAuthorization, at: Date
-    ) async throws {
-        lastPolicy = policy
-        lastAuthorization = authorization
-        lastMutationDate = at
-    }
-    func memoryExtractionBudget(at: Date) async throws -> MemoryExtractionBudget {
-        if let blockingBudgetGate { await blockingBudgetGate.wait() }
-        return .init(dayStart: at, tokenLimit: 10_000, reservedTokens: 0, chargedTokens: 0)
-    }
-
     func memoryExtractionStatus(sessionID: ConversationID, executionID: ExecutionID, workspaceID: WorkspaceID?,
                                 before: MemoryExtractionStatusCursor?, limit: Int) async throws -> MemoryExtractionStatusPage {
-        if let blockingBudgetGate { await blockingBudgetGate.wait() }
         return .init(jobs: [], nextCursor: nil)
     }
     func memoryExtractionReport(_ id: MemoryExtractionJobID, sessionID: ConversationID,

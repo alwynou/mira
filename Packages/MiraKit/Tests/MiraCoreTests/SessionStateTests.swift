@@ -381,7 +381,7 @@ private struct StateFixture {
             timeoutMilliseconds: 1_000, maximumResultBytes: 1_024)
         let proposal = AgentToolProposal(descriptor: descriptor, effect: invocation.effect,
             businessNamespace: invocation.effect == .localWrite ? "test.write" : nil,
-            callDigest: String(repeating: "a", count: 64),
+            callDigest: String(repeating: "a", count: 64), inheritedSources: [],
             plan: .init(input: .object([:]), sources: [], targets: []))
         let bytes = try SessionCodec.encode(proposal)
         let reference = SessionPayloadReference(id: UUID(), sessionID: state.id, batchID: batchID,

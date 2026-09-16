@@ -233,7 +233,6 @@ struct ModelCostTests {
         let value = MemoryExtractionAttemptUsage(
             id: UUID(), jobID: MemoryExtractionJobID(), ordinal: 1, state: state,
             startedAt: Date(timeIntervalSince1970: 1), dispatchedAt: dispatched, settledAt: settled,
-            budgetDay: effectiveReserved > 0 ? Date(timeIntervalSince1970: 0) : nil,
             reservedTokens: effectiveReserved, chargedTokens: effectiveCharged, usage: effectiveUsage,
             route: effectiveRoute, bodyPurgedAt: bodyPurgedAt)
         try value.validate()

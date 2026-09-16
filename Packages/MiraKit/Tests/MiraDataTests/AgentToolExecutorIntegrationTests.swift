@@ -6,6 +6,21 @@ import GRDB
 
 @Suite("Agent tool executor integration")
 struct AgentToolExecutorIntegrationTests {
+    @Test(arguments: [1, 2, 3])
+    func inheritedSourceRevocationPreventsLocalWrite(check: Int) async throws {
+        let authorizer = RevokingToolSourceAuthorizer(rejectOnCheck: check)
+        let fixture = try await ToolExecutorFixture.make(kind: .localWrite, inheritedSources: true,
+                                                        authorizer: authorizer)
+        try await withToolExecutorFixture(fixture) { f in
+            let resolutions = try await f.executor.execute(attemptID: f.attemptID, executionID: f.executionID)
+            #expect(resolutions.first?.status == .denied)
+            #expect(resolutions.first?.businessReceipt == nil)
+            #expect(try f.count() == 0)
+            #expect(await authorizer.checks == check)
+            #expect(await authorizer.observedSources.allSatisfy { $0.contains(f.source) })
+        }
+    }
+
     @Test func localWriteCommitsReceiptOnceAndPersistsInheritedSources() async throws {
         let fixture = try await ToolExecutorFixture.make(kind: .localWrite, inheritedSources: true)
         try await withToolExecutorFixture(fixture) { fixture in
@@ -19,7 +34,9 @@ struct AgentToolExecutorIntegrationTests {
             let state = await fixture.runtime.snapshot()
             let intent = try #require(state.invocations[fixture.invocationID]?.intent)
             let proposal = try SessionCodec.decode(AgentToolProposal.self, from: await fixture.library.read(intent.intent.proposal))
-            #expect(proposal.plan.sources.contains(fixture.source))
+            #expect(proposal.sources.contains(fixture.source))
+            #expect(proposal.inheritedSources == [fixture.source])
+            #expect(proposal.plan.sources.isEmpty)
 
             await #expect(throws: MiraError.self) {
                 _ = try await fixture.executor.execute(attemptID: fixture.attemptID, executionID: fixture.executionID)
@@ -406,6 +423,7 @@ private final class ToolExecutorFixture: Sendable {
     static func make(kind: ToolFixtureKind, policy: FixturePolicyDecision = .allow,
                      modulePolicy: AgentToolPolicyRequirement = .hostOnly,
                      callArguments: String = "{}", inheritedSources: Bool = false,
+                     authorizer: any AgentSourceAuthorizer = ToolFixtureSourceAuthorizer(),
                      afterCommitHook: (@Sendable () throws -> Void)? = nil) async throws -> ToolExecutorFixture {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("mira-tool-executor-\(UUID().uuidString)")
         let library = try FileSessionLibrary(directory: directory)
@@ -443,7 +461,7 @@ private final class ToolExecutorFixture: Sendable {
             let libraryLease = try await accessFixture.acquire()
             let executor = try AgentToolExecutor(runtime: openedRuntime, payloads: library, libraryLease: libraryLease, catalog: catalog,
                 policy: FixturePolicy(decision: policy), authority: madeBusiness, business: madeBusiness,
-                approvals: approvals, maximumParallelTools: 2)
+                authorizer: authorizer, approvals: approvals, maximumParallelTools: 2)
             let fixture = ToolExecutorFixture(directory: directory, databasePath: databasePath, library: library, database: database,
                 business: madeBusiness, authority: authority, runtime: openedRuntime, executor: executor, approvals: approvals, probe: probe, source: source,
                 sessionID: openedRuntime.id, executionID: ExecutionID(), attemptID: UUID(), invocationID: UUID(),
@@ -654,7 +672,7 @@ private final class ParallelToolFixture: Sendable {
             let libraryLease = try await accessFixture.acquire()
             let executor = try AgentToolExecutor(runtime: openedRuntime, payloads: library, libraryLease: libraryLease, catalog: catalog,
                 policy: FixturePolicy(decision: .allow), authority: madeBusiness, business: madeBusiness,
-                approvals: approvals, maximumParallelTools: 2)
+                authorizer: ToolFixtureSourceAuthorizer(), approvals: approvals, maximumParallelTools: 2)
             let fixture = ParallelToolFixture(directory: directory, library: library, database: database, business: madeBusiness, authority: authority, runtime: openedRuntime,
                 executor: executor, gate: gate, libraryAccessFixture: accessFixture, sessionID: sessionID, executionID: ExecutionID(), attemptID: UUID(),
                 invocationIDs: [UUID(), UUID(), UUID()])
@@ -806,7 +824,7 @@ private final class CancellationToolFixture: Sendable {
             let libraryLease = try await accessFixture.acquire()
             let executor = try AgentToolExecutor(runtime: openedRuntime, payloads: library, libraryLease: libraryLease, catalog: catalog,
                 policy: FixturePolicy(decision: .allow), authority: madeBusiness, business: madeBusiness,
-                approvals: approvals, maximumParallelTools: 1, environment: environment)
+                authorizer: ToolFixtureSourceAuthorizer(), approvals: approvals, maximumParallelTools: 1, environment: environment)
             let fixture = CancellationToolFixture(directory: directory, library: library, database: database, business: madeBusiness, authority: authority, runtime: openedRuntime,
                 executor: executor, gate: gate, libraryAccessFixture: accessFixture, attemptID: UUID(), executionID: ExecutionID(), invocationID: UUID())
             try await fixture.seed(catalog: catalog, name: "tests.external")
@@ -916,4 +934,21 @@ private func toolBusinessDatabase(path: String) throws -> DatabaseQueue {
     configuration.foreignKeysEnabled = true
     configuration.prepareDatabase { try $0.execute(sql: "PRAGMA synchronous = FULL") }
     return try DatabaseQueue(path: path, configuration: configuration)
+}
+
+/// These executor fixtures use synthetic sources; production workflows use the journal authorizer.
+struct ToolFixtureSourceAuthorizer: AgentSourceAuthorizer {
+    func validate(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {}
+}
+
+private actor RevokingToolSourceAuthorizer: AgentSourceAuthorizer {
+    let rejectOnCheck: Int
+    private(set) var checks = 0
+    private(set) var observedSources: [[AgentSourceReference]] = []
+    init(rejectOnCheck: Int) { self.rejectOnCheck = rejectOnCheck }
+    func validate(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {
+        checks += 1
+        observedSources.append(sources)
+        if checks >= rejectOnCheck { throw MiraError(.unauthorized, "Synthetic inherited source revocation.") }
+    }
 }

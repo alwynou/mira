@@ -7,31 +7,12 @@ extension SQLiteMemoryStore {
         return try SQLiteArchiveModule(
             identity: .init(name: "memory.store", revision: 1),
             schemaStatements: archiveSchemaDefinitions.map(\.1),
-            restoration: .prepare(
-                apply: { db, _ in
-                    guard try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_policy") == 1 else {
-                        throw LibraryArchiveIO.invalid
-                    }
-                    try SQLiteArchiveValidation.rows(in: db, table: "memory_policy", maximumBytes: ["json": 131_072]) {
-                        _ in
-                    }
-                    var policy = try currentCapturePolicy(in: db)
-                    policy.mode = .manualOnly
-                    policy.enabledAt = nil
-                    try db.execute(
-                        sql: "UPDATE memory_policy SET json = ? WHERE id = 1", arguments: [try encode(policy)])
-                },
-                verify: { db in
-                    guard try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_policy") == 1 else {
-                        throw LibraryArchiveIO.invalid
-                    }
-                    try SQLiteArchiveValidation.rows(in: db, table: "memory_policy", maximumBytes: ["json": 131_072]) {
-                        _ in
-                    }
-                    let policy = try currentCapturePolicy(in: db)
-                    guard policy.mode == .manualOnly, policy.enabledAt == nil else { throw LibraryArchiveIO.invalid }
-                }
-            )
+            restoration: .preserve,
+            prepareExport: { db in
+                try db.execute(sql: "DELETE FROM memory_embeddings")
+                try db.execute(sql: "DELETE FROM memory_embedding_jobs")
+                try db.execute(sql: "DELETE FROM memory_embedding_state")
+            }
         ) { db, snapshot in
             try validateArchive(db: db, snapshot: snapshot)
             return []
@@ -40,13 +21,8 @@ extension SQLiteMemoryStore {
 
     private static func validateArchive(db: Database, snapshot: FileSessionSnapshot) throws {
         try SQLiteArchiveValidation.metadata("memory_schema", in: db)
-        guard try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_policy") == 1 else {
-            throw LibraryArchiveIO.invalid
-        }
-        try SQLiteArchiveValidation.rows(in: db, table: "memory_policy", maximumBytes: ["json": 131_072]) { _ in }
         guard try Row.fetchOne(db, sql: "PRAGMA foreign_key_check") == nil else { throw LibraryArchiveIO.invalid }
         let sessions = try SQLiteArchiveSessions(snapshot)
-        _ = try currentCapturePolicy(in: db)
 
         var memories: [String: Memory] = [:]
         try SQLiteArchiveValidation.rows(in: db, table: "memory_records") { row in

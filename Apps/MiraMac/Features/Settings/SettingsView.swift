@@ -239,7 +239,7 @@ struct SettingsView: View {
         case .general:
             GeneralSettingsView()
         case .memory:
-            MemorySettingsView(model: model.memory, onManageModels: { model.navigate(.category(.models)) })
+            MemorySettingsView(model: model.memory)
         case .data:
             DataSettingsView(model: model.data)
         case .providers, .models:

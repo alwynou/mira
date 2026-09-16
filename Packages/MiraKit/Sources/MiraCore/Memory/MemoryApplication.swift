@@ -4,8 +4,6 @@ import Foundation
 /// scope task and library lease until its store call and any journal read have returned.
 public actor MemoryApplication {
     private let store: any MemoryStore
-    private let capturePolicyStore: any MemoryCapturePolicyStore
-    private let extractionBudgetReader: any MemoryExtractionBudgetReader
     private let extractionStatusReader: any MemoryExtractionStatusReader
     private let reader: JournalSessionReader
     private let privacyHistory: any SessionPrivacyHistoryReader
@@ -16,16 +14,13 @@ public actor MemoryApplication {
     private var closed = false
 
     public init(
-        store: any MemoryStore, capturePolicyStore: any MemoryCapturePolicyStore,
-        extractionBudgetReader: any MemoryExtractionBudgetReader,
+        store: any MemoryStore,
         extractionStatusReader: any MemoryExtractionStatusReader, reader: JournalSessionReader,
         privacyHistory: any SessionPrivacyHistoryReader,
         access: AgentLibraryAccess, scope: RuntimeScope,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.store = store
-        self.capturePolicyStore = capturePolicyStore
-        self.extractionBudgetReader = extractionBudgetReader
         self.extractionStatusReader = extractionStatusReader
         self.reader = reader
         self.privacyHistory = privacyHistory
@@ -159,12 +154,6 @@ public actor MemoryApplication {
         }
     }
 
-    public func capturePolicy() async throws -> MemoryCapturePolicy {
-        try await owned { lease in
-            try await lease.read { try await self.capturePolicyStore.memoryCapturePolicy() }
-        }
-    }
-
     /// Reads only the selected conversation page. Retained privacy provenance explains
     /// old replies without granting citation access or making them usable model history.
     public func contextNotices(sessionID: ConversationID, executionIDs: Set<ExecutionID>,
@@ -204,24 +193,6 @@ public actor MemoryApplication {
                     if !notices.isEmpty { result[id] = notices }
                 }
                 return result
-            }
-        }
-    }
-
-    public func saveCapturePolicy(_ policy: MemoryCapturePolicy, expectedRevision: Int) async throws {
-        try policy.validate()
-        try await owned { lease in
-            try await lease.check()
-            try await self.capturePolicyStore.saveMemoryCapturePolicy(
-                policy, expectedRevision: expectedRevision,
-                authorization: lease.authorization, at: self.timestamp())
-        }
-    }
-
-    public func extractionBudget() async throws -> MemoryExtractionBudget {
-        try await owned { lease in
-            try await lease.read {
-                try await self.extractionBudgetReader.memoryExtractionBudget(at: self.timestamp())
             }
         }
     }

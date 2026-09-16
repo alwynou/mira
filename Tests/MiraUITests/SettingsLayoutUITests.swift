@@ -82,14 +82,11 @@ final class SettingsLayoutUITests: XCTestCase {
             }
         }
         settings.descendants(matching: .any).matching(identifier: "settings.category.memory").firstMatch.click()
-        let limit = settings.textFields["settings.memory.tokenLimit"]
-        XCTAssertTrue(limit.waitForExistence(timeout: 5))
-        limit.click()
-        limit.typeKey("a", modifierFlags: .command)
-        paste("12000", into: limit)
+        XCTAssertFalse(settings.textFields["settings.memory.tokenLimit"].exists)
+        XCTAssertFalse(settings.buttons["settings.memory.save"].exists)
         settings.descendants(matching: .any).matching(identifier: "settings.category.general").firstMatch.click()
         settings.descendants(matching: .any).matching(identifier: "settings.category.memory").firstMatch.click()
-        XCTAssertEqual(limit.value as? String, "12000", "Navigation preserves the unsaved memory draft.")
+        XCTAssertFalse(settings.textFields["settings.memory.tokenLimit"].exists)
         settings.buttons[XCUIIdentifierCloseWindow].click()
         XCTAssertTrue(composer.exists)
         XCTAssertEqual(composer.value as? String, "SyntheticDraft42")
@@ -97,8 +94,8 @@ final class SettingsLayoutUITests: XCTestCase {
         XCTAssertTrue(settings.waitForExistence(timeout: 5))
         XCTAssertTrue(settings.popUpButtons["settings.language"].waitForExistence(timeout: 5), "Reopening starts a fresh settings session.")
         settings.descendants(matching: .any).matching(identifier: "settings.category.memory").firstMatch.click()
-        XCTAssertTrue(limit.waitForExistence(timeout: 5))
-        XCTAssertEqual(limit.value as? String, "10000", "Closing discards unsaved settings drafts.")
+        XCTAssertFalse(settings.textFields["settings.memory.tokenLimit"].exists)
+        XCTAssertFalse(settings.buttons["settings.memory.save"].exists)
         settings.descendants(matching: .any).matching(identifier: "settings.category.providers").firstMatch.click()
         XCTAssertTrue(settings.buttons["settings.catalog.openai"].isSelected)
         XCTAssertEqual(settings.secureTextFields["settings.provider.apiKey"].value as? String, "")

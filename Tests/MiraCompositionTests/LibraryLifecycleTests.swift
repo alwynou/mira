@@ -9,7 +9,7 @@ struct LibraryLifecycleTests {
     @Test func allHTTPFamiliesRegisterWithoutReadingCredentials() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(),
                 credentials: credentials,
                 modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
@@ -42,7 +42,7 @@ struct LibraryLifecycleTests {
     @Test func copiedLibraryDoesNotReplaceOriginalPlatformNotifications() async throws {
         try await withDirectory { directory in
             let notifications = CompositionNotifications()
-            let original = try await MacLibrary.open(
+            let original = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
             do {
                 let group = try await original.workloads()
@@ -60,7 +60,7 @@ struct LibraryLifecycleTests {
             let originalID = try #require(await notifications.pending().first?.identifier)
             let copy = directory.deletingLastPathComponent().appendingPathComponent("Copy")
             try FileManager.default.copyItem(at: directory, to: copy)
-            let copied = try await MacLibrary.open(directory: copy, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
+            let copied = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: copy, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
             #expect(copied.id == original.id)
             #expect(await notifications.pending().count == 2)
             #expect(await notifications.pending().contains { $0.identifier == originalID })
@@ -71,7 +71,7 @@ struct LibraryLifecycleTests {
     @Test func reopenPreservesJournalAndBusinessDataAndRejectsConcurrentWriter() async throws {
         try await withDirectory { directory in
             let notifications = CompositionNotifications()
-            let first = try await MacLibrary.open(
+            let first = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
             let session = ConversationID()
             let taskID = MiraTaskID()
@@ -107,7 +107,7 @@ struct LibraryLifecycleTests {
                     id: taskID, workspaceID: nil, draft: .init(title: "Synthetic task"),
                     status: .open, expectedRevision: nil, operationID: UUID())
                 await #expect(throws: MiraError.self) {
-                    _ = try await MacLibrary.open(
+                    _ = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                         directory: directory, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
                 }
                 #expect(await first.status().phase == .ready)
@@ -122,7 +122,7 @@ struct LibraryLifecycleTests {
                 _ = await first.close()
                 throw error
             }
-            let second = try await MacLibrary.open(
+            let second = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
             do {
                 #expect(second.id == first.id)
@@ -141,7 +141,7 @@ struct LibraryLifecycleTests {
 
     @Test func exportAndMaintenanceReplaceWorkGroupsAndPreserveCanonicalData() async throws {
         try await withDirectory { directory in
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             do {
                 let group = try await library.workloads()
@@ -182,7 +182,7 @@ struct LibraryLifecycleTests {
 
     @Test func failedExportReopensReadyWorkGroupAndDoesNotOverwriteDestination() async throws {
         try await withDirectory { directory in
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             do {
                 let before = try await library.workloads()
@@ -205,7 +205,7 @@ struct LibraryLifecycleTests {
     @Test func closeDrainsActualNotificationRequestBeforeReleasingLibraryLock() async throws {
         try await withDirectory { directory in
             let notifications = CompositionNotifications()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
             let group = try await library.workloads()
             await notifications.gateNextPermissionRequest()
@@ -216,14 +216,14 @@ struct LibraryLifecycleTests {
                 closing = Task { await library.close() }
                 try await eventually { await library.status().phase == .closing }
                 await #expect(throws: MiraError.self) {
-                    _ = try await MacLibrary.open(
+                    _ = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                         directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
                 }
                 #expect(await library.status().phase == .closing)
                 await notifications.releasePermission()
                 _ = await request.result
                 #expect(await closing!.value.isSettled)
-                let reopened = try await MacLibrary.open(
+                let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
                 #expect(await reopened.close().isSettled)
             } catch {
@@ -243,12 +243,12 @@ struct LibraryLifecycleTests {
             let invalid = Data("Not a SQLite database".utf8)
             try invalid.write(to: database)
             await #expect(throws: MiraError.self) {
-                _ = try await MacLibrary.open(
+                _ = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             }
             #expect(try Data(contentsOf: database) == invalid)
             try FileManager.default.removeItem(at: database)
-            let repaired = try await MacLibrary.open(
+            let repaired = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             #expect(await repaired.close().isSettled)
         }
@@ -257,11 +257,11 @@ struct LibraryLifecycleTests {
     @Test func failedModuleActivationReleasesPartialLibraryForRetry() async throws {
         try await withDirectory { directory in
             await #expect(throws: MiraError.self) {
-                _ = try await MacLibrary.open(
+                _ = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [FailingCompositionModule()] })
             }
-            let repaired = try await MacLibrary.open(
+            let repaired = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             #expect(await repaired.close().isSettled)
         }
@@ -270,7 +270,7 @@ struct LibraryLifecycleTests {
     @Test func closeOwnsCancelledMaintenanceWaiterAndDoesNotRestartWorkloads() async throws {
         try await withDirectory { directory in
             let notifications = CompositionNotifications()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: notifications, credentials: CompositionCredentials(), modules: { _ in [] })
             let group = try await library.workloads()
             await notifications.gateNextPermissionRequest()
@@ -295,7 +295,7 @@ struct LibraryLifecycleTests {
                 #expect(await closing!.value.isSettled)
                 #expect(await library.status().phase == .closed)
                 #expect(await library.status().generation == 1)
-                let reopened = try await MacLibrary.open(
+                let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
                 #expect(await reopened.pendingMaintenance() == nil)
                 #expect(await reopened.close().isSettled)
@@ -316,7 +316,7 @@ struct LibraryLifecycleTests {
             let obsolete = directory.appendingPathComponent("Mira.sqlite")
             try Data("Synthetic obsolete library".utf8).write(to: obsolete)
             await #expect(throws: MiraError.self) {
-                _ = try await MacLibrary.open(
+                _ = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             }
             #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["Mira.sqlite"])
@@ -337,7 +337,7 @@ struct LibraryLifecycleTests {
                     try FileManager.default.linkItem(at: external, to: path)
                 }
                 await #expect(throws: MiraError.self) {
-                    _ = try await MacLibrary.open(
+                    _ = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                         directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
                 }
                 #expect(try Data(contentsOf: external) == Data("External sentinel".utf8))

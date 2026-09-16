@@ -40,7 +40,7 @@ struct MemoryExtractionQueryTests {
                 _ = try await store.completeMemoryExtraction(
                     third, source: source,
                     output: .init(
-                        blocks: [.init(id: "text", content: .text("{\"version\":2,\"items\":[]}"))], continuation: nil, usage: usage,
+                        blocks: [.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))], continuation: nil, usage: usage,
                         finishReason: .stop),
                     authorization: auth, at: TaskWorkflowFixture.now)
                 let before = try await store.memoryExtractionReport(
@@ -78,10 +78,6 @@ struct MemoryExtractionQueryTests {
                     #expect(purged.attempts.map(\.usage) == before.attempts.map(\.usage))
                     #expect(purged.attempts.map(\.chargedTokens) == before.attempts.map(\.chargedTokens))
                     #expect(purged.attempts.allSatisfy { $0.route == nil && $0.bodyPurgedAt != nil })
-                    let budget = try await reopened.memoryExtractionBudget(at: TaskWorkflowFixture.now)
-                    #expect(
-                        budget.reservedTokens == 0 && budget.chargedTokens == ceiling + (missingCounters ? ceiling : 12)
-                    )
                 } catch {
                     await reopened.close()
                     try? reopenedDB.close()
@@ -114,16 +110,7 @@ struct MemoryExtractionQueryTests {
             let store = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
             do {
                 var expected: [MemoryExtractionJobID] = []
-                // Each new policy creates a distinct job for an explicit retry of the same source.
-                for revision in 2...6 {
-                    if revision > 2 {
-                        try await f.memory?.saveMemoryCapturePolicy(
-                            .init(
-                                revision: revision, mode: .automaticWithUndo,
-                                dailyTokenLimit: 100_000, enabledAt: TaskWorkflowFixture.now),
-                            expectedRevision: revision - 1,
-                            authorization: f.authority.authorization(), at: TaskWorkflowFixture.now)
-                    }
+                for _ in 2...2 {
                     expected.append(try await enqueue(source, in: f).id)
                     _ = try await enqueue(otherSource, in: f)
                     _ = try await enqueue(foreignSource, in: f)
@@ -139,7 +126,7 @@ struct MemoryExtractionQueryTests {
                     cursor = page.nextCursor
                 } while cursor != nil
                 #expect(seen == expected.sorted { $0.rawValue.uuidString > $1.rawValue.uuidString })
-                #expect(Set(seen).count == 5)
+                #expect(Set(seen).count == 1)
                 #expect(
                     try await store.memoryExtractionStatus(
                         sessionID: address.sessionID, executionID: address.executionID,
@@ -201,7 +188,6 @@ struct MemoryExtractionQueryTests {
                     try await store.memoryExtractionReport(
                         job.id, sessionID: address.sessionID,
                         executionID: address.executionID, workspaceID: nil) == before)
-                #expect(try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now).reservedTokens > 0)
                 try await f.database.write { db in
                     let bytes = try #require(
                         try Data.fetchOne(db, sql: "SELECT accounting FROM memory_extraction_attempts"))
@@ -216,9 +202,6 @@ struct MemoryExtractionQueryTests {
                         job.id, sessionID: address.sessionID,
                         executionID: address.executionID, workspaceID: nil)
                 }
-                await #expect(throws: MiraError.self) {
-                    try await store.memoryExtractionBudget(at: TaskWorkflowFixture.now)
-                }
             } catch {
                 await store.close()
                 throw error
@@ -227,17 +210,7 @@ struct MemoryExtractionQueryTests {
         }
     }
 
-    private func enable(in f: TaskWorkflowFixture) async throws {
-        try await f.memory?.saveMemoryCapturePolicy(
-            .init(
-                revision: 2, mode: .automaticWithUndo,
-                dailyTokenLimit: 100_000, enabledAt: TaskWorkflowFixture.now), expectedRevision: 1,
-            authorization: f.authority.authorization(), at: TaskWorkflowFixture.now)
-        try await f.settings.saveBinding(
-            .init(
-                scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                routeID: f.route.id, revision: 1), expectedRevision: nil, authorization: f.authority.authorization())
-    }
+    private func enable(in f: TaskWorkflowFixture) async throws { _ = f }
 
     private func enqueue(_ source: SessionUserEvidence, in f: TaskWorkflowFixture) async throws -> MemoryExtractionJob {
         let origin = try await f.library.withSnapshot { snapshot in
@@ -270,9 +243,7 @@ struct MemoryExtractionQueryTests {
                 id, expectedAttemptCount: ordinal - 1, source: source,
                 selection: .init(
                     route: f.route,
-                    binding: .init(
-                        scope: .global, purpose: AgentModelPurposeID.memoryExtraction,
-                        routeID: f.route.id, revision: 1)), authorization: f.authority.authorization(),
+                    binding: nil), authorization: f.authority.authorization(),
                 at: TaskWorkflowFixture.now))
     }
 

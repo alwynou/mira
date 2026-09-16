@@ -8,6 +8,7 @@ actor AgentToolExecutor {
     private let catalog: AgentToolCatalog
     private let policy: any AgentToolPolicy
     private let authority: any AgentEffectAuthority
+    private let authorizer: any AgentSourceAuthorizer
     private let business: any AgentBusinessEffects
     private let recovery: AgentToolRecovery
     private let approvals: RuntimeApprovalService
@@ -18,11 +19,13 @@ actor AgentToolExecutor {
 
     init(runtime: SessionRuntime, payloads: any SessionPayloadReader, libraryLease: AgentLibraryAccessLease, catalog: AgentToolCatalog,
          policy: any AgentToolPolicy, authority: any AgentEffectAuthority, business: any AgentBusinessEffects,
+         authorizer: any AgentSourceAuthorizer,
          approvals: RuntimeApprovalService, maximumParallelTools: Int, environment: RuntimeEnvironment = .init()) throws {
         guard (1...32).contains(maximumParallelTools) else { throw MiraError(.configuration, "The tool concurrency limit is invalid.") }
         self.runtime = runtime; self.payloads = libraryLease.reader(from: payloads)
         self.libraryLease = libraryLease; self.catalog = catalog; self.policy = policy
         self.authority = authority; self.business = business; self.approvals = approvals
+        self.authorizer = authorizer
         self.maximumParallelTools = maximumParallelTools; self.environment = environment
         self.recovery = .init(runtime: runtime, business: business, approvals: approvals, environment: environment)
     }
@@ -139,10 +142,9 @@ actor AgentToolExecutor {
         do {
             let prepared = try await entry.tool.preparation.prepare(arguments, context: context)
             try prepared.validate()
-            let sources = AgentContextBuild.orderedSources(prepared.sources + build.sources)
-            let plan = AgentToolPlan(input: prepared.input, sources: sources, targets: prepared.targets)
             proposal = .init(descriptor: entry.descriptor, effect: entry.effect,
-                businessNamespace: entry.businessNamespace, callDigest: invocation.call.digest, plan: plan)
+                businessNamespace: entry.businessNamespace, callDigest: invocation.call.digest,
+                inheritedSources: build.sources, plan: prepared)
             try proposal.validate()
         } catch {
             try Task.checkCancellation()
@@ -150,6 +152,7 @@ actor AgentToolExecutor {
         }
         let authorization: AgentLibraryAuthorization
         do {
+            try await authorizer.validate(proposal.sources, for: build.request)
             authorization = try await authority.authorization(for: proposal, context: context)
             guard authorization == libraryLease.authorization else {
                 throw MiraError(.unauthorized, "The tool execution is no longer authorized.")
@@ -180,6 +183,7 @@ actor AgentToolExecutor {
             }
             try await checkEligibility(context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
             try await invocationPolicy.validate(proposal, context: context)
+            try await authorizer.validate(proposal.sources, for: build.request)
             try await authority.validate(authorization, proposal: proposal, context: context)
         } catch {
             if error is AgentDurabilityFailure { throw error }
@@ -195,6 +199,7 @@ actor AgentToolExecutor {
         do {
             try await checkEligibility(context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
             try await invocationPolicy.validate(proposal, context: context)
+            try await authorizer.validate(proposal.sources, for: build.request)
             try await authority.validate(authorization, proposal: proposal, context: context)
         } catch {
             try Task.checkCancellation()
@@ -232,6 +237,11 @@ actor AgentToolExecutor {
         do {
             try await checkEligibility(context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
             try await policy.validate(proposal, context: context)
+            let request = AgentContextRequest(sessionID: context.evidence.reference.sessionID,
+                executionID: context.executionID, workspaceID: context.evidence.workspaceID,
+                userText: context.evidence.text, authorizationEpoch: context.evidence.sessionAuthorizationEpoch,
+                destination: .model(context.route))
+            try await authorizer.validate(proposal.sources, for: request)
             try await authority.validate(authorization, proposal: proposal, context: context)
             try await checkEligibility(context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
             return true

@@ -96,7 +96,7 @@ public actor SessionPrivacyMaintenance {
                             let value = try SessionCodec.decode(
                                 AgentToolProposal.self, from: await payloads.read(proposal))
                             try value.validate()
-                            sources.formUnion(value.plan.sources + value.plan.targets)
+                            sources.formUnion(value.sources + value.plan.targets)
                         }
                     }
                 }

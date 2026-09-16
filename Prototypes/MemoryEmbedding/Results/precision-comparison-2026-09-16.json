@@ -1,0 +1,7572 @@
+{
+  "fixtureSHA256": "4374f75670d286edd826918e8896a0691067b7780489513f2ff4acbe06b13fb4",
+  "runOrder": [
+    "4bit-1",
+    "bf16-1",
+    "bf16-2",
+    "4bit-2"
+  ],
+  "metadata": {
+    "fixtureSHA256": "4374f75670d286edd826918e8896a0691067b7780489513f2ff4acbe06b13fb4",
+    "memories": 96,
+    "queries": 112,
+    "runOrder": [
+      "4bit-1",
+      "bf16-1",
+      "bf16-2",
+      "4bit-2"
+    ],
+    "networkDenied": true,
+    "mlXCacheLimitBytes": 134217728,
+    "modelManifests": {
+      "4bit": {
+        "repo": "mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ",
+        "revision": "6c3ae70858513f1a78e9cdca3cae330d9075cd2a",
+        "files": [
+          {
+            "file": "README.md",
+            "bytes": 970,
+            "hash": "c2f9e3162273a2020338c05c2b86487105b04b4c",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "config.json",
+            "bytes": 937,
+            "hash": "1c1d64f33a74b3c2c480c5221d5384391695708b",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "merges.txt",
+            "bytes": 1671853,
+            "hash": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "model.safetensors",
+            "bytes": 335296756,
+            "hash": "3d773d5ee582eda445daeee23f7a2b76124011796df244ddb45e22638fdb7cde",
+            "algorithm": "sha256"
+          },
+          {
+            "file": "special_tokens_map.json",
+            "bytes": 613,
+            "hash": "ac23c0aaa2434523c494330aeb79c58395378103",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "tokenizer.json",
+            "bytes": 11423705,
+            "hash": "def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a",
+            "algorithm": "sha256"
+          },
+          {
+            "file": "tokenizer_config.json",
+            "bytes": 5404,
+            "hash": "ddaf69808214a44fdd26d3785b66c1367c78277a",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "vocab.json",
+            "bytes": 2776833,
+            "hash": "4783fe10ac3adce15ac8f358ef5462739852c569",
+            "algorithm": "git-blob-sha1"
+          }
+        ]
+      },
+      "bf16": {
+        "repo": "Qwen/Qwen3-Embedding-0.6B",
+        "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+        "files": [
+          {
+            "file": "1_Pooling/config.json",
+            "bytes": 313,
+            "hash": "b6291baabbc39f9792d6759883a47d7d5bd0fbcf",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "README.md",
+            "bytes": 17237,
+            "hash": "00a82ea60dfb1d8aed899c16e2b4f12673cd2f79",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "config.json",
+            "bytes": 727,
+            "hash": "cef2749ee93607b8f9a58ec72f4f6bfaf874e71d",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "config_sentence_transformers.json",
+            "bytes": 215,
+            "hash": "76aef3ade63553ebb698fe3c2a3264040ed093f8",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "merges.txt",
+            "bytes": 1671853,
+            "hash": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "model.safetensors",
+            "bytes": 1191586416,
+            "hash": "0437e45c94563b09e13cb7a64478fc406947a93cb34a7e05870fc8dcd48e23fd",
+            "algorithm": "sha256"
+          },
+          {
+            "file": "modules.json",
+            "bytes": 349,
+            "hash": "952a9b81c0bfd99800fabf352f69c7ccd46c5e43",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "tokenizer.json",
+            "bytes": 11423705,
+            "hash": "def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a",
+            "algorithm": "sha256"
+          },
+          {
+            "file": "tokenizer_config.json",
+            "bytes": 9706,
+            "hash": "7345216a0785dc7086e8c245b2a9d3896ce2b756",
+            "algorithm": "git-blob-sha1"
+          },
+          {
+            "file": "vocab.json",
+            "bytes": 2776833,
+            "hash": "4783fe10ac3adce15ac8f358ef5462739852c569",
+            "algorithm": "git-blob-sha1"
+          }
+        ]
+      }
+    }
+  },
+  "models": {
+    "4bit": {
+      "quality": {
+        "semantic": {
+          "hit1": 0.8942307692307693,
+          "hit6": 1,
+          "recall6": 1.0,
+          "allFacts6": 1,
+          "mrr6": 0.9439102564102564,
+          "ndcg6": 0.9576739285701087,
+          "firstHits": 93,
+          "hit6Count": 104,
+          "allFacts6Count": 104
+        },
+        "hybrid": {
+          "hit1": 0.8557692307692307,
+          "hit6": 1,
+          "recall6": 1.0,
+          "allFacts6": 1,
+          "mrr6": 0.9222756410256411,
+          "ndcg6": 0.9415534075969142,
+          "firstHits": 89,
+          "hit6Count": 104,
+          "allFacts6Count": 104
+        },
+        "lexical": {
+          "hit1": 0.625,
+          "hit6": 0.8076923076923077,
+          "recall6": 0.8076923076923077,
+          "allFacts6": 0.8076923076923077,
+          "mrr6": 0.6878205128205128,
+          "ndcg6": 0.7157622729152646,
+          "firstHits": 65,
+          "hit6Count": 84,
+          "allFacts6Count": 84
+        }
+      },
+      "answerableQueries": 104,
+      "groups": {
+        "beverage": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "budget": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9384882922619096
+        },
+        "capture": {
+          "hit1": 0.6666666666666666,
+          "recall6": 1.0,
+          "ndcg6": 0.8551549589285763
+        },
+        "display": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9166666666666666
+        },
+        "export": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "food": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9384882922619096
+        },
+        "hardware": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9384882922619096
+        },
+        "history": {
+          "hit1": 0.6666666666666666,
+          "recall6": 1.0,
+          "ndcg6": 0.8769765845238192
+        },
+        "identifiers": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9384882922619096
+        },
+        "language": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "meetings": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "multi-fact": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 0.9899650986435234
+        },
+        "provider": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "reminders": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "storage": {
+          "hit1": 0.6666666666666666,
+          "recall6": 1.0,
+          "ndcg6": 0.8769765845238192
+        },
+        "timezone": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "travel": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        }
+      },
+      "stableTop6AcrossRuns": true,
+      "queryTiming": {
+        "samples": 224,
+        "p50Ms": 41.21814600005746,
+        "p95Ms": 62.68991700001061,
+        "maxMs": 66.48024999909103
+      },
+      "tokenRange": [
+        27,
+        41
+      ],
+      "loadMsRuns": [
+        563.658082999289,
+        592.9154169987887
+      ],
+      "indexMsRuns": [
+        1883.4686249997467,
+        1737.2070409990847
+      ],
+      "memory": [
+        {
+          "normalActiveBytes": 335252576,
+          "normalCacheBytes": 134087420,
+          "normalPeakActiveBytes": 562448360,
+          "normalProcessResidentBytes": 481476608,
+          "clearedActiveBytes": 335252576,
+          "clearedCacheBytes": 0,
+          "clearedProcessResidentBytes": 481427456,
+          "finalPeakActiveBytes": 1324395912
+        },
+        {
+          "normalActiveBytes": 335252576,
+          "normalCacheBytes": 134110404,
+          "normalPeakActiveBytes": 562448360,
+          "normalProcessResidentBytes": 471597056,
+          "clearedActiveBytes": 335252576,
+          "clearedCacheBytes": 0,
+          "clearedProcessResidentBytes": 471547904,
+          "finalPeakActiveBytes": 1324399976
+        }
+      ],
+      "batches": [
+        {
+          "kind": "real-memory",
+          "count": 1,
+          "tokenCounts": [
+            12
+          ],
+          "indexP50MsRuns": [
+            39.07024999894202,
+            38.391084000468254
+          ],
+          "combinedP95MsRuns": [
+            100.90666700154543,
+            94.45112499967217
+          ]
+        },
+        {
+          "kind": "real-memory",
+          "count": 2,
+          "tokenCounts": [
+            12,
+            14
+          ],
+          "indexP50MsRuns": [
+            41.22124999947846,
+            42.29983299970627
+          ],
+          "combinedP95MsRuns": [
+            102.57087500020862,
+            101.73049999959767
+          ]
+        },
+        {
+          "kind": "real-memory",
+          "count": 4,
+          "tokenCounts": [
+            12,
+            14,
+            10,
+            13
+          ],
+          "indexP50MsRuns": [
+            63.62170900031924,
+            63.61929200030863
+          ],
+          "combinedP95MsRuns": [
+            125.01624999940395,
+            116.72275000065565
+          ]
+        },
+        {
+          "kind": "real-memory",
+          "count": 8,
+          "tokenCounts": [
+            12,
+            14,
+            10,
+            13,
+            12,
+            8,
+            13,
+            11
+          ],
+          "indexP50MsRuns": [
+            119.64266600087285,
+            123.58579199947417
+          ],
+          "combinedP95MsRuns": [
+            170.0219160001725,
+            168.40941699966788
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 1,
+          "tokenCounts": [
+            129
+          ],
+          "indexP50MsRuns": [
+            127.96116700023413,
+            128.6657499987632
+          ],
+          "combinedP95MsRuns": [
+            185.02508299984038,
+            186.22266699932516
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 2,
+          "tokenCounts": [
+            129,
+            129
+          ],
+          "indexP50MsRuns": [
+            230.85975000075996,
+            230.85887500084937
+          ],
+          "combinedP95MsRuns": [
+            297.6998330000788,
+            296.4183339998126
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 4,
+          "tokenCounts": [
+            129,
+            129,
+            129,
+            129
+          ],
+          "indexP50MsRuns": [
+            423.5518330000341,
+            429.6735419984907
+          ],
+          "combinedP95MsRuns": [
+            489.4912919998169,
+            471.7841250002384
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 8,
+          "tokenCounts": [
+            129,
+            129,
+            129,
+            129,
+            129,
+            129,
+            129,
+            129
+          ],
+          "indexP50MsRuns": [
+            798.8767499998212,
+            774.2560840006918
+          ],
+          "combinedP95MsRuns": [
+            855.3294589985162,
+            861.3422079999
+          ]
+        }
+      ],
+      "noAnswerScores": {
+        "none-0": 0.6465311,
+        "none-1": 0.6554059,
+        "none-2": 0.6548745,
+        "none-3": 0.6452952,
+        "none-4": 0.6681404,
+        "none-5": 0.36412758,
+        "none-6": 0.72715294,
+        "none-7": 0.6798685
+      },
+      "queryResults": [
+        {
+          "id": "food-q0",
+          "category": "food",
+          "expected": [
+            "food-0"
+          ],
+          "expectedRanks": {
+            "food-0": 1
+          },
+          "expectedScores": {
+            "food-0": 0.77027
+          },
+          "semantic": [
+            "food-0",
+            "food-1",
+            "food-4",
+            "food-2",
+            "food-3",
+            "food-5"
+          ],
+          "topScore": 0.77027,
+          "hybrid": [
+            "food-0",
+            "food-3",
+            "food-1",
+            "beverage-3",
+            "food-4",
+            "food-2"
+          ]
+        },
+        {
+          "id": "food-q1",
+          "category": "food",
+          "expected": [
+            "food-1"
+          ],
+          "expectedRanks": {
+            "food-1": 1
+          },
+          "expectedScores": {
+            "food-1": 0.81518745
+          },
+          "semantic": [
+            "food-1",
+            "food-0",
+            "food-4",
+            "food-2",
+            "food-5",
+            "food-3"
+          ],
+          "topScore": 0.81518745,
+          "hybrid": [
+            "food-1",
+            "food-0",
+            "food-4",
+            "food-2",
+            "food-5",
+            "food-3"
+          ]
+        },
+        {
+          "id": "food-q2",
+          "category": "food",
+          "expected": [
+            "food-2"
+          ],
+          "expectedRanks": {
+            "food-2": 1
+          },
+          "expectedScores": {
+            "food-2": 0.64244807
+          },
+          "semantic": [
+            "food-2",
+            "food-3",
+            "food-4",
+            "beverage-2",
+            "food-1",
+            "beverage-0"
+          ],
+          "topScore": 0.64244807,
+          "hybrid": [
+            "beverage-3",
+            "food-2",
+            "food-3",
+            "language-0",
+            "food-4",
+            "beverage-2"
+          ]
+        },
+        {
+          "id": "food-q3",
+          "category": "food",
+          "expected": [
+            "food-3"
+          ],
+          "expectedRanks": {
+            "food-3": 1
+          },
+          "expectedScores": {
+            "food-3": 0.6694139
+          },
+          "semantic": [
+            "food-3",
+            "beverage-2",
+            "beverage-5",
+            "food-2",
+            "beverage-4",
+            "food-4"
+          ],
+          "topScore": 0.6694139,
+          "hybrid": [
+            "food-3",
+            "beverage-5",
+            "food-2",
+            "food-0",
+            "meetings-2",
+            "beverage-2"
+          ]
+        },
+        {
+          "id": "food-q4",
+          "category": "food",
+          "expected": [
+            "food-0"
+          ],
+          "expectedRanks": {
+            "food-0": 2
+          },
+          "expectedScores": {
+            "food-0": 0.70977104
+          },
+          "semantic": [
+            "food-1",
+            "food-0",
+            "food-4",
+            "food-2",
+            "food-5",
+            "food-3"
+          ],
+          "topScore": 0.7176701,
+          "hybrid": [
+            "food-1",
+            "food-0",
+            "food-4",
+            "food-2",
+            "food-5",
+            "food-3"
+          ]
+        },
+        {
+          "id": "food-q5",
+          "category": "food",
+          "expected": [
+            "food-2"
+          ],
+          "expectedRanks": {
+            "food-2": 1
+          },
+          "expectedScores": {
+            "food-2": 0.6645591
+          },
+          "semantic": [
+            "food-2",
+            "beverage-2",
+            "beverage-0",
+            "food-3",
+            "beverage-3",
+            "food-1"
+          ],
+          "topScore": 0.6645591,
+          "hybrid": [
+            "display-3",
+            "food-2",
+            "beverage-2",
+            "capture-5",
+            "beverage-0",
+            "food-3"
+          ]
+        },
+        {
+          "id": "beverage-q0",
+          "category": "beverage",
+          "expected": [
+            "beverage-0"
+          ],
+          "expectedRanks": {
+            "beverage-0": 1
+          },
+          "expectedScores": {
+            "beverage-0": 0.7568481
+          },
+          "semantic": [
+            "beverage-0",
+            "beverage-3",
+            "beverage-2",
+            "beverage-5",
+            "beverage-4",
+            "beverage-1"
+          ],
+          "topScore": 0.7568481,
+          "hybrid": [
+            "beverage-3",
+            "beverage-0",
+            "language-0",
+            "beverage-2",
+            "beverage-5",
+            "beverage-4"
+          ]
+        },
+        {
+          "id": "beverage-q1",
+          "category": "beverage",
+          "expected": [
+            "beverage-1"
+          ],
+          "expectedRanks": {
+            "beverage-1": 1
+          },
+          "expectedScores": {
+            "beverage-1": 0.652452
+          },
+          "semantic": [
+            "beverage-1",
+            "beverage-0",
+            "beverage-3",
+            "beverage-5",
+            "beverage-4",
+            "beverage-2"
+          ],
+          "topScore": 0.652452,
+          "hybrid": [
+            "beverage-3",
+            "beverage-1",
+            "beverage-0",
+            "language-0",
+            "beverage-5",
+            "beverage-4"
+          ]
+        },
+        {
+          "id": "beverage-q2",
+          "category": "beverage",
+          "expected": [
+            "beverage-2"
+          ],
+          "expectedRanks": {
+            "beverage-2": 1
+          },
+          "expectedScores": {
+            "beverage-2": 0.7497076
+          },
+          "semantic": [
+            "beverage-2",
+            "beverage-0",
+            "beverage-5",
+            "beverage-3",
+            "food-3",
+            "meetings-2"
+          ],
+          "topScore": 0.7497076,
+          "hybrid": [
+            "beverage-2",
+            "beverage-0",
+            "beverage-5",
+            "beverage-3",
+            "food-3",
+            "meetings-2"
+          ]
+        },
+        {
+          "id": "beverage-q3",
+          "category": "beverage",
+          "expected": [
+            "beverage-3"
+          ],
+          "expectedRanks": {
+            "beverage-3": 1
+          },
+          "expectedScores": {
+            "beverage-3": 0.6967275
+          },
+          "semantic": [
+            "beverage-3",
+            "beverage-0",
+            "beverage-5",
+            "food-2",
+            "beverage-1",
+            "beverage-4"
+          ],
+          "topScore": 0.6967275,
+          "hybrid": [
+            "beverage-3",
+            "food-2",
+            "food-3",
+            "food-0",
+            "beverage-0",
+            "beverage-5"
+          ]
+        },
+        {
+          "id": "beverage-q4",
+          "category": "beverage",
+          "expected": [
+            "beverage-1"
+          ],
+          "expectedRanks": {
+            "beverage-1": 1
+          },
+          "expectedScores": {
+            "beverage-1": 0.6427254
+          },
+          "semantic": [
+            "beverage-1",
+            "beverage-0",
+            "beverage-3",
+            "beverage-4",
+            "beverage-5",
+            "beverage-2"
+          ],
+          "topScore": 0.6427254,
+          "hybrid": [
+            "beverage-1",
+            "beverage-0",
+            "beverage-3",
+            "beverage-4",
+            "beverage-5",
+            "beverage-2"
+          ]
+        },
+        {
+          "id": "beverage-q5",
+          "category": "beverage",
+          "expected": [
+            "beverage-0"
+          ],
+          "expectedRanks": {
+            "beverage-0": 1
+          },
+          "expectedScores": {
+            "beverage-0": 0.8534343
+          },
+          "semantic": [
+            "beverage-0",
+            "beverage-3",
+            "beverage-2",
+            "beverage-1",
+            "beverage-5",
+            "beverage-4"
+          ],
+          "topScore": 0.8534343,
+          "hybrid": [
+            "beverage-0",
+            "beverage-3",
+            "beverage-2",
+            "beverage-1",
+            "beverage-5",
+            "beverage-4"
+          ]
+        },
+        {
+          "id": "meetings-q0",
+          "category": "meetings",
+          "expected": [
+            "meetings-0"
+          ],
+          "expectedRanks": {
+            "meetings-0": 1
+          },
+          "expectedScores": {
+            "meetings-0": 0.7543143
+          },
+          "semantic": [
+            "meetings-0",
+            "meetings-2",
+            "meetings-1",
+            "meetings-3",
+            "reminders-3",
+            "beverage-4"
+          ],
+          "topScore": 0.7543143,
+          "hybrid": [
+            "meetings-0",
+            "meetings-2",
+            "meetings-1",
+            "meetings-3",
+            "beverage-4",
+            "reminders-3"
+          ]
+        },
+        {
+          "id": "meetings-q1",
+          "category": "meetings",
+          "expected": [
+            "meetings-1"
+          ],
+          "expectedRanks": {
+            "meetings-1": 1
+          },
+          "expectedScores": {
+            "meetings-1": 0.85305357
+          },
+          "semantic": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "reminders-3",
+            "meetings-3",
+            "reminders-4"
+          ],
+          "topScore": 0.85305357,
+          "hybrid": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "reminders-2",
+            "display-1",
+            "reminders-3"
+          ]
+        },
+        {
+          "id": "meetings-q2",
+          "category": "meetings",
+          "expected": [
+            "meetings-2"
+          ],
+          "expectedRanks": {
+            "meetings-2": 1
+          },
+          "expectedScores": {
+            "meetings-2": 0.7852719
+          },
+          "semantic": [
+            "meetings-2",
+            "meetings-1",
+            "meetings-0",
+            "reminders-3",
+            "provider-2",
+            "provider-4"
+          ],
+          "topScore": 0.7852719,
+          "hybrid": [
+            "meetings-2",
+            "meetings-1",
+            "meetings-0",
+            "reminders-3",
+            "travel-1",
+            "provider-2"
+          ]
+        },
+        {
+          "id": "meetings-q3",
+          "category": "meetings",
+          "expected": [
+            "meetings-3"
+          ],
+          "expectedRanks": {
+            "meetings-3": 1
+          },
+          "expectedScores": {
+            "meetings-3": 0.69235086
+          },
+          "semantic": [
+            "meetings-3",
+            "reminders-3",
+            "meetings-0",
+            "meetings-1",
+            "meetings-2",
+            "beverage-4"
+          ],
+          "topScore": 0.69235086,
+          "hybrid": [
+            "meetings-3",
+            "reminders-3",
+            "beverage-4",
+            "reminders-0",
+            "history-1",
+            "food-2"
+          ]
+        },
+        {
+          "id": "meetings-q4",
+          "category": "meetings",
+          "expected": [
+            "meetings-1"
+          ],
+          "expectedRanks": {
+            "meetings-1": 1
+          },
+          "expectedScores": {
+            "meetings-1": 0.74233884
+          },
+          "semantic": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "meetings-3",
+            "reminders-3",
+            "beverage-4"
+          ],
+          "topScore": 0.74233884,
+          "hybrid": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "meetings-3",
+            "reminders-3",
+            "beverage-4"
+          ]
+        },
+        {
+          "id": "meetings-q5",
+          "category": "meetings",
+          "expected": [
+            "meetings-0"
+          ],
+          "expectedRanks": {
+            "meetings-0": 1
+          },
+          "expectedScores": {
+            "meetings-0": 0.7311264
+          },
+          "semantic": [
+            "meetings-0",
+            "meetings-3",
+            "meetings-4",
+            "meetings-1",
+            "meetings-2",
+            "reminders-3"
+          ],
+          "topScore": 0.7311264,
+          "hybrid": [
+            "meetings-0",
+            "meetings-4",
+            "meetings-3",
+            "language-0",
+            "meetings-1",
+            "reminders-4"
+          ]
+        },
+        {
+          "id": "travel-q0",
+          "category": "travel",
+          "expected": [
+            "travel-0"
+          ],
+          "expectedRanks": {
+            "travel-0": 1
+          },
+          "expectedScores": {
+            "travel-0": 0.7919428
+          },
+          "semantic": [
+            "travel-0",
+            "travel-2",
+            "travel-3",
+            "travel-5",
+            "travel-1",
+            "travel-4"
+          ],
+          "topScore": 0.7919428,
+          "hybrid": [
+            "travel-0",
+            "travel-3",
+            "travel-2",
+            "travel-4",
+            "reminders-2",
+            "travel-5"
+          ]
+        },
+        {
+          "id": "travel-q1",
+          "category": "travel",
+          "expected": [
+            "travel-1"
+          ],
+          "expectedRanks": {
+            "travel-1": 1
+          },
+          "expectedScores": {
+            "travel-1": 0.7965078
+          },
+          "semantic": [
+            "travel-1",
+            "travel-5",
+            "travel-0",
+            "travel-2",
+            "budget-5",
+            "budget-1"
+          ],
+          "topScore": 0.7965078,
+          "hybrid": [
+            "travel-1",
+            "travel-5",
+            "budget-5",
+            "export-0",
+            "export-1",
+            "travel-0"
+          ]
+        },
+        {
+          "id": "travel-q2",
+          "category": "travel",
+          "expected": [
+            "travel-2"
+          ],
+          "expectedRanks": {
+            "travel-2": 1
+          },
+          "expectedScores": {
+            "travel-2": 0.8718698
+          },
+          "semantic": [
+            "travel-2",
+            "travel-0",
+            "travel-3",
+            "travel-5",
+            "travel-1",
+            "budget-3"
+          ],
+          "topScore": 0.8718698,
+          "hybrid": [
+            "travel-2",
+            "travel-0",
+            "travel-3",
+            "budget-3",
+            "budget-0",
+            "budget-2"
+          ]
+        },
+        {
+          "id": "travel-q3",
+          "category": "travel",
+          "expected": [
+            "travel-3"
+          ],
+          "expectedRanks": {
+            "travel-3": 1
+          },
+          "expectedScores": {
+            "travel-3": 0.7839495
+          },
+          "semantic": [
+            "travel-3",
+            "travel-4",
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "timezone-4"
+          ],
+          "topScore": 0.7839495,
+          "hybrid": [
+            "travel-3",
+            "travel-4",
+            "travel-0",
+            "travel-2",
+            "history-1",
+            "travel-5"
+          ]
+        },
+        {
+          "id": "travel-q4",
+          "category": "travel",
+          "expected": [
+            "travel-0"
+          ],
+          "expectedRanks": {
+            "travel-0": 1
+          },
+          "expectedScores": {
+            "travel-0": 0.82896346
+          },
+          "semantic": [
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "travel-1",
+            "travel-3",
+            "budget-1"
+          ],
+          "topScore": 0.82896346,
+          "hybrid": [
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "travel-1",
+            "travel-3",
+            "budget-1"
+          ]
+        },
+        {
+          "id": "travel-q5",
+          "category": "travel",
+          "expected": [
+            "travel-1"
+          ],
+          "expectedRanks": {
+            "travel-1": 1
+          },
+          "expectedScores": {
+            "travel-1": 0.7573273
+          },
+          "semantic": [
+            "travel-1",
+            "travel-5",
+            "travel-0",
+            "travel-2",
+            "budget-1",
+            "travel-3"
+          ],
+          "topScore": 0.7573273,
+          "hybrid": [
+            "travel-1",
+            "travel-5",
+            "travel-0",
+            "travel-2",
+            "budget-1",
+            "travel-3"
+          ]
+        },
+        {
+          "id": "display-q0",
+          "category": "display",
+          "expected": [
+            "display-0"
+          ],
+          "expectedRanks": {
+            "display-0": 1
+          },
+          "expectedScores": {
+            "display-0": 0.7073222
+          },
+          "semantic": [
+            "display-0",
+            "display-2",
+            "display-5",
+            "language-1",
+            "display-3",
+            "display-1"
+          ],
+          "topScore": 0.7073222,
+          "hybrid": [
+            "display-0",
+            "display-2",
+            "language-1",
+            "beverage-3",
+            "language-0",
+            "display-5"
+          ]
+        },
+        {
+          "id": "display-q1",
+          "category": "display",
+          "expected": [
+            "display-1"
+          ],
+          "expectedRanks": {
+            "display-1": 1
+          },
+          "expectedScores": {
+            "display-1": 0.64392006
+          },
+          "semantic": [
+            "display-1",
+            "display-5",
+            "display-0",
+            "display-4",
+            "display-3",
+            "display-2"
+          ],
+          "topScore": 0.64392006,
+          "hybrid": [
+            "display-1",
+            "display-4",
+            "display-0",
+            "display-5",
+            "identifiers-1",
+            "display-3"
+          ]
+        },
+        {
+          "id": "display-q2",
+          "category": "display",
+          "expected": [
+            "display-2"
+          ],
+          "expectedRanks": {
+            "display-2": 1
+          },
+          "expectedScores": {
+            "display-2": 0.76914704
+          },
+          "semantic": [
+            "display-2",
+            "display-0",
+            "language-1",
+            "display-5",
+            "display-3",
+            "display-1"
+          ],
+          "topScore": 0.76914704,
+          "hybrid": [
+            "display-2",
+            "display-0",
+            "language-1",
+            "timezone-0",
+            "display-5",
+            "display-3"
+          ]
+        },
+        {
+          "id": "display-q3",
+          "category": "display",
+          "expected": [
+            "display-3"
+          ],
+          "expectedRanks": {
+            "display-3": 1
+          },
+          "expectedScores": {
+            "display-3": 0.79972214
+          },
+          "semantic": [
+            "display-3",
+            "display-4",
+            "display-0",
+            "export-4",
+            "beverage-3",
+            "history-5"
+          ],
+          "topScore": 0.79972214,
+          "hybrid": [
+            "display-3",
+            "display-4",
+            "display-0",
+            "food-3",
+            "reminders-0",
+            "export-4"
+          ]
+        },
+        {
+          "id": "display-q4",
+          "category": "display",
+          "expected": [
+            "display-0"
+          ],
+          "expectedRanks": {
+            "display-0": 1
+          },
+          "expectedScores": {
+            "display-0": 0.7667711
+          },
+          "semantic": [
+            "display-0",
+            "display-2",
+            "display-5",
+            "display-3",
+            "display-1",
+            "language-1"
+          ],
+          "topScore": 0.7667711,
+          "hybrid": [
+            "display-0",
+            "display-2",
+            "display-5",
+            "display-3",
+            "display-1",
+            "language-1"
+          ]
+        },
+        {
+          "id": "display-q5",
+          "category": "display",
+          "expected": [
+            "display-1"
+          ],
+          "expectedRanks": {
+            "display-1": 3
+          },
+          "expectedScores": {
+            "display-1": 0.6439251
+          },
+          "semantic": [
+            "display-5",
+            "display-0",
+            "display-1",
+            "display-4",
+            "language-2",
+            "display-3"
+          ],
+          "topScore": 0.65210366,
+          "hybrid": [
+            "display-5",
+            "display-1",
+            "display-0",
+            "export-2",
+            "reminders-1",
+            "display-4"
+          ]
+        },
+        {
+          "id": "timezone-q0",
+          "category": "timezone",
+          "expected": [
+            "timezone-0"
+          ],
+          "expectedRanks": {
+            "timezone-0": 1
+          },
+          "expectedScores": {
+            "timezone-0": 0.7406073
+          },
+          "semantic": [
+            "timezone-0",
+            "timezone-5",
+            "timezone-1",
+            "timezone-2",
+            "timezone-3",
+            "timezone-4"
+          ],
+          "topScore": 0.7406073,
+          "hybrid": [
+            "timezone-0",
+            "timezone-5",
+            "export-3",
+            "timezone-1",
+            "timezone-2",
+            "timezone-3"
+          ]
+        },
+        {
+          "id": "timezone-q1",
+          "category": "timezone",
+          "expected": [
+            "timezone-1"
+          ],
+          "expectedRanks": {
+            "timezone-1": 1
+          },
+          "expectedScores": {
+            "timezone-1": 0.7956563
+          },
+          "semantic": [
+            "timezone-1",
+            "timezone-0",
+            "timezone-3",
+            "timezone-2",
+            "timezone-5",
+            "timezone-4"
+          ],
+          "topScore": 0.7956563,
+          "hybrid": [
+            "timezone-1",
+            "timezone-3",
+            "language-4",
+            "timezone-2",
+            "timezone-0",
+            "export-2"
+          ]
+        },
+        {
+          "id": "timezone-q2",
+          "category": "timezone",
+          "expected": [
+            "timezone-2"
+          ],
+          "expectedRanks": {
+            "timezone-2": 1
+          },
+          "expectedScores": {
+            "timezone-2": 0.67697525
+          },
+          "semantic": [
+            "timezone-2",
+            "reminders-3",
+            "display-5",
+            "language-4",
+            "timezone-0",
+            "capture-3"
+          ],
+          "topScore": 0.67697525,
+          "hybrid": [
+            "timezone-2",
+            "reminders-3",
+            "display-5",
+            "display-2",
+            "export-0",
+            "reminders-2"
+          ]
+        },
+        {
+          "id": "timezone-q3",
+          "category": "timezone",
+          "expected": [
+            "timezone-3"
+          ],
+          "expectedRanks": {
+            "timezone-3": 1
+          },
+          "expectedScores": {
+            "timezone-3": 0.70750713
+          },
+          "semantic": [
+            "timezone-3",
+            "export-3",
+            "storage-5",
+            "storage-1",
+            "timezone-5",
+            "provider-5"
+          ],
+          "topScore": 0.70750713,
+          "hybrid": [
+            "timezone-3",
+            "export-3",
+            "storage-5",
+            "storage-1",
+            "identifiers-3",
+            "reminders-4"
+          ]
+        },
+        {
+          "id": "timezone-q4",
+          "category": "timezone",
+          "expected": [
+            "timezone-3"
+          ],
+          "expectedRanks": {
+            "timezone-3": 1
+          },
+          "expectedScores": {
+            "timezone-3": 0.8063459
+          },
+          "semantic": [
+            "timezone-3",
+            "export-3",
+            "timezone-5",
+            "timezone-0",
+            "timezone-2",
+            "timezone-1"
+          ],
+          "topScore": 0.8063459,
+          "hybrid": [
+            "timezone-3",
+            "export-3",
+            "timezone-5",
+            "timezone-0",
+            "timezone-2",
+            "timezone-1"
+          ]
+        },
+        {
+          "id": "timezone-q5",
+          "category": "timezone",
+          "expected": [
+            "timezone-0"
+          ],
+          "expectedRanks": {
+            "timezone-0": 1
+          },
+          "expectedScores": {
+            "timezone-0": 0.7256665
+          },
+          "semantic": [
+            "timezone-0",
+            "timezone-5",
+            "timezone-1",
+            "timezone-2",
+            "timezone-3",
+            "export-3"
+          ],
+          "topScore": 0.7256665,
+          "hybrid": [
+            "timezone-0",
+            "export-3",
+            "language-4",
+            "timezone-1",
+            "timezone-3",
+            "travel-0"
+          ]
+        },
+        {
+          "id": "provider-q0",
+          "category": "provider",
+          "expected": [
+            "provider-0"
+          ],
+          "expectedRanks": {
+            "provider-0": 1
+          },
+          "expectedScores": {
+            "provider-0": 0.7694738
+          },
+          "semantic": [
+            "provider-0",
+            "identifiers-0",
+            "provider-1",
+            "provider-2",
+            "storage-0",
+            "storage-5"
+          ],
+          "topScore": 0.7694738,
+          "hybrid": [
+            "provider-0",
+            "identifiers-0",
+            "provider-2",
+            "provider-1",
+            "identifiers-1",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "provider-q1",
+          "category": "provider",
+          "expected": [
+            "provider-1"
+          ],
+          "expectedRanks": {
+            "provider-1": 1
+          },
+          "expectedScores": {
+            "provider-1": 0.68311447
+          },
+          "semantic": [
+            "provider-1",
+            "provider-0",
+            "identifiers-2",
+            "storage-0",
+            "identifiers-3",
+            "identifiers-0"
+          ],
+          "topScore": 0.68311447,
+          "hybrid": [
+            "identifiers-2",
+            "provider-0",
+            "provider-1",
+            "identifiers-3",
+            "identifiers-0",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "provider-q2",
+          "category": "provider",
+          "expected": [
+            "provider-2"
+          ],
+          "expectedRanks": {
+            "provider-2": 1
+          },
+          "expectedScores": {
+            "provider-2": 0.7928275
+          },
+          "semantic": [
+            "provider-2",
+            "identifiers-1",
+            "provider-0",
+            "provider-4",
+            "hardware-1",
+            "provider-1"
+          ],
+          "topScore": 0.7928275,
+          "hybrid": [
+            "provider-2",
+            "provider-0",
+            "identifiers-1",
+            "provider-1",
+            "hardware-1",
+            "provider-4"
+          ]
+        },
+        {
+          "id": "provider-q3",
+          "category": "provider",
+          "expected": [
+            "provider-3"
+          ],
+          "expectedRanks": {
+            "provider-3": 1
+          },
+          "expectedScores": {
+            "provider-3": 0.6897867
+          },
+          "semantic": [
+            "provider-3",
+            "reminders-5",
+            "capture-1",
+            "capture-0",
+            "capture-3",
+            "storage-3"
+          ],
+          "topScore": 0.6897867,
+          "hybrid": [
+            "provider-3",
+            "reminders-5",
+            "provider-2",
+            "capture-0",
+            "provider-0",
+            "storage-3"
+          ]
+        },
+        {
+          "id": "provider-q4",
+          "category": "provider",
+          "expected": [
+            "provider-1"
+          ],
+          "expectedRanks": {
+            "provider-1": 1
+          },
+          "expectedScores": {
+            "provider-1": 0.6875561
+          },
+          "semantic": [
+            "provider-1",
+            "identifiers-2",
+            "storage-0",
+            "identifiers-3",
+            "provider-0",
+            "identifiers-0"
+          ],
+          "topScore": 0.6875561,
+          "hybrid": [
+            "provider-1",
+            "storage-0",
+            "identifiers-0",
+            "provider-0",
+            "identifiers-2",
+            "identifiers-3"
+          ]
+        },
+        {
+          "id": "provider-q5",
+          "category": "provider",
+          "expected": [
+            "provider-0"
+          ],
+          "expectedRanks": {
+            "provider-0": 1
+          },
+          "expectedScores": {
+            "provider-0": 0.678123
+          },
+          "semantic": [
+            "provider-0",
+            "identifiers-0",
+            "provider-5",
+            "hardware-5",
+            "provider-1",
+            "storage-0"
+          ],
+          "topScore": 0.678123,
+          "hybrid": [
+            "hardware-5",
+            "provider-0",
+            "provider-5",
+            "identifiers-0",
+            "provider-1",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "storage-q0",
+          "category": "storage",
+          "expected": [
+            "storage-0"
+          ],
+          "expectedRanks": {
+            "storage-0": 1
+          },
+          "expectedScores": {
+            "storage-0": 0.6897166
+          },
+          "semantic": [
+            "storage-0",
+            "identifiers-0",
+            "provider-0",
+            "capture-3",
+            "storage-5",
+            "provider-1"
+          ],
+          "topScore": 0.6897166,
+          "hybrid": [
+            "storage-0",
+            "identifiers-0",
+            "provider-0",
+            "storage-5",
+            "capture-0",
+            "identifiers-3"
+          ]
+        },
+        {
+          "id": "storage-q1",
+          "category": "storage",
+          "expected": [
+            "storage-1"
+          ],
+          "expectedRanks": {
+            "storage-1": 1
+          },
+          "expectedScores": {
+            "storage-1": 0.64921695
+          },
+          "semantic": [
+            "storage-1",
+            "capture-3",
+            "language-2",
+            "history-5",
+            "history-3",
+            "history-4"
+          ],
+          "topScore": 0.64921695,
+          "hybrid": [
+            "storage-1",
+            "language-5",
+            "display-1",
+            "capture-3",
+            "provider-5",
+            "display-0"
+          ]
+        },
+        {
+          "id": "storage-q2",
+          "category": "storage",
+          "expected": [
+            "storage-2"
+          ],
+          "expectedRanks": {
+            "storage-2": 2
+          },
+          "expectedScores": {
+            "storage-2": 0.637621
+          },
+          "semantic": [
+            "storage-3",
+            "storage-2",
+            "capture-3",
+            "capture-1",
+            "reminders-5",
+            "capture-0"
+          ],
+          "topScore": 0.67115366,
+          "hybrid": [
+            "storage-3",
+            "storage-2",
+            "reminders-5",
+            "capture-0",
+            "provider-1",
+            "capture-5"
+          ]
+        },
+        {
+          "id": "storage-q3",
+          "category": "storage",
+          "expected": [
+            "storage-3"
+          ],
+          "expectedRanks": {
+            "storage-3": 1
+          },
+          "expectedScores": {
+            "storage-3": 0.6294345
+          },
+          "semantic": [
+            "storage-3",
+            "capture-1",
+            "capture-0",
+            "storage-2",
+            "storage-0",
+            "reminders-5"
+          ],
+          "topScore": 0.6294345,
+          "hybrid": [
+            "storage-3",
+            "storage-0",
+            "storage-5",
+            "storage-2",
+            "provider-5",
+            "capture-1"
+          ]
+        },
+        {
+          "id": "storage-q4",
+          "category": "storage",
+          "expected": [
+            "storage-2"
+          ],
+          "expectedRanks": {
+            "storage-2": 2
+          },
+          "expectedScores": {
+            "storage-2": 0.5239237
+          },
+          "semantic": [
+            "storage-3",
+            "storage-2",
+            "reminders-5",
+            "identifiers-3",
+            "provider-3",
+            "identifiers-2"
+          ],
+          "topScore": 0.6116146,
+          "hybrid": [
+            "identifiers-3",
+            "identifiers-2",
+            "storage-3",
+            "storage-2",
+            "reminders-5",
+            "provider-3"
+          ]
+        },
+        {
+          "id": "storage-q5",
+          "category": "storage",
+          "expected": [
+            "storage-0"
+          ],
+          "expectedRanks": {
+            "storage-0": 1
+          },
+          "expectedScores": {
+            "storage-0": 0.6690563
+          },
+          "semantic": [
+            "storage-0",
+            "storage-2",
+            "storage-3",
+            "identifiers-3",
+            "provider-1",
+            "storage-5"
+          ],
+          "topScore": 0.6690563,
+          "hybrid": [
+            "storage-0",
+            "storage-2",
+            "storage-3",
+            "provider-1",
+            "timezone-0",
+            "identifiers-3"
+          ]
+        },
+        {
+          "id": "language-q0",
+          "category": "language",
+          "expected": [
+            "language-0"
+          ],
+          "expectedRanks": {
+            "language-0": 1
+          },
+          "expectedScores": {
+            "language-0": 0.57201415
+          },
+          "semantic": [
+            "language-0",
+            "language-2",
+            "language-3",
+            "language-1",
+            "display-0",
+            "language-4"
+          ],
+          "topScore": 0.57201415,
+          "hybrid": [
+            "language-0",
+            "language-2",
+            "language-3",
+            "meetings-4",
+            "beverage-3",
+            "language-1"
+          ]
+        },
+        {
+          "id": "language-q1",
+          "category": "language",
+          "expected": [
+            "language-1"
+          ],
+          "expectedRanks": {
+            "language-1": 1
+          },
+          "expectedScores": {
+            "language-1": 0.74958
+          },
+          "semantic": [
+            "language-1",
+            "display-0",
+            "language-2",
+            "language-0",
+            "display-2",
+            "language-3"
+          ],
+          "topScore": 0.74958,
+          "hybrid": [
+            "language-1",
+            "language-0",
+            "display-0",
+            "display-2",
+            "export-0",
+            "language-3"
+          ]
+        },
+        {
+          "id": "language-q2",
+          "category": "language",
+          "expected": [
+            "language-2"
+          ],
+          "expectedRanks": {
+            "language-2": 1
+          },
+          "expectedScores": {
+            "language-2": 0.6219131
+          },
+          "semantic": [
+            "language-2",
+            "history-5",
+            "language-3",
+            "capture-0",
+            "storage-1",
+            "history-3"
+          ],
+          "topScore": 0.6219131,
+          "hybrid": [
+            "language-2",
+            "language-3",
+            "history-1",
+            "storage-1",
+            "budget-2",
+            "history-5"
+          ]
+        },
+        {
+          "id": "language-q3",
+          "category": "language",
+          "expected": [
+            "language-3"
+          ],
+          "expectedRanks": {
+            "language-3": 1
+          },
+          "expectedScores": {
+            "language-3": 0.6219423
+          },
+          "semantic": [
+            "language-3",
+            "language-2",
+            "language-1",
+            "hardware-4",
+            "storage-5",
+            "identifiers-3"
+          ],
+          "topScore": 0.6219423,
+          "hybrid": [
+            "language-3",
+            "language-2",
+            "identifiers-3",
+            "export-0",
+            "storage-5",
+            "provider-5"
+          ]
+        },
+        {
+          "id": "language-q4",
+          "category": "language",
+          "expected": [
+            "language-1"
+          ],
+          "expectedRanks": {
+            "language-1": 1
+          },
+          "expectedScores": {
+            "language-1": 0.6183703
+          },
+          "semantic": [
+            "language-1",
+            "language-3",
+            "capture-3",
+            "language-2",
+            "identifiers-2",
+            "hardware-5"
+          ],
+          "topScore": 0.6183703,
+          "hybrid": [
+            "language-1",
+            "language-3",
+            "capture-3",
+            "language-2",
+            "identifiers-2",
+            "hardware-5"
+          ]
+        },
+        {
+          "id": "language-q5",
+          "category": "language",
+          "expected": [
+            "language-0"
+          ],
+          "expectedRanks": {
+            "language-0": 1
+          },
+          "expectedScores": {
+            "language-0": 0.64361346
+          },
+          "semantic": [
+            "language-0",
+            "language-3",
+            "language-2",
+            "display-0",
+            "language-1",
+            "language-4"
+          ],
+          "topScore": 0.64361346,
+          "hybrid": [
+            "language-0",
+            "language-3",
+            "language-4",
+            "language-1",
+            "display-0",
+            "display-3"
+          ]
+        },
+        {
+          "id": "hardware-q0",
+          "category": "hardware",
+          "expected": [
+            "hardware-0"
+          ],
+          "expectedRanks": {
+            "hardware-0": 2
+          },
+          "expectedScores": {
+            "hardware-0": 0.60609955
+          },
+          "semantic": [
+            "hardware-3",
+            "hardware-0",
+            "budget-0",
+            "hardware-1",
+            "hardware-2",
+            "budget-4"
+          ],
+          "topScore": 0.6105609,
+          "hybrid": [
+            "hardware-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2",
+            "display-0",
+            "display-2"
+          ]
+        },
+        {
+          "id": "hardware-q1",
+          "category": "hardware",
+          "expected": [
+            "hardware-1"
+          ],
+          "expectedRanks": {
+            "hardware-1": 1
+          },
+          "expectedScores": {
+            "hardware-1": 0.72990644
+          },
+          "semantic": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "budget-2",
+            "identifiers-2"
+          ],
+          "topScore": 0.72990644,
+          "hybrid": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "provider-2",
+            "hardware-2",
+            "budget-2"
+          ]
+        },
+        {
+          "id": "hardware-q2",
+          "category": "hardware",
+          "expected": [
+            "hardware-2"
+          ],
+          "expectedRanks": {
+            "hardware-2": 1
+          },
+          "expectedScores": {
+            "hardware-2": 0.65293396
+          },
+          "semantic": [
+            "hardware-2",
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "budget-2",
+            "provider-1"
+          ],
+          "topScore": 0.65293396,
+          "hybrid": [
+            "hardware-2",
+            "hardware-1",
+            "hardware-5",
+            "hardware-0",
+            "reminders-4",
+            "hardware-3"
+          ]
+        },
+        {
+          "id": "hardware-q3",
+          "category": "hardware",
+          "expected": [
+            "hardware-3"
+          ],
+          "expectedRanks": {
+            "hardware-3": 1
+          },
+          "expectedScores": {
+            "hardware-3": 0.6899543
+          },
+          "semantic": [
+            "hardware-3",
+            "history-1",
+            "hardware-0",
+            "history-0",
+            "history-2",
+            "hardware-2"
+          ],
+          "topScore": 0.6899543,
+          "hybrid": [
+            "hardware-3",
+            "history-0",
+            "history-1",
+            "export-4",
+            "history-3",
+            "hardware-0"
+          ]
+        },
+        {
+          "id": "hardware-q4",
+          "category": "hardware",
+          "expected": [
+            "hardware-0"
+          ],
+          "expectedRanks": {
+            "hardware-0": 1
+          },
+          "expectedScores": {
+            "hardware-0": 0.73941225
+          },
+          "semantic": [
+            "hardware-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2",
+            "budget-4",
+            "identifiers-2"
+          ],
+          "topScore": 0.73941225,
+          "hybrid": [
+            "identifiers-2",
+            "identifiers-3",
+            "hardware-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2"
+          ]
+        },
+        {
+          "id": "hardware-q5",
+          "category": "hardware",
+          "expected": [
+            "hardware-1"
+          ],
+          "expectedRanks": {
+            "hardware-1": 1
+          },
+          "expectedScores": {
+            "hardware-1": 0.7003991
+          },
+          "semantic": [
+            "hardware-1",
+            "hardware-3",
+            "hardware-0",
+            "hardware-2",
+            "identifiers-2",
+            "budget-0"
+          ],
+          "topScore": 0.7003991,
+          "hybrid": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "display-0",
+            "identifiers-5"
+          ]
+        },
+        {
+          "id": "budget-q0",
+          "category": "budget",
+          "expected": [
+            "budget-0"
+          ],
+          "expectedRanks": {
+            "budget-0": 1
+          },
+          "expectedScores": {
+            "budget-0": 0.816242
+          },
+          "semantic": [
+            "budget-0",
+            "budget-4",
+            "budget-2",
+            "hardware-3",
+            "travel-0",
+            "budget-3"
+          ],
+          "topScore": 0.816242,
+          "hybrid": [
+            "budget-4",
+            "budget-0",
+            "travel-0",
+            "beverage-5",
+            "budget-2",
+            "hardware-3"
+          ]
+        },
+        {
+          "id": "budget-q1",
+          "category": "budget",
+          "expected": [
+            "budget-1"
+          ],
+          "expectedRanks": {
+            "budget-1": 1
+          },
+          "expectedScores": {
+            "budget-1": 0.66455173
+          },
+          "semantic": [
+            "budget-1",
+            "budget-3",
+            "travel-0",
+            "travel-2",
+            "budget-0",
+            "budget-2"
+          ],
+          "topScore": 0.66455173,
+          "hybrid": [
+            "budget-1",
+            "timezone-0",
+            "beverage-3",
+            "budget-3",
+            "language-0",
+            "travel-0"
+          ]
+        },
+        {
+          "id": "budget-q2",
+          "category": "budget",
+          "expected": [
+            "budget-2"
+          ],
+          "expectedRanks": {
+            "budget-2": 1
+          },
+          "expectedScores": {
+            "budget-2": 0.8241819
+          },
+          "semantic": [
+            "budget-2",
+            "hardware-1",
+            "budget-1",
+            "hardware-2",
+            "budget-3",
+            "budget-0"
+          ],
+          "topScore": 0.8241819,
+          "hybrid": [
+            "budget-2",
+            "hardware-1",
+            "provider-2",
+            "meetings-4",
+            "budget-1",
+            "history-3"
+          ]
+        },
+        {
+          "id": "budget-q3",
+          "category": "budget",
+          "expected": [
+            "budget-3"
+          ],
+          "expectedRanks": {
+            "budget-3": 2
+          },
+          "expectedScores": {
+            "budget-3": 0.7252512
+          },
+          "semantic": [
+            "budget-1",
+            "budget-3",
+            "travel-0",
+            "budget-2",
+            "budget-4",
+            "budget-0"
+          ],
+          "topScore": 0.73261523,
+          "hybrid": [
+            "budget-3",
+            "budget-1",
+            "budget-4",
+            "travel-0",
+            "budget-2",
+            "budget-0"
+          ]
+        },
+        {
+          "id": "budget-q4",
+          "category": "budget",
+          "expected": [
+            "budget-0"
+          ],
+          "expectedRanks": {
+            "budget-0": 1
+          },
+          "expectedScores": {
+            "budget-0": 0.8418125
+          },
+          "semantic": [
+            "budget-0",
+            "budget-4",
+            "budget-2",
+            "budget-1",
+            "travel-0",
+            "travel-2"
+          ],
+          "topScore": 0.8418125,
+          "hybrid": [
+            "budget-0",
+            "budget-4",
+            "budget-2",
+            "budget-1",
+            "travel-0",
+            "travel-2"
+          ]
+        },
+        {
+          "id": "budget-q5",
+          "category": "budget",
+          "expected": [
+            "budget-1"
+          ],
+          "expectedRanks": {
+            "budget-1": 1
+          },
+          "expectedScores": {
+            "budget-1": 0.8273176
+          },
+          "semantic": [
+            "budget-1",
+            "budget-3",
+            "budget-2",
+            "travel-0",
+            "budget-0",
+            "budget-4"
+          ],
+          "topScore": 0.8273176,
+          "hybrid": [
+            "budget-1",
+            "budget-3",
+            "travel-0",
+            "budget-2",
+            "budget-0",
+            "travel-2"
+          ]
+        },
+        {
+          "id": "export-q0",
+          "category": "export",
+          "expected": [
+            "export-0"
+          ],
+          "expectedRanks": {
+            "export-0": 1
+          },
+          "expectedScores": {
+            "export-0": 0.81170994
+          },
+          "semantic": [
+            "export-0",
+            "export-2",
+            "export-1",
+            "export-4",
+            "storage-4",
+            "display-4"
+          ],
+          "topScore": 0.81170994,
+          "hybrid": [
+            "export-0",
+            "export-4",
+            "export-1",
+            "storage-4",
+            "history-4",
+            "history-5"
+          ]
+        },
+        {
+          "id": "export-q1",
+          "category": "export",
+          "expected": [
+            "export-1"
+          ],
+          "expectedRanks": {
+            "export-1": 1
+          },
+          "expectedScores": {
+            "export-1": 0.8494252
+          },
+          "semantic": [
+            "export-1",
+            "export-0",
+            "export-5",
+            "export-2",
+            "travel-1",
+            "display-5"
+          ],
+          "topScore": 0.8494252,
+          "hybrid": [
+            "export-1",
+            "export-0",
+            "travel-1",
+            "capture-2",
+            "export-5",
+            "export-2"
+          ]
+        },
+        {
+          "id": "export-q2",
+          "category": "export",
+          "expected": [
+            "export-2"
+          ],
+          "expectedRanks": {
+            "export-2": 1
+          },
+          "expectedScores": {
+            "export-2": 0.7709018
+          },
+          "semantic": [
+            "export-2",
+            "language-4",
+            "export-0",
+            "display-4",
+            "export-4",
+            "language-0"
+          ],
+          "topScore": 0.7709018,
+          "hybrid": [
+            "export-2",
+            "export-4",
+            "export-0",
+            "language-4",
+            "history-4",
+            "display-5"
+          ]
+        },
+        {
+          "id": "export-q3",
+          "category": "export",
+          "expected": [
+            "export-3"
+          ],
+          "expectedRanks": {
+            "export-3": 1
+          },
+          "expectedScores": {
+            "export-3": 0.71338785
+          },
+          "semantic": [
+            "export-3",
+            "timezone-3",
+            "timezone-5",
+            "timezone-0",
+            "export-1",
+            "storage-1"
+          ],
+          "topScore": 0.71338785,
+          "hybrid": [
+            "export-3",
+            "storage-1",
+            "timezone-3",
+            "export-1",
+            "reminders-4",
+            "timezone-2"
+          ]
+        },
+        {
+          "id": "export-q4",
+          "category": "export",
+          "expected": [
+            "export-0"
+          ],
+          "expectedRanks": {
+            "export-0": 1
+          },
+          "expectedScores": {
+            "export-0": 0.7365469
+          },
+          "semantic": [
+            "export-0",
+            "export-2",
+            "storage-4",
+            "export-1",
+            "export-4",
+            "language-4"
+          ],
+          "topScore": 0.7365469,
+          "hybrid": [
+            "export-0",
+            "export-2",
+            "storage-4",
+            "export-1",
+            "export-4",
+            "language-4"
+          ]
+        },
+        {
+          "id": "export-q5",
+          "category": "export",
+          "expected": [
+            "export-1"
+          ],
+          "expectedRanks": {
+            "export-1": 1
+          },
+          "expectedScores": {
+            "export-1": 0.8245834
+          },
+          "semantic": [
+            "export-1",
+            "export-0",
+            "export-2",
+            "export-5",
+            "travel-1",
+            "budget-5"
+          ],
+          "topScore": 0.8245834,
+          "hybrid": [
+            "export-1",
+            "export-0",
+            "export-5",
+            "display-5",
+            "travel-1",
+            "export-2"
+          ]
+        },
+        {
+          "id": "reminders-q0",
+          "category": "reminders",
+          "expected": [
+            "reminders-0"
+          ],
+          "expectedRanks": {
+            "reminders-0": 1
+          },
+          "expectedScores": {
+            "reminders-0": 0.7706184
+          },
+          "semantic": [
+            "reminders-0",
+            "capture-0",
+            "reminders-4",
+            "reminders-1",
+            "capture-3",
+            "provider-3"
+          ],
+          "topScore": 0.7706184,
+          "hybrid": [
+            "reminders-0",
+            "reminders-1",
+            "reminders-4",
+            "reminders-2",
+            "reminders-3",
+            "capture-0"
+          ]
+        },
+        {
+          "id": "reminders-q1",
+          "category": "reminders",
+          "expected": [
+            "reminders-1"
+          ],
+          "expectedRanks": {
+            "reminders-1": 1
+          },
+          "expectedScores": {
+            "reminders-1": 0.8333121
+          },
+          "semantic": [
+            "reminders-1",
+            "reminders-0",
+            "reminders-3",
+            "reminders-4",
+            "reminders-2",
+            "travel-2"
+          ],
+          "topScore": 0.8333121,
+          "hybrid": [
+            "reminders-1",
+            "reminders-0",
+            "reminders-2",
+            "reminders-3",
+            "reminders-4",
+            "food-2"
+          ]
+        },
+        {
+          "id": "reminders-q2",
+          "category": "reminders",
+          "expected": [
+            "reminders-2"
+          ],
+          "expectedRanks": {
+            "reminders-2": 1
+          },
+          "expectedScores": {
+            "reminders-2": 0.83622146
+          },
+          "semantic": [
+            "reminders-2",
+            "reminders-3",
+            "reminders-1",
+            "reminders-0",
+            "reminders-4",
+            "travel-0"
+          ],
+          "topScore": 0.83622146,
+          "hybrid": [
+            "reminders-2",
+            "reminders-1",
+            "reminders-3",
+            "reminders-4",
+            "travel-0",
+            "reminders-0"
+          ]
+        },
+        {
+          "id": "reminders-q3",
+          "category": "reminders",
+          "expected": [
+            "reminders-3"
+          ],
+          "expectedRanks": {
+            "reminders-3": 1
+          },
+          "expectedScores": {
+            "reminders-3": 0.80556524
+          },
+          "semantic": [
+            "reminders-3",
+            "reminders-1",
+            "reminders-2",
+            "reminders-0",
+            "beverage-4",
+            "capture-3"
+          ],
+          "topScore": 0.80556524,
+          "hybrid": [
+            "reminders-3",
+            "beverage-4",
+            "reminders-0",
+            "meetings-3",
+            "timezone-2",
+            "language-1"
+          ]
+        },
+        {
+          "id": "reminders-q4",
+          "category": "reminders",
+          "expected": [
+            "reminders-0"
+          ],
+          "expectedRanks": {
+            "reminders-0": 1
+          },
+          "expectedScores": {
+            "reminders-0": 0.78332496
+          },
+          "semantic": [
+            "reminders-0",
+            "reminders-4",
+            "reminders-1",
+            "capture-0",
+            "capture-3",
+            "capture-1"
+          ],
+          "topScore": 0.78332496,
+          "hybrid": [
+            "reminders-0",
+            "reminders-4",
+            "reminders-1",
+            "capture-0",
+            "capture-3",
+            "capture-1"
+          ]
+        },
+        {
+          "id": "reminders-q5",
+          "category": "reminders",
+          "expected": [
+            "reminders-1"
+          ],
+          "expectedRanks": {
+            "reminders-1": 1
+          },
+          "expectedScores": {
+            "reminders-1": 0.66265637
+          },
+          "semantic": [
+            "reminders-1",
+            "reminders-0",
+            "export-1",
+            "language-4",
+            "meetings-1",
+            "reminders-4"
+          ],
+          "topScore": 0.66265637,
+          "hybrid": [
+            "reminders-1",
+            "reminders-0",
+            "export-1",
+            "language-4",
+            "meetings-1",
+            "reminders-4"
+          ]
+        },
+        {
+          "id": "history-q0",
+          "category": "history",
+          "expected": [
+            "history-0"
+          ],
+          "expectedRanks": {
+            "history-0": 2
+          },
+          "expectedScores": {
+            "history-0": 0.60646915
+          },
+          "semantic": [
+            "history-1",
+            "history-0",
+            "export-4",
+            "history-3",
+            "history-5",
+            "history-2"
+          ],
+          "topScore": 0.6731075,
+          "hybrid": [
+            "history-1",
+            "history-0",
+            "export-4",
+            "history-3",
+            "history-5",
+            "beverage-3"
+          ]
+        },
+        {
+          "id": "history-q1",
+          "category": "history",
+          "expected": [
+            "history-1"
+          ],
+          "expectedRanks": {
+            "history-1": 1
+          },
+          "expectedScores": {
+            "history-1": 0.88359797
+          },
+          "semantic": [
+            "history-1",
+            "history-0",
+            "history-2",
+            "history-3",
+            "export-4",
+            "history-5"
+          ],
+          "topScore": 0.88359797,
+          "hybrid": [
+            "history-1",
+            "history-0",
+            "history-3",
+            "export-4",
+            "history-5",
+            "history-2"
+          ]
+        },
+        {
+          "id": "history-q2",
+          "category": "history",
+          "expected": [
+            "history-2"
+          ],
+          "expectedRanks": {
+            "history-2": 1
+          },
+          "expectedScores": {
+            "history-2": 0.73472893
+          },
+          "semantic": [
+            "history-2",
+            "history-1",
+            "history-0",
+            "history-3",
+            "export-4",
+            "history-5"
+          ],
+          "topScore": 0.73472893,
+          "hybrid": [
+            "history-2",
+            "history-0",
+            "history-1",
+            "export-4",
+            "history-3",
+            "history-5"
+          ]
+        },
+        {
+          "id": "history-q3",
+          "category": "history",
+          "expected": [
+            "history-3"
+          ],
+          "expectedRanks": {
+            "history-3": 1
+          },
+          "expectedScores": {
+            "history-3": 0.73548055
+          },
+          "semantic": [
+            "history-3",
+            "history-1",
+            "history-5",
+            "history-0",
+            "storage-5",
+            "history-4"
+          ],
+          "topScore": 0.73548055,
+          "hybrid": [
+            "history-3",
+            "history-1",
+            "storage-5",
+            "history-0",
+            "history-5",
+            "export-4"
+          ]
+        },
+        {
+          "id": "history-q4",
+          "category": "history",
+          "expected": [
+            "history-0"
+          ],
+          "expectedRanks": {
+            "history-0": 2
+          },
+          "expectedScores": {
+            "history-0": 0.6625467
+          },
+          "semantic": [
+            "history-1",
+            "history-0",
+            "history-2",
+            "history-3",
+            "history-5",
+            "export-4"
+          ],
+          "topScore": 0.73443323,
+          "hybrid": [
+            "history-1",
+            "history-0",
+            "history-2",
+            "history-3",
+            "history-5",
+            "export-4"
+          ]
+        },
+        {
+          "id": "history-q5",
+          "category": "history",
+          "expected": [
+            "history-1"
+          ],
+          "expectedRanks": {
+            "history-1": 1
+          },
+          "expectedScores": {
+            "history-1": 0.83531266
+          },
+          "semantic": [
+            "history-1",
+            "history-2",
+            "history-0",
+            "history-5",
+            "history-3",
+            "export-4"
+          ],
+          "topScore": 0.83531266,
+          "hybrid": [
+            "history-1",
+            "history-2",
+            "history-5",
+            "timezone-5",
+            "travel-3",
+            "history-0"
+          ]
+        },
+        {
+          "id": "identifiers-q0",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-0"
+          ],
+          "expectedRanks": {
+            "identifiers-0": 1
+          },
+          "expectedScores": {
+            "identifiers-0": 0.9287817
+          },
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "provider-0",
+            "provider-1",
+            "identifiers-4",
+            "storage-0"
+          ],
+          "topScore": 0.9287817,
+          "hybrid": [
+            "identifiers-0",
+            "identifiers-1",
+            "identifiers-4",
+            "provider-0",
+            "provider-1",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "identifiers-q1",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-1"
+          ],
+          "expectedRanks": {
+            "identifiers-1": 2
+          },
+          "expectedScores": {
+            "identifiers-1": 0.70743775
+          },
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "identifiers-4",
+            "provider-0",
+            "history-4",
+            "display-2"
+          ],
+          "topScore": 0.75349736,
+          "hybrid": [
+            "identifiers-0",
+            "identifiers-1",
+            "identifiers-4",
+            "history-4",
+            "provider-0",
+            "display-2"
+          ]
+        },
+        {
+          "id": "identifiers-q2",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-2"
+          ],
+          "expectedRanks": {
+            "identifiers-2": 1
+          },
+          "expectedScores": {
+            "identifiers-2": 0.58152455
+          },
+          "semantic": [
+            "identifiers-2",
+            "identifiers-5",
+            "provider-1",
+            "provider-2",
+            "storage-2",
+            "identifiers-3"
+          ],
+          "topScore": 0.58152455,
+          "hybrid": [
+            "identifiers-2",
+            "provider-1",
+            "identifiers-5",
+            "identifiers-3",
+            "storage-2",
+            "hardware-5"
+          ]
+        },
+        {
+          "id": "identifiers-q3",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-3"
+          ],
+          "expectedRanks": {
+            "identifiers-3": 1
+          },
+          "expectedScores": {
+            "identifiers-3": 0.60848916
+          },
+          "semantic": [
+            "identifiers-3",
+            "storage-5",
+            "storage-3",
+            "identifiers-2",
+            "provider-3",
+            "hardware-1"
+          ],
+          "topScore": 0.60848916,
+          "hybrid": [
+            "identifiers-3",
+            "storage-5",
+            "provider-3",
+            "hardware-1",
+            "identifiers-5",
+            "provider-2"
+          ]
+        },
+        {
+          "id": "identifiers-q4",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-0"
+          ],
+          "expectedRanks": {
+            "identifiers-0": 1
+          },
+          "expectedScores": {
+            "identifiers-0": 0.6491581
+          },
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "provider-0",
+            "provider-1",
+            "storage-0",
+            "identifiers-4"
+          ],
+          "topScore": 0.6491581,
+          "hybrid": [
+            "identifiers-0",
+            "provider-0",
+            "storage-0",
+            "provider-1",
+            "identifiers-1",
+            "identifiers-4"
+          ]
+        },
+        {
+          "id": "identifiers-q5",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-1"
+          ],
+          "expectedRanks": {
+            "identifiers-1": 1
+          },
+          "expectedScores": {
+            "identifiers-1": 0.8324749
+          },
+          "semantic": [
+            "identifiers-1",
+            "identifiers-0",
+            "identifiers-4",
+            "provider-2",
+            "history-4",
+            "export-0"
+          ],
+          "topScore": 0.8324749,
+          "hybrid": [
+            "identifiers-1",
+            "identifiers-0",
+            "identifiers-4",
+            "provider-2",
+            "history-4",
+            "export-0"
+          ]
+        },
+        {
+          "id": "capture-q0",
+          "category": "capture",
+          "expected": [
+            "capture-0"
+          ],
+          "expectedRanks": {
+            "capture-0": 1
+          },
+          "expectedScores": {
+            "capture-0": 0.6379856
+          },
+          "semantic": [
+            "capture-0",
+            "reminders-0",
+            "capture-3",
+            "capture-5",
+            "capture-1",
+            "history-5"
+          ],
+          "topScore": 0.6379856,
+          "hybrid": [
+            "capture-0",
+            "capture-5",
+            "reminders-0",
+            "reminders-3",
+            "meetings-3",
+            "capture-3"
+          ]
+        },
+        {
+          "id": "capture-q1",
+          "category": "capture",
+          "expected": [
+            "capture-1"
+          ],
+          "expectedRanks": {
+            "capture-1": 2
+          },
+          "expectedScores": {
+            "capture-1": 0.63492054
+          },
+          "semantic": [
+            "capture-0",
+            "capture-1",
+            "capture-3",
+            "storage-3",
+            "provider-3",
+            "reminders-5"
+          ],
+          "topScore": 0.65717494,
+          "hybrid": [
+            "capture-1",
+            "capture-3",
+            "capture-5",
+            "capture-0",
+            "provider-5",
+            "reminders-1"
+          ]
+        },
+        {
+          "id": "capture-q2",
+          "category": "capture",
+          "expected": [
+            "capture-2"
+          ],
+          "expectedRanks": {
+            "capture-2": 3
+          },
+          "expectedScores": {
+            "capture-2": 0.5971665
+          },
+          "semantic": [
+            "capture-0",
+            "capture-3",
+            "capture-2",
+            "capture-1",
+            "provider-3",
+            "reminders-5"
+          ],
+          "topScore": 0.6680074,
+          "hybrid": [
+            "capture-2",
+            "capture-0",
+            "capture-3",
+            "reminders-5",
+            "reminders-0",
+            "storage-3"
+          ]
+        },
+        {
+          "id": "capture-q3",
+          "category": "capture",
+          "expected": [
+            "capture-3"
+          ],
+          "expectedRanks": {
+            "capture-3": 1
+          },
+          "expectedScores": {
+            "capture-3": 0.72288275
+          },
+          "semantic": [
+            "capture-3",
+            "capture-0",
+            "capture-1",
+            "capture-4",
+            "language-2",
+            "storage-1"
+          ],
+          "topScore": 0.72288275,
+          "hybrid": [
+            "capture-3",
+            "capture-0",
+            "language-2",
+            "reminders-0",
+            "storage-2",
+            "reminders-5"
+          ]
+        },
+        {
+          "id": "capture-q4",
+          "category": "capture",
+          "expected": [
+            "capture-2"
+          ],
+          "expectedRanks": {
+            "capture-2": 1
+          },
+          "expectedScores": {
+            "capture-2": 0.63622946
+          },
+          "semantic": [
+            "capture-2",
+            "provider-3",
+            "capture-0",
+            "capture-3",
+            "reminders-5",
+            "capture-4"
+          ],
+          "topScore": 0.63622946,
+          "hybrid": [
+            "capture-2",
+            "hardware-5",
+            "provider-3",
+            "provider-5",
+            "capture-0",
+            "capture-3"
+          ]
+        },
+        {
+          "id": "capture-q5",
+          "category": "capture",
+          "expected": [
+            "capture-0"
+          ],
+          "expectedRanks": {
+            "capture-0": 1
+          },
+          "expectedScores": {
+            "capture-0": 0.69320464
+          },
+          "semantic": [
+            "capture-0",
+            "capture-1",
+            "provider-3",
+            "storage-3",
+            "history-5",
+            "storage-2"
+          ],
+          "topScore": 0.69320464,
+          "hybrid": [
+            "capture-0",
+            "storage-3",
+            "provider-3",
+            "reminders-5",
+            "storage-1",
+            "storage-2"
+          ]
+        },
+        {
+          "id": "multi-0",
+          "category": "multi-fact",
+          "expected": [
+            "food-0",
+            "food-2"
+          ],
+          "expectedRanks": {
+            "food-0": 1,
+            "food-2": 3
+          },
+          "expectedScores": {
+            "food-0": 0.68483424,
+            "food-2": 0.60098016
+          },
+          "semantic": [
+            "food-0",
+            "food-1",
+            "food-2",
+            "food-4",
+            "food-3",
+            "beverage-2"
+          ],
+          "topScore": 0.68483424,
+          "hybrid": [
+            "food-0",
+            "food-2",
+            "food-1",
+            "food-4",
+            "food-3",
+            "beverage-2"
+          ]
+        },
+        {
+          "id": "multi-1",
+          "category": "multi-fact",
+          "expected": [
+            "travel-0",
+            "travel-3"
+          ],
+          "expectedRanks": {
+            "travel-0": 1,
+            "travel-3": 2
+          },
+          "expectedScores": {
+            "travel-0": 0.7219317,
+            "travel-3": 0.7061057
+          },
+          "semantic": [
+            "travel-0",
+            "travel-3",
+            "travel-2",
+            "travel-1",
+            "travel-5",
+            "travel-4"
+          ],
+          "topScore": 0.7219317,
+          "hybrid": [
+            "travel-0",
+            "travel-3",
+            "travel-4",
+            "travel-1",
+            "budget-1",
+            "storage-3"
+          ]
+        },
+        {
+          "id": "multi-2",
+          "category": "multi-fact",
+          "expected": [
+            "provider-0",
+            "provider-1"
+          ],
+          "expectedRanks": {
+            "provider-0": 2,
+            "provider-1": 1
+          },
+          "expectedScores": {
+            "provider-0": 0.6692128,
+            "provider-1": 0.7182822
+          },
+          "semantic": [
+            "provider-1",
+            "provider-0",
+            "identifiers-0",
+            "provider-2",
+            "storage-0",
+            "identifiers-3"
+          ],
+          "topScore": 0.7182822,
+          "hybrid": [
+            "provider-1",
+            "identifiers-0",
+            "provider-0",
+            "provider-2",
+            "storage-0",
+            "storage-2"
+          ]
+        },
+        {
+          "id": "multi-3",
+          "category": "multi-fact",
+          "expected": [
+            "storage-2",
+            "storage-3"
+          ],
+          "expectedRanks": {
+            "storage-2": 1,
+            "storage-3": 2
+          },
+          "expectedScores": {
+            "storage-2": 0.6831368,
+            "storage-3": 0.6376729
+          },
+          "semantic": [
+            "storage-2",
+            "storage-3",
+            "capture-1",
+            "provider-3",
+            "capture-3",
+            "capture-2"
+          ],
+          "topScore": 0.6831368,
+          "hybrid": [
+            "storage-3",
+            "storage-2",
+            "reminders-5",
+            "provider-3",
+            "capture-3",
+            "provider-1"
+          ]
+        },
+        {
+          "id": "multi-4",
+          "category": "multi-fact",
+          "expected": [
+            "language-0",
+            "language-1"
+          ],
+          "expectedRanks": {
+            "language-0": 2,
+            "language-1": 1
+          },
+          "expectedScores": {
+            "language-0": 0.51932406,
+            "language-1": 0.60667837
+          },
+          "semantic": [
+            "language-1",
+            "language-0",
+            "display-0",
+            "language-2",
+            "display-2",
+            "language-3"
+          ],
+          "topScore": 0.60667837,
+          "hybrid": [
+            "language-0",
+            "language-1",
+            "language-2",
+            "display-0",
+            "display-2",
+            "beverage-3"
+          ]
+        },
+        {
+          "id": "multi-5",
+          "category": "multi-fact",
+          "expected": [
+            "hardware-0",
+            "hardware-1"
+          ],
+          "expectedRanks": {
+            "hardware-0": 2,
+            "hardware-1": 1
+          },
+          "expectedScores": {
+            "hardware-0": 0.6926969,
+            "hardware-1": 0.7236421
+          },
+          "semantic": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "budget-2",
+            "budget-4"
+          ],
+          "topScore": 0.7236421,
+          "hybrid": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "history-3",
+            "budget-1"
+          ]
+        },
+        {
+          "id": "multi-6",
+          "category": "multi-fact",
+          "expected": [
+            "export-0",
+            "export-1"
+          ],
+          "expectedRanks": {
+            "export-0": 1,
+            "export-1": 2
+          },
+          "expectedScores": {
+            "export-0": 0.79039454,
+            "export-1": 0.65905195
+          },
+          "semantic": [
+            "export-0",
+            "export-1",
+            "export-2",
+            "display-4",
+            "export-4",
+            "storage-4"
+          ],
+          "topScore": 0.79039454,
+          "hybrid": [
+            "export-0",
+            "export-1",
+            "export-4",
+            "storage-4",
+            "history-4",
+            "travel-1"
+          ]
+        },
+        {
+          "id": "multi-7",
+          "category": "multi-fact",
+          "expected": [
+            "capture-0",
+            "capture-2"
+          ],
+          "expectedRanks": {
+            "capture-0": 1,
+            "capture-2": 2
+          },
+          "expectedScores": {
+            "capture-0": 0.5708959,
+            "capture-2": 0.5549537
+          },
+          "semantic": [
+            "capture-0",
+            "capture-2",
+            "reminders-0",
+            "capture-3",
+            "storage-4",
+            "capture-5"
+          ],
+          "topScore": 0.5708959,
+          "hybrid": [
+            "capture-0",
+            "capture-2",
+            "reminders-0",
+            "storage-4",
+            "identifiers-5",
+            "hardware-5"
+          ]
+        },
+        {
+          "id": "none-0",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "budget-0",
+            "budget-4",
+            "provider-5",
+            "storage-5",
+            "hardware-1",
+            "history-2"
+          ],
+          "topScore": 0.6465311,
+          "hybrid": [
+            "budget-0",
+            "budget-4",
+            "history-3",
+            "travel-5",
+            "provider-5",
+            "food-2"
+          ]
+        },
+        {
+          "id": "none-1",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "travel-3",
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "timezone-4",
+            "travel-4"
+          ],
+          "topScore": 0.6554059,
+          "hybrid": [
+            "travel-3",
+            "travel-0",
+            "travel-2",
+            "travel-4",
+            "identifiers-0",
+            "reminders-2"
+          ]
+        },
+        {
+          "id": "none-2",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "hardware-1",
+            "identifiers-1",
+            "identifiers-0"
+          ],
+          "topScore": 0.6548745,
+          "hybrid": [
+            "hardware-0",
+            "hardware-3",
+            "identifiers-1",
+            "identifiers-0",
+            "identifiers-4",
+            "hardware-2"
+          ]
+        },
+        {
+          "id": "none-3",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "reminders-4",
+            "identifiers-4",
+            "capture-1",
+            "display-2"
+          ],
+          "topScore": 0.6452952,
+          "hybrid": [
+            "identifiers-0",
+            "identifiers-1",
+            "reminders-4",
+            "identifiers-4",
+            "capture-1",
+            "reminders-0"
+          ]
+        },
+        {
+          "id": "none-4",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "reminders-1",
+            "travel-2",
+            "travel-0",
+            "travel-5",
+            "budget-5",
+            "travel-1"
+          ],
+          "topScore": 0.6681404,
+          "hybrid": [
+            "reminders-1",
+            "export-1",
+            "meetings-3",
+            "travel-2",
+            "travel-0",
+            "travel-5"
+          ]
+        },
+        {
+          "id": "none-5",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "food-3",
+            "beverage-2",
+            "meetings-2",
+            "provider-4",
+            "history-2",
+            "beverage-5"
+          ],
+          "topScore": 0.36412758,
+          "hybrid": [
+            "food-3",
+            "export-3",
+            "beverage-2",
+            "budget-3",
+            "meetings-2",
+            "provider-4"
+          ]
+        },
+        {
+          "id": "none-6",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "provider-0",
+            "provider-5",
+            "identifiers-0",
+            "hardware-5",
+            "provider-1",
+            "storage-0"
+          ],
+          "topScore": 0.72715294,
+          "hybrid": [
+            "provider-0",
+            "provider-5",
+            "hardware-5",
+            "identifiers-0",
+            "provider-1",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "none-7",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "hardware-1",
+            "provider-2",
+            "hardware-3",
+            "provider-4",
+            "hardware-2",
+            "identifiers-2"
+          ],
+          "topScore": 0.6798685,
+          "hybrid": [
+            "hardware-1",
+            "provider-2",
+            "hardware-3",
+            "provider-4",
+            "hardware-2",
+            "identifiers-2"
+          ]
+        }
+      ]
+    },
+    "bf16": {
+      "quality": {
+        "semantic": {
+          "hit1": 0.9134615384615384,
+          "hit6": 1,
+          "recall6": 1.0,
+          "allFacts6": 1,
+          "mrr6": 0.9551282051282052,
+          "ndcg6": 0.9652584577583465,
+          "firstHits": 95,
+          "hit6Count": 104,
+          "allFacts6Count": 104
+        },
+        "hybrid": {
+          "hit1": 0.875,
+          "hit6": 1,
+          "recall6": 1.0,
+          "allFacts6": 1,
+          "mrr6": 0.9310897435897436,
+          "ndcg6": 0.947984340778938,
+          "firstHits": 91,
+          "hit6Count": 104,
+          "allFacts6Count": 104
+        },
+        "lexical": {
+          "hit1": 0.625,
+          "hit6": 0.8076923076923077,
+          "recall6": 0.8076923076923077,
+          "allFacts6": 0.8076923076923077,
+          "mrr6": 0.6878205128205128,
+          "ndcg6": 0.7157622729152646,
+          "firstHits": 65,
+          "hit6Count": 84,
+          "allFacts6Count": 84
+        }
+      },
+      "answerableQueries": 104,
+      "groups": {
+        "beverage": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "budget": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "capture": {
+          "hit1": 0.6666666666666666,
+          "recall6": 1.0,
+          "ndcg6": 0.8551549589285763
+        },
+        "display": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9384882922619096
+        },
+        "export": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "food": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "hardware": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "history": {
+          "hit1": 0.6666666666666666,
+          "recall6": 1.0,
+          "ndcg6": 0.8769765845238192
+        },
+        "identifiers": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9384882922619096
+        },
+        "language": {
+          "hit1": 0.8333333333333334,
+          "recall6": 1.0,
+          "ndcg6": 0.9384882922619096
+        },
+        "meetings": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "multi-fact": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 0.9799301972870469
+        },
+        "provider": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "reminders": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "storage": {
+          "hit1": 0.6666666666666666,
+          "recall6": 1.0,
+          "ndcg6": 0.8769765845238192
+        },
+        "timezone": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        },
+        "travel": {
+          "hit1": 1,
+          "recall6": 1.0,
+          "ndcg6": 1.0
+        }
+      },
+      "stableTop6AcrossRuns": true,
+      "queryTiming": {
+        "samples": 224,
+        "p50Ms": 41.78545849956572,
+        "p95Ms": 49.04408299922943,
+        "maxMs": 50.946791000664234
+      },
+      "tokenRange": [
+        27,
+        41
+      ],
+      "loadMsRuns": [
+        658.9071249999106,
+        628.5466670002788
+      ],
+      "indexMsRuns": [
+        1444.7670000009239,
+        1384.6616249997169
+      ],
+      "memory": [
+        {
+          "normalActiveBytes": 1191559176,
+          "normalCacheBytes": 134316784,
+          "normalPeakActiveBytes": 1574520688,
+          "normalProcessResidentBytes": 1304903680,
+          "clearedActiveBytes": 1191559176,
+          "clearedCacheBytes": 0,
+          "clearedProcessResidentBytes": 1304887296,
+          "finalPeakActiveBytes": 1861562616
+        },
+        {
+          "normalActiveBytes": 1191559176,
+          "normalCacheBytes": 133521864,
+          "normalPeakActiveBytes": 1574520688,
+          "normalProcessResidentBytes": 1327529984,
+          "clearedActiveBytes": 1191559176,
+          "clearedCacheBytes": 0,
+          "clearedProcessResidentBytes": 1327513600,
+          "finalPeakActiveBytes": 1861562616
+        }
+      ],
+      "batches": [
+        {
+          "kind": "real-memory",
+          "count": 1,
+          "tokenCounts": [
+            12
+          ],
+          "indexP50MsRuns": [
+            34.75316699966788,
+            33.94729099981487
+          ],
+          "combinedP95MsRuns": [
+            78.26608300022781,
+            78.95754100009799
+          ]
+        },
+        {
+          "kind": "real-memory",
+          "count": 2,
+          "tokenCounts": [
+            12,
+            14
+          ],
+          "indexP50MsRuns": [
+            41.78716599941254,
+            41.97958300076425
+          ],
+          "combinedP95MsRuns": [
+            91.71725000068545,
+            91.29870800115168
+          ]
+        },
+        {
+          "kind": "real-memory",
+          "count": 4,
+          "tokenCounts": [
+            12,
+            14,
+            10,
+            13
+          ],
+          "indexP50MsRuns": [
+            50.61237500049174,
+            49.65062499977648
+          ],
+          "combinedP95MsRuns": [
+            96.66187500022352,
+            99.70629199966788
+          ]
+        },
+        {
+          "kind": "real-memory",
+          "count": 8,
+          "tokenCounts": [
+            12,
+            14,
+            10,
+            13,
+            12,
+            8,
+            13,
+            11
+          ],
+          "indexP50MsRuns": [
+            87.06279100105166,
+            89.78387499973178
+          ],
+          "combinedP95MsRuns": [
+            133.89462500065565,
+            140.78508299961686
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 1,
+          "tokenCounts": [
+            129
+          ],
+          "indexP50MsRuns": [
+            99.9802919998765,
+            101.859125001356
+          ],
+          "combinedP95MsRuns": [
+            155.33391599915922,
+            150.11766600050032
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 2,
+          "tokenCounts": [
+            129,
+            129
+          ],
+          "indexP50MsRuns": [
+            170.60595900006592,
+            174.66916700080037
+          ],
+          "combinedP95MsRuns": [
+            217.11395799927413,
+            221.37204200029373
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 4,
+          "tokenCounts": [
+            129,
+            129,
+            129,
+            129
+          ],
+          "indexP50MsRuns": [
+            289.156499998644,
+            288.57204099930823
+          ],
+          "combinedP95MsRuns": [
+            336.84604099951684,
+            337.3397920001298
+          ]
+        },
+        {
+          "kind": "longer-memory",
+          "count": 8,
+          "tokenCounts": [
+            129,
+            129,
+            129,
+            129,
+            129,
+            129,
+            129,
+            129
+          ],
+          "indexP50MsRuns": [
+            525.1328329984099,
+            520.8837919998914
+          ],
+          "combinedP95MsRuns": [
+            593.2408750001341,
+            591.848124999553
+          ]
+        }
+      ],
+      "noAnswerScores": {
+        "none-0": 0.6471183,
+        "none-1": 0.6663449,
+        "none-2": 0.63973075,
+        "none-3": 0.66357136,
+        "none-4": 0.6689945,
+        "none-5": 0.3472858,
+        "none-6": 0.7249166,
+        "none-7": 0.6668479
+      },
+      "queryResults": [
+        {
+          "id": "food-q0",
+          "category": "food",
+          "expected": [
+            "food-0"
+          ],
+          "expectedRanks": {
+            "food-0": 1
+          },
+          "expectedScores": {
+            "food-0": 0.75558436
+          },
+          "semantic": [
+            "food-0",
+            "food-1",
+            "food-4",
+            "food-2",
+            "food-3",
+            "food-5"
+          ],
+          "topScore": 0.75558436,
+          "hybrid": [
+            "food-0",
+            "food-3",
+            "food-1",
+            "beverage-3",
+            "food-4",
+            "food-2"
+          ]
+        },
+        {
+          "id": "food-q1",
+          "category": "food",
+          "expected": [
+            "food-1"
+          ],
+          "expectedRanks": {
+            "food-1": 1
+          },
+          "expectedScores": {
+            "food-1": 0.8259323
+          },
+          "semantic": [
+            "food-1",
+            "food-0",
+            "food-2",
+            "food-4",
+            "food-3",
+            "food-5"
+          ],
+          "topScore": 0.8259323,
+          "hybrid": [
+            "food-1",
+            "food-0",
+            "food-2",
+            "food-4",
+            "food-3",
+            "food-5"
+          ]
+        },
+        {
+          "id": "food-q2",
+          "category": "food",
+          "expected": [
+            "food-2"
+          ],
+          "expectedRanks": {
+            "food-2": 1
+          },
+          "expectedScores": {
+            "food-2": 0.65547645
+          },
+          "semantic": [
+            "food-2",
+            "food-3",
+            "food-4",
+            "beverage-2",
+            "food-1",
+            "beverage-0"
+          ],
+          "topScore": 0.65547645,
+          "hybrid": [
+            "beverage-3",
+            "food-2",
+            "food-3",
+            "language-0",
+            "food-4",
+            "beverage-2"
+          ]
+        },
+        {
+          "id": "food-q3",
+          "category": "food",
+          "expected": [
+            "food-3"
+          ],
+          "expectedRanks": {
+            "food-3": 1
+          },
+          "expectedScores": {
+            "food-3": 0.6546039
+          },
+          "semantic": [
+            "food-3",
+            "food-2",
+            "beverage-5",
+            "beverage-2",
+            "food-4",
+            "travel-2"
+          ],
+          "topScore": 0.6546039,
+          "hybrid": [
+            "food-3",
+            "beverage-5",
+            "food-2",
+            "food-0",
+            "meetings-2",
+            "budget-3"
+          ]
+        },
+        {
+          "id": "food-q4",
+          "category": "food",
+          "expected": [
+            "food-0"
+          ],
+          "expectedRanks": {
+            "food-0": 1
+          },
+          "expectedScores": {
+            "food-0": 0.7259238
+          },
+          "semantic": [
+            "food-0",
+            "food-1",
+            "food-4",
+            "food-2",
+            "food-5",
+            "food-3"
+          ],
+          "topScore": 0.7259238,
+          "hybrid": [
+            "food-0",
+            "food-1",
+            "food-4",
+            "food-2",
+            "food-5",
+            "food-3"
+          ]
+        },
+        {
+          "id": "food-q5",
+          "category": "food",
+          "expected": [
+            "food-2"
+          ],
+          "expectedRanks": {
+            "food-2": 1
+          },
+          "expectedScores": {
+            "food-2": 0.7010031
+          },
+          "semantic": [
+            "food-2",
+            "beverage-2",
+            "beverage-0",
+            "food-3",
+            "beverage-3",
+            "beverage-5"
+          ],
+          "topScore": 0.7010031,
+          "hybrid": [
+            "display-3",
+            "food-2",
+            "beverage-2",
+            "capture-5",
+            "beverage-0",
+            "food-3"
+          ]
+        },
+        {
+          "id": "beverage-q0",
+          "category": "beverage",
+          "expected": [
+            "beverage-0"
+          ],
+          "expectedRanks": {
+            "beverage-0": 1
+          },
+          "expectedScores": {
+            "beverage-0": 0.7445208
+          },
+          "semantic": [
+            "beverage-0",
+            "beverage-2",
+            "beverage-3",
+            "beverage-5",
+            "beverage-1",
+            "beverage-4"
+          ],
+          "topScore": 0.7445208,
+          "hybrid": [
+            "beverage-3",
+            "beverage-0",
+            "beverage-2",
+            "language-0",
+            "beverage-5",
+            "beverage-1"
+          ]
+        },
+        {
+          "id": "beverage-q1",
+          "category": "beverage",
+          "expected": [
+            "beverage-1"
+          ],
+          "expectedRanks": {
+            "beverage-1": 1
+          },
+          "expectedScores": {
+            "beverage-1": 0.7007085
+          },
+          "semantic": [
+            "beverage-1",
+            "beverage-0",
+            "beverage-3",
+            "beverage-4",
+            "beverage-5",
+            "beverage-2"
+          ],
+          "topScore": 0.7007085,
+          "hybrid": [
+            "beverage-3",
+            "beverage-1",
+            "beverage-0",
+            "language-0",
+            "beverage-4",
+            "beverage-5"
+          ]
+        },
+        {
+          "id": "beverage-q2",
+          "category": "beverage",
+          "expected": [
+            "beverage-2"
+          ],
+          "expectedRanks": {
+            "beverage-2": 1
+          },
+          "expectedScores": {
+            "beverage-2": 0.78789485
+          },
+          "semantic": [
+            "beverage-2",
+            "beverage-0",
+            "beverage-5",
+            "beverage-3",
+            "meetings-2",
+            "food-3"
+          ],
+          "topScore": 0.78789485,
+          "hybrid": [
+            "beverage-2",
+            "beverage-0",
+            "beverage-5",
+            "beverage-3",
+            "meetings-2",
+            "food-3"
+          ]
+        },
+        {
+          "id": "beverage-q3",
+          "category": "beverage",
+          "expected": [
+            "beverage-3"
+          ],
+          "expectedRanks": {
+            "beverage-3": 1
+          },
+          "expectedScores": {
+            "beverage-3": 0.71061516
+          },
+          "semantic": [
+            "beverage-3",
+            "beverage-0",
+            "beverage-5",
+            "food-2",
+            "beverage-1",
+            "beverage-2"
+          ],
+          "topScore": 0.71061516,
+          "hybrid": [
+            "beverage-3",
+            "food-2",
+            "beverage-0",
+            "beverage-5",
+            "meetings-1",
+            "display-1"
+          ]
+        },
+        {
+          "id": "beverage-q4",
+          "category": "beverage",
+          "expected": [
+            "beverage-1"
+          ],
+          "expectedRanks": {
+            "beverage-1": 1
+          },
+          "expectedScores": {
+            "beverage-1": 0.6722484
+          },
+          "semantic": [
+            "beverage-1",
+            "beverage-0",
+            "beverage-3",
+            "beverage-4",
+            "beverage-5",
+            "beverage-2"
+          ],
+          "topScore": 0.6722484,
+          "hybrid": [
+            "beverage-1",
+            "beverage-0",
+            "beverage-3",
+            "beverage-4",
+            "beverage-5",
+            "beverage-2"
+          ]
+        },
+        {
+          "id": "beverage-q5",
+          "category": "beverage",
+          "expected": [
+            "beverage-0"
+          ],
+          "expectedRanks": {
+            "beverage-0": 1
+          },
+          "expectedScores": {
+            "beverage-0": 0.8474142
+          },
+          "semantic": [
+            "beverage-0",
+            "beverage-3",
+            "beverage-2",
+            "beverage-1",
+            "beverage-5",
+            "beverage-4"
+          ],
+          "topScore": 0.8474142,
+          "hybrid": [
+            "beverage-0",
+            "beverage-3",
+            "beverage-2",
+            "beverage-1",
+            "beverage-5",
+            "beverage-4"
+          ]
+        },
+        {
+          "id": "meetings-q0",
+          "category": "meetings",
+          "expected": [
+            "meetings-0"
+          ],
+          "expectedRanks": {
+            "meetings-0": 1
+          },
+          "expectedScores": {
+            "meetings-0": 0.73984647
+          },
+          "semantic": [
+            "meetings-0",
+            "meetings-2",
+            "meetings-1",
+            "meetings-3",
+            "reminders-3",
+            "beverage-4"
+          ],
+          "topScore": 0.73984647,
+          "hybrid": [
+            "meetings-0",
+            "meetings-2",
+            "meetings-1",
+            "meetings-3",
+            "beverage-4",
+            "reminders-3"
+          ]
+        },
+        {
+          "id": "meetings-q1",
+          "category": "meetings",
+          "expected": [
+            "meetings-1"
+          ],
+          "expectedRanks": {
+            "meetings-1": 1
+          },
+          "expectedScores": {
+            "meetings-1": 0.8483195
+          },
+          "semantic": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "reminders-3",
+            "meetings-3",
+            "meetings-4"
+          ],
+          "topScore": 0.8483195,
+          "hybrid": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "display-1",
+            "reminders-2",
+            "reminders-3"
+          ]
+        },
+        {
+          "id": "meetings-q2",
+          "category": "meetings",
+          "expected": [
+            "meetings-2"
+          ],
+          "expectedRanks": {
+            "meetings-2": 1
+          },
+          "expectedScores": {
+            "meetings-2": 0.81738913
+          },
+          "semantic": [
+            "meetings-2",
+            "meetings-1",
+            "meetings-0",
+            "reminders-3",
+            "provider-2",
+            "provider-4"
+          ],
+          "topScore": 0.81738913,
+          "hybrid": [
+            "meetings-2",
+            "meetings-1",
+            "meetings-0",
+            "reminders-3",
+            "travel-1",
+            "provider-2"
+          ]
+        },
+        {
+          "id": "meetings-q3",
+          "category": "meetings",
+          "expected": [
+            "meetings-3"
+          ],
+          "expectedRanks": {
+            "meetings-3": 1
+          },
+          "expectedScores": {
+            "meetings-3": 0.68335474
+          },
+          "semantic": [
+            "meetings-3",
+            "reminders-3",
+            "meetings-0",
+            "meetings-1",
+            "meetings-2",
+            "beverage-4"
+          ],
+          "topScore": 0.68335474,
+          "hybrid": [
+            "meetings-3",
+            "reminders-3",
+            "beverage-4",
+            "reminders-0",
+            "history-1",
+            "food-2"
+          ]
+        },
+        {
+          "id": "meetings-q4",
+          "category": "meetings",
+          "expected": [
+            "meetings-1"
+          ],
+          "expectedRanks": {
+            "meetings-1": 1
+          },
+          "expectedScores": {
+            "meetings-1": 0.7380048
+          },
+          "semantic": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "reminders-3",
+            "meetings-3",
+            "meetings-4"
+          ],
+          "topScore": 0.7380048,
+          "hybrid": [
+            "meetings-1",
+            "meetings-2",
+            "meetings-0",
+            "reminders-3",
+            "meetings-3",
+            "meetings-4"
+          ]
+        },
+        {
+          "id": "meetings-q5",
+          "category": "meetings",
+          "expected": [
+            "meetings-0"
+          ],
+          "expectedRanks": {
+            "meetings-0": 1
+          },
+          "expectedScores": {
+            "meetings-0": 0.7468692
+          },
+          "semantic": [
+            "meetings-0",
+            "meetings-3",
+            "meetings-4",
+            "reminders-3",
+            "meetings-2",
+            "meetings-1"
+          ],
+          "topScore": 0.7468692,
+          "hybrid": [
+            "meetings-0",
+            "meetings-4",
+            "meetings-3",
+            "language-0",
+            "meetings-1",
+            "reminders-4"
+          ]
+        },
+        {
+          "id": "travel-q0",
+          "category": "travel",
+          "expected": [
+            "travel-0"
+          ],
+          "expectedRanks": {
+            "travel-0": 1
+          },
+          "expectedScores": {
+            "travel-0": 0.7754076
+          },
+          "semantic": [
+            "travel-0",
+            "travel-2",
+            "travel-3",
+            "travel-5",
+            "travel-1",
+            "travel-4"
+          ],
+          "topScore": 0.7754076,
+          "hybrid": [
+            "travel-0",
+            "travel-3",
+            "travel-2",
+            "travel-4",
+            "reminders-2",
+            "travel-5"
+          ]
+        },
+        {
+          "id": "travel-q1",
+          "category": "travel",
+          "expected": [
+            "travel-1"
+          ],
+          "expectedRanks": {
+            "travel-1": 1
+          },
+          "expectedScores": {
+            "travel-1": 0.8107954
+          },
+          "semantic": [
+            "travel-1",
+            "travel-5",
+            "travel-0",
+            "travel-2",
+            "budget-1",
+            "reminders-1"
+          ],
+          "topScore": 0.8107954,
+          "hybrid": [
+            "travel-1",
+            "travel-5",
+            "export-1",
+            "budget-5",
+            "export-0",
+            "travel-0"
+          ]
+        },
+        {
+          "id": "travel-q2",
+          "category": "travel",
+          "expected": [
+            "travel-2"
+          ],
+          "expectedRanks": {
+            "travel-2": 1
+          },
+          "expectedScores": {
+            "travel-2": 0.8856826
+          },
+          "semantic": [
+            "travel-2",
+            "travel-0",
+            "travel-3",
+            "travel-5",
+            "travel-1",
+            "budget-3"
+          ],
+          "topScore": 0.8856826,
+          "hybrid": [
+            "travel-2",
+            "travel-0",
+            "travel-3",
+            "budget-3",
+            "budget-0",
+            "budget-2"
+          ]
+        },
+        {
+          "id": "travel-q3",
+          "category": "travel",
+          "expected": [
+            "travel-3"
+          ],
+          "expectedRanks": {
+            "travel-3": 1
+          },
+          "expectedScores": {
+            "travel-3": 0.76925504
+          },
+          "semantic": [
+            "travel-3",
+            "travel-4",
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "travel-1"
+          ],
+          "topScore": 0.76925504,
+          "hybrid": [
+            "travel-3",
+            "travel-4",
+            "travel-0",
+            "travel-2",
+            "history-1",
+            "travel-5"
+          ]
+        },
+        {
+          "id": "travel-q4",
+          "category": "travel",
+          "expected": [
+            "travel-0"
+          ],
+          "expectedRanks": {
+            "travel-0": 1
+          },
+          "expectedScores": {
+            "travel-0": 0.8243693
+          },
+          "semantic": [
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "travel-1",
+            "travel-3",
+            "budget-1"
+          ],
+          "topScore": 0.8243693,
+          "hybrid": [
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "travel-1",
+            "travel-3",
+            "budget-1"
+          ]
+        },
+        {
+          "id": "travel-q5",
+          "category": "travel",
+          "expected": [
+            "travel-1"
+          ],
+          "expectedRanks": {
+            "travel-1": 1
+          },
+          "expectedScores": {
+            "travel-1": 0.7763995
+          },
+          "semantic": [
+            "travel-1",
+            "travel-5",
+            "travel-0",
+            "travel-2",
+            "travel-3",
+            "budget-1"
+          ],
+          "topScore": 0.7763995,
+          "hybrid": [
+            "travel-1",
+            "travel-5",
+            "travel-0",
+            "travel-2",
+            "budget-1",
+            "travel-3"
+          ]
+        },
+        {
+          "id": "display-q0",
+          "category": "display",
+          "expected": [
+            "display-0"
+          ],
+          "expectedRanks": {
+            "display-0": 1
+          },
+          "expectedScores": {
+            "display-0": 0.6975986
+          },
+          "semantic": [
+            "display-0",
+            "display-5",
+            "display-2",
+            "language-1",
+            "display-3",
+            "display-1"
+          ],
+          "topScore": 0.6975986,
+          "hybrid": [
+            "display-0",
+            "display-2",
+            "language-1",
+            "language-0",
+            "beverage-3",
+            "display-5"
+          ]
+        },
+        {
+          "id": "display-q1",
+          "category": "display",
+          "expected": [
+            "display-1"
+          ],
+          "expectedRanks": {
+            "display-1": 1
+          },
+          "expectedScores": {
+            "display-1": 0.64433086
+          },
+          "semantic": [
+            "display-1",
+            "display-5",
+            "display-0",
+            "display-3",
+            "display-4",
+            "language-2"
+          ],
+          "topScore": 0.64433086,
+          "hybrid": [
+            "display-1",
+            "display-4",
+            "display-0",
+            "display-5",
+            "identifiers-1",
+            "display-3"
+          ]
+        },
+        {
+          "id": "display-q2",
+          "category": "display",
+          "expected": [
+            "display-2"
+          ],
+          "expectedRanks": {
+            "display-2": 1
+          },
+          "expectedScores": {
+            "display-2": 0.77074677
+          },
+          "semantic": [
+            "display-2",
+            "display-0",
+            "display-5",
+            "language-1",
+            "display-3",
+            "display-1"
+          ],
+          "topScore": 0.77074677,
+          "hybrid": [
+            "display-2",
+            "display-0",
+            "language-1",
+            "timezone-0",
+            "display-5",
+            "display-3"
+          ]
+        },
+        {
+          "id": "display-q3",
+          "category": "display",
+          "expected": [
+            "display-3"
+          ],
+          "expectedRanks": {
+            "display-3": 1
+          },
+          "expectedScores": {
+            "display-3": 0.83393437
+          },
+          "semantic": [
+            "display-3",
+            "display-4",
+            "display-0",
+            "beverage-3",
+            "history-0",
+            "history-2"
+          ],
+          "topScore": 0.83393437,
+          "hybrid": [
+            "display-3",
+            "display-4",
+            "display-0",
+            "food-3",
+            "reminders-0",
+            "beverage-3"
+          ]
+        },
+        {
+          "id": "display-q4",
+          "category": "display",
+          "expected": [
+            "display-0"
+          ],
+          "expectedRanks": {
+            "display-0": 1
+          },
+          "expectedScores": {
+            "display-0": 0.7560685
+          },
+          "semantic": [
+            "display-0",
+            "display-5",
+            "display-2",
+            "display-3",
+            "display-1",
+            "language-1"
+          ],
+          "topScore": 0.7560685,
+          "hybrid": [
+            "display-0",
+            "display-5",
+            "display-2",
+            "display-3",
+            "display-1",
+            "language-1"
+          ]
+        },
+        {
+          "id": "display-q5",
+          "category": "display",
+          "expected": [
+            "display-1"
+          ],
+          "expectedRanks": {
+            "display-1": 2
+          },
+          "expectedScores": {
+            "display-1": 0.63552195
+          },
+          "semantic": [
+            "display-5",
+            "display-1",
+            "display-0",
+            "display-4",
+            "display-3",
+            "language-2"
+          ],
+          "topScore": 0.64027554,
+          "hybrid": [
+            "display-1",
+            "display-5",
+            "display-0",
+            "export-2",
+            "reminders-1",
+            "display-4"
+          ]
+        },
+        {
+          "id": "timezone-q0",
+          "category": "timezone",
+          "expected": [
+            "timezone-0"
+          ],
+          "expectedRanks": {
+            "timezone-0": 1
+          },
+          "expectedScores": {
+            "timezone-0": 0.7825763
+          },
+          "semantic": [
+            "timezone-0",
+            "timezone-2",
+            "timezone-5",
+            "timezone-1",
+            "timezone-3",
+            "timezone-4"
+          ],
+          "topScore": 0.7825763,
+          "hybrid": [
+            "timezone-0",
+            "timezone-5",
+            "export-3",
+            "timezone-2",
+            "timezone-1",
+            "timezone-3"
+          ]
+        },
+        {
+          "id": "timezone-q1",
+          "category": "timezone",
+          "expected": [
+            "timezone-1"
+          ],
+          "expectedRanks": {
+            "timezone-1": 1
+          },
+          "expectedScores": {
+            "timezone-1": 0.79382956
+          },
+          "semantic": [
+            "timezone-1",
+            "timezone-0",
+            "timezone-3",
+            "timezone-2",
+            "timezone-5",
+            "timezone-4"
+          ],
+          "topScore": 0.79382956,
+          "hybrid": [
+            "timezone-1",
+            "timezone-3",
+            "language-4",
+            "timezone-2",
+            "reminders-4",
+            "timezone-0"
+          ]
+        },
+        {
+          "id": "timezone-q2",
+          "category": "timezone",
+          "expected": [
+            "timezone-2"
+          ],
+          "expectedRanks": {
+            "timezone-2": 1
+          },
+          "expectedScores": {
+            "timezone-2": 0.6902297
+          },
+          "semantic": [
+            "timezone-2",
+            "reminders-3",
+            "timezone-0",
+            "timezone-4",
+            "display-5",
+            "reminders-2"
+          ],
+          "topScore": 0.6902297,
+          "hybrid": [
+            "timezone-2",
+            "reminders-3",
+            "display-5",
+            "reminders-2",
+            "food-1",
+            "timezone-0"
+          ]
+        },
+        {
+          "id": "timezone-q3",
+          "category": "timezone",
+          "expected": [
+            "timezone-3"
+          ],
+          "expectedRanks": {
+            "timezone-3": 1
+          },
+          "expectedScores": {
+            "timezone-3": 0.731267
+          },
+          "semantic": [
+            "timezone-3",
+            "export-3",
+            "storage-5",
+            "storage-1",
+            "timezone-5",
+            "provider-5"
+          ],
+          "topScore": 0.731267,
+          "hybrid": [
+            "timezone-3",
+            "export-3",
+            "storage-5",
+            "storage-1",
+            "identifiers-3",
+            "reminders-4"
+          ]
+        },
+        {
+          "id": "timezone-q4",
+          "category": "timezone",
+          "expected": [
+            "timezone-3"
+          ],
+          "expectedRanks": {
+            "timezone-3": 1
+          },
+          "expectedScores": {
+            "timezone-3": 0.79519963
+          },
+          "semantic": [
+            "timezone-3",
+            "timezone-0",
+            "export-3",
+            "timezone-5",
+            "timezone-2",
+            "timezone-1"
+          ],
+          "topScore": 0.79519963,
+          "hybrid": [
+            "timezone-3",
+            "timezone-0",
+            "export-3",
+            "timezone-5",
+            "timezone-2",
+            "timezone-1"
+          ]
+        },
+        {
+          "id": "timezone-q5",
+          "category": "timezone",
+          "expected": [
+            "timezone-0"
+          ],
+          "expectedRanks": {
+            "timezone-0": 1
+          },
+          "expectedScores": {
+            "timezone-0": 0.75123364
+          },
+          "semantic": [
+            "timezone-0",
+            "timezone-5",
+            "timezone-2",
+            "timezone-1",
+            "timezone-3",
+            "export-3"
+          ],
+          "topScore": 0.75123364,
+          "hybrid": [
+            "timezone-0",
+            "export-3",
+            "timezone-1",
+            "timezone-3",
+            "travel-0",
+            "language-4"
+          ]
+        },
+        {
+          "id": "provider-q0",
+          "category": "provider",
+          "expected": [
+            "provider-0"
+          ],
+          "expectedRanks": {
+            "provider-0": 1
+          },
+          "expectedScores": {
+            "provider-0": 0.7785354
+          },
+          "semantic": [
+            "provider-0",
+            "identifiers-0",
+            "provider-1",
+            "provider-2",
+            "storage-0",
+            "storage-5"
+          ],
+          "topScore": 0.7785354,
+          "hybrid": [
+            "provider-0",
+            "identifiers-0",
+            "provider-2",
+            "provider-1",
+            "storage-0",
+            "identifiers-1"
+          ]
+        },
+        {
+          "id": "provider-q1",
+          "category": "provider",
+          "expected": [
+            "provider-1"
+          ],
+          "expectedRanks": {
+            "provider-1": 1
+          },
+          "expectedScores": {
+            "provider-1": 0.7009718
+          },
+          "semantic": [
+            "provider-1",
+            "provider-0",
+            "identifiers-0",
+            "identifiers-2",
+            "storage-0",
+            "identifiers-3"
+          ],
+          "topScore": 0.7009718,
+          "hybrid": [
+            "identifiers-2",
+            "provider-0",
+            "identifiers-0",
+            "provider-1",
+            "identifiers-3",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "provider-q2",
+          "category": "provider",
+          "expected": [
+            "provider-2"
+          ],
+          "expectedRanks": {
+            "provider-2": 1
+          },
+          "expectedScores": {
+            "provider-2": 0.8154637
+          },
+          "semantic": [
+            "provider-2",
+            "identifiers-1",
+            "provider-0",
+            "provider-4",
+            "hardware-1",
+            "identifiers-2"
+          ],
+          "topScore": 0.8154637,
+          "hybrid": [
+            "provider-2",
+            "provider-0",
+            "identifiers-1",
+            "provider-1",
+            "hardware-1",
+            "provider-4"
+          ]
+        },
+        {
+          "id": "provider-q3",
+          "category": "provider",
+          "expected": [
+            "provider-3"
+          ],
+          "expectedRanks": {
+            "provider-3": 1
+          },
+          "expectedScores": {
+            "provider-3": 0.66747266
+          },
+          "semantic": [
+            "provider-3",
+            "reminders-5",
+            "capture-3",
+            "capture-1",
+            "capture-0",
+            "reminders-0"
+          ],
+          "topScore": 0.66747266,
+          "hybrid": [
+            "provider-3",
+            "reminders-5",
+            "provider-2",
+            "capture-0",
+            "provider-0",
+            "capture-3"
+          ]
+        },
+        {
+          "id": "provider-q4",
+          "category": "provider",
+          "expected": [
+            "provider-1"
+          ],
+          "expectedRanks": {
+            "provider-1": 1
+          },
+          "expectedScores": {
+            "provider-1": 0.68673503
+          },
+          "semantic": [
+            "provider-1",
+            "identifiers-2",
+            "provider-0",
+            "storage-0",
+            "identifiers-0",
+            "identifiers-3"
+          ],
+          "topScore": 0.68673503,
+          "hybrid": [
+            "provider-1",
+            "provider-0",
+            "identifiers-0",
+            "storage-0",
+            "identifiers-2",
+            "identifiers-3"
+          ]
+        },
+        {
+          "id": "provider-q5",
+          "category": "provider",
+          "expected": [
+            "provider-0"
+          ],
+          "expectedRanks": {
+            "provider-0": 1
+          },
+          "expectedScores": {
+            "provider-0": 0.6648547
+          },
+          "semantic": [
+            "provider-0",
+            "identifiers-0",
+            "hardware-5",
+            "provider-5",
+            "provider-1",
+            "storage-0"
+          ],
+          "topScore": 0.6648547,
+          "hybrid": [
+            "hardware-5",
+            "provider-0",
+            "provider-5",
+            "identifiers-0",
+            "provider-2",
+            "provider-1"
+          ]
+        },
+        {
+          "id": "storage-q0",
+          "category": "storage",
+          "expected": [
+            "storage-0"
+          ],
+          "expectedRanks": {
+            "storage-0": 1
+          },
+          "expectedScores": {
+            "storage-0": 0.6853485
+          },
+          "semantic": [
+            "storage-0",
+            "identifiers-0",
+            "provider-0",
+            "provider-1",
+            "identifiers-3",
+            "storage-3"
+          ],
+          "topScore": 0.6853485,
+          "hybrid": [
+            "storage-0",
+            "identifiers-0",
+            "identifiers-3",
+            "provider-0",
+            "capture-0",
+            "provider-1"
+          ]
+        },
+        {
+          "id": "storage-q1",
+          "category": "storage",
+          "expected": [
+            "storage-1"
+          ],
+          "expectedRanks": {
+            "storage-1": 1
+          },
+          "expectedScores": {
+            "storage-1": 0.6476361
+          },
+          "semantic": [
+            "storage-1",
+            "language-2",
+            "capture-3",
+            "history-5",
+            "history-4",
+            "language-5"
+          ],
+          "topScore": 0.6476361,
+          "hybrid": [
+            "storage-1",
+            "language-5",
+            "display-1",
+            "language-2",
+            "provider-5",
+            "capture-3"
+          ]
+        },
+        {
+          "id": "storage-q2",
+          "category": "storage",
+          "expected": [
+            "storage-2"
+          ],
+          "expectedRanks": {
+            "storage-2": 2
+          },
+          "expectedScores": {
+            "storage-2": 0.6167107
+          },
+          "semantic": [
+            "storage-3",
+            "storage-2",
+            "capture-1",
+            "capture-3",
+            "capture-0",
+            "reminders-5"
+          ],
+          "topScore": 0.6468352,
+          "hybrid": [
+            "storage-3",
+            "storage-2",
+            "capture-0",
+            "provider-1",
+            "reminders-5",
+            "capture-5"
+          ]
+        },
+        {
+          "id": "storage-q3",
+          "category": "storage",
+          "expected": [
+            "storage-3"
+          ],
+          "expectedRanks": {
+            "storage-3": 1
+          },
+          "expectedScores": {
+            "storage-3": 0.67845976
+          },
+          "semantic": [
+            "storage-3",
+            "capture-0",
+            "capture-1",
+            "reminders-5",
+            "capture-3",
+            "storage-5"
+          ],
+          "topScore": 0.67845976,
+          "hybrid": [
+            "storage-3",
+            "storage-5",
+            "storage-0",
+            "storage-2",
+            "provider-5",
+            "capture-0"
+          ]
+        },
+        {
+          "id": "storage-q4",
+          "category": "storage",
+          "expected": [
+            "storage-2"
+          ],
+          "expectedRanks": {
+            "storage-2": 2
+          },
+          "expectedScores": {
+            "storage-2": 0.50705695
+          },
+          "semantic": [
+            "storage-3",
+            "storage-2",
+            "reminders-5",
+            "identifiers-2",
+            "provider-3",
+            "identifiers-3"
+          ],
+          "topScore": 0.5913658,
+          "hybrid": [
+            "identifiers-2",
+            "identifiers-3",
+            "storage-3",
+            "storage-2",
+            "reminders-5",
+            "provider-3"
+          ]
+        },
+        {
+          "id": "storage-q5",
+          "category": "storage",
+          "expected": [
+            "storage-0"
+          ],
+          "expectedRanks": {
+            "storage-0": 1
+          },
+          "expectedScores": {
+            "storage-0": 0.66285
+          },
+          "semantic": [
+            "storage-0",
+            "storage-2",
+            "storage-3",
+            "identifiers-3",
+            "storage-5",
+            "provider-1"
+          ],
+          "topScore": 0.66285,
+          "hybrid": [
+            "storage-0",
+            "storage-2",
+            "storage-3",
+            "provider-1",
+            "timezone-0",
+            "identifiers-3"
+          ]
+        },
+        {
+          "id": "language-q0",
+          "category": "language",
+          "expected": [
+            "language-0"
+          ],
+          "expectedRanks": {
+            "language-0": 1
+          },
+          "expectedScores": {
+            "language-0": 0.5811974
+          },
+          "semantic": [
+            "language-0",
+            "language-2",
+            "language-3",
+            "language-1",
+            "display-0",
+            "display-2"
+          ],
+          "topScore": 0.5811974,
+          "hybrid": [
+            "language-0",
+            "language-2",
+            "language-3",
+            "meetings-0",
+            "meetings-4",
+            "beverage-3"
+          ]
+        },
+        {
+          "id": "language-q1",
+          "category": "language",
+          "expected": [
+            "language-1"
+          ],
+          "expectedRanks": {
+            "language-1": 1
+          },
+          "expectedScores": {
+            "language-1": 0.7279927
+          },
+          "semantic": [
+            "language-1",
+            "display-0",
+            "language-2",
+            "display-2",
+            "language-0",
+            "display-5"
+          ],
+          "topScore": 0.7279927,
+          "hybrid": [
+            "language-1",
+            "display-0",
+            "language-0",
+            "display-2",
+            "export-0",
+            "language-3"
+          ]
+        },
+        {
+          "id": "language-q2",
+          "category": "language",
+          "expected": [
+            "language-2"
+          ],
+          "expectedRanks": {
+            "language-2": 1
+          },
+          "expectedScores": {
+            "language-2": 0.5913788
+          },
+          "semantic": [
+            "language-2",
+            "history-5",
+            "storage-1",
+            "capture-0",
+            "language-3",
+            "capture-3"
+          ],
+          "topScore": 0.5913788,
+          "hybrid": [
+            "language-2",
+            "language-3",
+            "storage-1",
+            "history-1",
+            "history-4",
+            "budget-2"
+          ]
+        },
+        {
+          "id": "language-q3",
+          "category": "language",
+          "expected": [
+            "language-3"
+          ],
+          "expectedRanks": {
+            "language-3": 1
+          },
+          "expectedScores": {
+            "language-3": 0.633404
+          },
+          "semantic": [
+            "language-3",
+            "language-2",
+            "language-1",
+            "hardware-4",
+            "reminders-5",
+            "export-0"
+          ],
+          "topScore": 0.633404,
+          "hybrid": [
+            "language-3",
+            "language-2",
+            "export-0",
+            "identifiers-3",
+            "storage-5",
+            "language-1"
+          ]
+        },
+        {
+          "id": "language-q4",
+          "category": "language",
+          "expected": [
+            "language-1"
+          ],
+          "expectedRanks": {
+            "language-1": 1
+          },
+          "expectedScores": {
+            "language-1": 0.67570513
+          },
+          "semantic": [
+            "language-1",
+            "language-3",
+            "identifiers-2",
+            "display-2",
+            "capture-3",
+            "hardware-5"
+          ],
+          "topScore": 0.67570513,
+          "hybrid": [
+            "language-1",
+            "language-3",
+            "identifiers-2",
+            "display-2",
+            "capture-3",
+            "hardware-5"
+          ]
+        },
+        {
+          "id": "language-q5",
+          "category": "language",
+          "expected": [
+            "language-0"
+          ],
+          "expectedRanks": {
+            "language-0": 2
+          },
+          "expectedScores": {
+            "language-0": 0.6181908
+          },
+          "semantic": [
+            "language-3",
+            "language-0",
+            "language-2",
+            "display-0",
+            "language-1",
+            "display-3"
+          ],
+          "topScore": 0.62572026,
+          "hybrid": [
+            "language-0",
+            "language-3",
+            "language-1",
+            "language-4",
+            "display-0",
+            "display-3"
+          ]
+        },
+        {
+          "id": "hardware-q0",
+          "category": "hardware",
+          "expected": [
+            "hardware-0"
+          ],
+          "expectedRanks": {
+            "hardware-0": 1
+          },
+          "expectedScores": {
+            "hardware-0": 0.590696
+          },
+          "semantic": [
+            "hardware-0",
+            "budget-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2",
+            "budget-5"
+          ],
+          "topScore": 0.590696,
+          "hybrid": [
+            "hardware-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2",
+            "display-0",
+            "budget-3"
+          ]
+        },
+        {
+          "id": "hardware-q1",
+          "category": "hardware",
+          "expected": [
+            "hardware-1"
+          ],
+          "expectedRanks": {
+            "hardware-1": 1
+          },
+          "expectedScores": {
+            "hardware-1": 0.7382852
+          },
+          "semantic": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "budget-2",
+            "identifiers-2"
+          ],
+          "topScore": 0.7382852,
+          "hybrid": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "provider-2",
+            "hardware-2",
+            "budget-3"
+          ]
+        },
+        {
+          "id": "hardware-q2",
+          "category": "hardware",
+          "expected": [
+            "hardware-2"
+          ],
+          "expectedRanks": {
+            "hardware-2": 1
+          },
+          "expectedScores": {
+            "hardware-2": 0.66730237
+          },
+          "semantic": [
+            "hardware-2",
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "budget-2",
+            "display-5"
+          ],
+          "topScore": 0.66730237,
+          "hybrid": [
+            "hardware-2",
+            "hardware-1",
+            "hardware-5",
+            "hardware-0",
+            "reminders-4",
+            "hardware-3"
+          ]
+        },
+        {
+          "id": "hardware-q3",
+          "category": "hardware",
+          "expected": [
+            "hardware-3"
+          ],
+          "expectedRanks": {
+            "hardware-3": 1
+          },
+          "expectedScores": {
+            "hardware-3": 0.6909318
+          },
+          "semantic": [
+            "hardware-3",
+            "hardware-0",
+            "history-0",
+            "history-1",
+            "history-2",
+            "hardware-1"
+          ],
+          "topScore": 0.6909318,
+          "hybrid": [
+            "hardware-3",
+            "history-0",
+            "history-1",
+            "export-4",
+            "hardware-0",
+            "identifiers-5"
+          ]
+        },
+        {
+          "id": "hardware-q4",
+          "category": "hardware",
+          "expected": [
+            "hardware-0"
+          ],
+          "expectedRanks": {
+            "hardware-0": 1
+          },
+          "expectedScores": {
+            "hardware-0": 0.7249366
+          },
+          "semantic": [
+            "hardware-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2",
+            "budget-4",
+            "identifiers-2"
+          ],
+          "topScore": 0.7249366,
+          "hybrid": [
+            "identifiers-2",
+            "identifiers-3",
+            "hardware-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2"
+          ]
+        },
+        {
+          "id": "hardware-q5",
+          "category": "hardware",
+          "expected": [
+            "hardware-1"
+          ],
+          "expectedRanks": {
+            "hardware-1": 1
+          },
+          "expectedScores": {
+            "hardware-1": 0.692719
+          },
+          "semantic": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "identifiers-2",
+            "budget-2"
+          ],
+          "topScore": 0.692719,
+          "hybrid": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-2",
+            "hardware-3",
+            "display-0",
+            "identifiers-5"
+          ]
+        },
+        {
+          "id": "budget-q0",
+          "category": "budget",
+          "expected": [
+            "budget-0"
+          ],
+          "expectedRanks": {
+            "budget-0": 1
+          },
+          "expectedScores": {
+            "budget-0": 0.80338085
+          },
+          "semantic": [
+            "budget-0",
+            "budget-4",
+            "hardware-3",
+            "budget-2",
+            "hardware-1",
+            "budget-3"
+          ],
+          "topScore": 0.80338085,
+          "hybrid": [
+            "budget-4",
+            "budget-0",
+            "travel-0",
+            "beverage-5",
+            "hardware-3",
+            "budget-2"
+          ]
+        },
+        {
+          "id": "budget-q1",
+          "category": "budget",
+          "expected": [
+            "budget-1"
+          ],
+          "expectedRanks": {
+            "budget-1": 1
+          },
+          "expectedScores": {
+            "budget-1": 0.65844405
+          },
+          "semantic": [
+            "budget-1",
+            "budget-3",
+            "travel-2",
+            "travel-0",
+            "budget-2",
+            "travel-5"
+          ],
+          "topScore": 0.65844405,
+          "hybrid": [
+            "budget-1",
+            "timezone-0",
+            "beverage-3",
+            "budget-3",
+            "language-0",
+            "travel-2"
+          ]
+        },
+        {
+          "id": "budget-q2",
+          "category": "budget",
+          "expected": [
+            "budget-2"
+          ],
+          "expectedRanks": {
+            "budget-2": 1
+          },
+          "expectedScores": {
+            "budget-2": 0.8164815
+          },
+          "semantic": [
+            "budget-2",
+            "hardware-1",
+            "budget-1",
+            "hardware-2",
+            "budget-3",
+            "hardware-3"
+          ],
+          "topScore": 0.8164815,
+          "hybrid": [
+            "budget-2",
+            "hardware-1",
+            "identifiers-5",
+            "meetings-4",
+            "budget-1",
+            "history-3"
+          ]
+        },
+        {
+          "id": "budget-q3",
+          "category": "budget",
+          "expected": [
+            "budget-3"
+          ],
+          "expectedRanks": {
+            "budget-3": 1
+          },
+          "expectedScores": {
+            "budget-3": 0.7390402
+          },
+          "semantic": [
+            "budget-3",
+            "budget-1",
+            "budget-2",
+            "travel-2",
+            "travel-0",
+            "budget-0"
+          ],
+          "topScore": 0.7390402,
+          "hybrid": [
+            "budget-3",
+            "budget-1",
+            "travel-2",
+            "budget-4",
+            "budget-2",
+            "budget-0"
+          ]
+        },
+        {
+          "id": "budget-q4",
+          "category": "budget",
+          "expected": [
+            "budget-0"
+          ],
+          "expectedRanks": {
+            "budget-0": 1
+          },
+          "expectedScores": {
+            "budget-0": 0.83926743
+          },
+          "semantic": [
+            "budget-0",
+            "budget-4",
+            "budget-2",
+            "budget-5",
+            "travel-2",
+            "travel-0"
+          ],
+          "topScore": 0.83926743,
+          "hybrid": [
+            "budget-0",
+            "budget-4",
+            "budget-2",
+            "budget-5",
+            "travel-2",
+            "travel-0"
+          ]
+        },
+        {
+          "id": "budget-q5",
+          "category": "budget",
+          "expected": [
+            "budget-1"
+          ],
+          "expectedRanks": {
+            "budget-1": 1
+          },
+          "expectedScores": {
+            "budget-1": 0.807431
+          },
+          "semantic": [
+            "budget-1",
+            "budget-3",
+            "budget-2",
+            "budget-0",
+            "budget-4",
+            "travel-0"
+          ],
+          "topScore": 0.807431,
+          "hybrid": [
+            "budget-1",
+            "budget-3",
+            "budget-2",
+            "travel-0",
+            "budget-0",
+            "travel-2"
+          ]
+        },
+        {
+          "id": "export-q0",
+          "category": "export",
+          "expected": [
+            "export-0"
+          ],
+          "expectedRanks": {
+            "export-0": 1
+          },
+          "expectedScores": {
+            "export-0": 0.8053167
+          },
+          "semantic": [
+            "export-0",
+            "export-2",
+            "export-1",
+            "export-4",
+            "storage-4",
+            "display-4"
+          ],
+          "topScore": 0.8053167,
+          "hybrid": [
+            "export-0",
+            "export-4",
+            "export-1",
+            "storage-4",
+            "export-3",
+            "history-4"
+          ]
+        },
+        {
+          "id": "export-q1",
+          "category": "export",
+          "expected": [
+            "export-1"
+          ],
+          "expectedRanks": {
+            "export-1": 1
+          },
+          "expectedScores": {
+            "export-1": 0.818864
+          },
+          "semantic": [
+            "export-1",
+            "export-0",
+            "export-5",
+            "export-2",
+            "display-5",
+            "travel-1"
+          ],
+          "topScore": 0.818864,
+          "hybrid": [
+            "export-1",
+            "export-0",
+            "travel-1",
+            "capture-2",
+            "export-5",
+            "export-2"
+          ]
+        },
+        {
+          "id": "export-q2",
+          "category": "export",
+          "expected": [
+            "export-2"
+          ],
+          "expectedRanks": {
+            "export-2": 1
+          },
+          "expectedScores": {
+            "export-2": 0.79019654
+          },
+          "semantic": [
+            "export-2",
+            "export-0",
+            "display-4",
+            "language-4",
+            "language-0",
+            "export-4"
+          ],
+          "topScore": 0.79019654,
+          "hybrid": [
+            "export-2",
+            "export-0",
+            "export-4",
+            "language-4",
+            "history-4",
+            "display-5"
+          ]
+        },
+        {
+          "id": "export-q3",
+          "category": "export",
+          "expected": [
+            "export-3"
+          ],
+          "expectedRanks": {
+            "export-3": 1
+          },
+          "expectedScores": {
+            "export-3": 0.6913532
+          },
+          "semantic": [
+            "export-3",
+            "timezone-3",
+            "timezone-5",
+            "timezone-0",
+            "export-1",
+            "display-2"
+          ],
+          "topScore": 0.6913532,
+          "hybrid": [
+            "export-3",
+            "timezone-3",
+            "storage-1",
+            "export-1",
+            "timezone-2",
+            "reminders-4"
+          ]
+        },
+        {
+          "id": "export-q4",
+          "category": "export",
+          "expected": [
+            "export-0"
+          ],
+          "expectedRanks": {
+            "export-0": 1
+          },
+          "expectedScores": {
+            "export-0": 0.7108406
+          },
+          "semantic": [
+            "export-0",
+            "export-2",
+            "export-4",
+            "export-1",
+            "storage-4",
+            "language-4"
+          ],
+          "topScore": 0.7108406,
+          "hybrid": [
+            "export-0",
+            "export-2",
+            "export-4",
+            "export-1",
+            "storage-4",
+            "language-4"
+          ]
+        },
+        {
+          "id": "export-q5",
+          "category": "export",
+          "expected": [
+            "export-1"
+          ],
+          "expectedRanks": {
+            "export-1": 1
+          },
+          "expectedScores": {
+            "export-1": 0.82094455
+          },
+          "semantic": [
+            "export-1",
+            "export-0",
+            "export-2",
+            "export-5",
+            "display-5",
+            "travel-1"
+          ],
+          "topScore": 0.82094455,
+          "hybrid": [
+            "export-1",
+            "export-0",
+            "display-5",
+            "export-5",
+            "travel-1",
+            "export-2"
+          ]
+        },
+        {
+          "id": "reminders-q0",
+          "category": "reminders",
+          "expected": [
+            "reminders-0"
+          ],
+          "expectedRanks": {
+            "reminders-0": 1
+          },
+          "expectedScores": {
+            "reminders-0": 0.7551434
+          },
+          "semantic": [
+            "reminders-0",
+            "capture-0",
+            "reminders-4",
+            "reminders-1",
+            "capture-3",
+            "provider-3"
+          ],
+          "topScore": 0.7551434,
+          "hybrid": [
+            "reminders-0",
+            "reminders-1",
+            "reminders-4",
+            "reminders-2",
+            "reminders-3",
+            "capture-0"
+          ]
+        },
+        {
+          "id": "reminders-q1",
+          "category": "reminders",
+          "expected": [
+            "reminders-1"
+          ],
+          "expectedRanks": {
+            "reminders-1": 1
+          },
+          "expectedScores": {
+            "reminders-1": 0.8329272
+          },
+          "semantic": [
+            "reminders-1",
+            "reminders-0",
+            "reminders-4",
+            "reminders-3",
+            "reminders-2",
+            "identifiers-4"
+          ],
+          "topScore": 0.8329272,
+          "hybrid": [
+            "reminders-1",
+            "reminders-0",
+            "reminders-4",
+            "reminders-2",
+            "reminders-3",
+            "food-2"
+          ]
+        },
+        {
+          "id": "reminders-q2",
+          "category": "reminders",
+          "expected": [
+            "reminders-2"
+          ],
+          "expectedRanks": {
+            "reminders-2": 1
+          },
+          "expectedScores": {
+            "reminders-2": 0.83337486
+          },
+          "semantic": [
+            "reminders-2",
+            "reminders-3",
+            "reminders-1",
+            "reminders-0",
+            "reminders-4",
+            "travel-0"
+          ],
+          "topScore": 0.83337486,
+          "hybrid": [
+            "reminders-2",
+            "reminders-1",
+            "reminders-3",
+            "reminders-4",
+            "travel-0",
+            "reminders-0"
+          ]
+        },
+        {
+          "id": "reminders-q3",
+          "category": "reminders",
+          "expected": [
+            "reminders-3"
+          ],
+          "expectedRanks": {
+            "reminders-3": 1
+          },
+          "expectedScores": {
+            "reminders-3": 0.7867044
+          },
+          "semantic": [
+            "reminders-3",
+            "reminders-2",
+            "reminders-0",
+            "reminders-1",
+            "capture-3",
+            "meetings-0"
+          ],
+          "topScore": 0.7867044,
+          "hybrid": [
+            "reminders-3",
+            "beverage-4",
+            "reminders-0",
+            "timezone-2",
+            "language-1",
+            "reminders-2"
+          ]
+        },
+        {
+          "id": "reminders-q4",
+          "category": "reminders",
+          "expected": [
+            "reminders-0"
+          ],
+          "expectedRanks": {
+            "reminders-0": 1
+          },
+          "expectedScores": {
+            "reminders-0": 0.774568
+          },
+          "semantic": [
+            "reminders-0",
+            "reminders-4",
+            "capture-0",
+            "reminders-1",
+            "capture-3",
+            "capture-1"
+          ],
+          "topScore": 0.774568,
+          "hybrid": [
+            "reminders-0",
+            "reminders-4",
+            "capture-0",
+            "reminders-1",
+            "capture-3",
+            "capture-1"
+          ]
+        },
+        {
+          "id": "reminders-q5",
+          "category": "reminders",
+          "expected": [
+            "reminders-1"
+          ],
+          "expectedRanks": {
+            "reminders-1": 1
+          },
+          "expectedScores": {
+            "reminders-1": 0.68199015
+          },
+          "semantic": [
+            "reminders-1",
+            "reminders-0",
+            "export-1",
+            "reminders-4",
+            "language-4",
+            "meetings-1"
+          ],
+          "topScore": 0.68199015,
+          "hybrid": [
+            "reminders-1",
+            "reminders-0",
+            "export-1",
+            "reminders-4",
+            "language-4",
+            "meetings-1"
+          ]
+        },
+        {
+          "id": "history-q0",
+          "category": "history",
+          "expected": [
+            "history-0"
+          ],
+          "expectedRanks": {
+            "history-0": 2
+          },
+          "expectedScores": {
+            "history-0": 0.61984205
+          },
+          "semantic": [
+            "history-1",
+            "history-0",
+            "history-2",
+            "export-4",
+            "history-3",
+            "history-5"
+          ],
+          "topScore": 0.69391036,
+          "hybrid": [
+            "history-1",
+            "history-0",
+            "export-4",
+            "history-3",
+            "history-5",
+            "beverage-3"
+          ]
+        },
+        {
+          "id": "history-q1",
+          "category": "history",
+          "expected": [
+            "history-1"
+          ],
+          "expectedRanks": {
+            "history-1": 1
+          },
+          "expectedScores": {
+            "history-1": 0.87230325
+          },
+          "semantic": [
+            "history-1",
+            "history-0",
+            "history-2",
+            "history-3",
+            "export-4",
+            "history-5"
+          ],
+          "topScore": 0.87230325,
+          "hybrid": [
+            "history-1",
+            "history-0",
+            "history-3",
+            "export-4",
+            "history-5",
+            "history-2"
+          ]
+        },
+        {
+          "id": "history-q2",
+          "category": "history",
+          "expected": [
+            "history-2"
+          ],
+          "expectedRanks": {
+            "history-2": 1
+          },
+          "expectedScores": {
+            "history-2": 0.74446726
+          },
+          "semantic": [
+            "history-2",
+            "history-1",
+            "history-0",
+            "history-5",
+            "history-3",
+            "export-4"
+          ],
+          "topScore": 0.74446726,
+          "hybrid": [
+            "history-2",
+            "history-0",
+            "history-1",
+            "history-5",
+            "export-4",
+            "history-3"
+          ]
+        },
+        {
+          "id": "history-q3",
+          "category": "history",
+          "expected": [
+            "history-3"
+          ],
+          "expectedRanks": {
+            "history-3": 1
+          },
+          "expectedScores": {
+            "history-3": 0.7199353
+          },
+          "semantic": [
+            "history-3",
+            "history-1",
+            "history-5",
+            "history-0",
+            "history-4",
+            "history-2"
+          ],
+          "topScore": 0.7199353,
+          "hybrid": [
+            "history-3",
+            "history-1",
+            "history-0",
+            "history-5",
+            "storage-5",
+            "export-4"
+          ]
+        },
+        {
+          "id": "history-q4",
+          "category": "history",
+          "expected": [
+            "history-0"
+          ],
+          "expectedRanks": {
+            "history-0": 2
+          },
+          "expectedScores": {
+            "history-0": 0.68783695
+          },
+          "semantic": [
+            "history-1",
+            "history-0",
+            "history-2",
+            "history-3",
+            "history-5",
+            "export-4"
+          ],
+          "topScore": 0.732334,
+          "hybrid": [
+            "history-1",
+            "history-0",
+            "history-2",
+            "history-3",
+            "history-5",
+            "export-4"
+          ]
+        },
+        {
+          "id": "history-q5",
+          "category": "history",
+          "expected": [
+            "history-1"
+          ],
+          "expectedRanks": {
+            "history-1": 1
+          },
+          "expectedScores": {
+            "history-1": 0.84623504
+          },
+          "semantic": [
+            "history-1",
+            "history-2",
+            "history-0",
+            "history-5",
+            "history-3",
+            "export-4"
+          ],
+          "topScore": 0.84623504,
+          "hybrid": [
+            "history-1",
+            "history-2",
+            "history-5",
+            "timezone-5",
+            "travel-3",
+            "history-0"
+          ]
+        },
+        {
+          "id": "identifiers-q0",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-0"
+          ],
+          "expectedRanks": {
+            "identifiers-0": 1
+          },
+          "expectedScores": {
+            "identifiers-0": 0.92615217
+          },
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "provider-0",
+            "provider-1",
+            "storage-0",
+            "identifiers-4"
+          ],
+          "topScore": 0.92615217,
+          "hybrid": [
+            "identifiers-0",
+            "identifiers-1",
+            "provider-0",
+            "identifiers-4",
+            "provider-1",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "identifiers-q1",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-1"
+          ],
+          "expectedRanks": {
+            "identifiers-1": 2
+          },
+          "expectedScores": {
+            "identifiers-1": 0.6858597
+          },
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "identifiers-4",
+            "display-2",
+            "provider-0",
+            "history-4"
+          ],
+          "topScore": 0.7555231,
+          "hybrid": [
+            "identifiers-0",
+            "identifiers-1",
+            "identifiers-4",
+            "history-4",
+            "display-2",
+            "provider-0"
+          ]
+        },
+        {
+          "id": "identifiers-q2",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-2"
+          ],
+          "expectedRanks": {
+            "identifiers-2": 1
+          },
+          "expectedScores": {
+            "identifiers-2": 0.61240053
+          },
+          "semantic": [
+            "identifiers-2",
+            "identifiers-5",
+            "provider-1",
+            "provider-2",
+            "storage-2",
+            "identifiers-3"
+          ],
+          "topScore": 0.61240053,
+          "hybrid": [
+            "identifiers-2",
+            "provider-1",
+            "identifiers-5",
+            "identifiers-3",
+            "hardware-5",
+            "storage-2"
+          ]
+        },
+        {
+          "id": "identifiers-q3",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-3"
+          ],
+          "expectedRanks": {
+            "identifiers-3": 1
+          },
+          "expectedScores": {
+            "identifiers-3": 0.61521137
+          },
+          "semantic": [
+            "identifiers-3",
+            "storage-5",
+            "storage-3",
+            "identifiers-2",
+            "provider-3",
+            "hardware-1"
+          ],
+          "topScore": 0.61521137,
+          "hybrid": [
+            "identifiers-3",
+            "storage-5",
+            "provider-3",
+            "hardware-1",
+            "provider-2",
+            "identifiers-5"
+          ]
+        },
+        {
+          "id": "identifiers-q4",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-0"
+          ],
+          "expectedRanks": {
+            "identifiers-0": 1
+          },
+          "expectedScores": {
+            "identifiers-0": 0.6934665
+          },
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "provider-0",
+            "provider-1",
+            "storage-0",
+            "identifiers-4"
+          ],
+          "topScore": 0.6934665,
+          "hybrid": [
+            "identifiers-0",
+            "provider-0",
+            "storage-0",
+            "provider-1",
+            "identifiers-1",
+            "identifiers-4"
+          ]
+        },
+        {
+          "id": "identifiers-q5",
+          "category": "identifiers",
+          "expected": [
+            "identifiers-1"
+          ],
+          "expectedRanks": {
+            "identifiers-1": 1
+          },
+          "expectedScores": {
+            "identifiers-1": 0.8376621
+          },
+          "semantic": [
+            "identifiers-1",
+            "identifiers-0",
+            "provider-2",
+            "identifiers-4",
+            "history-4",
+            "reminders-4"
+          ],
+          "topScore": 0.8376621,
+          "hybrid": [
+            "identifiers-1",
+            "identifiers-0",
+            "identifiers-4",
+            "provider-2",
+            "history-4",
+            "reminders-4"
+          ]
+        },
+        {
+          "id": "capture-q0",
+          "category": "capture",
+          "expected": [
+            "capture-0"
+          ],
+          "expectedRanks": {
+            "capture-0": 1
+          },
+          "expectedScores": {
+            "capture-0": 0.62618846
+          },
+          "semantic": [
+            "capture-0",
+            "reminders-0",
+            "capture-5",
+            "capture-3",
+            "capture-1",
+            "reminders-1"
+          ],
+          "topScore": 0.62618846,
+          "hybrid": [
+            "capture-0",
+            "capture-5",
+            "reminders-0",
+            "reminders-3",
+            "meetings-3",
+            "capture-3"
+          ]
+        },
+        {
+          "id": "capture-q1",
+          "category": "capture",
+          "expected": [
+            "capture-1"
+          ],
+          "expectedRanks": {
+            "capture-1": 2
+          },
+          "expectedScores": {
+            "capture-1": 0.634297
+          },
+          "semantic": [
+            "capture-0",
+            "capture-1",
+            "storage-3",
+            "capture-3",
+            "reminders-5",
+            "provider-3"
+          ],
+          "topScore": 0.64887506,
+          "hybrid": [
+            "capture-1",
+            "capture-3",
+            "capture-5",
+            "capture-0",
+            "provider-5",
+            "reminders-1"
+          ]
+        },
+        {
+          "id": "capture-q2",
+          "category": "capture",
+          "expected": [
+            "capture-2"
+          ],
+          "expectedRanks": {
+            "capture-2": 3
+          },
+          "expectedScores": {
+            "capture-2": 0.59186244
+          },
+          "semantic": [
+            "capture-0",
+            "capture-3",
+            "capture-2",
+            "capture-1",
+            "provider-4",
+            "reminders-5"
+          ],
+          "topScore": 0.6569518,
+          "hybrid": [
+            "capture-2",
+            "capture-0",
+            "capture-3",
+            "reminders-0",
+            "reminders-5",
+            "storage-3"
+          ]
+        },
+        {
+          "id": "capture-q3",
+          "category": "capture",
+          "expected": [
+            "capture-3"
+          ],
+          "expectedRanks": {
+            "capture-3": 1
+          },
+          "expectedScores": {
+            "capture-3": 0.7237856
+          },
+          "semantic": [
+            "capture-3",
+            "capture-0",
+            "capture-1",
+            "capture-4",
+            "provider-3",
+            "language-2"
+          ],
+          "topScore": 0.7237856,
+          "hybrid": [
+            "capture-3",
+            "capture-0",
+            "language-2",
+            "reminders-0",
+            "provider-3",
+            "reminders-5"
+          ]
+        },
+        {
+          "id": "capture-q4",
+          "category": "capture",
+          "expected": [
+            "capture-2"
+          ],
+          "expectedRanks": {
+            "capture-2": 1
+          },
+          "expectedScores": {
+            "capture-2": 0.6294464
+          },
+          "semantic": [
+            "capture-2",
+            "provider-3",
+            "reminders-5",
+            "capture-0",
+            "capture-3",
+            "reminders-0"
+          ],
+          "topScore": 0.6294464,
+          "hybrid": [
+            "capture-2",
+            "hardware-5",
+            "provider-3",
+            "provider-5",
+            "reminders-5",
+            "capture-0"
+          ]
+        },
+        {
+          "id": "capture-q5",
+          "category": "capture",
+          "expected": [
+            "capture-0"
+          ],
+          "expectedRanks": {
+            "capture-0": 1
+          },
+          "expectedScores": {
+            "capture-0": 0.6848172
+          },
+          "semantic": [
+            "capture-0",
+            "capture-1",
+            "storage-3",
+            "provider-3",
+            "history-5",
+            "storage-1"
+          ],
+          "topScore": 0.6848172,
+          "hybrid": [
+            "capture-0",
+            "storage-3",
+            "storage-1",
+            "provider-3",
+            "reminders-5",
+            "capture-3"
+          ]
+        },
+        {
+          "id": "multi-0",
+          "category": "multi-fact",
+          "expected": [
+            "food-0",
+            "food-2"
+          ],
+          "expectedRanks": {
+            "food-0": 1,
+            "food-2": 3
+          },
+          "expectedScores": {
+            "food-0": 0.67623556,
+            "food-2": 0.5856934
+          },
+          "semantic": [
+            "food-0",
+            "food-1",
+            "food-2",
+            "food-4",
+            "food-3",
+            "beverage-0"
+          ],
+          "topScore": 0.67623556,
+          "hybrid": [
+            "food-0",
+            "food-2",
+            "food-1",
+            "food-4",
+            "food-3",
+            "beverage-0"
+          ]
+        },
+        {
+          "id": "multi-1",
+          "category": "multi-fact",
+          "expected": [
+            "travel-0",
+            "travel-3"
+          ],
+          "expectedRanks": {
+            "travel-0": 1,
+            "travel-3": 2
+          },
+          "expectedScores": {
+            "travel-0": 0.7228615,
+            "travel-3": 0.71874636
+          },
+          "semantic": [
+            "travel-0",
+            "travel-3",
+            "travel-2",
+            "travel-1",
+            "travel-5",
+            "travel-4"
+          ],
+          "topScore": 0.7228615,
+          "hybrid": [
+            "travel-0",
+            "travel-3",
+            "travel-4",
+            "travel-1",
+            "budget-1",
+            "storage-3"
+          ]
+        },
+        {
+          "id": "multi-2",
+          "category": "multi-fact",
+          "expected": [
+            "provider-0",
+            "provider-1"
+          ],
+          "expectedRanks": {
+            "provider-0": 2,
+            "provider-1": 1
+          },
+          "expectedScores": {
+            "provider-0": 0.6987424,
+            "provider-1": 0.7317207
+          },
+          "semantic": [
+            "provider-1",
+            "provider-0",
+            "identifiers-0",
+            "provider-2",
+            "storage-0",
+            "provider-4"
+          ],
+          "topScore": 0.7317207,
+          "hybrid": [
+            "provider-1",
+            "identifiers-0",
+            "provider-0",
+            "provider-2",
+            "storage-0",
+            "storage-3"
+          ]
+        },
+        {
+          "id": "multi-3",
+          "category": "multi-fact",
+          "expected": [
+            "storage-2",
+            "storage-3"
+          ],
+          "expectedRanks": {
+            "storage-2": 1,
+            "storage-3": 2
+          },
+          "expectedScores": {
+            "storage-2": 0.6767593,
+            "storage-3": 0.6449659
+          },
+          "semantic": [
+            "storage-2",
+            "storage-3",
+            "provider-1",
+            "capture-3",
+            "identifiers-2",
+            "capture-1"
+          ],
+          "topScore": 0.6767593,
+          "hybrid": [
+            "storage-3",
+            "storage-2",
+            "provider-1",
+            "capture-3",
+            "reminders-5",
+            "capture-0"
+          ]
+        },
+        {
+          "id": "multi-4",
+          "category": "multi-fact",
+          "expected": [
+            "language-0",
+            "language-1"
+          ],
+          "expectedRanks": {
+            "language-0": 2,
+            "language-1": 1
+          },
+          "expectedScores": {
+            "language-0": 0.5555222,
+            "language-1": 0.58794755
+          },
+          "semantic": [
+            "language-1",
+            "language-0",
+            "display-0",
+            "display-2",
+            "language-2",
+            "language-3"
+          ],
+          "topScore": 0.58794755,
+          "hybrid": [
+            "language-0",
+            "language-1",
+            "display-0",
+            "display-2",
+            "language-2",
+            "beverage-3"
+          ]
+        },
+        {
+          "id": "multi-5",
+          "category": "multi-fact",
+          "expected": [
+            "hardware-0",
+            "hardware-1"
+          ],
+          "expectedRanks": {
+            "hardware-0": 2,
+            "hardware-1": 1
+          },
+          "expectedScores": {
+            "hardware-0": 0.6594866,
+            "hardware-1": 0.7361291
+          },
+          "semantic": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "budget-2",
+            "provider-2"
+          ],
+          "topScore": 0.7361291,
+          "hybrid": [
+            "hardware-1",
+            "hardware-0",
+            "hardware-3",
+            "hardware-2",
+            "budget-3",
+            "provider-2"
+          ]
+        },
+        {
+          "id": "multi-6",
+          "category": "multi-fact",
+          "expected": [
+            "export-0",
+            "export-1"
+          ],
+          "expectedRanks": {
+            "export-0": 1,
+            "export-1": 2
+          },
+          "expectedScores": {
+            "export-0": 0.77081525,
+            "export-1": 0.65947837
+          },
+          "semantic": [
+            "export-0",
+            "export-1",
+            "export-2",
+            "export-4",
+            "storage-4",
+            "display-4"
+          ],
+          "topScore": 0.77081525,
+          "hybrid": [
+            "export-0",
+            "export-1",
+            "export-4",
+            "storage-4",
+            "export-2",
+            "storage-3"
+          ]
+        },
+        {
+          "id": "multi-7",
+          "category": "multi-fact",
+          "expected": [
+            "capture-0",
+            "capture-2"
+          ],
+          "expectedRanks": {
+            "capture-0": 1,
+            "capture-2": 3
+          },
+          "expectedScores": {
+            "capture-0": 0.5800142,
+            "capture-2": 0.5344644
+          },
+          "semantic": [
+            "capture-0",
+            "capture-3",
+            "capture-2",
+            "reminders-0",
+            "capture-5",
+            "storage-4"
+          ],
+          "topScore": 0.5800142,
+          "hybrid": [
+            "capture-0",
+            "capture-2",
+            "reminders-0",
+            "storage-4",
+            "hardware-5",
+            "identifiers-5"
+          ]
+        },
+        {
+          "id": "none-0",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "budget-0",
+            "budget-4",
+            "provider-5",
+            "hardware-1",
+            "storage-5",
+            "history-2"
+          ],
+          "topScore": 0.6471183,
+          "hybrid": [
+            "budget-0",
+            "budget-4",
+            "history-3",
+            "travel-5",
+            "provider-5",
+            "food-2"
+          ]
+        },
+        {
+          "id": "none-1",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "travel-3",
+            "travel-0",
+            "travel-2",
+            "travel-5",
+            "travel-4",
+            "timezone-4"
+          ],
+          "topScore": 0.6663449,
+          "hybrid": [
+            "travel-3",
+            "travel-0",
+            "travel-4",
+            "travel-2",
+            "reminders-2",
+            "identifiers-4"
+          ]
+        },
+        {
+          "id": "none-2",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "hardware-0",
+            "hardware-3",
+            "hardware-1",
+            "hardware-2",
+            "identifiers-0",
+            "identifiers-1"
+          ],
+          "topScore": 0.63973075,
+          "hybrid": [
+            "hardware-0",
+            "hardware-3",
+            "identifiers-1",
+            "identifiers-0",
+            "identifiers-4",
+            "hardware-1"
+          ]
+        },
+        {
+          "id": "none-3",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "identifiers-0",
+            "identifiers-1",
+            "display-2",
+            "identifiers-4",
+            "capture-1",
+            "provider-0"
+          ],
+          "topScore": 0.66357136,
+          "hybrid": [
+            "identifiers-0",
+            "identifiers-1",
+            "identifiers-4",
+            "reminders-4",
+            "display-2",
+            "capture-1"
+          ]
+        },
+        {
+          "id": "none-4",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "reminders-1",
+            "travel-2",
+            "travel-0",
+            "travel-5",
+            "budget-5",
+            "travel-1"
+          ],
+          "topScore": 0.6689945,
+          "hybrid": [
+            "reminders-1",
+            "export-1",
+            "meetings-3",
+            "travel-2",
+            "travel-0",
+            "travel-5"
+          ]
+        },
+        {
+          "id": "none-5",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "food-3",
+            "beverage-2",
+            "provider-4",
+            "meetings-2",
+            "timezone-4",
+            "beverage-5"
+          ],
+          "topScore": 0.3472858,
+          "hybrid": [
+            "food-3",
+            "export-3",
+            "beverage-2",
+            "budget-3",
+            "provider-4",
+            "meetings-2"
+          ]
+        },
+        {
+          "id": "none-6",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "provider-0",
+            "identifiers-0",
+            "provider-5",
+            "hardware-5",
+            "provider-1",
+            "storage-0"
+          ],
+          "topScore": 0.7249166,
+          "hybrid": [
+            "provider-0",
+            "hardware-5",
+            "provider-5",
+            "identifiers-0",
+            "provider-1",
+            "storage-0"
+          ]
+        },
+        {
+          "id": "none-7",
+          "category": "no-answer",
+          "expected": [],
+          "expectedRanks": {},
+          "expectedScores": {},
+          "semantic": [
+            "hardware-1",
+            "provider-2",
+            "hardware-3",
+            "identifiers-2",
+            "hardware-2",
+            "provider-4"
+          ],
+          "topScore": 0.6668479,
+          "hybrid": [
+            "hardware-1",
+            "provider-2",
+            "hardware-3",
+            "identifiers-2",
+            "hardware-2",
+            "provider-4"
+          ]
+        }
+      ]
+    }
+  },
+  "disagreements": [
+    {
+      "id": "food-q4",
+      "expected": [
+        "food-0"
+      ],
+      "4bitRanks": {
+        "food-0": 2
+      },
+      "bf16Ranks": {
+        "food-0": 1
+      },
+      "4bitTop1": "food-1",
+      "bf16Top1": "food-0"
+    },
+    {
+      "id": "display-q5",
+      "expected": [
+        "display-1"
+      ],
+      "4bitRanks": {
+        "display-1": 3
+      },
+      "bf16Ranks": {
+        "display-1": 2
+      },
+      "4bitTop1": "display-5",
+      "bf16Top1": "display-5"
+    },
+    {
+      "id": "language-q5",
+      "expected": [
+        "language-0"
+      ],
+      "4bitRanks": {
+        "language-0": 1
+      },
+      "bf16Ranks": {
+        "language-0": 2
+      },
+      "4bitTop1": "language-0",
+      "bf16Top1": "language-3"
+    },
+    {
+      "id": "hardware-q0",
+      "expected": [
+        "hardware-0"
+      ],
+      "4bitRanks": {
+        "hardware-0": 2
+      },
+      "bf16Ranks": {
+        "hardware-0": 1
+      },
+      "4bitTop1": "hardware-3",
+      "bf16Top1": "hardware-0"
+    },
+    {
+      "id": "budget-q3",
+      "expected": [
+        "budget-3"
+      ],
+      "4bitRanks": {
+        "budget-3": 2
+      },
+      "bf16Ranks": {
+        "budget-3": 1
+      },
+      "4bitTop1": "budget-1",
+      "bf16Top1": "budget-3"
+    },
+    {
+      "id": "multi-7",
+      "expected": [
+        "capture-0",
+        "capture-2"
+      ],
+      "4bitRanks": {
+        "capture-0": 1,
+        "capture-2": 2
+      },
+      "bf16Ranks": {
+        "capture-0": 1,
+        "capture-2": 3
+      },
+      "4bitTop1": "capture-0",
+      "bf16Top1": "capture-0"
+    }
+  ],
+  "pairedDifference4bitMinusBF16": {
+    "hit1": -0.019230769230769232,
+    "hit6": 0,
+    "recall6": 0.0,
+    "allFacts6": 0,
+    "mrr6": -0.011217948717948718,
+    "ndcg6": -0.007584529188237789
+  },
+  "pairedQueryBootstrapRecall6Difference95Percent": [
+    0.0,
+    0.0
+  ],
+  "recordedDate": "2026-09-16",
+  "host": {
+    "chip": "Apple M1 Pro",
+    "physicalMemoryGiB": 16,
+    "macOS": "26.6.2",
+    "xcode": "26.6",
+    "swift": "6.3.3"
+  },
+  "decision": "Recommend the pinned 4-bit checkpoint as the planned default; keep BF16 as the reference. Production integration gates remain open."
+}

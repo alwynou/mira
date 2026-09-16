@@ -485,7 +485,7 @@ private struct ModelOperationFixture: Sendable {
             timeoutMilliseconds: 1_000, maximumResultBytes: 1_024)
         let proposal = AgentToolProposal(descriptor: descriptor, effect: effect,
             businessNamespace: effect == .localWrite ? "sample.write" : nil,
-            callDigest: String(repeating: "a", count: 64),
+            callDigest: String(repeating: "a", count: 64), inheritedSources: [],
             plan: .init(input: .object([:]), sources: [], targets: []))
         let proposalReference = try await context.stage(proposal, kind: .effectIntent, retentionGroup: UUID())
         let authorization = AgentLibraryAuthorization(libraryID: runtime.id.rawValue, epoch: 0)

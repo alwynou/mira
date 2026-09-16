@@ -48,6 +48,23 @@ struct HTTPModelAdapter: AgentModelAdapter {
         } catch { throw safeProviderError(error) }
     }
 
+    public func outputTokenLimit(for requested: Int, route: AgentModelRoute) throws -> Int {
+        guard requested > 0 else {
+            throw MiraError(.configuration, "The requested model output limit must be positive.")
+        }
+        let bounded = min(requested, route.maximumOutputTokens)
+        guard kind.isAnthropic else { return bounded }
+        let policy = try HTTPModelPolicy(route: route, kind: kind)
+        guard let thinkingBudget = ProviderThinkingRules.anthropicThinking(for: policy)?.budgetTokens else {
+            return bounded
+        }
+        let legal = thinkingBudget == Int.max ? Int.max : thinkingBudget + 1
+        guard legal <= route.maximumOutputTokens else {
+            throw MiraError(.configuration, "The frozen route cannot fit the Anthropic thinking budget.")
+        }
+        return max(bounded, legal)
+    }
+
     public func stream(_ request: AgentPreparedModelRequest, route: AgentModelRoute) -> AgentModelOperation {
         let (events, continuation) = AsyncThrowingStream<AgentModelStreamEvent, any Error>.makeStream(bufferingPolicy: .bufferingOldest(128))
         let task = Task {
@@ -157,8 +174,8 @@ struct HTTPModelAdapter: AgentModelAdapter {
         var responseStatus: Int?
         var responseHeaders: [String: String] = [:]
         var parser = HTTPChatSSEParser()
-        var openAI = OpenAIStreamState(toolDefinitions: request.tools, toolsEnabled: !request.tools.isEmpty, kind: kind)
-        var anthropic = AnthropicStreamState(toolDefinitions: request.tools, toolsEnabled: !request.tools.isEmpty, kind: kind)
+        var openAI = OpenAIStreamState(toolDefinitions: request.tools, toolsEnabled: request.allowsToolCalls && !request.tools.isEmpty, kind: kind)
+        var anthropic = AnthropicStreamState(toolDefinitions: request.tools, toolsEnabled: request.allowsToolCalls && !request.tools.isEmpty, kind: kind)
         defer {
             if !protocolFinished {
                 if kind.isAnthropic { try? anthropic.flushReasoning(continuation: continuation, includeContinuation: true) }
@@ -255,6 +272,9 @@ public struct ChatCompletionsAdapter: AgentModelAdapter {
     public func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest {
         try implementation(for: route).prepare(input, route: route)
     }
+    public func outputTokenLimit(for requested: Int, route: AgentModelRoute) throws -> Int {
+        try implementation(for: route).outputTokenLimit(for: requested, route: route)
+    }
     public func stream(_ request: AgentPreparedModelRequest, route: AgentModelRoute) -> AgentModelOperation {
         do { return try implementation(for: route).stream(request, route: route) }
         catch { return failedOperation(safeProviderError(error)) }
@@ -286,6 +306,7 @@ public struct AnthropicMessagesAdapter: AgentModelAdapter {
             credentials: credentials, transport: transport, now: now)
     }
     public func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest { try implementation.prepare(input, route: route) }
+    public func outputTokenLimit(for requested: Int, route: AgentModelRoute) throws -> Int { try implementation.outputTokenLimit(for: requested, route: route) }
     public func stream(_ request: AgentPreparedModelRequest, route: AgentModelRoute) -> AgentModelOperation { implementation.stream(request, route: route) }
     public func replay(_ messages: [AgentModelMessage], from source: AgentModelRoute, to target: AgentModelRoute, boundary: AgentReplayBoundary) throws -> AgentReplayDecision { try implementation.replay(messages, from: source, to: target, boundary: boundary) }
 }
@@ -1054,6 +1075,7 @@ private struct OpenAIRequest: Encodable {
     let maxCompletionTokens: Int?
     let streamOptions: OpenAIStreamOptions?
     let tools: [OpenAIToolDefinition]?
+    let toolChoice: String?
     let thinking: OpenAIThinking?
     let reasoningEffort: String?
     let reasoning: OpenRouterReasoning?
@@ -1077,12 +1099,14 @@ private struct OpenAIRequest: Encodable {
                 reasoning: $0.continuation == nil ? nil : try HTTPReasoning($0), mode: route.kind)
         }
         self.stream = true
-        self.maxTokens = ProviderThinkingRules.usesCompletionTokenLimit(for: route) ? nil : route.maximumOutputTokens
-        self.maxCompletionTokens = ProviderThinkingRules.usesCompletionTokenLimit(for: route) ? route.maximumOutputTokens : nil
+        let outputLimit = request.outputTokenLimit ?? route.maximumOutputTokens
+        self.maxTokens = ProviderThinkingRules.usesCompletionTokenLimit(for: route) ? nil : outputLimit
+        self.maxCompletionTokens = ProviderThinkingRules.usesCompletionTokenLimit(for: route) ? outputLimit : nil
         self.streamOptions = route.configuration.requestsUsage ? OpenAIStreamOptions(includeUsage: true) : nil
         self.tools = request.tools.isEmpty ? nil : request.tools.map { definition in
             OpenAIToolDefinition(type: "function", function: OpenAIFunctionDefinition(name: definition.wireName, description: definition.description, parameters: definition.inputSchema))
         }
+        self.toolChoice = request.allowsToolCalls ? nil : "none"
         let preservesReasoningHistory = request.messages.contains {
             $0.role == .assistant && $0.continuation != nil
         }
@@ -1097,7 +1121,7 @@ private struct OpenAIRequest: Encodable {
             self.reasoning = nil
         }
     }
-    enum CodingKeys: String, CodingKey { case model, messages, stream, maxTokens = "max_tokens", maxCompletionTokens = "max_completion_tokens", streamOptions = "stream_options", tools, thinking, reasoningEffort = "reasoning_effort", reasoning }
+    enum CodingKeys: String, CodingKey { case model, messages, stream, maxTokens = "max_tokens", maxCompletionTokens = "max_completion_tokens", streamOptions = "stream_options", tools, toolChoice = "tool_choice", thinking, reasoningEffort = "reasoning_effort", reasoning }
 }
 private struct OpenAIThinking: Encodable { let type: String; let keep: String? }
 private struct OpenRouterReasoning: Encodable {
@@ -1247,17 +1271,24 @@ private struct AnthropicRequest: Encodable {
     let maxTokens: Int
     let stream: Bool
     let tools: [AnthropicToolDefinition]?
+    let toolChoice: AnthropicToolChoice?
     let thinking: AnthropicThinking?
     let outputConfig: AnthropicOutputConfig?
     init(request: AgentModelInput, route: HTTPModelPolicy) throws {
         self.model = route.modelID
         self.messages = try AnthropicMessageBuilder.build(request.messages, definitions: request.tools)
         self.system = request.instructions
-        self.maxTokens = route.maximumOutputTokens
+        let outputLimit = request.outputTokenLimit ?? route.maximumOutputTokens
+        if let thinking = ProviderThinkingRules.anthropicThinking(for: route),
+           outputLimit <= (thinking.budgetTokens ?? 0) {
+            throw MiraError(.configuration, "The requested output limit must exceed the Anthropic thinking budget.")
+        }
+        self.maxTokens = outputLimit
         self.stream = true
         self.tools = request.tools.isEmpty ? nil : request.tools.map { definition in
             AnthropicToolDefinition(name: definition.wireName, description: definition.description, inputSchema: definition.inputSchema)
         }
+        self.toolChoice = request.allowsToolCalls ? nil : AnthropicToolChoice(type: "none")
         if let thinking = ProviderThinkingRules.anthropicThinking(for: route) {
             self.thinking = AnthropicThinking(type: thinking.type, budgetTokens: thinking.budgetTokens)
         } else {
@@ -1265,8 +1296,9 @@ private struct AnthropicRequest: Encodable {
         }
         self.outputConfig = ProviderThinkingRules.anthropicOutputEffort(for: route).map { AnthropicOutputConfig(effort: $0) }
     }
-    enum CodingKeys: String, CodingKey { case model, messages, system, maxTokens = "max_tokens", stream, tools, thinking; case outputConfig = "output_config" }
+    enum CodingKeys: String, CodingKey { case model, messages, system, maxTokens = "max_tokens", stream, tools, toolChoice = "tool_choice", thinking; case outputConfig = "output_config" }
 }
+private struct AnthropicToolChoice: Encodable { let type: String }
 private struct AnthropicThinking: Encodable {
     let type: String
     let budgetTokens: Int?

@@ -22,6 +22,44 @@ struct MemoryExtractionWorkerTests {
         }
     }
 
+    @Test func extractionPreservesForegroundPrefixAndDisablesTools() async throws {
+        let fixture = try await WorkerFixture.make()
+        try await fixture.withCleanup { fixture in
+            var claim = try await fixture.store.makeClaim()
+            let original = AgentModelInput(stepID: UUID(), executionID: claim.job.origin.completedExecutionID,
+                instructions: "Stable conversation instructions.", messages: [
+                    .init(role: .context, blocks: [.init(id: "context", content: .text("Current data"))]),
+                    .init(role: .user, blocks: [.init(id: "user", content: .text(claim.source.text))])
+                ], tools: [])
+            claim.prefix = MemoryExtractionPrefix(route: claim.route, input: original, sources: []).bounded(for: claim)
+            let input = try MemoryExtractionRequestBuilder.input(for: claim)
+            #expect(input.instructions == original.instructions)
+            #expect(Array(input.messages.prefix(original.messages.count)) == original.messages)
+            #expect(input.messages.last?.text.contains("Target input:") == true)
+            #expect(input.prefixMessageCount == original.messages.count)
+            #expect(input.allowsToolCalls == false)
+            #expect(input.outputTokenLimit == min(2_048, claim.route.maximumOutputTokens))
+        }
+    }
+
+    @Test func untrackedOrOversizedHistoryKeepsOnlyStableInstructions() async throws {
+        let fixture = try await WorkerFixture.make()
+        try await fixture.withCleanup { fixture in
+            let claim = try await fixture.store.makeClaim()
+            for (text, sources) in [
+                ("Untracked history", [AgentSourceReference.sessionExecution(sessionID: claim.source.reference.sessionID, executionID: .init())]),
+                (String(repeating: "x", count: 17_000), [])
+            ] {
+                let original = AgentModelInput(stepID: UUID(), executionID: claim.job.origin.completedExecutionID,
+                    instructions: "Stable prefix", messages: [.init(role: .user, blocks: [.init(id: "user", content: .text(text))])], tools: [])
+                let bounded = MemoryExtractionPrefix(route: claim.route, input: original, sources: sources).bounded(for: claim)
+                #expect(bounded.input.messages.isEmpty)
+                #expect(bounded.input.instructions == original.instructions)
+                #expect(bounded.sources.isEmpty)
+            }
+        }
+    }
+
     @Test func workerPersistsSharedThinkingAndUsageAccumulator() async throws {
         let probe = WorkerProbe()
         let continuation = AgentModelContinuation(
@@ -32,7 +70,7 @@ struct MemoryExtractionWorkerTests {
                 probe: probe,
                 events: [
                     .blockStarted(.init(id: "thinking", content: .thinking("classify"))), .continuation(continuation), .blockFinished(id: "thinking"),
-                    .blockStarted(.init(id: "text", content: .text("{\"version\":2,\"items\":[]}"))), .blockFinished(id: "text"),
+                    .blockStarted(.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))), .blockFinished(id: "text"),
                     .usage(.init(inputTokens: 10, outputTokens: 4)), .finished(.stop),
                 ]))
         try await fixture.withCleanup { fixture in
@@ -43,9 +81,27 @@ struct MemoryExtractionWorkerTests {
             #expect(await fixture.store.dispatched == 1)
             #expect(probe.prepareCount == 1)
             #expect(probe.streamCount == 1)
+            #expect(probe.lastInput?.instructions == "You are a helpful assistant.")
+            #expect(probe.lastInput?.prefixMessageCount == 1)
+            #expect(probe.lastInput?.allowsToolCalls == false)
             #expect(await fixture.store.output?.thinkingText == "classify")
             #expect(await fixture.store.output?.continuation == continuation)
             #expect(await fixture.store.output?.usage == .init(inputTokens: 10, outputTokens: 4))
+        }
+    }
+
+    @Test func oversizedPrefixRefitsBeforeAnyNetworkDispatch() async throws {
+        let probe = WorkerProbe()
+        let fixture = try await WorkerFixture.make(adapter: .init(probe: probe, requiresCompactInput: true))
+        try await fixture.withCleanup { fixture in
+            await fixture.worker.wake()
+            try await fixture.store.wait { $0.completed == 1 }
+            #expect(probe.prepareCount == 2)
+            #expect(probe.streamCount == 1)
+            #expect(probe.lastInput?.prefixMessageCount == nil)
+            #expect(probe.lastInput?.instructions == "You are a helpful assistant.")
+            #expect(probe.lastInput?.allowsToolCalls == false)
+            #expect(await fixture.store.prepared == 1)
         }
     }
 
@@ -171,22 +227,38 @@ private struct WorkerFixture: Sendable {
             let plan = try await context.stage(
                 AgentExecutionPlan(
                     runtimeID: UUID(), catalogGeneration: 1, driverID: "fixture", driverRevision: 1,
-                    instructions: "Extract.", limits: .init(), priority: .background, route: nil), kind: .executionPlan,
+                    instructions: "You are a helpful assistant.", limits: .init(), priority: .foreground, route: routeInfo.route), kind: .executionPlan,
                 retentionGroup: UUID())
             return [
                 .opened(.init(workspaceID: nil, title: title)),
                 .admitted(
                     .init(
                         executionID: ExecutionID(), userMessageID: MessageID(), userBody: user, plan: plan,
-                        hasModelRoute: false, authorizationEpoch: 0, timeZoneIdentifier: "UTC")),
+                        hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC")),
             ]
         }
         guard case .committed = result else { throw MiraError(.storage, "Worker session admission failed.") }
         let executionID = await runtime.snapshot().executionOrder[0]
-        let settled = await runtime.commit(id: UUID()) { _ in
-            [
+        let settled = await runtime.commit(id: UUID()) { context in
+            let stepID = UUID(), attemptID = UUID()
+            let input = AgentModelInput(stepID: stepID, executionID: executionID,
+                instructions: "You are a helpful assistant.",
+                messages: [.init(role: .user, blocks: [.init(id: "user", content: .text("I prefer compact interfaces"))])], tools: [])
+            let prepared = AgentPreparedModelRequest(adapter: routeInfo.route.adapter, input: input,
+                wirePayload: .object(["fixture": .bool(true)]), estimatedInputTokens: 1)
+            let build = AgentContextBuild(request: .init(sessionID: sessionID, executionID: executionID,
+                workspaceID: nil, userText: "I prefer compact interfaces", authorizationEpoch: 0,
+                destination: .model(routeInfo.route)), prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
+            let request = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let output = try await context.stage(AgentModelOutput(blocks: [.init(id: "answer", content: .text("Understood."))], continuation: nil, usage: .init(), finishReason: .stop),
+                kind: .modelOutput, retentionGroup: UUID())
+            let answer = try await context.stageBytes(Data("Understood.".utf8), kind: .visibleAnswer, retentionGroup: UUID())
+            return [
+                .phaseChanged(executionID: executionID, phase: .preparing),
+                .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID, stepIndex: 1, attemptIndex: 1, request: request)),
+                .attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
                 .phaseChanged(executionID: executionID, phase: .settling),
-                .finished(.init(executionID: executionID, status: .cancelled)),
+                .finished(.init(executionID: executionID, status: .completed, assistantMessageID: .init(), answer: answer)),
             ]
         }
         guard case .committed = settled else { throw MiraError(.storage, "Worker session settlement failed.") }
@@ -195,10 +267,8 @@ private struct WorkerFixture: Sendable {
         if !sourceAvailable {
             try await journal.purge(sessionID: sessionID, retentionGroups: [source.reference.body.retentionGroup])
         }
-        let binding = AgentRouteBinding(
-            scope: .global, purpose: AgentModelPurposeID.memoryExtraction, routeID: routeInfo.route.id, revision: 1)
-        let selection = AgentModelRouteResolution(route: routeInfo.route, binding: binding)
-        let settings = WorkerSettings(selection: .init(candidate: routeInfo.candidate, binding: binding))
+        let selection = AgentModelRouteResolution(route: routeInfo.route, binding: nil)
+        let settings = WorkerSettings(selection: .init(candidate: routeInfo.candidate, binding: nil))
         let scope = RuntimeScope(kind: .application)
         let registry = RuntimeRegistry<AgentCapability>()
         try await registry.register(id: "model", value: .model(adapter), scope: scope)
@@ -243,6 +313,7 @@ private struct WorkerFixture: Sendable {
 }
 
 private actor WorkerStore: MemoryExtractionStore {
+    func flushDirtyMemoryExtraction(at: Date, authorization: AgentLibraryAuthorization) async throws {}
     struct State: Sendable {
         var claimed = 0
         var prepared = 0
@@ -262,13 +333,12 @@ private actor WorkerStore: MemoryExtractionStore {
         self.source = source
         self.head = head
         self.selection = selection
-        let completionHead = SessionJournalHead(
-            cursor: .init(sessionID: head.cursor.sessionID, sequence: head.cursor.sequence + 1), batchID: UUID())
+        let completionHead = head
         let origin = MemoryExtractionOrigin(
-            source: source.reference, completedExecutionID: ExecutionID(), completionEventID: UUID(),
+            source: source.reference, completedExecutionID: source.reference.originalExecutionID, completionEventID: UUID(),
             completionHead: completionHead)
         self.job = .init(
-            id: .init(), origin: origin, workspaceID: nil, policyRevision: 1, state: .queued,
+            id: .init(), origin: origin, workspaceID: nil, state: .queued,
             createdAt: source.admittedAt, updatedAt: source.admittedAt)
     }
     var claimed: Int { state.claimed }
@@ -283,11 +353,8 @@ private actor WorkerStore: MemoryExtractionStore {
         var copy = job
         copy.state = .running
         copy.attemptCount = 1
-        let policy = MemoryCapturePolicy(
-            revision: 1, mode: .automaticWithUndo, dailyTokenLimit: 10_000,
-            enabledAt: source.admittedAt.addingTimeInterval(-1))
         return .init(
-            job: copy, source: source, policy: policy, selection: selection, leaseID: UUID(),
+            job: copy, source: source, selection: selection, leaseID: UUID(),
             leaseExpiresAt: source.admittedAt.addingTimeInterval(300), attemptID: UUID())
     }
     func wait(_ predicate: @escaping @Sendable (State) -> Bool) async throws {
@@ -303,9 +370,6 @@ private actor WorkerStore: MemoryExtractionStore {
     func nextQueuedMemoryExtraction(after sessionID: ConversationID?) async throws -> MemoryExtractionJob? {
         job.state == .queued ? job : nil
     }
-    func memoryExtractionBudget(at: Date) async throws -> MemoryExtractionBudget {
-        .init(dayStart: at, tokenLimit: 10_000, reservedTokens: 0, chargedTokens: 0)
-    }
     func claimMemoryExtraction(
         _ id: MemoryExtractionJobID, expectedAttemptCount: Int, source: SessionUserEvidence,
         selection: AgentModelRouteResolution, authorization: AgentLibraryAuthorization, at: Date
@@ -314,11 +378,8 @@ private actor WorkerStore: MemoryExtractionStore {
         job.state = .running
         job.attemptCount = expectedAttemptCount + 1
         state.claimed += 1
-        let policy = MemoryCapturePolicy(
-            revision: 1, mode: .automaticWithUndo, dailyTokenLimit: 10_000,
-            enabledAt: source.admittedAt.addingTimeInterval(-1))
         return .init(
-            job: job, source: source, policy: policy, selection: selection, leaseID: UUID(),
+            job: job, source: source, selection: selection, leaseID: UUID(),
             leaseExpiresAt: at.addingTimeInterval(300), attemptID: UUID())
     }
     func prepareMemoryExtraction(
@@ -368,19 +429,24 @@ private struct WorkerAdapter: AgentModelAdapter {
     let prepareGate: WorkerGate?
     let streamGate: WorkerGate?
     let mutateInput: Bool
+    let requiresCompactInput: Bool
     init(
         probe: WorkerProbe = .init(),
-        events: [AgentModelStreamEvent] = [.blockStarted(.init(id: "text", content: .text("{\"version\":2,\"items\":[]}"))), .blockFinished(id: "text"), .finished(.stop)],
-        prepareGate: WorkerGate? = nil, streamGate: WorkerGate? = nil, mutateInput: Bool = false
+        events: [AgentModelStreamEvent] = [.blockStarted(.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))), .blockFinished(id: "text"), .finished(.stop)],
+        prepareGate: WorkerGate? = nil, streamGate: WorkerGate? = nil, mutateInput: Bool = false, requiresCompactInput: Bool = false
     ) {
         self.probe = probe
         self.events = events
         self.prepareGate = prepareGate
         self.streamGate = streamGate
         self.mutateInput = mutateInput
+        self.requiresCompactInput = requiresCompactInput
     }
     func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest {
-        probe.prepared()
+        probe.prepared(input)
+        if requiresCompactInput, input.prefixMessageCount != nil {
+            throw MiraError(.contextLimit, "Synthetic request limit.")
+        }
         let preparedInput =
             mutateInput
             ? AgentModelInput(
@@ -417,12 +483,14 @@ private struct WorkerAdapter: AgentModelAdapter {
 private final class WorkerProbe: @unchecked Sendable {
     private let lock = NSLock()
     private var prepareValue = 0
+    private var capturedInput: AgentModelInput?
+    var lastInput: AgentModelInput? { lock.withLock { capturedInput } }
     private var streamValue = 0
     private var closeValue = 0
     var prepareCount: Int { lock.withLock { prepareValue } }
     var streamCount: Int { lock.withLock { streamValue } }
     var closeCount: Int { lock.withLock { closeValue } }
-    func prepared() { lock.withLock { prepareValue += 1 } }
+    func prepared(_ input: AgentModelInput) { lock.withLock { prepareValue += 1; capturedInput = input } }
     func streamed() { lock.withLock { streamValue += 1 } }
     func finished() {}
     func closed() { lock.withLock { closeValue += 1 } }
@@ -540,7 +608,9 @@ private actor WorkerSettings: AgentModelSettingsStore {
     init(selection: AgentModelRouteSelection) { self.selection = selection }
     func discoverySnapshot(connectionID: ConnectionID) async throws -> AgentModelDiscoverySnapshot? { nil }
     func saveDiscoverySnapshot(_ value: AgentModelDiscoverySnapshot, expectedRevision: Int?, authorization: AgentLibraryAuthorization) async throws {}
-    func select(purpose: String, explicitRouteID: RouteID?, workspaceID: WorkspaceID?) async throws -> AgentModelRouteSelection { selection }
+    func select(purpose: String, explicitRouteID: RouteID?, workspaceID: WorkspaceID?) async throws -> AgentModelRouteSelection {
+        throw MiraError(.configuration, "Background memory must not resolve a new purpose or default binding.")
+    }
     func candidate(routeID: RouteID) async throws -> AgentModelRouteCandidate { selection.candidate }
     func connection(id: ConnectionID) async throws -> AgentConfiguredConnection? { nil }
     func model(id: ModelDescriptorID) async throws -> AgentConfiguredModel? { nil }

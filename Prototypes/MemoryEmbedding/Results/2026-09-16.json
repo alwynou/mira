@@ -1,0 +1,2361 @@
+{
+  "4bit": {
+    "model": {
+      "repo": "mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ",
+      "revision": "6c3ae70858513f1a78e9cdca3cae330d9075cd2a"
+    },
+    "operatingSystem": "Version 26.6.2 (Build 25G83)",
+    "physicalMemoryBytes": 17179869184,
+    "metalDeviceName": "Apple M1 Pro",
+    "modelLoadMs": 588.6729159997776,
+    "firstInferenceMs": 66.40904200077057,
+    "warmQueryTiming": {
+      "maxMs": 64.0027909995988,
+      "minMs": 39.08600000012666,
+      "p50Ms": 43.09545799996704,
+      "p95Ms": 47.66891600005329,
+      "samples": 32
+    },
+    "scan10KTiming": {
+      "maxMs": 3.2921249996870756,
+      "minMs": 1.5617500003427267,
+      "p50Ms": 1.7916669994592667,
+      "p95Ms": 2.3914169995114207,
+      "samples": 50
+    },
+    "sqlite10KReadMs": 23.02987500000745,
+    "sqlite10KBytes": 47919104,
+    "mlxPeakActiveBytes": 1324395912,
+    "mlxActiveBytes": 335252576,
+    "mlxCacheBytes": 134623304,
+    "processPeakRSSBytes": 539623424,
+    "batchMinimumCosine": 0.99972546,
+    "batchMaximumAbsoluteError": 0.0032382961,
+    "normMaximumError": 1.1920929e-07,
+    "publicReferenceScores": [
+      [
+        0.79820573,
+        0.17010057
+      ],
+      [
+        0.20021798,
+        0.6218194
+      ]
+    ],
+    "publicReferenceMaximumError": 0.06472057,
+    "checks": {
+      "batchMatchesSingleton": true,
+      "currentWriteAccepted": true,
+      "deleteClearsRetrieval": true,
+      "emptyRejected": true,
+      "lateWriteAfterDeleteRejected": true,
+      "mixedBatchLengths": true,
+      "normalizedFiniteVectors": true,
+      "oldRevisionExcluded": true,
+      "overlongRejected": true,
+      "persistenceReopen": true,
+      "publicReferenceApproximation": false,
+      "retrievalFilters": true,
+      "scopeLifecycleDisclosure": true,
+      "staleWriteRejected": true,
+      "wrongFingerprintExcluded": true,
+      "wrongWorkspaceExcluded": true
+    },
+    "batches": [
+      {
+        "actualTokens": [
+          129
+        ],
+        "count": 1,
+        "targetTokens": 128,
+        "timing": {
+          "maxMs": 160.9274589996785,
+          "minMs": 151.87466599978507,
+          "p50Ms": 158.4651250001043,
+          "p95Ms": 160.9274589996785,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129
+        ],
+        "count": 8,
+        "targetTokens": 128,
+        "timing": {
+          "maxMs": 873.043124999851,
+          "minMs": 826.3834999995306,
+          "p50Ms": 826.7513749999925,
+          "p95Ms": 873.043124999851,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129
+        ],
+        "count": 16,
+        "targetTokens": 128,
+        "timing": {
+          "maxMs": 1644.0483749993145,
+          "minMs": 1581.80295799952,
+          "p50Ms": 1624.8888750001788,
+          "p95Ms": 1644.0483749993145,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          513
+        ],
+        "count": 1,
+        "targetTokens": 512,
+        "timing": {
+          "maxMs": 486.17641599942,
+          "minMs": 459.8469580002129,
+          "p50Ms": 472.2844169996679,
+          "p95Ms": 486.17641599942,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513
+        ],
+        "count": 8,
+        "targetTokens": 512,
+        "timing": {
+          "maxMs": 3221.6586670000106,
+          "minMs": 3079.4684170000255,
+          "p50Ms": 3110.280249999836,
+          "p95Ms": 3221.6586670000106,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513
+        ],
+        "count": 16,
+        "targetTokens": 512,
+        "timing": {
+          "maxMs": 6218.121167000383,
+          "minMs": 6047.9976249998435,
+          "p50Ms": 6159.569458000362,
+          "p95Ms": 6218.121167000383,
+          "samples": 3
+        }
+      }
+    ],
+    "quality": {
+      "lexicalHitAt1": {
+        "hits": 14,
+        "queries": 29
+      },
+      "lexicalHitAt6": {
+        "hits": 18,
+        "queries": 29
+      },
+      "semanticHitAt1": {
+        "hits": 28,
+        "queries": 29
+      },
+      "semanticHitAt6": {
+        "hits": 29,
+        "queries": 29
+      },
+      "hybridHitAt1": {
+        "hits": 21,
+        "queries": 29
+      },
+      "hybridHitAt6": {
+        "hits": 29,
+        "queries": 29
+      }
+    },
+    "misses": {
+      "lexical": [
+        "q01",
+        "q02",
+        "q08",
+        "q09",
+        "q16",
+        "q21",
+        "q22",
+        "q23",
+        "q24",
+        "q27",
+        "q28"
+      ],
+      "semantic": [],
+      "hybrid": []
+    },
+    "noAnswerTopScores": {
+      "q30": 0.348467,
+      "q31": 0.331123,
+      "q32": 0.3187678
+    }
+  },
+  "bf16": {
+    "model": {
+      "repo": "Qwen/Qwen3-Embedding-0.6B",
+      "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3"
+    },
+    "operatingSystem": "Version 26.6.2 (Build 25G83)",
+    "physicalMemoryBytes": 17179869184,
+    "metalDeviceName": "Apple M1 Pro",
+    "modelLoadMs": 584.933083999902,
+    "firstInferenceMs": 65.3533330000937,
+    "warmQueryTiming": {
+      "maxMs": 52.676625000312924,
+      "minMs": 43.93108300026506,
+      "p50Ms": 46.13466599956155,
+      "p95Ms": 52.22037500049919,
+      "samples": 32
+    },
+    "scan10KTiming": {
+      "maxMs": 5.854124999605119,
+      "minMs": 1.5230000000447035,
+      "p50Ms": 1.6555829998105764,
+      "p95Ms": 1.8831670004874468,
+      "samples": 50
+    },
+    "sqlite10KReadMs": 25.909334000200033,
+    "sqlite10KBytes": 47919104,
+    "mlxPeakActiveBytes": 2090959088,
+    "mlxActiveBytes": 1191559176,
+    "mlxCacheBytes": 134623240,
+    "processPeakRSSBytes": 1394622464,
+    "batchMinimumCosine": 0.9998411,
+    "batchMaximumAbsoluteError": 0.003290303,
+    "normMaximumError": 1.1920929e-07,
+    "publicReferenceScores": [
+      [
+        0.7624179,
+        0.14215505
+      ],
+      [
+        0.1359281,
+        0.6009404
+      ]
+    ],
+    "publicReferenceMaximumError": 0.0021389127,
+    "checks": {
+      "batchMatchesSingleton": true,
+      "currentWriteAccepted": true,
+      "deleteClearsRetrieval": true,
+      "emptyRejected": true,
+      "lateWriteAfterDeleteRejected": true,
+      "mixedBatchLengths": true,
+      "normalizedFiniteVectors": true,
+      "oldRevisionExcluded": true,
+      "overlongRejected": true,
+      "persistenceReopen": true,
+      "publicReferenceApproximation": true,
+      "retrievalFilters": true,
+      "scopeLifecycleDisclosure": true,
+      "staleWriteRejected": true,
+      "wrongFingerprintExcluded": true,
+      "wrongWorkspaceExcluded": true
+    },
+    "batches": [
+      {
+        "actualTokens": [
+          129
+        ],
+        "count": 1,
+        "targetTokens": 128,
+        "timing": {
+          "maxMs": 131.0833329996094,
+          "minMs": 119.7349579995498,
+          "p50Ms": 121.31741600017995,
+          "p95Ms": 131.0833329996094,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129
+        ],
+        "count": 8,
+        "targetTokens": 128,
+        "timing": {
+          "maxMs": 534.9008329994977,
+          "minMs": 504.8421249995008,
+          "p50Ms": 530.2229590006173,
+          "p95Ms": 534.9008329994977,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129
+        ],
+        "count": 16,
+        "targetTokens": 128,
+        "timing": {
+          "maxMs": 987.1479159994051,
+          "minMs": 960.2395419999957,
+          "p50Ms": 961.960583999753,
+          "p95Ms": 987.1479159994051,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          513
+        ],
+        "count": 1,
+        "targetTokens": 512,
+        "timing": {
+          "maxMs": 294.31404099985957,
+          "minMs": 284.9204170005396,
+          "p50Ms": 291.4694169992581,
+          "p95Ms": 294.31404099985957,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513
+        ],
+        "count": 8,
+        "targetTokens": 512,
+        "timing": {
+          "maxMs": 1952.9999170005322,
+          "minMs": 1878.6527920002118,
+          "p50Ms": 1887.9197500003502,
+          "p95Ms": 1952.9999170005322,
+          "samples": 3
+        }
+      },
+      {
+        "actualTokens": [
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513,
+          513
+        ],
+        "count": 16,
+        "targetTokens": 512,
+        "timing": {
+          "maxMs": 3668.617291999981,
+          "minMs": 3623.3119160002097,
+          "p50Ms": 3634.104000000283,
+          "p95Ms": 3668.617291999981,
+          "samples": 3
+        }
+      }
+    ],
+    "quality": {
+      "lexicalHitAt1": {
+        "hits": 14,
+        "queries": 29
+      },
+      "lexicalHitAt6": {
+        "hits": 18,
+        "queries": 29
+      },
+      "semanticHitAt1": {
+        "hits": 28,
+        "queries": 29
+      },
+      "semanticHitAt6": {
+        "hits": 29,
+        "queries": 29
+      },
+      "hybridHitAt1": {
+        "hits": 21,
+        "queries": 29
+      },
+      "hybridHitAt6": {
+        "hits": 29,
+        "queries": 29
+      }
+    },
+    "misses": {
+      "lexical": [
+        "q01",
+        "q02",
+        "q08",
+        "q09",
+        "q16",
+        "q21",
+        "q22",
+        "q23",
+        "q24",
+        "q27",
+        "q28"
+      ],
+      "semantic": [],
+      "hybrid": []
+    },
+    "noAnswerTopScores": {
+      "q30": 0.3636896,
+      "q31": 0.32095987,
+      "q32": 0.29114977
+    }
+  },
+  "comparison": {
+    "documentCosineMinimum": 0.9415975255038678,
+    "documentCosineMean": 0.9660090874411813,
+    "semanticTop1Agreement": 32,
+    "queries": 32
+  },
+  "fixtureSHA256": "d254ebee80c3ebc1714fab24066de8aa46c1177ffed4c94eeb602870248f489a",
+  "recordedDate": "2026-09-16",
+  "scope": "Synthetic isolated prototype; not production memory acceptance.",
+  "offlineSmoke": {
+    "4bit": {
+      "dimension": 1024,
+      "firstInferenceMs": 74.90737500041723,
+      "model": "mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ",
+      "modelLoadMs": 595.4549169996753,
+      "normError": 0,
+      "passed": true,
+      "revision": "6c3ae70858513f1a78e9cdca3cae330d9075cd2a"
+    },
+    "bf16": {
+      "dimension": 1024,
+      "firstInferenceMs": 156.88612500019372,
+      "model": "Qwen/Qwen3-Embedding-0.6B",
+      "modelLoadMs": 767.720457999967,
+      "normError": 0,
+      "passed": true,
+      "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3"
+    }
+  },
+  "queryRanks": {
+    "4bit": [
+      {
+        "id": "q01",
+        "category": "implicit",
+        "expected": [
+          "drink"
+        ],
+        "lexical": [
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "drink",
+          "breakfast",
+          "food-colleague",
+          "food",
+          "exercise",
+          "hotel"
+        ],
+        "hybrid": [
+          "meeting-colleague",
+          "drink",
+          "schedule",
+          "breakfast",
+          "food-colleague",
+          "food"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.54997844
+      },
+      {
+        "id": "q02",
+        "category": "implicit",
+        "expected": [
+          "food"
+        ],
+        "lexical": [],
+        "semantic": [
+          "breakfast",
+          "food",
+          "food-colleague",
+          "drink",
+          "meeting",
+          "meeting-colleague"
+        ],
+        "hybrid": [
+          "breakfast",
+          "food",
+          "food-colleague",
+          "drink",
+          "meeting",
+          "meeting-colleague"
+        ],
+        "tokenCount": 29,
+        "semanticTopScore": 0.5941568
+      },
+      {
+        "id": "q03",
+        "category": "paraphrase",
+        "expected": [
+          "language"
+        ],
+        "lexical": [
+          "language",
+          "provider"
+        ],
+        "semantic": [
+          "language",
+          "screen",
+          "presentation",
+          "reply",
+          "provider",
+          "storage"
+        ],
+        "hybrid": [
+          "language",
+          "provider",
+          "screen",
+          "presentation",
+          "reply",
+          "storage"
+        ],
+        "tokenCount": 32,
+        "semanticTopScore": 0.625437
+      },
+      {
+        "id": "q04",
+        "category": "paraphrase",
+        "expected": [
+          "meeting"
+        ],
+        "lexical": [
+          "meeting",
+          "presentation"
+        ],
+        "semantic": [
+          "meeting",
+          "meeting-colleague",
+          "exercise",
+          "schedule",
+          "presentation",
+          "temp"
+        ],
+        "hybrid": [
+          "meeting",
+          "presentation",
+          "meeting-colleague",
+          "exercise",
+          "schedule",
+          "temp"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.69781697
+      },
+      {
+        "id": "q05",
+        "category": "paraphrase",
+        "expected": [
+          "hotel"
+        ],
+        "lexical": [
+          "hotel"
+        ],
+        "semantic": [
+          "hotel",
+          "keyboard",
+          "language",
+          "reply",
+          "screen",
+          "meeting"
+        ],
+        "hybrid": [
+          "hotel",
+          "keyboard",
+          "language",
+          "reply",
+          "screen",
+          "meeting"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.581455
+      },
+      {
+        "id": "q06",
+        "category": "implicit",
+        "expected": [
+          "train"
+        ],
+        "lexical": [
+          "hotel",
+          "train"
+        ],
+        "semantic": [
+          "train",
+          "transport",
+          "hotel",
+          "units",
+          "reading",
+          "schedule"
+        ],
+        "hybrid": [
+          "train",
+          "hotel",
+          "transport",
+          "units",
+          "reading",
+          "schedule"
+        ],
+        "tokenCount": 31,
+        "semanticTopScore": 0.6203474
+      },
+      {
+        "id": "q07",
+        "category": "cross-language",
+        "expected": [
+          "editor"
+        ],
+        "lexical": [
+          "editor",
+          "exercise"
+        ],
+        "semantic": [
+          "editor",
+          "screen",
+          "keyboard",
+          "git",
+          "temp",
+          "meeting-colleague"
+        ],
+        "hybrid": [
+          "editor",
+          "exercise",
+          "screen",
+          "keyboard",
+          "git",
+          "temp"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.8293725
+      },
+      {
+        "id": "q08",
+        "category": "cross-language",
+        "expected": [
+          "units"
+        ],
+        "lexical": [
+          "git",
+          "storage",
+          "temp",
+          "tests"
+        ],
+        "semantic": [
+          "units",
+          "train",
+          "schedule",
+          "transport",
+          "screen",
+          "hotel"
+        ],
+        "hybrid": [
+          "git",
+          "tests",
+          "temp",
+          "units",
+          "storage",
+          "train"
+        ],
+        "tokenCount": 31,
+        "semanticTopScore": 0.74323016
+      },
+      {
+        "id": "q09",
+        "category": "implicit",
+        "expected": [
+          "reply"
+        ],
+        "lexical": [],
+        "semantic": [
+          "reply",
+          "presentation",
+          "temp",
+          "storage",
+          "git",
+          "meeting"
+        ],
+        "hybrid": [
+          "reply",
+          "presentation",
+          "temp",
+          "storage",
+          "git",
+          "meeting"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.53548145
+      },
+      {
+        "id": "q10",
+        "category": "paraphrase",
+        "expected": [
+          "schedule"
+        ],
+        "lexical": [
+          "schedule",
+          "language",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "schedule",
+          "meeting-colleague",
+          "meeting",
+          "units",
+          "temp",
+          "language"
+        ],
+        "hybrid": [
+          "schedule",
+          "meeting-colleague",
+          "language",
+          "meeting",
+          "units",
+          "temp"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.6876157
+      },
+      {
+        "id": "q11",
+        "category": "paraphrase",
+        "expected": [
+          "budget"
+        ],
+        "lexical": [
+          "budget",
+          "screen"
+        ],
+        "semantic": [
+          "budget",
+          "screen",
+          "device",
+          "keyboard",
+          "reply",
+          "temp"
+        ],
+        "hybrid": [
+          "budget",
+          "screen",
+          "device",
+          "keyboard",
+          "reply",
+          "temp"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.7938119
+      },
+      {
+        "id": "q12",
+        "category": "paraphrase",
+        "expected": [
+          "screen"
+        ],
+        "lexical": [
+          "meeting-colleague",
+          "screen",
+          "presentation"
+        ],
+        "semantic": [
+          "screen",
+          "keyboard",
+          "budget",
+          "train",
+          "presentation",
+          "temp"
+        ],
+        "hybrid": [
+          "screen",
+          "presentation",
+          "meeting-colleague",
+          "keyboard",
+          "budget",
+          "train"
+        ],
+        "tokenCount": 29,
+        "semanticTopScore": 0.6060369
+      },
+      {
+        "id": "q13",
+        "category": "implicit",
+        "expected": [
+          "keyboard"
+        ],
+        "lexical": [
+          "keyboard"
+        ],
+        "semantic": [
+          "keyboard",
+          "screen",
+          "meeting",
+          "reply",
+          "presentation",
+          "hotel"
+        ],
+        "hybrid": [
+          "keyboard",
+          "screen",
+          "meeting",
+          "reply",
+          "presentation",
+          "hotel"
+        ],
+        "tokenCount": 26,
+        "semanticTopScore": 0.6590359
+      },
+      {
+        "id": "q14",
+        "category": "paraphrase",
+        "expected": [
+          "exercise"
+        ],
+        "lexical": [
+          "exercise",
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "exercise",
+          "breakfast",
+          "meeting",
+          "transport",
+          "meeting-colleague",
+          "food-colleague"
+        ],
+        "hybrid": [
+          "exercise",
+          "meeting-colleague",
+          "schedule",
+          "breakfast",
+          "meeting",
+          "transport"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.6422409
+      },
+      {
+        "id": "q15",
+        "category": "exact-name",
+        "expected": [
+          "pet"
+        ],
+        "lexical": [
+          "pet"
+        ],
+        "semantic": [
+          "pet",
+          "food-colleague",
+          "food",
+          "breakfast",
+          "provider",
+          "reply"
+        ],
+        "hybrid": [
+          "pet",
+          "food-colleague",
+          "food",
+          "breakfast",
+          "provider",
+          "reply"
+        ],
+        "tokenCount": 25,
+        "semanticTopScore": 0.63790536
+      },
+      {
+        "id": "q16",
+        "category": "cross-language",
+        "expected": [
+          "reading"
+        ],
+        "lexical": [],
+        "semantic": [
+          "reading",
+          "train",
+          "reply",
+          "hotel",
+          "transport",
+          "screen"
+        ],
+        "hybrid": [
+          "reading",
+          "train",
+          "reply",
+          "hotel",
+          "transport",
+          "screen"
+        ],
+        "tokenCount": 29,
+        "semanticTopScore": 0.66578686
+      },
+      {
+        "id": "q17",
+        "category": "constraint",
+        "expected": [
+          "core"
+        ],
+        "lexical": [
+          "core",
+          "food",
+          "storage",
+          "temp"
+        ],
+        "semantic": [
+          "core",
+          "temp",
+          "provider",
+          "device",
+          "storage",
+          "language"
+        ],
+        "hybrid": [
+          "core",
+          "temp",
+          "storage",
+          "food",
+          "provider",
+          "device"
+        ],
+        "tokenCount": 34,
+        "semanticTopScore": 0.647791
+      },
+      {
+        "id": "q18",
+        "category": "constraint",
+        "expected": [
+          "provider"
+        ],
+        "lexical": [
+          "provider",
+          "keyboard",
+          "meeting"
+        ],
+        "semantic": [
+          "provider",
+          "storage",
+          "temp",
+          "tests",
+          "language",
+          "units"
+        ],
+        "hybrid": [
+          "provider",
+          "keyboard",
+          "storage",
+          "meeting",
+          "temp",
+          "tests"
+        ],
+        "tokenCount": 32,
+        "semanticTopScore": 0.65907747
+      },
+      {
+        "id": "q19",
+        "category": "constraint",
+        "expected": [
+          "tests"
+        ],
+        "lexical": [
+          "tests",
+          "core",
+          "provider"
+        ],
+        "semantic": [
+          "tests",
+          "provider",
+          "temp",
+          "core",
+          "reply",
+          "language"
+        ],
+        "hybrid": [
+          "tests",
+          "provider",
+          "core",
+          "temp",
+          "reply",
+          "language"
+        ],
+        "tokenCount": 31,
+        "semanticTopScore": 0.615342
+      },
+      {
+        "id": "q20",
+        "category": "implicit",
+        "expected": [
+          "storage"
+        ],
+        "lexical": [
+          "provider",
+          "storage"
+        ],
+        "semantic": [
+          "storage",
+          "provider",
+          "temp",
+          "language",
+          "tests",
+          "reply"
+        ],
+        "hybrid": [
+          "provider",
+          "storage",
+          "temp",
+          "language",
+          "tests",
+          "reply"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.5020273
+      },
+      {
+        "id": "q21",
+        "category": "cross-language",
+        "expected": [
+          "drink"
+        ],
+        "lexical": [
+          "device",
+          "editor",
+          "reading"
+        ],
+        "semantic": [
+          "drink",
+          "meeting",
+          "exercise",
+          "breakfast",
+          "meeting-colleague",
+          "hotel"
+        ],
+        "hybrid": [
+          "reading",
+          "device",
+          "drink",
+          "editor",
+          "meeting",
+          "exercise"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.6602926
+      },
+      {
+        "id": "q22",
+        "category": "cross-language",
+        "expected": [
+          "hotel"
+        ],
+        "lexical": [
+          "units",
+          "editor",
+          "reading"
+        ],
+        "semantic": [
+          "hotel",
+          "keyboard",
+          "temp",
+          "provider",
+          "meeting-colleague",
+          "train"
+        ],
+        "hybrid": [
+          "reading",
+          "units",
+          "hotel",
+          "editor",
+          "keyboard",
+          "temp"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.6600362
+      },
+      {
+        "id": "q23",
+        "category": "update",
+        "expected": [
+          "editor"
+        ],
+        "lexical": [
+          "storage",
+          "temp",
+          "tests"
+        ],
+        "semantic": [
+          "editor",
+          "keyboard",
+          "screen",
+          "transport",
+          "storage",
+          "git"
+        ],
+        "hybrid": [
+          "storage",
+          "temp",
+          "editor",
+          "keyboard",
+          "screen",
+          "tests"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.5240841
+      },
+      {
+        "id": "q24",
+        "category": "cross-language",
+        "expected": [
+          "device"
+        ],
+        "lexical": [],
+        "semantic": [
+          "device",
+          "budget",
+          "screen",
+          "temp",
+          "core",
+          "provider"
+        ],
+        "hybrid": [
+          "device",
+          "budget",
+          "screen",
+          "temp",
+          "core",
+          "provider"
+        ],
+        "tokenCount": 25,
+        "semanticTopScore": 0.7139804
+      },
+      {
+        "id": "q25",
+        "category": "temporal",
+        "expected": [
+          "temp"
+        ],
+        "lexical": [
+          "language",
+          "temp",
+          "tests",
+          "keyboard",
+          "meeting"
+        ],
+        "semantic": [
+          "temp",
+          "tests",
+          "presentation",
+          "reply",
+          "storage",
+          "provider"
+        ],
+        "hybrid": [
+          "temp",
+          "tests",
+          "language",
+          "meeting",
+          "keyboard",
+          "presentation"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.6780865
+      },
+      {
+        "id": "q26",
+        "category": "exact-name",
+        "expected": [
+          "git"
+        ],
+        "lexical": [
+          "git"
+        ],
+        "semantic": [
+          "git",
+          "language",
+          "storage",
+          "temp",
+          "editor",
+          "reply"
+        ],
+        "hybrid": [
+          "git",
+          "language",
+          "storage",
+          "temp",
+          "editor",
+          "reply"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.7141448
+      },
+      {
+        "id": "q27",
+        "category": "paraphrase",
+        "expected": [
+          "breakfast"
+        ],
+        "lexical": [
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "breakfast",
+          "food",
+          "food-colleague",
+          "drink",
+          "train",
+          "transport"
+        ],
+        "hybrid": [
+          "meeting-colleague",
+          "schedule",
+          "breakfast",
+          "food",
+          "food-colleague",
+          "drink"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.6735382
+      },
+      {
+        "id": "q28",
+        "category": "paraphrase",
+        "expected": [
+          "transport"
+        ],
+        "lexical": [],
+        "semantic": [
+          "transport",
+          "train",
+          "meeting-colleague",
+          "exercise",
+          "hotel",
+          "schedule"
+        ],
+        "hybrid": [
+          "transport",
+          "train",
+          "meeting-colleague",
+          "exercise",
+          "hotel",
+          "schedule"
+        ],
+        "tokenCount": 26,
+        "semanticTopScore": 0.5729999
+      },
+      {
+        "id": "q29",
+        "category": "implicit",
+        "expected": [
+          "presentation"
+        ],
+        "lexical": [
+          "presentation",
+          "schedule",
+          "meeting-colleague",
+          "meeting"
+        ],
+        "semantic": [
+          "presentation",
+          "reply",
+          "screen",
+          "meeting",
+          "temp",
+          "meeting-colleague"
+        ],
+        "hybrid": [
+          "presentation",
+          "meeting",
+          "meeting-colleague",
+          "reply",
+          "schedule",
+          "screen"
+        ],
+        "tokenCount": 32,
+        "semanticTopScore": 0.677528
+      },
+      {
+        "id": "q30",
+        "category": "no-answer",
+        "expected": [],
+        "lexical": [
+          "food-colleague",
+          "breakfast",
+          "reply",
+          "meeting-colleague",
+          "screen",
+          "presentation"
+        ],
+        "semantic": [
+          "breakfast",
+          "food-colleague",
+          "train",
+          "meeting-colleague",
+          "transport",
+          "exercise"
+        ],
+        "hybrid": [
+          "breakfast",
+          "food-colleague",
+          "meeting-colleague",
+          "train",
+          "presentation",
+          "screen"
+        ],
+        "tokenCount": 25,
+        "semanticTopScore": 0.348467
+      },
+      {
+        "id": "q31",
+        "category": "no-answer",
+        "expected": [],
+        "lexical": [
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "exercise",
+          "schedule",
+          "train",
+          "transport",
+          "temp",
+          "hotel"
+        ],
+        "hybrid": [
+          "schedule",
+          "meeting-colleague",
+          "exercise",
+          "train",
+          "transport",
+          "temp"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.331123
+      },
+      {
+        "id": "q32",
+        "category": "no-answer",
+        "expected": [],
+        "lexical": [],
+        "semantic": [
+          "keyboard",
+          "units",
+          "transport",
+          "git",
+          "language",
+          "provider"
+        ],
+        "hybrid": [
+          "keyboard",
+          "units",
+          "transport",
+          "git",
+          "language",
+          "provider"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.3187678
+      }
+    ],
+    "bf16": [
+      {
+        "id": "q01",
+        "category": "implicit",
+        "expected": [
+          "drink"
+        ],
+        "lexical": [
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "drink",
+          "breakfast",
+          "food-colleague",
+          "exercise",
+          "hotel",
+          "food"
+        ],
+        "hybrid": [
+          "meeting-colleague",
+          "drink",
+          "schedule",
+          "breakfast",
+          "food-colleague",
+          "exercise"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.519767
+      },
+      {
+        "id": "q02",
+        "category": "implicit",
+        "expected": [
+          "food"
+        ],
+        "lexical": [],
+        "semantic": [
+          "breakfast",
+          "food-colleague",
+          "food",
+          "drink",
+          "meeting-colleague",
+          "meeting"
+        ],
+        "hybrid": [
+          "breakfast",
+          "food-colleague",
+          "food",
+          "drink",
+          "meeting-colleague",
+          "meeting"
+        ],
+        "tokenCount": 29,
+        "semanticTopScore": 0.5501454
+      },
+      {
+        "id": "q03",
+        "category": "paraphrase",
+        "expected": [
+          "language"
+        ],
+        "lexical": [
+          "language",
+          "provider"
+        ],
+        "semantic": [
+          "language",
+          "screen",
+          "provider",
+          "presentation",
+          "reply",
+          "keyboard"
+        ],
+        "hybrid": [
+          "language",
+          "provider",
+          "screen",
+          "presentation",
+          "reply",
+          "keyboard"
+        ],
+        "tokenCount": 32,
+        "semanticTopScore": 0.6276242
+      },
+      {
+        "id": "q04",
+        "category": "paraphrase",
+        "expected": [
+          "meeting"
+        ],
+        "lexical": [
+          "meeting",
+          "presentation"
+        ],
+        "semantic": [
+          "meeting",
+          "meeting-colleague",
+          "schedule",
+          "temp",
+          "exercise",
+          "drink"
+        ],
+        "hybrid": [
+          "meeting",
+          "presentation",
+          "meeting-colleague",
+          "schedule",
+          "temp",
+          "exercise"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.70763755
+      },
+      {
+        "id": "q05",
+        "category": "paraphrase",
+        "expected": [
+          "hotel"
+        ],
+        "lexical": [
+          "hotel"
+        ],
+        "semantic": [
+          "hotel",
+          "keyboard",
+          "meeting",
+          "screen",
+          "train",
+          "reply"
+        ],
+        "hybrid": [
+          "hotel",
+          "keyboard",
+          "meeting",
+          "screen",
+          "train",
+          "reply"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.6100106
+      },
+      {
+        "id": "q06",
+        "category": "implicit",
+        "expected": [
+          "train"
+        ],
+        "lexical": [
+          "hotel",
+          "train"
+        ],
+        "semantic": [
+          "train",
+          "transport",
+          "hotel",
+          "units",
+          "reading",
+          "meeting"
+        ],
+        "hybrid": [
+          "train",
+          "hotel",
+          "transport",
+          "units",
+          "reading",
+          "meeting"
+        ],
+        "tokenCount": 31,
+        "semanticTopScore": 0.65609586
+      },
+      {
+        "id": "q07",
+        "category": "cross-language",
+        "expected": [
+          "editor"
+        ],
+        "lexical": [
+          "editor",
+          "exercise"
+        ],
+        "semantic": [
+          "editor",
+          "screen",
+          "git",
+          "keyboard",
+          "schedule",
+          "meeting-colleague"
+        ],
+        "hybrid": [
+          "editor",
+          "exercise",
+          "screen",
+          "git",
+          "keyboard",
+          "schedule"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.8267051
+      },
+      {
+        "id": "q08",
+        "category": "cross-language",
+        "expected": [
+          "units"
+        ],
+        "lexical": [
+          "git",
+          "storage",
+          "temp",
+          "tests"
+        ],
+        "semantic": [
+          "units",
+          "train",
+          "schedule",
+          "transport",
+          "screen",
+          "tests"
+        ],
+        "hybrid": [
+          "tests",
+          "git",
+          "temp",
+          "units",
+          "storage",
+          "train"
+        ],
+        "tokenCount": 31,
+        "semanticTopScore": 0.75189066
+      },
+      {
+        "id": "q09",
+        "category": "implicit",
+        "expected": [
+          "reply"
+        ],
+        "lexical": [],
+        "semantic": [
+          "reply",
+          "presentation",
+          "temp",
+          "meeting",
+          "food",
+          "git"
+        ],
+        "hybrid": [
+          "reply",
+          "presentation",
+          "temp",
+          "meeting",
+          "food",
+          "git"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.5052707
+      },
+      {
+        "id": "q10",
+        "category": "paraphrase",
+        "expected": [
+          "schedule"
+        ],
+        "lexical": [
+          "schedule",
+          "language",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "schedule",
+          "meeting-colleague",
+          "meeting",
+          "units",
+          "temp",
+          "train"
+        ],
+        "hybrid": [
+          "schedule",
+          "meeting-colleague",
+          "language",
+          "meeting",
+          "units",
+          "temp"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.7224468
+      },
+      {
+        "id": "q11",
+        "category": "paraphrase",
+        "expected": [
+          "budget"
+        ],
+        "lexical": [
+          "budget",
+          "screen"
+        ],
+        "semantic": [
+          "budget",
+          "screen",
+          "device",
+          "keyboard",
+          "reply",
+          "temp"
+        ],
+        "hybrid": [
+          "budget",
+          "screen",
+          "device",
+          "keyboard",
+          "reply",
+          "temp"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.80576146
+      },
+      {
+        "id": "q12",
+        "category": "paraphrase",
+        "expected": [
+          "screen"
+        ],
+        "lexical": [
+          "meeting-colleague",
+          "screen",
+          "presentation"
+        ],
+        "semantic": [
+          "screen",
+          "keyboard",
+          "meeting-colleague",
+          "train",
+          "presentation",
+          "temp"
+        ],
+        "hybrid": [
+          "screen",
+          "meeting-colleague",
+          "presentation",
+          "keyboard",
+          "train",
+          "temp"
+        ],
+        "tokenCount": 29,
+        "semanticTopScore": 0.6119431
+      },
+      {
+        "id": "q13",
+        "category": "implicit",
+        "expected": [
+          "keyboard"
+        ],
+        "lexical": [
+          "keyboard"
+        ],
+        "semantic": [
+          "keyboard",
+          "screen",
+          "meeting",
+          "meeting-colleague",
+          "hotel",
+          "drink"
+        ],
+        "hybrid": [
+          "keyboard",
+          "screen",
+          "meeting",
+          "meeting-colleague",
+          "hotel",
+          "drink"
+        ],
+        "tokenCount": 26,
+        "semanticTopScore": 0.6616498
+      },
+      {
+        "id": "q14",
+        "category": "paraphrase",
+        "expected": [
+          "exercise"
+        ],
+        "lexical": [
+          "exercise",
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "exercise",
+          "meeting",
+          "breakfast",
+          "meeting-colleague",
+          "transport",
+          "drink"
+        ],
+        "hybrid": [
+          "exercise",
+          "meeting-colleague",
+          "schedule",
+          "meeting",
+          "breakfast",
+          "transport"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.6181986
+      },
+      {
+        "id": "q15",
+        "category": "exact-name",
+        "expected": [
+          "pet"
+        ],
+        "lexical": [
+          "pet"
+        ],
+        "semantic": [
+          "pet",
+          "food-colleague",
+          "provider",
+          "breakfast",
+          "reply",
+          "food"
+        ],
+        "hybrid": [
+          "pet",
+          "food-colleague",
+          "provider",
+          "breakfast",
+          "reply",
+          "food"
+        ],
+        "tokenCount": 25,
+        "semanticTopScore": 0.6210841
+      },
+      {
+        "id": "q16",
+        "category": "cross-language",
+        "expected": [
+          "reading"
+        ],
+        "lexical": [],
+        "semantic": [
+          "reading",
+          "train",
+          "reply",
+          "hotel",
+          "transport",
+          "screen"
+        ],
+        "hybrid": [
+          "reading",
+          "train",
+          "reply",
+          "hotel",
+          "transport",
+          "screen"
+        ],
+        "tokenCount": 29,
+        "semanticTopScore": 0.66680634
+      },
+      {
+        "id": "q17",
+        "category": "constraint",
+        "expected": [
+          "core"
+        ],
+        "lexical": [
+          "core",
+          "food",
+          "storage",
+          "temp"
+        ],
+        "semantic": [
+          "core",
+          "provider",
+          "temp",
+          "device",
+          "units",
+          "storage"
+        ],
+        "hybrid": [
+          "core",
+          "temp",
+          "storage",
+          "food",
+          "provider",
+          "device"
+        ],
+        "tokenCount": 34,
+        "semanticTopScore": 0.64662623
+      },
+      {
+        "id": "q18",
+        "category": "constraint",
+        "expected": [
+          "provider"
+        ],
+        "lexical": [
+          "provider",
+          "keyboard",
+          "meeting"
+        ],
+        "semantic": [
+          "provider",
+          "tests",
+          "temp",
+          "storage",
+          "units",
+          "core"
+        ],
+        "hybrid": [
+          "provider",
+          "keyboard",
+          "tests",
+          "meeting",
+          "temp",
+          "storage"
+        ],
+        "tokenCount": 32,
+        "semanticTopScore": 0.6479192
+      },
+      {
+        "id": "q19",
+        "category": "constraint",
+        "expected": [
+          "tests"
+        ],
+        "lexical": [
+          "tests",
+          "core",
+          "provider"
+        ],
+        "semantic": [
+          "tests",
+          "provider",
+          "temp",
+          "core",
+          "reply",
+          "screen"
+        ],
+        "hybrid": [
+          "tests",
+          "provider",
+          "core",
+          "temp",
+          "reply",
+          "screen"
+        ],
+        "tokenCount": 31,
+        "semanticTopScore": 0.64866054
+      },
+      {
+        "id": "q20",
+        "category": "implicit",
+        "expected": [
+          "storage"
+        ],
+        "lexical": [
+          "provider",
+          "storage"
+        ],
+        "semantic": [
+          "storage",
+          "provider",
+          "temp",
+          "tests",
+          "units",
+          "hotel"
+        ],
+        "hybrid": [
+          "provider",
+          "storage",
+          "temp",
+          "tests",
+          "units",
+          "hotel"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.50237703
+      },
+      {
+        "id": "q21",
+        "category": "cross-language",
+        "expected": [
+          "drink"
+        ],
+        "lexical": [
+          "device",
+          "editor",
+          "reading"
+        ],
+        "semantic": [
+          "drink",
+          "meeting",
+          "exercise",
+          "meeting-colleague",
+          "breakfast",
+          "hotel"
+        ],
+        "hybrid": [
+          "reading",
+          "device",
+          "drink",
+          "editor",
+          "meeting",
+          "exercise"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.6350714
+      },
+      {
+        "id": "q22",
+        "category": "cross-language",
+        "expected": [
+          "hotel"
+        ],
+        "lexical": [
+          "units",
+          "editor",
+          "reading"
+        ],
+        "semantic": [
+          "hotel",
+          "keyboard",
+          "temp",
+          "meeting-colleague",
+          "provider",
+          "schedule"
+        ],
+        "hybrid": [
+          "units",
+          "reading",
+          "hotel",
+          "editor",
+          "keyboard",
+          "temp"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.62857807
+      },
+      {
+        "id": "q23",
+        "category": "update",
+        "expected": [
+          "editor"
+        ],
+        "lexical": [
+          "storage",
+          "temp",
+          "tests"
+        ],
+        "semantic": [
+          "editor",
+          "screen",
+          "keyboard",
+          "provider",
+          "transport",
+          "temp"
+        ],
+        "hybrid": [
+          "storage",
+          "temp",
+          "editor",
+          "screen",
+          "keyboard",
+          "tests"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.49547726
+      },
+      {
+        "id": "q24",
+        "category": "cross-language",
+        "expected": [
+          "device"
+        ],
+        "lexical": [],
+        "semantic": [
+          "device",
+          "screen",
+          "temp",
+          "provider",
+          "core",
+          "budget"
+        ],
+        "hybrid": [
+          "device",
+          "screen",
+          "temp",
+          "provider",
+          "core",
+          "budget"
+        ],
+        "tokenCount": 25,
+        "semanticTopScore": 0.70369613
+      },
+      {
+        "id": "q25",
+        "category": "temporal",
+        "expected": [
+          "temp"
+        ],
+        "lexical": [
+          "language",
+          "temp",
+          "tests",
+          "keyboard",
+          "meeting"
+        ],
+        "semantic": [
+          "temp",
+          "tests",
+          "presentation",
+          "reply",
+          "provider",
+          "storage"
+        ],
+        "hybrid": [
+          "temp",
+          "tests",
+          "language",
+          "meeting",
+          "presentation",
+          "keyboard"
+        ],
+        "tokenCount": 28,
+        "semanticTopScore": 0.69831955
+      },
+      {
+        "id": "q26",
+        "category": "exact-name",
+        "expected": [
+          "git"
+        ],
+        "lexical": [
+          "git"
+        ],
+        "semantic": [
+          "git",
+          "screen",
+          "temp",
+          "language",
+          "reply",
+          "meeting"
+        ],
+        "hybrid": [
+          "git",
+          "screen",
+          "temp",
+          "language",
+          "reply",
+          "meeting"
+        ],
+        "tokenCount": 30,
+        "semanticTopScore": 0.7136023
+      },
+      {
+        "id": "q27",
+        "category": "paraphrase",
+        "expected": [
+          "breakfast"
+        ],
+        "lexical": [
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "breakfast",
+          "food",
+          "train",
+          "food-colleague",
+          "drink",
+          "meeting-colleague"
+        ],
+        "hybrid": [
+          "meeting-colleague",
+          "schedule",
+          "breakfast",
+          "food",
+          "train",
+          "food-colleague"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.6598098
+      },
+      {
+        "id": "q28",
+        "category": "paraphrase",
+        "expected": [
+          "transport"
+        ],
+        "lexical": [],
+        "semantic": [
+          "transport",
+          "train",
+          "meeting-colleague",
+          "exercise",
+          "hotel",
+          "schedule"
+        ],
+        "hybrid": [
+          "transport",
+          "train",
+          "meeting-colleague",
+          "exercise",
+          "hotel",
+          "schedule"
+        ],
+        "tokenCount": 26,
+        "semanticTopScore": 0.580948
+      },
+      {
+        "id": "q29",
+        "category": "implicit",
+        "expected": [
+          "presentation"
+        ],
+        "lexical": [
+          "presentation",
+          "schedule",
+          "meeting-colleague",
+          "meeting"
+        ],
+        "semantic": [
+          "presentation",
+          "meeting",
+          "screen",
+          "reply",
+          "meeting-colleague",
+          "temp"
+        ],
+        "hybrid": [
+          "presentation",
+          "meeting",
+          "meeting-colleague",
+          "schedule",
+          "screen",
+          "reply"
+        ],
+        "tokenCount": 32,
+        "semanticTopScore": 0.6612792
+      },
+      {
+        "id": "q30",
+        "category": "no-answer",
+        "expected": [],
+        "lexical": [
+          "food-colleague",
+          "breakfast",
+          "reply",
+          "meeting-colleague",
+          "screen",
+          "presentation"
+        ],
+        "semantic": [
+          "breakfast",
+          "meeting-colleague",
+          "train",
+          "food-colleague",
+          "transport",
+          "exercise"
+        ],
+        "hybrid": [
+          "breakfast",
+          "food-colleague",
+          "meeting-colleague",
+          "train",
+          "presentation",
+          "screen"
+        ],
+        "tokenCount": 25,
+        "semanticTopScore": 0.3636896
+      },
+      {
+        "id": "q31",
+        "category": "no-answer",
+        "expected": [],
+        "lexical": [
+          "schedule",
+          "meeting-colleague"
+        ],
+        "semantic": [
+          "exercise",
+          "temp",
+          "schedule",
+          "train",
+          "transport",
+          "units"
+        ],
+        "hybrid": [
+          "schedule",
+          "meeting-colleague",
+          "exercise",
+          "temp",
+          "train",
+          "transport"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.32095987
+      },
+      {
+        "id": "q32",
+        "category": "no-answer",
+        "expected": [],
+        "lexical": [],
+        "semantic": [
+          "keyboard",
+          "transport",
+          "units",
+          "git",
+          "provider",
+          "temp"
+        ],
+        "hybrid": [
+          "keyboard",
+          "transport",
+          "units",
+          "git",
+          "provider",
+          "temp"
+        ],
+        "tokenCount": 27,
+        "semanticTopScore": 0.29114977
+      }
+    ]
+  }
+}

@@ -19,17 +19,10 @@ extension SQLiteMemoryStore {
         ("memory_operations", "CREATE TABLE memory_operations(operation_id TEXT PRIMARY KEY NOT NULL, request_hash TEXT, memory_id TEXT NOT NULL REFERENCES memory_records(id), receipt_json BLOB CHECK(length(receipt_json)<=131072), CHECK((request_hash IS NULL) = (receipt_json IS NULL)))"),
         ("memory_operation_dependencies", "CREATE TABLE memory_operation_dependencies(operation_id TEXT NOT NULL REFERENCES memory_operations(operation_id), memory_id TEXT NOT NULL REFERENCES memory_records(id), PRIMARY KEY(operation_id, memory_id))"),
         ("memory_purges", "CREATE TABLE memory_purges(operation_id TEXT PRIMARY KEY NOT NULL, memory_id TEXT NOT NULL REFERENCES memory_records(id), workspace_id TEXT REFERENCES business_workspaces(id), expected_revision INTEGER NOT NULL CHECK(expected_revision>0), json BLOB NOT NULL CHECK(length(json)<=131072))"),
-        ("memory_policy", "CREATE TABLE memory_policy(id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL CHECK(revision>0), json BLOB NOT NULL CHECK(length(json)<=131072))"),
         ("memory_search", "CREATE VIRTUAL TABLE memory_search USING fts5(memory_id UNINDEXED, content, tokenize='trigram')")
-    ]
+    ] + vectorSchemaDefinitions
 
     static func initialize(in db: Database) throws {
-        let new = try !db.tableExists("memory_schema")
         try SQLiteDomainDatabase.initialize(archiveSchemaDefinitions, metadata: "memory_schema", in: db)
-        if new {
-            let policy = MemoryCapturePolicy()
-            try db.execute(sql: "INSERT INTO memory_policy(id, revision, json) VALUES (1, ?, ?)", arguments: [policy.revision, try encode(policy)])
-        }
-        _ = try currentCapturePolicy(in: db)
     }
 }

@@ -253,7 +253,6 @@ private struct MiraNativeSettingsPreview: View {
     @State private var language = "en"
     @State private var mode = "system"
     @State private var enabled = true
-    @State private var budget = "12000"
     @State private var model = ""
 
     var body: some View {
@@ -273,18 +272,20 @@ private struct MiraNativeSettingsPreview: View {
                 }
             }
             MiraSettingsSection("Automatic memory") {
-                Toggle("Active", isOn: $enabled).toggleStyle(.switch)
-                MiraSettingsFormRow("Daily token limit", subtitle: "Daily token budget for automatic memory. Resets at 00:00 UTC.") {
-                    TextField("Daily token limit", text: $budget)
-                        .textFieldStyle(.roundedBorder).frame(width: 100)
+                MiraSettingsRow("Background extraction", subtitle: "Mira saves useful memories automatically after several turns or a pause, using the conversation’s model.") {
+                    Text("Automatic")
+                        .foregroundStyle(MiraTheme.Settings.secondaryText)
                 }
+                MiraSettingsRow("Embedding model", subtitle: "Memories are indexed on this Mac. No embedding API key is needed.") {
+                    Text(verbatim: "Qwen3 · 0.6B · 4-bit")
+                        .foregroundStyle(MiraTheme.Settings.secondaryText)
+                }
+            }
+            MiraSettingsSection("Models") {
                 MiraSettingsRow("Conversation model") {
                     MiraSettingsSelect(title: "Model", selection: $model,
                         options: [.init(id: "example", title: "Example Model")],
                         identifier: "preview.model", clearSelectionTitle: "Clear Selection", maximumWidth: 180)
-                }
-                MiraSettingsRow("Memory extraction model") {
-                    MiraSettingsSelect(title: "Model", selection: .constant(""), options: [], identifier: "preview.empty", maximumWidth: 180)
                 }
                 HStack {
                     Button("Discard Changes") {}.buttonStyle(MiraSettingsButtonStyle())

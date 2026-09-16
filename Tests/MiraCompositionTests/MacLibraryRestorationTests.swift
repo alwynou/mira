@@ -11,7 +11,7 @@ struct MacLibraryRestorationTests {
             let sourceDirectory = root.appendingPathComponent("Source", isDirectory: true)
             let archive = root.appendingPathComponent("Archive", isDirectory: true)
             let destination = root.appendingPathComponent("Restored", isDirectory: true)
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: sourceDirectory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(), modules: { _ in [] })
             do {
@@ -38,7 +38,7 @@ struct MacLibraryRestorationTests {
                     try await currentAfterRestore.queries.messagePage(sessionID: sessionID).session?.title.text
                         == "Restoration source")
 
-                let restored = try await MacLibrary.open(
+                let restored = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                     directory: destination, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
@@ -90,7 +90,7 @@ struct MacLibraryRestorationTests {
             let sourceDirectory = root.appendingPathComponent("Source", isDirectory: true)
             let archive = root.appendingPathComponent("Archive", isDirectory: true)
             let destination = root.appendingPathComponent("Restored", isDirectory: true)
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: sourceDirectory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(), modules: { _ in [] })
             var gate: RestorationSourceGate?

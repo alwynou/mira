@@ -27,11 +27,13 @@ public struct SQLiteArchiveModule: Sendable {
     let restoration: SQLiteArchiveRestoration
     let sessionExtensions: [String: Set<Int>]
     let schema: [SQLiteArchiveSchemaObject]
+    let prepareExport: @Sendable (Database) throws -> Void
     let inspect: @Sendable (Database, FileSessionSnapshot) throws -> [LibraryArchiveAttachment]
 
     public init(
         identity: Identity, schemaStatements: [String], sessionExtensions: [String: Set<Int>] = [:],
         restoration: SQLiteArchiveRestoration,
+        prepareExport: @escaping @Sendable (Database) throws -> Void = { _ in },
         inspect: @escaping @Sendable (Database, FileSessionSnapshot) throws -> [LibraryArchiveAttachment]
     ) throws {
         guard Self.validName(identity.name), identity.revision > 0,
@@ -53,6 +55,7 @@ public struct SQLiteArchiveModule: Sendable {
         }
         self.identity = identity
         self.restoration = restoration
+        self.prepareExport = prepareExport
         self.sessionExtensions = sessionExtensions
         self.inspect = inspect
     }
