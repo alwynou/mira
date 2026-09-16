@@ -2,6 +2,8 @@
 
 Date: 2026-09-16. Replaces the physical v3 layout from `8e8f8d2`; no historical decoder or migration.
 
+Follow-up: the user rejected this increment's remaining stream-checkpoint granularity and mismatch with conversation presentation. Its tests validate the implemented codec, not acceptance of the requested logging model. [DSH source research and replacement design](DSH_SESSION_LOG_RESEARCH.md) records the semantic step boundaries and ordering contract still to implement.
+
 ## Problem and reference
 
 The previous change moved payload files into `{checksum, record:{batch, payloads}}`, but retained a transaction-shaped line, UUID-to-string indirection and escaped JSON inside JSON. A prepared model request also stored both semantic input and the provider wire encoding of the same content.
