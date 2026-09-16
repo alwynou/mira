@@ -330,7 +330,7 @@ private struct Fixture {
                 prepared: .init(adapter: route.adapter, input: .init(stepID: UUID(), executionID: id, instructions: "Answer.",
                     messages: [.init(role: .user, blocks: [.init(id: "user", content: .text("Partial question"))])], tools: []),
                     wirePayload: .object([:]), estimatedInputTokens: 1), inheritedSources: [], evidence: [], omissions: [])
-            await payloads.put(requestRef, try SessionCodec.encode(requestBuild))
+            await payloads.put(requestRef, try SessionCodec.encode(try AgentRequestRecord(requestBuild)))
             if let answerRef { await payloads.put(answerRef, Data("Partial answer".utf8)) }
             if let thinkingRef { await payloads.put(thinkingRef, Data("Partial thought".utf8)) }
             let answerStatus: ExecutionStatus = interruptPartial ? .interrupted : .cancelled

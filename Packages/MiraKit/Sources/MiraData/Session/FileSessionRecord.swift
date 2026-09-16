@@ -1,9 +1,9 @@
 import Foundation
 import MiraCore
 
-/// Content and its publishing events share one checksummed physical record.
+/// In-memory assembly of one transaction; the file codec emits typed event lines.
 /// A missing inline body is legal only after a later durable retention invalidation.
-struct FileSessionRecord: Codable {
+struct FileSessionRecord: Equatable {
     static let maximumInlineBytes = 256 * 1_024
     static let maximumInlineBatchBytes = 2 * 1_024 * 1_024
     static let maximumBytes = 8 * 1_024 * 1_024

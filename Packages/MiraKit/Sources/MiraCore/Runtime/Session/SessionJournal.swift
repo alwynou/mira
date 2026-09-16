@@ -2,7 +2,7 @@ import Foundation
 
 /// Operational bounds are checked before allocation and before durable publication.
 public enum SessionFormatLimits {
-    public static let version = 3
+    public static let version = 4
     public static let maximumBatchBytes = 2 * 1_024 * 1_024
     public static let maximumEventsPerBatch = 256
     public static let maximumPayloadBytes = 32 * 1_024 * 1_024
@@ -70,11 +70,15 @@ public struct SessionEvent: Codable, Sendable, Equatable, Identifiable {
     public let occurredAt: Date
     public let fact: SessionFact
     public init(id: UUID = UUID(), sequence: Int64, occurredAt: Date, fact: SessionFact) {
-        self.id = id; self.sequence = sequence; self.occurredAt = occurredAt; self.fact = fact
+        self.id = id; self.sequence = sequence
+        // Journal timestamps have millisecond precision, shared by all persistence adapters.
+        let seconds = occurredAt.timeIntervalSince1970
+        self.occurredAt = seconds.isFinite ? Date(timeIntervalSince1970: (seconds * 1_000).rounded() / 1_000) : occurredAt
+        self.fact = fact
     }
 }
 
-/// One physical record publishes all events or none. The caller retains it across uncertainty.
+/// One committed transaction publishes all events or none. The caller retains it across uncertainty.
 public struct SessionBatch: Codable, Sendable, Equatable, Identifiable {
     public let version: Int
     public let id: UUID

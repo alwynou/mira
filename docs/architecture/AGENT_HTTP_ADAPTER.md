@@ -22,7 +22,7 @@ sequenceDiagram
     participant C as 凭据读取器
     participant T as HTTP 操作
     K->>A: prepare：输入、冻结路线、工具定义
-    A-->>K: 精确 wirePayload 与输入预算估计
+    A-->>K: ephemeral prepared request 与输入预算估计
     K->>J: 持久化请求与尝试身份
     K->>A: stream：已准备请求与同一路线
     A->>A: 重建并比较完整请求
@@ -36,7 +36,7 @@ sequenceDiagram
 
 `prepare` 是同步、纯、无密钥的构造与校验。输入使用编码字节数和封装余量保守估算，并受上下文窗口减输出预留、独立最大输入的较小值限制；不是厂商 tokenizer 或账单计量。工具名称、调用 ID、角色、上下文位置和完整往返都必须合法。
 
-`stream` 在读取密钥前核对已准备请求。实际正文只能来自已准备的 wirePayload。每次调用只有一个指定模型／协议的传输；重试由内核依据有限错误建议、退避和重新授权决定，不跨模型、连接或协议。
+`stream` 在读取密钥前核对当前尝试的 ephemeral prepared request。持久 `AgentRequestRecord` 只保存语义输入、适配器身份、token estimate 和 context-source evidence，不保存 wirePayload；适配器在派发时从这些语义字段重建 wire，并在发送前验证其与冻结路线和预算一致。每次调用只有一个指定模型／协议的传输；重试由内核依据有限错误建议、退避和重新授权决定，不跨模型、连接或协议。
 
 `AgentModelOperation.close()` 与 `HTTPTransportOperation.close()` 都必须实际取消并排空。成功、错误、取消、大小上限和超时均保留任务所有权直到清理完成。稳定 `X-Mira-Request-ID` 用于关联，取消按具体 URLSession task 身份执行。
 

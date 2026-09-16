@@ -56,13 +56,12 @@ struct FileSessionArchiveTests {
             let original = try Data(contentsOf: journal)
             let record = try FileSessionIO.decodeRecord(Data(original.dropLast()))
             let missing = FileSessionRecord(batch: record.batch, payloads: [:])
-            try (FileSessionIO.envelope(try SessionCodec.encode(missing)) + Data([10])).write(to: journal)
+            try (try FileSessionIO.encodeRecord(missing) + Data([10])).write(to: journal)
             await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
 
-            let corruptPayloads = [fixture.title.id.uuidString: "Archive titlX"]
-            let corrupt = FileSessionRecord(batch: record.batch, payloads: corruptPayloads)
-            let corruptLine = FileSessionIO.envelope(try SessionCodec.encode(corrupt)) + Data([10])
-            try corruptLine.write(to: journal)
+            let corruptLine = String(decoding: original, as: UTF8.self)
+                .replacingOccurrences(of: "Archive title", with: "Archive titlX")
+            try Data(corruptLine.utf8).write(to: journal)
             await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
         } catch {
             await fixture.close()
@@ -117,9 +116,11 @@ struct FileSessionArchiveTests {
             try FileManager.default.copyItem(at: journal, to: archive.appendingPathComponent("sessions").appendingPathComponent(journal.lastPathComponent))
             let inspected = try FileSessionArchive.inspect(directory: archive)
             #expect(try inspected.readRetainedPayload(fixture.title) == Data("Archive title".utf8))
-            let line = try #require(Data(contentsOf: journal).split(separator: 10).first)
-            let record = try FileSessionIO.decodeRecord(Data(line))
-            #expect(record.payloads[fixture.title.id.uuidString] == "Archive title")
+            var retainedTitle: String?
+            _ = try FileSessionIO.scanStrict(journal, sessionID: fixture.id, maximumRecords: 100) { record in
+                if let value = record.payloads[fixture.title.id.uuidString] { retainedTitle = value }
+            }
+            #expect(retainedTitle == "Archive title")
         } catch {
             await fixture.close()
             throw error

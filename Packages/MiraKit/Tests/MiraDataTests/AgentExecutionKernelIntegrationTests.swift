@@ -5,6 +5,48 @@ import Testing
 
 @Suite("Agent execution kernel integration")
 struct AgentExecutionKernelIntegrationTests {
+    @Test func actualKernelWritesReadableEventsAndReopensTheSameState() async throws {
+        let fixture = try await KernelFixture.make(outputs: [.read, .complete], driverID: "mira.default")
+        try await withKernelFixture(fixture) { fixture in
+            let kernel = try await fixture.kernel()
+            guard case .committed = await kernel.run() else { Issue.record("The example did not settle"); return }
+            let state = await fixture.runtime.snapshot()
+            let url = fixture.directory.appendingPathComponent("sessions/\(fixture.sessionID.rawValue.uuidString).jsonl")
+            let bytes = try Data(contentsOf: url)
+            let rows = try bytes.split(separator: 10).map {
+                try #require(JSONSerialization.jsonObject(with: Data($0)) as? [String: Any])
+            }
+            let types = Set(rows.compactMap { $0["type"] as? String })
+            #expect(types.isSuperset(of: ["session_meta", "turn_started", "model_request", "model_response",
+                                         "tool_call", "tool_result", "turn_completed", "transaction_commit"]))
+            #expect(rows.allSatisfy { $0["record"] == nil && $0["payloads"] == nil })
+            let requestRows = rows.filter { $0["type"] as? String == "model_request" }
+            #expect(requestRows.count == 2)
+            for row in requestRows {
+                let payload = try #require(row["payload"] as? [String: Any])
+                let node = try #require(payload["request"] as? [String: Any])
+                let request = try #require(node["json"] as? [String: Any])
+                #expect(request["input"] is [String: Any])
+                #expect(request["wirePayload"] == nil && request["prepared"] == nil)
+            }
+            // Synthetic data only; this opt-in artifact is useful for inspecting
+            // the actual runtime output without publishing personal conversations.
+            if let sample = ProcessInfo.processInfo.environment["MIRA_TYPED_JOURNAL_SAMPLE"] {
+                try bytes.write(to: URL(fileURLWithPath: sample))
+            }
+            _ = await kernel.shutdown()
+            await fixture.runtime.close()
+            try await fixture.library.close()
+            let reopenedLibrary = try FileSessionLibrary(directory: fixture.directory)
+            do {
+                let reopened = try await SessionRuntime.open(id: fixture.sessionID, journal: reopenedLibrary, payloads: reopenedLibrary)
+                #expect(await reopened.snapshot() == state)
+                await reopened.close()
+                try await reopenedLibrary.close()
+            } catch { try? await reopenedLibrary.close(); throw error }
+        }
+    }
+
     @Test func admittedPlanCannotRunInAnotherApplicationRuntime() async throws {
         let fixture = try await KernelFixture.make(outputs: [.complete])
         try await withKernelFixture(fixture) { fixture in
@@ -229,7 +271,7 @@ struct AgentExecutionKernelIntegrationTests {
             #expect(thirdExecution.attemptIDs.count == 1)
             let attemptID = try #require(thirdExecution.attemptIDs.first)
             let attempt = try #require(state.attempts[attemptID])
-            let request = try SessionCodec.decode(AgentContextBuild.self, from: await fixture.library.read(attempt.attempt.request))
+            let request = try SessionCodec.decode(AgentRequestRecord.self, from: await fixture.library.read(attempt.attempt.request))
             #expect(Set(request.inheritedSources) == Set([firstSource, secondSource]))
             #expect(request.sources == thirdValue.sources)
             #expect(request.request.executionID == thirdID)
@@ -248,7 +290,7 @@ struct AgentExecutionKernelIntegrationTests {
                 let thirdAfter = try SessionCodec.decode(AgentReplayRecord.self, from: try await reopenedLibrary.read(reopenedThird))
                 #expect(secondAfter.sources == [firstSource])
                 #expect(Set(thirdAfter.sources) == Set([firstSource, secondSource]))
-                let requestAfter = try SessionCodec.decode(AgentContextBuild.self, from: await reopenedLibrary.read(attempt.attempt.request))
+                let requestAfter = try SessionCodec.decode(AgentRequestRecord.self, from: await reopenedLibrary.read(attempt.attempt.request))
                 #expect(requestAfter == request)
                 await reopened.close(); try await reopenedLibrary.close()
             } catch { await reopenedRuntime?.close(); try? await reopenedLibrary.close(); throw error }
@@ -273,13 +315,13 @@ struct AgentExecutionKernelIntegrationTests {
             let thirdState = await fixture.runtime.snapshot()
             let thirdAttemptID = try #require(thirdState.executions[thirdID]?.attemptIDs.last)
             let thirdAttempt = try #require(thirdState.attempts[thirdAttemptID])
-            let thirdBuild = try SessionCodec.decode(AgentContextBuild.self, from: await fixture.library.read(thirdAttempt.attempt.request))
+            let thirdBuild = try SessionCodec.decode(AgentRequestRecord.self, from: await fixture.library.read(thirdAttempt.attempt.request))
             let firstSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: fixture.executionID)
             let secondSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: secondID)
             #expect(Set(thirdBuild.inheritedSources) == Set([firstSource, secondSource]))
             #expect(thirdBuild.omissions.isEmpty)
-            #expect(thirdBuild.prepared.input.messages.contains { $0.role == .context && $0.text.contains("contribution-3") })
-            #expect(thirdBuild.prepared.input.messages.count == 4)
+            #expect(thirdBuild.input.messages.contains { $0.role == .context && $0.text.contains("contribution-3") })
+            #expect(thirdBuild.input.messages.count == 4)
             #expect(thirdBuild.evidence.map(\.itemID) == ["item-3"])
             #expect(thirdState.executions.values.filter { $0.completion?.status == .completed }.count == 3)
             _ = await third.shutdown()

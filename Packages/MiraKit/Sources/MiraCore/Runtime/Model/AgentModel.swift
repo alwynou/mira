@@ -110,6 +110,38 @@ public enum AgentModelBlockContent: Codable, Sendable, Equatable {
     case thinking(String)
     case toolCall(CanonicalToolCall)
     case toolResult(callID: String, text: String)
+
+    private enum CodingKeys: String, CodingKey { case type, text, call, callID }
+    private enum Kind: String, Codable { case text, thinking, toolCall = "tool_call", toolResult = "tool_result" }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        switch try values.decode(Kind.self, forKey: .type) {
+        case .text: self = .text(try values.decode(String.self, forKey: .text))
+        case .thinking: self = .thinking(try values.decode(String.self, forKey: .text))
+        case .toolCall: self = .toolCall(try values.decode(CanonicalToolCall.self, forKey: .call))
+        case .toolResult:
+            self = .toolResult(callID: try values.decode(String.self, forKey: .callID),
+                               text: try values.decode(String.self, forKey: .text))
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .text(let text), .thinking(let text):
+            let kind: Kind = if case .thinking = self { .thinking } else { .text }
+            try values.encode(kind, forKey: .type)
+            try values.encode(text, forKey: .text)
+        case .toolCall(let call):
+            try values.encode(Kind.toolCall, forKey: .type)
+            try values.encode(call, forKey: .call)
+        case .toolResult(let callID, let text):
+            try values.encode(Kind.toolResult, forKey: .type)
+            try values.encode(callID, forKey: .callID)
+            try values.encode(text, forKey: .text)
+        }
+    }
 }
 
 public struct AgentModelBlock: Codable, Sendable, Equatable {

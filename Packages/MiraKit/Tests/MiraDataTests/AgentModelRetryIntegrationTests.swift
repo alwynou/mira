@@ -20,13 +20,13 @@ struct AgentModelRetryIntegrationTests {
             try #require(attempts.count == 2)
             #expect(inputs[0] == inputs[1])
             #expect(attempts[0].attempt.request == attempts[1].attempt.request)
-            var builds: [AgentContextBuild] = []
+            var builds: [AgentRequestRecord] = []
             for attempt in attempts {
-                builds.append(try SessionCodec.decode(AgentContextBuild.self,
+                builds.append(try SessionCodec.decode(AgentRequestRecord.self,
                     from: await fixture.library.read(attempt.attempt.request)))
             }
             #expect(builds[0] == builds[1])
-            #expect(builds[0].prepared.input == inputs[0])
+            #expect(builds[0].input == inputs[0])
             #expect(attempts.map { $0.attempt.stepIndex } == [1, 1])
             #expect(attempts.map { $0.attempt.attemptIndex } == [1, 2])
             #expect(attempts[0].attempt.id != attempts[1].attempt.id)

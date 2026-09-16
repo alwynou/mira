@@ -332,7 +332,7 @@ private final class RecoveryFixture: Sendable {
                 prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                 inheritedSources: [], evidence: [], omissions: [])
             let started = await runtime.commit(id: UUID()) { context in
-                let request = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let request = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
                 return [.phaseChanged(executionID: executionID, phase: .preparing),
                         .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID,
                             stepIndex: 1, attemptIndex: 1, request: request))]

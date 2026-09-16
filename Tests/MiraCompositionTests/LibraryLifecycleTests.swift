@@ -310,6 +310,46 @@ struct LibraryLifecycleTests {
         }
     }
 
+    @Test func finderMetadataDoesNotPreventOpeningOrReopeningLibrary() async throws {
+        try await withDirectory { directory in
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+            let metadata = directory.appendingPathComponent(".DS_Store")
+            let contents = Data("Synthetic Finder metadata".utf8)
+            try contents.write(to: metadata)
+            for _ in 0..<2 {
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
+                    directory: directory, notifications: CompositionNotifications(),
+                    credentials: CompositionCredentials(), modules: { _ in [] })
+                #expect(await library.status().phase == .ready)
+                #expect(await library.close().isSettled)
+                #expect(try Data(contentsOf: metadata) == contents)
+            }
+        }
+    }
+
+    @Test func symbolicAndHardLinkedFinderMetadataAreRejected() async throws {
+        for symbolic in [true, false] {
+            try await withDirectory { directory in
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+                let external = directory.deletingLastPathComponent().appendingPathComponent("External")
+                let contents = Data("External sentinel".utf8)
+                try contents.write(to: external)
+                let metadata = directory.appendingPathComponent(".DS_Store")
+                if symbolic {
+                    try FileManager.default.createSymbolicLink(at: metadata, withDestinationURL: external)
+                } else {
+                    try FileManager.default.linkItem(at: external, to: metadata)
+                }
+                await #expect(throws: MiraError.self) {
+                    _ = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
+                        directory: directory, notifications: CompositionNotifications(),
+                        credentials: CompositionCredentials(), modules: { _ in [] })
+                }
+                #expect(try Data(contentsOf: external) == contents)
+            }
+        }
+    }
+
     @Test func unsupportedDevelopmentLibraryIsRejectedWithoutChangingItsContents() async throws {
         try await withDirectory { directory in
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)

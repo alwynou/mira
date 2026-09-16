@@ -220,15 +220,15 @@ public struct JournalSessionReader: Sendable {
         for id in execution.attemptIDs {
             guard let attempt = snapshot.state.attempts[id], attempt.resolution?.status == .completed else { continue }
             try requireAvailable(attempt.attempt.request)
-            let build = try SessionCodec.decode(AgentContextBuild.self, from: await payloads.read(attempt.attempt.request))
-            guard build.request.sessionID == snapshot.state.id,
-                  build.request.executionID == executionID,
-                  build.request.workspaceID == job.workspaceID,
-                  build.request.destination == .model(route),
-                  build.prepared.input.executionID == executionID,
-                  build.prepared.input.stepID == attempt.attempt.stepID else { throw Self.invalidPrefix }
-            try build.prepared.validate(for: route)
-            return .init(route: route, input: build.prepared.input, sources: build.sources)
+            let record = try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(attempt.attempt.request))
+            guard record.request.sessionID == snapshot.state.id,
+                  record.request.executionID == executionID,
+                  record.request.workspaceID == job.workspaceID,
+                  record.request.destination == .model(route),
+                  record.input.executionID == executionID,
+                  record.input.stepID == attempt.attempt.stepID else { throw Self.invalidPrefix }
+            try record.validate(for: route)
+            return .init(route: route, input: record.input, sources: record.sources)
         }
         throw Self.unavailableEvidence
     }
@@ -305,15 +305,15 @@ public struct JournalSessionReader: Sendable {
             guard resolution.status == .completed else { continue }
             let reference = attempt.attempt.request
             try requireAvailable(reference)
-            let build = try SessionCodec.decode(AgentContextBuild.self, from: await payloads.read(reference))
-            guard build.request.sessionID == sessionID, build.request.executionID == executionID,
-                  build.request.workspaceID == state.header?.workspaceID,
-                  build.request.destination.modelRoute == route,
-                  build.prepared.input.executionID == executionID,
-                  build.prepared.input.stepID == attempt.attempt.stepID else {
+            let record = try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(reference))
+            guard record.request.sessionID == sessionID, record.request.executionID == executionID,
+                  record.request.workspaceID == state.header?.workspaceID,
+                  record.request.destination.modelRoute == route,
+                  record.input.executionID == executionID,
+                  record.input.stepID == attempt.attempt.stepID else {
                 throw MiraError(.storage, "The execution request evidence is inconsistent.")
             }
-            for source in build.sources { try source.validate(); sources.insert(source) }
+            for source in record.sources { try source.validate(); sources.insert(source) }
             guard sources.count <= 8_192 else { throw Self.invalidPrefix }
         }
         try Task.checkCancellation()

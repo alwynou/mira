@@ -20,7 +20,7 @@ flowchart TB
   Domain --> Projection[SessionPrivacyProjections\n重建并核对可见历史元数据]
   Plans --> SQLite[共享业务库中的维护权威]
   Journal --> Files[JSONL 会话日志]
-  Bodies --> Payloads[inline 字典或 external 文件]
+  Bodies --> Payloads[typed event inline 正文或 external 文件]
 ```
 
 查看 [Mermaid 源文件](diagrams/agent-session-privacy-architecture.mmd)。
@@ -54,7 +54,7 @@ flowchart TD
 
 查看 [Mermaid 源文件](diagrams/agent-session-privacy-flow.mmd)。
 
-所有会话的失效记录提交后才开始主动维护。`SessionState.invalidatedRetentionGroups` 包含所有当前不可读组，包括 retryCleared 的逻辑退休组；`erasedRetentionGroups` 仅包含显式隐私物理擦除授权。重试清理只追加逻辑事实，保留原始 JSONL 和 external 字节；普通 `SessionPayloadReader.read` 对 invalidated 组抛出 `notFound`，归档内部校验仍可读取未物理擦除的历史证明，UI／上下文隐藏该正文。只有显式隐私维护在 durable invalidation 之后，才可将受影响（包括此前退休的）inline 正文以临时 JSONL 文件写入、同步、原子 rename 和目录同步移除，并按 external 删除屏障物理清理文件；重写必须重新计算记录 checksum、偏移和前缀摘要，只保留逻辑批次／事件 ID、head 及仍保留的 inline 正文，不改写逻辑事实。普通启动使用[待发布批次记录](AGENT_PAYLOAD_RECOVERY.md)定向清理遗留 external 暂存内容；该启动优化不能代替本契约最后的全库孤儿扫描和物理验证。
+所有会话的失效记录提交后才开始主动维护。`SessionState.invalidatedRetentionGroups` 包含所有当前不可读组，包括 retryCleared 的逻辑退休组；`erasedRetentionGroups` 仅包含显式隐私物理擦除授权。重试清理只追加逻辑事实，保留原始 JSONL 和 external 字节；普通 `SessionPayloadReader.read` 对 invalidated 组抛出 `notFound`，归档内部校验仍可读取未物理擦除的历史证明，UI／上下文隐藏该正文。只有显式隐私维护在 durable invalidation 之后，才可将受影响（包括此前退休的）inline 正文以临时 JSONL 文件写入、同步、原子 rename 和目录同步移除，并按 external 删除屏障物理清理文件；重写必须重新计算受影响 `transaction_commit` checksum、事务偏移和前缀摘要，只保留逻辑批次／事件 ID、head 及仍保留的正文，不改写逻辑事实。普通启动使用[待发布批次记录](AGENT_PAYLOAD_RECOVERY.md)定向清理遗留 external 暂存内容；该启动优化不能代替本契约最后的全库孤儿扫描和物理验证。
 
 普通调用方取消不能让库关口自动恢复 ready；外层维护协调器拥有实际工作。引擎单实例拒绝重入。出现不属于原计划的新会话、额外追加或错误批次时拒绝继续。不能把新头当作成功、现场缩小清理范围，或重新生成同一操作的批次身份。
 

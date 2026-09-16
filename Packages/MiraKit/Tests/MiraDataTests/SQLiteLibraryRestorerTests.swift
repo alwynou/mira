@@ -442,7 +442,7 @@ private func stageRestorationDraft(_ fixture: TaskWorkflowFixture, source: Agent
                 prepared: .init(
                     adapter: fixture.route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                 inheritedSources: [source], evidence: [], omissions: [])
-            let requestReference = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestReference = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
             return [
                 .phaseChanged(executionID: address.executionID, phase: .preparing),
                 .attemptStarted(

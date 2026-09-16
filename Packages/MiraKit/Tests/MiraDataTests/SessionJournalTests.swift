@@ -145,9 +145,9 @@ struct SessionJournalTests {
         var bad = try Data(contentsOf: journal); bad[bad.startIndex + 12] = bad[bad.startIndex + 12] == 48 ? 49 : 48; try bad.write(to: journal); #expect(throws: MiraError.self) { _ = try FileSessionLibrary(directory: dir) }
     }
 
-    @Test func malformedOversizedSingleLineIsRejectedAndEnvelopeIsValidJSON() async throws {
+    @Test func malformedOversizedSingleLineIsRejectedAndEveryEventIsValidJSON() async throws {
         let dir = try temp(); defer { remove(dir) }; let sid = ConversationID(); let store = try FileSessionLibrary(directory: dir); let b = simple(sid, expected: 0); #expect(await store.append(b) == .committed(b.cursor)); try await store.close()
-        let journal = dir.appendingPathComponent("sessions/\(sid.rawValue.uuidString).jsonl"); let line = try Data(contentsOf: journal).dropLast(); #expect((try JSONSerialization.jsonObject(with: line)) is [String: Any])
+        let journal = dir.appendingPathComponent("sessions/\(sid.rawValue.uuidString).jsonl"); let lines = try Data(contentsOf: journal).split(separator: 10); for line in lines { #expect((try JSONSerialization.jsonObject(with: Data(line))) is [String: Any]) }
         try (Data(repeating: 65, count: FileSessionRecord.maximumBytes + 1024) + Data([10])).write(to: journal); #expect(throws: MiraError.self) { _ = try FileSessionLibrary(directory: dir) }
     }
 

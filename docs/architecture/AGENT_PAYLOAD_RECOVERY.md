@@ -6,7 +6,7 @@
 
 ## 权威与职责
 
-已提交的 JSONL 批次、批次内 `payloads` 和正文引用共同决定哪些内容存在、属于哪个保留组、是否已经失效。当前记录封装为 `{checksum, record:{batch, payloads:{UUID: exactUTF8String}}}`；`checksum` 是对 `record` 的精确序列化 JSON 字节计算的 SHA-256，不能重新序列化后替代。`SessionPayloadReference.storage` 只有 `inline` 与 `external` 两种值；引用仍是逻辑定位和保留授权的唯一入口，存储值不是另一套正文权威。inline 值是 `payloads` 中以正文 UUID 为键的精确 UTF-8 字符串，引用的 `digest` 对原始 UTF-8 字节计算；external 值指向既有受管文件。原始 UTF-8 字节数小于或等于 256 KiB 且可按 UTF-8 解码时，可以 inline；JSON 字符串转义后的编码字节总量必须仍不超过 2 MiB，否则该正文使用 external。无效 UTF-8、超过 256 KiB 或 inline 批次预算耗尽时使用 external。记录 body 仍不得超过 8 MiB。
+已提交的 JSONL 事务、事务内事件和正文引用共同决定哪些内容存在、属于哪个保留组、是否已经失效。当前格式为 v4 typed events：每个事件是独立 JSON 对象行，语义正文节点直接嵌入字段并携带 `id`、`retention_group`、`kind`、`byte_count`、`sha256`；可精确还原原始字节的 canonical JSON 正文使用 `json`；用户消息、可见回复／思考、标题、草稿及其余可 inline 正文使用 `text`，大正文或非 UTF-8 正文使用既有 external 文件。事务末尾的 `transaction_commit` 行携带 `format_version`、事务身份、`session_id`、`expected_sequence`、`event_count` 和此前所有事件行（含 LF）的精确字节校验和。只有有效提交行发布事务中的全部事实。事务最多为 8 MiB 加 256 字节封装余量、元数据不超过 2 MiB、最多 256 个事件；inline 单正文和批次预算仍为 256 KiB／2 MiB。
 
 正常追加严格保持 JSONL 记录不可变；只有显式隐私物理擦除在 durable invalidation 之后，才允许按下文协议重写记录以移除 inline 正文。
 
@@ -41,7 +41,7 @@ sequenceDiagram
     participant Journal as 会话日志
     Caller->>Writer: stage(session, batch, bytes)
     alt inline：有效 UTF-8 且批次预算足够
-        Writer->>Writer: 仅在内存批次中保存 payloads
+        Writer->>Writer: 仅在内存事务中保存 typed event payloads
     else external：二进制／超限／预算耗尽
         Writer->>Pending: 创建／核对零字节标记；同步文件和目录
         Writer->>Bodies: 写临时正文；同步；独占发布；同步目录
@@ -56,15 +56,15 @@ sequenceDiagram
     Writer-->>Caller: committed
 ```
 
-inline stage 只在内存中组装，并与批次追加作为一个原子日志记录发布；在批次提交前不能被读取。只有 external stage 需要在任何 external 文件或其批次目录创建之前同步标记。标记之后的阶段失败可以留下恢复工作，但不能留下无法定位的当前写入器暂存文件。同一批次多次 stage 会重新核对标记；不能仅凭内存集合假设它仍在磁盘上。
+inline stage 只在内存中组装，并随事件行与提交行构成的原子事务发布；在批次提交前不能被读取。只有 external stage 需要在任何 external 文件或其批次目录创建之前同步标记。标记之后的阶段失败可以留下恢复工作，但不能留下无法定位的当前写入器暂存文件。同一批次多次 stage 会重新核对标记；不能仅凭内存集合假设它仍在磁盘上。
 
-批次确认后，写入器保留该批次实际发布的引用，删除同批未引用的 external 暂存／正文文件，完成批次目录同步之后才移除标记；inline 字典随批次一起保留。清理失败不会撤销已提交批次或把它改报为未提交；恢复记录继续承担后续 external 清理。若标记已 unlink 但目录同步失败，之前的正文删除屏障已经完成，重启时标记可能重新出现，重复处理仍安全。重复 append／reconcile 可以再次完成同一已确认批次的清理，不产生新事实。
+事务确认后，写入器保留该事务实际发布的引用，删除同事务未引用的 external 暂存／正文文件，完成批次目录同步之后才移除标记；typed event 正文节点随事务一起保留。清理失败不会撤销已提交事务或把它改报为未提交；恢复记录继续承担后续 external 清理。若标记已 unlink 但目录同步失败，之前的正文删除屏障已经完成，重启时标记可能重新出现，重复处理仍安全。重复 append／reconcile 可以再次完成同一已确认事务的清理，不产生新事实。
 
 追加尚不确定时，写入器继续封锁新的 stage 与追加，保留原批次及 external 标记；不能为清理孤儿而删除可能已经提交的正文。inline 字节若未进入完整日志记录即丢弃，不能从内存暂存猜测提交。只有原批次核对或重开后的完整日志恢复确定提交前缀，才能决定保留集合。
 
 ## 启动和元数据重建
 
-初始化首先恢复并验证完整日志前缀及每个批次记录的 `payloads` 字典、UTF-8、正文摘要和大小上限，并将索引／缓存绑定到完整源字节前缀。随后只按已提交显式物理擦除（`erasedRetentionGroups`）事实执行可重试的正文删除；一般 `invalidatedRetentionGroups`（包括逻辑退休）只是读取隐藏授权，待发布标记也不是删除授权。external 文件已经不存在时仍重试目录同步，直到删除屏障完成。
+初始化首先恢复并验证完整日志前缀、每个事件行、事务提交行、正文节点、UTF-8、正文摘要和大小上限，并将索引／缓存绑定到完整源字节前缀。未提交的最终事务（包括其中已经完整写入的事件行）在普通恢复中整体移除；完整非法事件行或提交行拒绝打开。随后只按已提交显式物理擦除（`erasedRetentionGroups`）事实执行可重试的正文删除；一般 `invalidatedRetentionGroups`（包括逻辑退休）只是读取隐藏授权，待发布标记也不是删除授权。external 文件已经不存在时仍重试目录同步，直到删除屏障完成。
 
 待发布目录存在时，只枚举其中的标记，依据当前已验证日志引用清理对应批次的 external 暂存文件。没有提交引用的正文不能因为文件仍存在而变得可读；已提交正文（包括逻辑退休历史）不会被当作孤儿删除。标记已同步而正文目录尚未创建是合法中断状态，恢复可以清除空工作项。
 
@@ -74,6 +74,6 @@ inline stage 只在内存中组装，并与批次追加作为一个原子日志�
 
 定向启动恢复不是完整隐私维护。所有生产者排空且没有不确定追加之后，`purgeUnpublished` 仍遍历全库实际 external 目录，回收全部暂存／无主文件并清除待发布记录；`verifyNoUnpublished` 独立全量扫描并要求待发布记录为空。重试逻辑退休只影响可读性，不授权物理删除；`verifyPurged` 只对显式隐私擦除的 `erasedRetentionGroups` 检查 external 文件不存在，并核对 inline 正文不再出现在有效批次记录中。一般 `invalidatedRetentionGroups` 可包含逻辑退休、撤权和已擦除组，不能据此删除物理字节。任何失败都不能解除外层持久 pending。
 
-`withSnapshot` 仍验证全部未被物理擦除的 external 文件身份、长度和摘要，并验证 inline 字典中的摘要与引用；逻辑退休正文仍属于规范物理历史，可以随快照／归档保留。普通正文读取对 invalidated 组抛出 `notFound`，而快照读取对 invalidated 组返回 `nil`。只有 `erasedRetentionGroups` 的 external 文件必须不存在，且其 inline 正文必须已从重写后的记录移除。归档复制规范 JSONL（其中包含未擦除的 inline 字节，包括逻辑退休历史）和未擦除的 external 文件，不复制待发布目录；目标严格验证仍拒绝额外文件。独立恢复器关闭私有写入器后移除其派生元数据，再从规范文件重新验证，不能用元数据清理冒充正文验证。
+`withSnapshot` 仍验证全部未被物理擦除的 external 文件身份、长度和摘要，并验证 typed event 正文节点的摘要与引用；逻辑退休正文仍属于规范物理历史，可以随快照／归档保留。普通正文读取对 invalidated 组抛出 `notFound`；内部 `readRetainedPayload` 可以读取仍保留的已退休正文，但对已经 erased 的正文返回 `nil`。只有 `erasedRetentionGroups` 的 external 文件必须不存在，且其 inline 正文必须已从重写后的事件／提交中移除。归档复制规范 JSONL（其中包含未擦除的 inline 字节，包括逻辑退休历史）和未擦除的 external 文件，不复制待发布目录；目标严格验证仍拒绝额外文件。独立恢复器关闭私有写入器后移除其派生元数据，再从规范文件重新验证，不能用元数据清理冒充正文验证。
 
 应用级 `recoverStartup` 当前仍逐会话恢复执行状态；本契约只调整文件库的正文 I/O 责任，未宣称已解决全部应用启动成本或通过十万消息的原生启动门槛。

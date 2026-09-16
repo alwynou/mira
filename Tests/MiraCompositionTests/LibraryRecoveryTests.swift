@@ -121,7 +121,7 @@ private func stageInterruptedDraft(_ sessions: FileSessionLibrary, sources: [Age
                     prepared: .init(
                         adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                     inheritedSources: sources, evidence: [], omissions: [])
-                let reference = try await context.stage(build, kind: .request, retentionGroup: UUID())
+                let reference = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
                 return [
                     .phaseChanged(executionID: address.executionID, phase: .preparing),
                     .attemptStarted(

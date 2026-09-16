@@ -249,7 +249,7 @@ private struct WorkerFixture: Sendable {
             let build = AgentContextBuild(request: .init(sessionID: sessionID, executionID: executionID,
                 workspaceID: nil, userText: "I prefer compact interfaces", authorizationEpoch: 0,
                 destination: .model(routeInfo.route)), prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
-            let request = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let request = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
             let output = try await context.stage(AgentModelOutput(blocks: [.init(id: "answer", content: .text("Understood."))], continuation: nil, usage: .init(), finishReason: .stop),
                 kind: .modelOutput, retentionGroup: UUID())
             let answer = try await context.stageBytes(Data("Understood.".utf8), kind: .visibleAnswer, retentionGroup: UUID())

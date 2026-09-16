@@ -104,14 +104,14 @@ struct AgentSourceDispatchTests {
         }
     }
 
-    @Test func changedTaskSourceCannotBecomeACompletedAnswerOrFutureHistory() async throws {
+    @Test func updatedTaskRetainsItsAuthorizedHistoricalRevisionInReplay() async throws {
         let call = CanonicalToolCall(id: "list", name: "task.list", arguments: "{}")
         try await withTaskWorkflow(outputs: [modelToolStream([call]),
-            [.blockStarted(.init(id: "text", content: .text("Answer using an obsolete task"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
+            [.blockStarted(.init(id: "text", content: .text("Answer using a historical task"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
             let task = try await f.save(draft: .init(title: "Original task"))
             await f.model.holdStream(number: 2)
             let sessionID = ConversationID()
-            let run = Task { try await f.run("List current tasks", sessionID: sessionID, expectedStatus: .interrupted) }
+            let run = Task { try await f.run("List current tasks", sessionID: sessionID, expectedStatus: .completed) }
             do {
                 try await taskEventually { await f.model.streamHeld }
                 _ = try await f.save(id: task.id, draft: .init(title: "Updated task"), expectedRevision: task.revision)
@@ -119,16 +119,17 @@ struct AgentSourceDispatchTests {
                 let address = try await run.value
                 let state = try await f.runtime.sessionSnapshot(id: sessionID)
                 let completion = try #require(state.executions[address.executionID]?.completion)
-                #expect(completion.answer == nil && completion.replay == nil && completion.visibleThinking == nil)
+                #expect(completion.answer != nil && completion.replay != nil)
                 let attemptID = try #require(state.executions[address.executionID]?.attemptIDs.last)
                 let reference = try #require(state.attempts[attemptID]?.attempt.request)
-                let build = try SessionCodec.decode(AgentContextBuild.self, from: await f.library.read(reference))
+                let build = try SessionCodec.decode(AgentRequestRecord.self, from: await f.library.read(reference))
                 #expect(build.request.destination == .model(f.route))
                 #expect(build.sources.contains(.domain(namespace: "tasks", id: task.id.rawValue, revision: task.revision)))
                 await f.model.append([[.blockStarted(.init(id: "text", content: .text("Fresh answer"))), .blockFinished(id: "text"), .finished(.stop)]])
                 _ = try await f.run("Continue with fresh context", sessionID: sessionID)
                 let input = try #require(await f.model.inputs.last)
-                #expect(!input.messages.contains { $0.text.contains("Answer using an obsolete task") || $0.text.contains("Original task") })
+                #expect(input.messages.contains { $0.text.contains("Answer using a historical task") })
+                #expect(input.messages.flatMap(\.toolResults).contains { $0.text.contains("Original task") })
             } catch { await f.model.releaseStream(); _ = await run.result; throw error }
         }
     }

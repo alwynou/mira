@@ -109,13 +109,13 @@ actor AgentExecutionFinalizer {
                 guard let reference = context.state.attempts[attemptID]?.attempt.request else {
                     throw MiraError(.storage, "The execution attempt is unavailable during settlement.")
                 }
-                let build = try SessionCodec.decode(AgentContextBuild.self, from: await context.payloads.read(reference))
-                guard build.request.destination.modelRoute == plan.route,
-                      build.request.workspaceID == context.state.header?.workspaceID,
-                      build.request.executionID == intent.executionID, build.request.sessionID == context.state.id else {
+                let record = try SessionCodec.decode(AgentRequestRecord.self, from: await context.payloads.read(reference))
+                guard record.request.destination.modelRoute == plan.route,
+                      record.request.workspaceID == context.state.header?.workspaceID,
+                      record.request.executionID == intent.executionID, record.request.sessionID == context.state.id else {
                     throw MiraError(.storage, "The execution request evidence is inconsistent.")
                 }
-                sources += build.sources; contextRequest = build.request
+                sources += record.sources; contextRequest = record.request
             }
             let expectedSources = AgentContextBuild.orderedSources(sources)
             if let replay = intent.replay {

@@ -3,7 +3,7 @@ import Foundation
 /// Version of the persisted authoritative state representation. Changing the
 /// reducer or this representation invalidates existing sidecars.
 public enum SessionStateCheckpointFormat {
-    public static let version = 3
+    public static let version = 4
 }
 
 /// Identifies recovery work at one validated journal boundary. This value does

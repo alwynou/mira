@@ -211,7 +211,7 @@ public struct JournalAgentHistoryReader: Sendable {
         var sources = Set<AgentSourceReference>()
         for attemptID in execution.attemptIDs {
             guard let attempt = state.attempts[attemptID] else { return nil }
-            let build = try SessionCodec.decode(AgentContextBuild.self,
+            let build = try SessionCodec.decode(AgentRequestRecord.self,
                 from: try await payloads.read(attempt.attempt.request))
             guard build.request.sessionID == state.id,
                   build.request.executionID == execution.admission.executionID,
@@ -222,7 +222,7 @@ public struct JournalAgentHistoryReader: Sendable {
             guard let sourceRoute = build.request.destination.modelRoute else {
                 throw MiraError(.storage, "The incomplete historical request destination is unavailable.")
             }
-            try build.prepared.validate(for: sourceRoute)
+            try build.validate(for: sourceRoute)
             for source in build.sources { try source.validate() }
             sources.formUnion(build.sources)
             guard sources.count <= 65_536 else { return nil }

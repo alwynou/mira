@@ -79,14 +79,14 @@ public actor SessionPrivacyMaintenance {
                 for attemptID in execution.attemptIDs {
                     guard let attempt = snapshot.state.attempts[attemptID] else { throw SessionPrivacyPlan.invalid }
                     if available(attempt.attempt.request, in: snapshot.state) {
-                        let build = try SessionCodec.decode(
-                            AgentContextBuild.self, from: await payloads.read(attempt.attempt.request))
-                        guard build.request.sessionID == id, build.request.executionID == executionID,
-                            build.request.workspaceID == snapshot.state.header?.workspaceID,
-                            build.prepared.input.executionID == executionID,
-                            build.prepared.input.stepID == attempt.attempt.stepID
+                        let record = try SessionCodec.decode(
+                            AgentRequestRecord.self, from: await payloads.read(attempt.attempt.request))
+                        guard record.request.sessionID == id, record.request.executionID == executionID,
+                            record.request.workspaceID == snapshot.state.header?.workspaceID,
+                            record.input.executionID == executionID,
+                            record.input.stepID == attempt.attempt.stepID
                         else { throw SessionPrivacyPlan.invalid }
-                        sources.formUnion(build.sources)
+                        sources.formUnion(record.sources)
                     }
                     for invocationID in attempt.invocationIDs {
                         guard let invocation = snapshot.state.invocations[invocationID] else {

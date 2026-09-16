@@ -241,6 +241,7 @@ actor MacLibraryStorage {
         let allowed: Set<String> = [
             "Business.sqlite", "Business.sqlite-wal", "Business.sqlite-shm", "Business.sqlite-journal",
             "Sessions", "Knowledge", "Projections", "credential-cleanup.json", "credential-cleanup.json.next",
+            ".DS_Store",
         ]
         let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
         guard Set(names).isSubset(of: allowed) else { throw invalidDirectory }
@@ -250,7 +251,7 @@ actor MacLibraryStorage {
                 guard attributes[.type] as? FileAttributeType == .typeDirectory else { throw invalidDirectory }
             }
         }
-        for name in ["credential-cleanup.json", "credential-cleanup.json.next"] {
+        for name in ["credential-cleanup.json", "credential-cleanup.json.next", ".DS_Store"] {
             if let attributes = try attributesIfPresent(directory.appendingPathComponent(name)) {
                 guard attributes[.type] as? FileAttributeType == .typeRegular,
                     (attributes[.referenceCount] as? NSNumber)?.intValue == 1

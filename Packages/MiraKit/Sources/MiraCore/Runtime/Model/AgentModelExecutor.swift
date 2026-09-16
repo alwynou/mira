@@ -100,8 +100,8 @@ actor AgentModelExecutor {
                 AgentModelAttemptFailureRecord.self, from: await payloads.read(failureReference))
             try record.failure.validate()
             guard !record.receivedStreamEvents, record.failure.retryAdvice != nil,
-                try SessionCodec.decode(AgentContextBuild.self, from: await payloads.read(previous.attempt.request))
-                    == build
+                try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(previous.attempt.request))
+                    == (try AgentRequestRecord(build))
             else {
                 throw Self.invalidRetry
             }
@@ -168,7 +168,7 @@ actor AgentModelExecutor {
                 else { throw Self.invalidRetry }
                 payload = retryingAttempt.request
             } else {
-                payload = try await context.stage(build, kind: .request, retentionGroup: UUID())
+                payload = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
             }
             var facts: [SessionFact] = []
             if context.state.executions[request.executionID]?.phase != .preparing {

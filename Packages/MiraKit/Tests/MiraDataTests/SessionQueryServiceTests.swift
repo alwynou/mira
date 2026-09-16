@@ -326,7 +326,7 @@ struct SessionQueryServiceTests {
                                 adapter: f.route.adapter, input: input, wirePayload: .object([:]),
                                 estimatedInputTokens: 1),
                             inheritedSources: [], evidence: [], omissions: [])
-                        let request = try await context.stage(build, kind: .request, retentionGroup: UUID())
+                        let request = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
                         var facts: [SessionFact] = [
                             .opened(.init(workspaceID: nil, title: title)),
                             .admitted(

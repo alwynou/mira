@@ -512,7 +512,7 @@ private final class ToolExecutorFixture: Sendable {
         let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1)
         let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: sources, evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestRef = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
                         attemptIndex: 1, request: requestRef))]
@@ -723,7 +723,7 @@ private final class ParallelToolFixture: Sendable {
             prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
             inheritedSources: [], evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestRef = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
                         attemptIndex: 1, request: requestRef))]
@@ -862,7 +862,7 @@ private final class CancellationToolFixture: Sendable {
             prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
             inheritedSources: [], evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestRef = try await context.stage(try AgentRequestRecord(build), kind: .request, retentionGroup: UUID())
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
                         attemptIndex: 1, request: requestRef))]

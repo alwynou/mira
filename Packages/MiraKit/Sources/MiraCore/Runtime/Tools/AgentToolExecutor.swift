@@ -76,10 +76,10 @@ actor AgentToolExecutor {
         let state = await runtime.snapshot()
         try Self.validateFreshBatch(state, attemptID: attemptID, executionID: executionID)
         let attempt = state.attempts[attemptID]!
-        let build = try SessionCodec.decode(AgentContextBuild.self, from: await payloads.read(attempt.attempt.request))
+        let build = try SessionCodec.decode(AgentRequestRecord.self, from: await payloads.read(attempt.attempt.request))
         guard build.request.sessionID == state.id, build.request.executionID == executionID,
               build.request.authorizationEpoch == state.authorizationEpoch,
-              build.prepared.input.tools == catalog.definitions else {
+              build.input.tools == catalog.definitions else {
             throw MiraError(.conflict, "The tool catalog differs from the frozen model request.")
         }
         let invocations = attempt.invocationIDs.compactMap { state.invocations[$0]?.invocation }
@@ -122,13 +122,13 @@ actor AgentToolExecutor {
         }
     }
 
-    private func runOne(_ invocation: SessionInvocation, build: AgentContextBuild) async throws {
+    private func runOne(_ invocation: SessionInvocation, build: AgentRequestRecord) async throws {
         try await checkEligibility(build.request.executionID, epoch: build.request.authorizationEpoch)
         guard let entry = catalog.entry(named: invocation.toolName) else {
             try await resolve(invocation, status: .notFound); return
         }
         guard entry.effect == invocation.effect,
-              build.prepared.input.tools.contains(entry.descriptor.definition) else {
+              build.input.tools.contains(entry.descriptor.definition) else {
             throw MiraError(.conflict, "The tool differs from its frozen model request.")
         }
         let call = try SessionCodec.decode(CanonicalToolCall.self, from: await payloads.read(invocation.call))
@@ -252,28 +252,28 @@ actor AgentToolExecutor {
         }
     }
 
-    private func toolContext(_ invocation: SessionInvocation, build: AgentContextBuild) async throws -> AgentToolContext {
+    private func toolContext(_ invocation: SessionInvocation, build: AgentRequestRecord) async throws -> AgentToolContext {
         let state = await runtime.snapshot()
         try Self.eligible(state, executionID: build.request.executionID, epoch: build.request.authorizationEpoch)
         guard let execution = state.executions[build.request.executionID],
               let attempt = state.attempts[invocation.attemptID],
               attempt.attempt.executionID == build.request.executionID,
-              attempt.attempt.stepID == build.prepared.input.stepID else {
+              attempt.attempt.stepID == build.input.stepID else {
             throw MiraError(.conflict, "The tool request differs from its admitted execution.")
         }
         let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
         guard let route = plan.route else {
             throw MiraError(.conflict, "The tool request has no admitted model route.")
         }
-        try build.prepared.validate(for: route)
+        try build.validate(for: route)
         let evidence = try await runtime.userEvidence(executionID: build.request.executionID)
         guard build.request.destination == .model(route), evidence.workspaceID == build.request.workspaceID,
               evidence.text == build.request.userText,
               evidence.sessionAuthorizationEpoch == build.request.authorizationEpoch,
               build.request.sessionID == state.id,
-              build.prepared.input.executionID == build.request.executionID,
-              build.prepared.input.messages.last(where: { $0.role == .user })?.text == evidence.text,
-              build.prepared.input.instructions == plan.instructions else {
+              build.input.executionID == build.request.executionID,
+              build.input.messages.last(where: { $0.role == .user })?.text == evidence.text,
+              build.input.instructions == plan.instructions else {
             throw MiraError(.conflict, "The tool context differs from the admitted user message.")
         }
         try await checkEligibility(build.request.executionID, epoch: evidence.sessionAuthorizationEpoch)
