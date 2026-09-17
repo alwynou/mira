@@ -31,12 +31,8 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
         guard effect.proposal.plan.sources.isEmpty, effect.proposal.plan.targets.isEmpty else {
             throw unauthorized
         }
-        let policy = try SQLiteMemoryStore.currentCapturePolicy(in: db)
-        if policy.mode != .manualOnly && !proposal.hasExplicitIntent {
-            throw unauthorized
-        }
         let source = MemoryEvidenceSource.userMessage(effect.context.evidence.reference)
-        if proposal.isDirectIntent, try SQLiteMemoryStore.suppressedMemorySource(source, in: db) {
+        if try SQLiteMemoryStore.suppressedMemorySource(source, in: db) {
             throw unauthorized
         }
         _ = isReplay

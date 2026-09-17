@@ -65,12 +65,12 @@ actor MacLibrary {
     }
 
     static func open(
-        directory: URL, expectedLibraryID: UUID? = nil,
+        embeddings: (any MemoryEmbeddingService)? = nil, directory: URL, expectedLibraryID: UUID? = nil,
         notifications: any LocalNotificationPort, credentials: any MacCredentialStore,
         modules: @escaping ModuleFactory, environment: RuntimeEnvironment = .init()
     ) async throws -> MacLibrary {
         let storage = try await MacLibraryStorage.open(
-            directory: directory, expectedLibraryID: expectedLibraryID, environment: environment)
+            embeddings: embeddings, directory: directory, expectedLibraryID: expectedLibraryID, environment: environment)
         let scope = RuntimeScope(kind: .library(storage.authority.libraryID))
         let registry = RuntimeRegistry<AgentCapability>()
         let domains = RuntimeRegistry<any AgentDomainSourceAuthority>()
@@ -81,7 +81,7 @@ actor MacLibrary {
                 modules: [
                     MacDriverModule(registry: registry),
                     MemoryModule(
-                        registry: registry, store: storage.memories, capturePolicy: storage.memories,
+                        registry: registry, store: storage.memories,
                         sourceAuthorities: domains, now: environment.now),
                     KnowledgeModule(
                         registry: registry, store: storage.knowledge, sourceAuthorities: domains, prefetch: true),

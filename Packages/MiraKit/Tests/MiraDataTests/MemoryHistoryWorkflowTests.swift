@@ -29,9 +29,10 @@ struct MemoryHistoryWorkflowTests {
             let completed = await runtime.commit(id: UUID()) { context in
                 let answer = try await context.stageBytes(Data("Synthetic local answer".utf8), kind: .visibleAnswer,
                                                           retentionGroup: UUID())
-                let replay = try await context.stage(AgentReplayRecord(messages: [
+                let replayValue = AgentReplayRecord(messages: [
                     .init(role: .assistant, blocks: [.init(id: "answer", content: .text("Synthetic local answer"))])
-                ], sources: []), kind: .replay, retentionGroup: UUID())
+                ], sources: [])
+                let replay = try await AgentReplayManifest.stage(replayValue, execution: context.state.executions[executionID]!, context: context)
                 return [.phaseChanged(executionID: executionID, phase: .settling),
                         .finished(.init(executionID: executionID, status: .completed,
                                        assistantMessageID: MessageID(), answer: answer, replay: replay))]
@@ -41,8 +42,7 @@ struct MemoryHistoryWorkflowTests {
             let memory = try #require(f.memory)
             let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
             let privacy = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
-            let app = MemoryApplication(store: memory, capturePolicyStore: memory,
-                extractionBudgetReader: extraction, extractionStatusReader: extraction,
+            let app = MemoryApplication(store: memory, extractionStatusReader: extraction,
                 reader: .init(journal: f.library, payloads: f.library), privacyHistory: privacy,
                 access: f.access, scope: f.scope)
             defer {
@@ -74,7 +74,7 @@ struct MemoryHistoryWorkflowTests {
             let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
             let reader = JournalSessionReader(journal: f.library, payloads: f.library)
             let app = MemoryApplication(
-                store: store, capturePolicyStore: store, extractionBudgetReader: extraction, extractionStatusReader: extraction,
+                store: store, extractionStatusReader: extraction,
                 reader: reader, privacyHistory: plans, access: f.access, scope: f.scope,
                 now: { TaskWorkflowFixture.now })
             do {
@@ -117,7 +117,7 @@ struct MemoryHistoryWorkflowTests {
                         executionID: address.executionID, workspaceID: nil)
                 }
                 let broken = MemoryApplication(
-                    store: store, capturePolicyStore: store, extractionBudgetReader: extraction, extractionStatusReader: extraction,
+                    store: store, extractionStatusReader: extraction,
                     reader: .init(journal: f.library, payloads: MissingHistoryRequest(base: f.library)),
                     privacyHistory: plans, access: f.access, scope: f.scope)
                 await #expect(throws: MiraError.self) {

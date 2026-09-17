@@ -656,3 +656,8 @@ Compact Replacement 后：
 M2 `RequestContextInfo` 随每个 Canonical Request 在本机保存当前用户消息 ID、选入历史的消息 ID、Workspace 修订与路线修订，并说明失败 / 中断回复的省略原因。它是本地审计元数据，Adapter 不把这些元数据字段序列化进 Provider wire body。每 Attempt 独立保存快照。工具 Schema 与完整本回合交换进入预算，超限不截断。
 
 Built-in prompts use English independently of the interface locale. The response-language policy follows the user's request or message language. Tool-mode prompt replacement changes only the application-owned header; pinned user background remains verbatim. Omission metadata is a typed `Omission(executionID:reason:)` record, with `unsuccessfulReply` rendered through host localization. No historical text parser or compatibility decoder is maintained during early development.
+
+
+## Background memory request prefixes
+
+Always-automatic memory uses the actual completed conversation route. Its bounded follow-up preserves the foreground system instructions and tool definitions, disables tool calls, and appends extraction instructions at the tail. Message-prefix reuse requires tracked, currently eligible lineage and a bounded request; it never overrides deletion or disclosure checks. `AgentModelInput.prefixMessageCount` permits exactly one appended user message only when tools are disabled, without relaxing ordinary chat context placement. There is no daily extraction quota. Details and per-request limits are owned by [automatic memory](AUTOMATIC_MEMORY_IMPLEMENTATION.md).

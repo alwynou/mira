@@ -35,24 +35,24 @@ public struct JournalAgentEffectResolver: AgentEffectIntentResolver {
               proposal.effect == invocation.invocation.effect, proposal.callDigest == invocation.invocation.call.digest else {
             throw Self.invalidIntent
         }
-        let build = try SessionCodec.decode(AgentContextBuild.self, from: await payloads.read(attempt.attempt.request))
+        let build = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
         let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
         guard let route = plan.route else { throw Self.invalidIntent }
-        try build.prepared.validate(for: route)
+        try build.validate(for: route)
         guard build.request.destination == .model(route),
               build.request.executionID == proof.executionID, build.request.sessionID == proof.sessionID,
               build.request.workspaceID == state.header?.workspaceID,
-              build.prepared.input.executionID == proof.executionID,
-              build.prepared.input.stepID == attempt.attempt.stepID,
-              Set(build.sources).isSubset(of: Set(proposal.plan.sources)),
-              build.prepared.input.tools.contains(where: { $0 == proposal.descriptor.definition }) else {
+              build.input.executionID == proof.executionID,
+              build.input.stepID == attempt.attempt.stepID,
+              build.sources == proposal.inheritedSources,
+              build.input.tools.contains(where: { $0 == proposal.descriptor.definition }) else {
             throw Self.invalidIntent
         }
         if requireEligible, build.request.authorizationEpoch != state.authorizationEpoch { throw Self.ineligible }
         let evidence = try await reader.userEvidence(in: snapshot, executionID: proof.executionID)
         guard evidence.text == build.request.userText,
-              build.prepared.input.messages.last(where: { $0.role == .user })?.text == evidence.text,
-              build.prepared.input.instructions == plan.instructions else { throw Self.invalidIntent }
+              build.input.messages.last(where: { $0.role == .user })?.text == evidence.text,
+              build.input.instructions == plan.instructions else { throw Self.invalidIntent }
         try Task.checkCancellation()
         return .init(proposal: proposal, context: .init(executionID: proof.executionID,
             invocationID: proof.invocationID, evidence: evidence, route: route))

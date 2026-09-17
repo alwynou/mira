@@ -67,7 +67,7 @@ struct SessionIndexTests {
             #expect(await writer.append(first) == .committed(first.cursor)); try await writer.close()
             let url = journalURL(directory, id)
             var bytes = try Data(contentsOf: url)
-            bytes.append(FileSessionIO.envelope(try SessionCodec.encode(second)))
+            bytes.append(try wrapFileSessionRecord(batch: second, payloads: [:]))
             // An interrupted final delimiter is recovered even with an earlier valid index.
             try bytes.write(to: url)
             let reopened = try FileSessionLibrary(directory: directory)
@@ -135,6 +135,10 @@ struct SessionIndexTests {
     }
     private func journalURL(_ directory: URL, _ id: ConversationID) -> URL { directory.appendingPathComponent("sessions/\(id.rawValue.uuidString).jsonl") }
     private func indexURL(_ directory: URL, _ id: ConversationID) -> URL { directory.appendingPathComponent("indexes/\(id.rawValue.uuidString).index") }
+
+    private func wrapFileSessionRecord(batch: SessionBatch, payloads: [String: String]) throws -> Data {
+        try FileSessionIO.encodeRecord(FileSessionRecord(batch: batch, payloads: payloads))
+    }
 }
 
 private extension SessionAppendOutcome {

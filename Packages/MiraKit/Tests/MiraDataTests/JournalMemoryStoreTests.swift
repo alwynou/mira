@@ -53,12 +53,8 @@ struct JournalMemoryStoreTests {
         }
     }
 
-    @Test func capturePolicyCASAndBoundedSearch() async throws {
+    @Test func boundedSearch() async throws {
         try await withMemoryFixture { f in
-            let p = try await f.store.memoryCapturePolicy()
-            let next = MemoryCapturePolicy(revision: p.revision + 1, mode: p.mode, dailyTokenLimit: p.dailyTokenLimit, enabledAt: p.enabledAt)
-            try await f.store.saveMemoryCapturePolicy(next, expectedRevision: p.revision, authorization: f.authorization, at: f.date)
-            await #expect(throws: MiraError.self) { try await f.store.saveMemoryCapturePolicy(next, expectedRevision: p.revision, authorization: f.authorization, at: f.date) }
             _ = try await f.create("bounded")
             await #expect(throws: MiraError.self) { _ = try await f.store.memoryList(workspaceID: nil, states: [], query: "", limit: 0) }
         }

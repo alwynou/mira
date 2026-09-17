@@ -6,9 +6,9 @@ flowchart TB
   Roots --> Engine
   Engine --> Journal[SessionJournal\n会话事实与已提交前缀]
   Engine --> Plans[SessionPrivacyPlanStore\n不可变清理计划与无正文依赖]
-  Engine --> Bodies[SessionPayloadMaintenance\n正文删除及物理存在性检查]
+  Engine --> Bodies[SessionPayloadMaintenance\n逻辑失效与显式物理擦除]
   Domain --> Business[领域正文、业务回执、Blob\n各自清除与验证]
   Domain --> Projection[SessionPrivacyProjections\n重建并核对可见历史元数据]
   Plans --> SQLite[共享业务库中的维护权威]
   Journal --> Files[JSONL 会话日志]
-  Bodies --> Payloads[独立正文文件]
+  Bodies --> Payloads[typed event inline 正文或 external 文件]

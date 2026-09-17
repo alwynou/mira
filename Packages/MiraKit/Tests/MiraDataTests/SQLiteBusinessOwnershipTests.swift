@@ -248,7 +248,7 @@ private final class OwnershipFixture: Sendable {
         let input = JSONValue.object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)])
         let output = JSONValue.object(["type": .string("object"), "properties": .object(["ok": .object(["type": .string("boolean")])]), "required": .array([.string("ok")]), "additionalProperties": .bool(false)])
         let descriptor = AgentToolDescriptor(definition: .init(name: "tests.write", description: "Ownership test", inputSchema: input), revision: 1, outputSchema: output, executionMode: .exclusive, timeoutMilliseconds: 1000, maximumResultBytes: 1024)
-        let proposal = AgentToolProposal(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: String(repeating: "a", count: 64), plan: .init(input: .object([:]), sources: [], targets: []))
+        let proposal = AgentToolProposal(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: String(repeating: "a", count: 64), inheritedSources: [], plan: .init(input: .object([:]), sources: [], targets: []))
         let context = ownershipContext(sessionID: sessionID, executionID: executionID, invocationID: invocationID)
         let resolver = GatedResolver(effect: .init(proposal: proposal, context: context))
         let database = try ownershipDatabase(path: path)

@@ -55,6 +55,52 @@ struct OpenAIResponsesProtocolTests {
         #expect(inputItems[2]["type"] == .string("message"))
     }
 
+    @Test func responsesToolDefinitionsPreserveOptionalSchemasWithStrictDisabled() throws {
+        let definitions = [TaskTools.mutationDefinition, KnowledgeTools.openDefinition]
+        let input = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Use local tools", messages: [
+            .init(role: .user, blocks: [.init(id: "question", content: .text("Create a task"))])
+        ], tools: definitions)
+        let prepared = try OpenAIResponsesAdapter(credentials: FixtureCredentials()).prepare(input, route: responsesRoute())
+        guard case .array(let tools) = prepared.wirePayload["tools"] else {
+            Issue.record("Missing Responses tool definitions")
+            return
+        }
+        #expect(tools.count == definitions.count)
+        for (wire, definition) in zip(tools, definitions) {
+            #expect(wire["strict"] == .bool(false))
+            #expect(wire["parameters"] == definition.inputSchema)
+        }
+        #expect(tools[0]["parameters"]?["required"] == TaskTools.mutationDefinition.inputSchema["required"])
+        #expect(tools[1]["parameters"]?["required"] == KnowledgeTools.openDefinition.inputSchema["required"])
+
+        let taskArguments = try ToolSchemaValidator.decode(
+            "{\"operation\":\"create\",\"title\":\"Buy milk\",\"quote\":\"Please remind me\",\"remind\":false}",
+            schema: TaskTools.mutationDefinition.inputSchema)
+        let sourceArguments = try ToolSchemaValidator.decode(
+            "{\"source_id\":\"00000000-0000-0000-0000-000000000000\"}",
+            schema: KnowledgeTools.openDefinition.inputSchema)
+        #expect(taskArguments["notes"] == nil)
+        #expect(sourceArguments["version_id"] == nil)
+    }
+
+    @Test func responsesCachedPrefixKeepsToolsButDisablesCallsAndBoundsOutput() throws {
+        let definition = ToolDefinition(name: "memory.search", description: "Search memory",
+                                         inputSchema: .object(["type": .string("object")]))
+        let input = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Extract memories.", messages: [
+            .init(role: .user, text: "Earlier"), .init(role: .assistant, text: "Earlier answer"),
+            .init(role: .user, text: "Current")
+        ], tools: [definition], allowsToolCalls: false, prefixMessageCount: 2, outputTokenLimit: 64)
+        let prepared = try OpenAIResponsesAdapter(credentials: FixtureCredentials()).prepare(input, route: responsesRoute())
+        #expect(prepared.wirePayload["tool_choice"] == .string("none"))
+        #expect(prepared.wirePayload["max_output_tokens"] == .number(64))
+        guard case .array(let tools) = prepared.wirePayload["tools"] else {
+            Issue.record("Responses request omitted the cached tool definitions.")
+            return
+        }
+        #expect(tools.count == 1)
+        #expect(tools[0]["name"] == .string("memory_search"))
+    }
+
     @Test func tamperedVisibleTextCannotReuseResponsesContinuation() throws {
         let priorItems: JSONValue = .array([
             .object(["type": .string("message"), "id": .string("msg_1"), "role": .string("assistant"),
@@ -104,7 +150,7 @@ struct OpenAIResponsesProtocolTests {
         data: {"type":"response.output_item.done","item":{"id":"fc_1","type":"function_call","call_id":"call_1","name":"memory_search","arguments":"{}"}}
 
         event: response.completed
-        data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"rs_1","type":"reasoning","status":"completed","encrypted_content":"ciphertext"},{"id":"msg_1","type":"message","status":"completed","content":[{"type":"output_text","text":"answer","annotations":[]}]},{"id":"fc_1","type":"function_call","status":"completed","call_id":"call_1","name":"memory_search","arguments":"{}"}],"usage":{"input_tokens":11,"output_tokens":7,"output_tokens_details":{"reasoning_tokens":3}}}}
+        data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"rs_1","type":"reasoning","encrypted_content":"ciphertext"},{"id":"msg_1","type":"message","content":[{"type":"output_text","text":"answer","annotations":[]}]},{"id":"fc_1","type":"function_call","call_id":"call_1","name":"memory_search","arguments":"{}"}],"usage":{"input_tokens":11,"output_tokens":7,"output_tokens_details":{"reasoning_tokens":3}}}}
 
         """
         let transport = FixtureResponsesTransport(bytes: Data(body.utf8))
@@ -129,6 +175,56 @@ struct OpenAIResponsesProtocolTests {
         guard case .array(let items) = continuation.payload else { Issue.record("Missing continuation items"); return }
         #expect(items[0]["encrypted_content"] == .string("ciphertext"))
         #expect(transport.closeCount == 1)
+    }
+
+    @Test func omittedTerminalItemStatusRequiresPriorDoneBoundary() async throws {
+        let body = """
+        event: response.output_item.added
+        data: {"type":"response.output_item.added","item":{"id":"msg_1","type":"message","role":"assistant"}}
+
+        event: response.completed
+        data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"msg_1","type":"message"}]}}
+        """
+        let failure = try await streamFailure(body: body)
+        #expect(failure.error.code == .malformedStream)
+    }
+
+    @Test func terminalItemStatusRejectsNonStringAndContradictoryDoneStatus() async throws {
+        let nullStatus = """
+        event: response.output_item.added
+        data: {"type":"response.output_item.added","item":{"id":"msg_1","type":"message","role":"assistant"}}
+
+        event: response.output_item.done
+        data: {"type":"response.output_item.done","item":{"id":"msg_1","type":"message","role":"assistant"}}
+
+        event: response.completed
+        data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"msg_1","type":"message","status":null}]}}
+        """
+        let nullFailure = try await streamFailure(body: nullStatus)
+        #expect(nullFailure.error.code == .malformedStream)
+
+        let contradictoryDoneStatus = """
+        event: response.output_item.added
+        data: {"type":"response.output_item.added","item":{"id":"msg_1","type":"message","role":"assistant"}}
+
+        event: response.output_item.done
+        data: {"type":"response.output_item.done","item":{"id":"msg_1","type":"message","role":"assistant","status":"incomplete"}}
+
+        event: response.completed
+        data: {"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"id":"msg_1","type":"message"}]}}
+        """
+        let contradictoryFailure = try await streamFailure(body: contradictoryDoneStatus)
+        #expect(contradictoryFailure.error.code == .malformedStream)
+    }
+
+    @Test func providerErrorEventMapsToSafeProviderRejection() async throws {
+        let body = """
+        event: error
+        data: {"type":"error","code":"provider_secret","message":"do not persist this user content"}
+        """
+        let failure = try await streamFailure(body: body)
+        #expect(failure.error.code == .providerRejected)
+        #expect(failure.error.message == "The provider rejected the request.")
     }
 
     @Test func responsesEOFBeforeCompletedIsInterruptedAndClosesTransport() async throws {

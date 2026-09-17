@@ -29,7 +29,7 @@ struct LibraryExecutionTests {
                     .finished(.stop),
                 ],
             ])
-            let storage = try await MacLibraryStorage.open(directory: directory)
+            let storage = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
             let route: AgentModelRoute
             do {
                 let configuration = AgentConfigurationValue(
@@ -69,7 +69,7 @@ struct LibraryExecutionTests {
                 throw error
             }
             let module: MacLibrary.ModuleFactory = { [CompositionModelModule(registry: $0, model: model)] }
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: module)
             let command = AgentSubmitCommand(
                 id: UUID(), sessionID: .init(), executionID: .init(),
@@ -113,7 +113,7 @@ struct LibraryExecutionTests {
                 _ = await library.close()
                 throw error
             }
-            let reopened = try await MacLibrary.open(
+            let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: module)
             do {
                 let group = try await reopened.workloads()

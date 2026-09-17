@@ -30,13 +30,13 @@ public struct SessionAuditAttempt: Sendable, Equatable, Identifiable {
     public let sequence: Int64
     public let startedAt: Date
     public let resolution: SessionAttemptResolution?
-    public let request: SessionAuditContent<AgentContextBuild>
+    public let request: SessionAuditContent<AgentRequestRecord>
     public let output: SessionAuditContent<AgentModelOutput>
     public let failure: SessionAuditContent<AgentModelAttemptFailureRecord>
     public let invocations: [SessionAuditInvocation]
 
     public init(attempt: SessionAttempt, sequence: Int64, startedAt: Date,
-                resolution: SessionAttemptResolution?, request: SessionAuditContent<AgentContextBuild>,
+                resolution: SessionAttemptResolution?, request: SessionAuditContent<AgentRequestRecord>,
                 output: SessionAuditContent<AgentModelOutput>,
                 failure: SessionAuditContent<AgentModelAttemptFailureRecord>,
                 invocations: [SessionAuditInvocation]) {
@@ -89,7 +89,7 @@ struct SessionAuditReader: Sendable {
     /// Keep the decoded request once so page assembly does not repeatedly read or
     /// decode the same retained payload.
     private final class PagePayloadCache {
-        var requests: [UUID: AgentContextBuild] = [:]
+        var requests: [UUID: AgentRequestRecord] = [:]
     }
 
     static func read(
@@ -125,6 +125,7 @@ struct SessionAuditReader: Sendable {
         if let error = executionState.completion?.error { referenced.append((error, .error)) }
         for value in selected {
             referenced.append((value.attempt.request, .request))
+            referenced += value.attempt.contents.map { ($0, $0.kind) }
             if let output = value.resolution?.output { referenced.append((output, .modelOutput)) }
             if let error = value.resolution?.error { referenced.append((error, .error)) }
             guard value.invocationIDs.count <= maximumInvocations,
@@ -209,41 +210,54 @@ struct SessionAuditReader: Sendable {
               value.invocationIDs.count <= maximumInvocations,
               Set(value.invocationIDs).count == value.invocationIDs.count else { throw invalidPage }
 
-        let request: SessionAuditContent<AgentContextBuild>
-        if let cached = cache.requests[attempt.request.id] {
+        let request: SessionAuditContent<AgentRequestRecord>
+        guard attempt.request.kind == .request, state.references[attempt.request.id] == attempt.request else { throw invalidPage }
+        if state.invalidatedRetentionGroups.contains(attempt.request.retentionGroup)
+            || attempt.contents.contains(where: { state.invalidatedRetentionGroups.contains($0.retentionGroup) }) {
+            request = .purged
+        } else if let cached = cache.requests[attempt.request.id] {
             request = .available(cached)
         } else {
-            let decoded = try await content(attempt.request, expected: .request, state: state,
-                                            payloads: payloads, maximumPageBytes: maximumPageBytes) {
-                try SessionCodec.decode(AgentContextBuild.self, from: $0)
-            }
-            if case .available(let build) = decoded { cache.requests[attempt.request.id] = build }
+            guard attempt.request.byteCount <= maximumPageBytes else { throw pageTooLarge }
+            let decoded: SessionAuditContent<AgentRequestRecord>
+            do {
+                decoded = .available(try await AgentRequestRecord.read(attempt.request, payloads: payloads))
+            } catch let error as MiraError { throw error }
+            catch { throw MiraError(.storage, "The session audit payload is corrupt.") }
+            if case .available(let record) = decoded { cache.requests[attempt.request.id] = record }
             request = decoded
         }
         let effectiveRoute: AgentModelRoute?
-        if case .available(let build) = request {
-            guard build.request.workspaceID == state.header?.workspaceID,
-                  let requestRoute = build.request.destination.modelRoute else { throw invalidPage }
+        if case .available(let record) = request {
+            guard record.request.workspaceID == state.header?.workspaceID,
+                  let requestRoute = record.request.destination.modelRoute else { throw invalidPage }
             if let route, route != requestRoute { throw invalidPage }
             effectiveRoute = requestRoute
-            guard build.request.sessionID == state.id,
-                  build.request.executionID == attempt.executionID,
-                  build.request.authorizationEpoch == execution.admission.authorizationEpoch,
-                  build.prepared.input.executionID == attempt.executionID,
-                  build.prepared.input.stepID == attempt.stepID,
-                  build.prepared.adapter == requestRoute.adapter else { throw invalidPage }
-            do { try build.prepared.validate(for: requestRoute) } catch { throw invalidPage }
-            for source in build.sources { try source.validate() }
+            guard record.request.sessionID == state.id,
+                  record.request.executionID == attempt.executionID,
+                  record.request.authorizationEpoch == execution.admission.authorizationEpoch,
+                  record.input.executionID == attempt.executionID,
+                  record.input.stepID == attempt.stepID,
+                  record.adapter == requestRoute.adapter else { throw invalidPage }
+            do { try record.validate(for: requestRoute) } catch { throw invalidPage }
+            for source in record.sources { try source.validate() }
         } else {
             effectiveRoute = route
         }
 
+        let valueResolutionStatus = value.resolution?.status
         let output: SessionAuditContent<AgentModelOutput>
         if let reference = value.resolution?.output {
             output = try await content(reference, expected: .modelOutput, state: state,
                                        payloads: payloads, maximumPageBytes: maximumPageBytes) {
                 let value = try SessionCodec.decode(AgentModelOutput.self, from: $0)
                 guard let effectiveRoute else { throw invalidPage }
+                if valueResolutionStatus != .completed {
+                    try SessionActiveDraft(request: attempt.request, executionID: attempt.executionID,
+                        attemptID: attempt.id, authorizationEpoch: execution.admission.authorizationEpoch,
+                        revision: 1, blocks: value.blocks, continuation: value.continuation, usage: value.usage).validate()
+                    return value
+                }
                 var accumulator = try AgentModelAccumulator(route: effectiveRoute, maximumToolCalls: maximumInvocations)
                 for block in value.blocks {
                     try accumulator.consume(.blockStarted(block))
@@ -311,7 +325,7 @@ struct SessionAuditReader: Sendable {
             invocations.append(.init(state: invocationState, call: call,
                                      proposal: proposal, result: result))
         }
-        if case .available(let modelOutput) = output {
+        if value.resolution?.status == .completed, case .available(let modelOutput) = output {
             guard modelOutput.toolCalls.count == invocations.count else { throw invalidPage }
         }
         return .init(attempt: attempt, sequence: value.sequence, startedAt: value.startedAt,

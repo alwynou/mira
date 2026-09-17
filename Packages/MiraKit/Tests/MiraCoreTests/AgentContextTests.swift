@@ -3,6 +3,40 @@ import Testing
 @testable import MiraCore
 
 struct AgentContextTests {
+    @Test func semanticRequestOmitsDuplicateWireJSONAndKeepsOrderedContinuation() throws {
+        let route = makeRoute(), context = request(route: makeRoute())
+        let request = AgentContextRequest(sessionID: context.sessionID, executionID: context.executionID,
+            workspaceID: context.workspaceID, userText: "Unique admitted text", authorizationEpoch: 1, destination: .model(route))
+        let continuation = AgentModelContinuation(adapter: route.adapter, format: "test.opaque",
+            payload: .object(["signature": .string("verbatim-signature"), "state": .array([.string("opaque")])]), isComplete: true)
+        let input = AgentModelInput(stepID: UUID(), executionID: context.executionID,
+            instructions: String(repeating: "Stable instruction. ", count: 1_000), messages: [
+                .init(role: .user, blocks: [.init(id: "old", content: .text("An older user message"))]),
+                .init(role: .assistant, blocks: [.init(id: "thinking", content: .thinking("Visible reasoning")),
+                    .init(id: "answer", content: .text("Earlier reply"))], continuation: continuation),
+                .init(role: .user, blocks: [.init(id: "current", content: .text(request.userText))])
+            ], tools: [])
+        let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input,
+            wirePayload: try SessionCodec.decode(JSONValue.self, from: SessionCodec.encode(input)), estimatedInputTokens: 50)
+        let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
+        let record = try AgentRequestRecord(build), bytes = try SessionCodec.encode(record)
+        let restored = try SessionCodec.decode(AgentRequestRecord.self, from: bytes)
+        #expect(restored == record && restored.input == input)
+        let text = String(decoding: bytes, as: UTF8.self)
+        #expect(!text.contains("wirePayload") && !text.contains("_0"))
+        #expect(text.components(separatedBy: request.userText).count == 2)
+        struct FormerSnapshot: Encodable { let request: AgentContextRequest; let prepared: AgentPreparedModelRequest }
+        let oldBytes = try SessionCodec.encode(FormerSnapshot(request: request, prepared: prepared)).count
+        #expect(bytes.count * 100 < oldBytes * 60)
+        print("Synthetic semantic request: old=\(oldBytes) bytes new=\(bytes.count) bytes")
+        var json = try #require(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+        for index in [-1, 0, 99] {
+            json["currentUserMessageIndex"] = index
+            let invalid = try JSONSerialization.data(withJSONObject: json)
+            #expect(throws: MiraError.self) { _ = try SessionCodec.decode(AgentRequestRecord.self, from: invalid) }
+        }
+    }
+
     @Test func totalSourceBudgetOmitsOptionalEvidenceAndRejectsRequiredOverflow() async throws {
         let route = makeRoute()
         let contextRequest = request(route: route)
@@ -35,9 +69,12 @@ struct AgentContextTests {
         #expect(build.inheritedSources == [source])
         #expect(build.sources == [source])
         #expect(await authorizer.calls == 2)
-        let decoded = try SessionCodec.decode(AgentContextBuild.self, from: SessionCodec.encode(build))
+        let record = try AgentRequestRecord(build)
+        let decoded = try SessionCodec.decode(AgentRequestRecord.self, from: SessionCodec.encode(record))
         #expect(decoded.request == build.request)
+        #expect(decoded.input == build.prepared.input)
         #expect(decoded.sources == [source])
+        #expect(try SessionCodec.encode(record).contains(Data("wirePayload".utf8)) == false)
     }
 
     @Test func contributorTextRemainsDataAndCurrentUserRemainsLast() async throws {

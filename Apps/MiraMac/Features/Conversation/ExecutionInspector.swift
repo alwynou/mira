@@ -239,7 +239,7 @@ private struct ExecutionInvocationView: View {
 
 private struct RequestSnapshotView: View {
     @Environment(\.locale) private var locale
-    let request: AgentContextBuild
+    let request: AgentRequestRecord
     let library: MacLibrary
     let sessionID: ConversationID
     let executionID: ExecutionID
@@ -253,18 +253,18 @@ private struct RequestSnapshotView: View {
     }
     // The ordinal is part of the immutable recorded request, not a live list position.
     private var orderedMessages: [RecordedMessage] {
-        request.prepared.input.messages.enumerated().map {
-            .init(stepID: request.prepared.input.stepID, ordinal: $0.offset + 1, message: $0.element)
+        request.input.messages.enumerated().map {
+            .init(stepID: request.input.stepID, ordinal: $0.offset + 1, message: $0.element)
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("System instructions").font(.caption.weight(.semibold))
-            Text(verbatim: request.prepared.input.instructions)
+            Text(verbatim: request.input.instructions)
                 .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-            if !request.prepared.input.tools.isEmpty {
-                DisclosureGroup("Tool definitions") { AuditJSONView(value: request.prepared.input.tools) }
+            if !request.input.tools.isEmpty {
+                DisclosureGroup("Tool definitions") { AuditJSONView(value: request.input.tools) }
             }
             Text("Request order").font(.caption.weight(.semibold))
             Text(
@@ -281,7 +281,7 @@ private struct RequestSnapshotView: View {
                 AuditJSONView(value: entry.message)
             }
             LabeledContent("Conservative input estimate") {
-                Text(request.prepared.estimatedInputTokens, format: .number)
+                Text(request.estimatedInputTokens, format: .number)
             }
             .font(.caption2)
             Text("Estimate is based on UTF-8 and protocol overhead, not the provider's exact token count.")

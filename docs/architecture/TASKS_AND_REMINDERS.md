@@ -44,6 +44,8 @@ flowchart TB
 
 `task.change` 的 quote 必须与完整接纳消息一致。只有明确、来源中可定位标题／备注及时间的受支持命令才直接提交；模糊意图或需要澄清的时间保存独立提案。现有任务必须提供当前工作区内的 ID 和修订号；工具说明要求先通过 `task.list` 查询。过期目标不会覆盖新修订。
 
+Task context sources refer to exact retained immutable revisions. The source authority requires the current task to remain accessible in the requested workspace and resolves the referenced revision directly through `TaskReadStore.taskRevision`; it does not search the latest-100 revision list. This allows `task.list` → `task.change` → final reply to retain the original list evidence after the mutation creates a new revision. Missing revisions and cross-workspace references remain unauthorized. `TaskListTool` still checks freshness before returning its captured list, and mutation preparation/SQL commit still require an exact current target revision. Historical read authority never grants stale write authority.
+
 人工接受提案时，`TaskApplication` 根据提案中保存的完整引用重新读取 journal，领域事务核对完整证据、工作区和当前库授权。失效或已删除的原始证据不能通过复制的 quote 恢复授权。拒绝提案无需再次披露原文。接受／拒绝是一次状态转换，重复审核返回冲突。
 
 ## 提交与回执

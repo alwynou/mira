@@ -206,7 +206,7 @@ struct ProviderConnectionSettingsModelTests {
     }
 
     private func openLibrary(directory: URL, credentials: CompositionCredentials) async throws -> MacLibrary {
-        try await MacLibrary.open(
+        try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
             directory: directory, notifications: CompositionNotifications(), credentials: credentials,
             modules: { _ in [] })
     }

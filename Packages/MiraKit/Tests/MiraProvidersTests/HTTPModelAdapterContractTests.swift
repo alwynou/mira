@@ -57,17 +57,27 @@ private final class AdapterDrainTransport: HTTPStreamingTransport, Sendable {
     }
 }
 
+private struct AdapterToolOutputTransport: HTTPStreamingTransport, Sendable {
+    func stream(request: URLRequest) -> HTTPTransportOperation {
+        let (events, continuation) = AsyncThrowingStream<HTTPTransportEvent, any Error>.makeStream()
+        continuation.yield(.response(.init(statusCode: 200)))
+        continuation.yield(.bytes(Data("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"memory_search\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n".utf8)))
+        return HTTPTransportOperation(events: events) { continuation.finish() }
+    }
+}
+
 @Suite("HTTP model adapter contract", .timeLimit(.minutes(1)))
 struct HTTPModelAdapterContractTests {
     private func route(fixture: ProtocolFixture = .standard,
                        connectionID: ConnectionID = ConnectionID(),
                        configuration: JSONValue? = nil,
                        credentialVersion: Int = 1,
-                       window: Int = 32_768) throws -> AgentModelRoute {
+                       window: Int = 32_768,
+                       maximumOutputTokens: Int = 1_024) throws -> AgentModelRoute {
         .init(id: RouteID(), revision: 1, connectionID: connectionID, connectionRevision: 1,
               modelDescriptorID: ModelDescriptorID(), modelRevision: 1, adapter: fixture.adapter,
               modelID: "fixture", credential: .init(reference: "fixture", version: credentialVersion),
-              contextWindow: window, maximumOutputTokens: 1_024,
+              contextWindow: window, maximumOutputTokens: maximumOutputTokens,
               capabilities: .init(streamsText: true, callsTools: true, producesThinking: true),
               configuration: try configuration ?? HTTPModelConfiguration(baseURL: "https://fixture.test",
                   protocolID: fixture.protocolID, dialectProfileID: fixture.dialect).jsonValue())
@@ -76,6 +86,20 @@ struct HTTPModelAdapterContractTests {
     private func input() -> AgentModelInput {
         .init(stepID: UUID(), executionID: ExecutionID(), instructions: "Answer briefly.",
               messages: [.init(role: .user, text: "Hello")], tools: [])
+    }
+
+    @Test func anthropicOutputHelperRaisesBudgetWithoutChangingThinkingControls() throws {
+        let configuration = try HTTPModelConfiguration(baseURL: "https://fixture.test", protocolID: .anthropicMessages,
+            dialectProfileID: .anthropic, thinking: .init(mode: .enabled, budgetTokens: 4_096)).jsonValue()
+        let route = try route(fixture: .anthropic, configuration: configuration,
+                              window: 16_384, maximumOutputTokens: 8_192)
+        let adapter = HTTPModelAdapter(fixture: .anthropic, credentials: AdapterCredentialProbe())
+        #expect(try adapter.outputTokenLimit(for: 2_048, route: route) == 4_097)
+        let input = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Extract",
+            messages: [.init(role: .user, text: "Current")], tools: [], outputTokenLimit: 4_097)
+        let prepared = try adapter.prepare(input, route: route)
+        #expect(prepared.wirePayload["max_tokens"] == .number(4_097))
+        #expect(prepared.wirePayload["thinking"]?["budget_tokens"] == .number(4_096))
     }
 
     @Test(arguments: ProtocolFixture.allCases)
@@ -132,6 +156,53 @@ struct HTTPModelAdapterContractTests {
         let small = try route(window: 1_100)
         do { _ = try adapter.prepare(input(), route: small); Issue.record("Expected a context limit.") }
         catch let error as MiraError { #expect(error.code == .contextLimit) }
+    }
+
+    @Test func deepSeekCachedPrefixRetainsToolsButDisablesCallsAndBoundsOutput() throws {
+        let adapter = HTTPModelAdapter(fixture: .deepSeek, credentials: AdapterCredentialProbe())
+        let definition = ToolDefinition(name: "memory.search", description: "Search memory",
+            inputSchema: .object(["type": .string("object")]))
+        let route = try route(fixture: .deepSeek)
+        let foreground = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Stable conversation instructions.", messages: [
+            .init(role: .user, text: "Earlier"), .init(role: .assistant, text: "Earlier answer"),
+            .init(role: .user, text: "Current")
+        ], tools: [definition])
+        let original = try adapter.prepare(foreground, route: route)
+        let extraction = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: foreground.instructions,
+            messages: foreground.messages + [.init(role: .user, text: "Extract target memories as JSON.")],
+            tools: foreground.tools, allowsToolCalls: false, prefixMessageCount: foreground.messages.count, outputTokenLimit: 64)
+        let prepared = try adapter.prepare(extraction, route: route)
+        #expect(prepared.wirePayload["tool_choice"] == .string("none"))
+        #expect(prepared.wirePayload["max_tokens"] == .number(64))
+        #expect(prepared.wirePayload["tools"] == original.wirePayload["tools"])
+        #expect(prepared.wirePayload["model"] == original.wirePayload["model"])
+        #expect(prepared.wirePayload["thinking"] == original.wirePayload["thinking"])
+        guard case .array(let before) = original.wirePayload["messages"],
+              case .array(let after) = prepared.wirePayload["messages"] else {
+            Issue.record("DeepSeek request omitted its message prefix.")
+            return
+        }
+        #expect(after.count == before.count + 1)
+        #expect(Array(after.dropLast()) == before)
+        #expect(try SessionCodec.encode(JSONValue.array(Array(after.dropLast()))) == SessionCodec.encode(JSONValue.array(before)))
+    }
+
+    @Test func disabledToolCallsRejectProviderToolStream() async throws {
+        let adapter = HTTPModelAdapter(fixture: .deepSeek, credentials: AdapterCredentialProbe(), transport: AdapterToolOutputTransport())
+        let definition = ToolDefinition(name: "memory.search", description: "Search memory",
+            inputSchema: .object(["type": .string("object")]))
+        let route = try route(fixture: .deepSeek)
+        let input = AgentModelInput(stepID: UUID(), executionID: ExecutionID(), instructions: "Extract", messages: [
+            .init(role: .user, text: "Current")
+        ], tools: [definition], allowsToolCalls: false)
+        let operation = adapter.stream(try adapter.prepare(input, route: route), route: route)
+        do {
+            for try await _ in operation.events { }
+            Issue.record("A tool call was accepted while tool calls were disabled.")
+        } catch let failure as AgentModelFailure {
+            #expect(failure.error.code == .unsupported || failure.error.code == .malformedStream)
+        }
+        await operation.close()
     }
 
     @Test func foreignHistoryDoesNotDecodeAnotherAdaptersConfiguration() throws {

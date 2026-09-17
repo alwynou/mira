@@ -79,7 +79,7 @@ struct MemoryRememberHandlerTests {
             outputSchema: MemoryTools.rememberResultSchema, executionMode: .exclusive,
             timeoutMilliseconds: 120_000, maximumResultBytes: 4_096)
         let proposal = AgentToolProposal(descriptor: descriptor, effect: effectKind, businessNamespace: namespace,
-            callDigest: String(repeating: "b", count: 64), plan: .init(input: arguments, sources: [], targets: targets))
+            callDigest: String(repeating: "b", count: 64), inheritedSources: [], plan: .init(input: arguments, sources: [], targets: targets))
         return .init(proposal: proposal, context: .init(executionID: executionID, invocationID: invocationID,
             evidence: contextEvidence, route: route))
     }

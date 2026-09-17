@@ -26,7 +26,7 @@ struct SQLiteAgentModelSettingsTests {
                 $0.purpose == AgentModelPurposeID.conversation
             })
             #expect(conversation == first)
-            #expect(try await f.store.bindings(scope: .global).filter { $0.purpose == AgentModelPurposeID.memoryExtraction }.isEmpty)
+            #expect(try await f.store.bindings(scope: .global).filter { $0.purpose == "mira.memoryExtraction" }.isEmpty)
         }
     }
 

@@ -26,7 +26,7 @@ struct JournalMemoryExtractionCommitTests {
         }
     }
 
-    @Test func sameAspectWithoutExplicitReplacementCreatesCandidate() async throws {
+    @Test func sameAspectWithoutExplicitReplacementIsSkipped() async throws {
         try await withTaskWorkflow(
             outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)], [.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]],
             memoryEnabled: true
@@ -46,10 +46,8 @@ struct JournalMemoryExtractionCommitTests {
             let result = try await commit(
                 [proposal(content: secondSource.text, quote: secondSource.text, aspect: "drink.preference")],
                 claim: secondClaim, source: secondSource, fixture: fixture)
-            #expect(result.memoryIDs.count == 1)
-            #expect(result.candidateMemoryIDs == result.memoryIDs)
-            let detail = try await store.memoryDetail(result.memoryIDs[0], workspaceID: nil)
-            #expect(detail.memory.state == .candidate)
+            #expect(result.memoryIDs.isEmpty)
+            #expect(result.candidateMemoryIDs.isEmpty)
         }
     }
 
@@ -114,8 +112,8 @@ struct JournalMemoryExtractionCommitTests {
                         content: secondSource.text, quote: secondSource.text, aspect: "drink.preference",
                         changeIntent: .explicitReplacement)
                 ], claim: secondClaim, source: secondSource, fixture: fixture)
-            #expect(result.candidateMemoryIDs.count == 1)
-            #expect(try await store.memoryDetail(result.memoryIDs[0], workspaceID: nil).memory.state == .candidate)
+            #expect(result.memoryIDs.isEmpty)
+            #expect(result.candidateMemoryIDs.isEmpty)
         }
     }
 
@@ -193,8 +191,8 @@ struct JournalMemoryExtractionCommitTests {
         }
     }
 
-    @Test(arguments: [false, true])
-    func competingTargetsRequireAnExplicitCurrentSelection(advanceSelected: Bool) async throws {
+    @Test
+    func competingTargetsAreSkippedWithoutAReviewQueue() async throws {
         try await withTaskWorkflow(
             outputs: Array(repeating: [.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)], count: 3),
             memoryEnabled: true
@@ -230,118 +228,60 @@ struct JournalMemoryExtractionCommitTests {
                         content: source.text, quote: source.text, aspect: "drink.preference",
                         changeIntent: .explicitReplacement)
                 ], claim: makeClaim(source: source, route: fixture.route), source: source, fixture: fixture)
-            let candidateID = try #require(result.candidateMemoryIDs.first)
-            let decision = try #require(result.decisions.first)
-            #expect(decision.conflictReason == .multipleCurrentMemories)
-            #expect(Set(decision.conflictingMemoryIDs) == Set(originals.map(\.id)))
-            let detail = try await store.memoryDetail(candidateID, workspaceID: nil)
-            #expect(detail.replacements.count == 2)
-            #expect(detail.replacements.allSatisfy { $0.state == .proposed })
-            await #expect(throws: MiraError.self) {
-                _ = try await store.changeMemoryState(
-                    candidateID, workspaceID: nil, state: .active,
-                    expectedRevision: 1, operationID: UUID(), authorization: auth, at: now)
+            #expect(result.memoryIDs.isEmpty)
+            #expect(result.candidateMemoryIDs.isEmpty)
+            for original in originals {
+                #expect(try await store.memoryDetail(original.id, workspaceID: nil).memory == original)
             }
-            // Deliberately choose the last proposal to catch implementations that read only the first row.
-            var selected = try await store.memoryDetail(
-                try #require(detail.replacements.last).previousID,
-                workspaceID: nil
-            ).memory
-            let untouched = try #require(originals.first { $0.id != selected.id })
-            let unrelated = try await store.createMemory(
-                draft: .init(content: "I prefer water", scope: .global, kind: .preference),
-                source: .manualEntry(id: UUID(), statement: "I prefer water"), operationID: UUID(),
-                replacing: nil, expectedRevision: nil, authorization: auth, at: now
-            ).memory
-            await #expect(throws: MiraError.self) {
-                _ = try await store.confirmMemoryReplacement(
-                    candidateID, workspaceID: nil,
-                    replacingCurrent: unrelated.id, expectedCandidateRevision: 1,
-                    expectedCurrentRevision: unrelated.revision,
-                    operationID: UUID(), authorization: auth, at: now)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func explicitCorrectionOfManualFactRequiresItsCurrentRevision(stale: Bool) async throws {
+        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
+            let store = try #require(fixture.memory)
+            try await enableAutomaticCapture(store, fixture: fixture)
+            let auth = try await fixture.authority.authorization()
+            let old = try await store.createMemory(draft: .init(content: "I prefer green tea", scope: .global, kind: .preference),
+                source: .manualEntry(id: UUID(), statement: "I prefer green tea"), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: auth, at: TaskWorkflowFixture.now).memory
+            let address = try await fixture.run("I now prefer black tea instead")
+            let source = try await fixture.evidence(address)
+            var claim = try makeClaim(source: source, route: fixture.route)
+            claim.existingMemories = [old]
+            let correction = MemoryExtractionProposal(draft: .init(content: "I prefer black tea", scope: .global, kind: .preference),
+                quote: source.text, origin: .observedUserStatement, authority: .observedUser, triage: .active,
+                assertion: .init(mode: .directStable, aspectKey: "drink.preference", changeIntent: .explicitReplacement),
+                inputIndex: 0, replacesIndex: 0)
+            if stale {
+                _ = try await store.reviseMemory(old.id, workspaceID: nil, draft: .init(content: "I prefer white tea", scope: .global, kind: .preference),
+                    expectedRevision: old.revision, operationID: UUID(), authorization: auth, at: TaskWorkflowFixture.now)
+                let frozen = claim
+                await #expect(throws: MiraError.self) { _ = try await commit([correction], claim: frozen, source: source, fixture: fixture) }
+                #expect(try await store.memoryDetail(old.id, workspaceID: nil).memory.supersededBy == nil)
+            } else {
+                let result = try await commit([correction], claim: claim, source: source, fixture: fixture)
+                let replacement = try #require(result.memoryIDs.first)
+                #expect(try await store.memoryDetail(old.id, workspaceID: nil).memory.supersededBy == replacement)
+                #expect(try await store.memoryDetail(replacement, workspaceID: nil).memory.draft?.content == "I prefer black tea")
             }
-            if advanceSelected {
-                var draft = try #require(selected.draft)
-                draft.content = "I prefer jasmine tea"
-                selected = try await store.createMemory(
-                    draft: draft,
-                    source: .manualEntry(id: UUID(), statement: draft.content), operationID: UUID(),
-                    replacing: selected.id, expectedRevision: selected.revision, authorization: auth, at: now
-                ).memory
-            }
-            let target = selected
-            await #expect(throws: MiraError.self) {
-                _ = try await store.confirmMemoryReplacement(
-                    candidateID, workspaceID: nil,
-                    replacingCurrent: target.id, expectedCandidateRevision: 2, expectedCurrentRevision: target.revision,
-                    operationID: UUID(), authorization: auth, at: now)
-            }
-            if advanceSelected {
-                try await fixture.database.write { db in
-                    try db.execute(
-                        sql:
-                            "CREATE TRIGGER memory_confirmation_failure BEFORE INSERT ON memory_operations BEGIN SELECT RAISE(ABORT, 'synthetic'); END"
-                    )
-                }
-                await #expect(throws: MiraError.self) {
-                    _ = try await store.confirmMemoryReplacement(
-                        candidateID, workspaceID: nil,
-                        replacingCurrent: target.id, expectedCandidateRevision: 1,
-                        expectedCurrentRevision: target.revision,
-                        operationID: UUID(), authorization: auth, at: now)
-                }
-                #expect(
-                    try await store.memoryDetail(candidateID, workspaceID: nil).replacements.allSatisfy {
-                        $0.state == .proposed
-                    })
-                #expect(try await store.memoryDetail(target.id, workspaceID: nil).memory == target)
-                try await fixture.database.write { db in try db.execute(sql: "DROP TRIGGER memory_confirmation_failure")
-                }
-            }
-            let operation = UUID()
-            let confirmed = try await store.confirmMemoryReplacement(
-                candidateID, workspaceID: nil,
-                replacingCurrent: target.id, expectedCandidateRevision: 1, expectedCurrentRevision: target.revision,
-                operationID: operation, authorization: auth, at: now)
-            let replay = try await store.confirmMemoryReplacement(
-                candidateID, workspaceID: nil,
-                replacingCurrent: target.id, expectedCandidateRevision: 1, expectedCurrentRevision: target.revision,
-                operationID: operation, authorization: auth, at: now)
-            #expect(replay == confirmed)
-            #expect(confirmed.isCurrent)
-            let reviewed = try await store.memoryDetail(candidateID, workspaceID: nil)
-            #expect(!reviewed.replacements.contains { $0.state == .proposed })
-            #expect(reviewed.replacements.filter { $0.state == .confirmed }.map(\.previousID) == [target.id])
-            #expect(try await store.memoryDetail(target.id, workspaceID: nil).memory.supersededBy == candidateID)
-            #expect(try await store.memoryDetail(untouched.id, workspaceID: nil).memory == untouched)
-            #expect(try await store.memoryDetail(unrelated.id, workspaceID: nil).memory == unrelated)
         }
     }
 
     private func enableAutomaticCapture(_ store: SQLiteMemoryStore, fixture: TaskWorkflowFixture) async throws {
-        let authorization = try await fixture.authority.authorization()
-        try await store.saveMemoryCapturePolicy(
-            .init(
-                revision: 2, mode: .automaticWithUndo,
-                dailyTokenLimit: 100_000, enabledAt: TaskWorkflowFixture.now), expectedRevision: 1,
-            authorization: authorization, at: TaskWorkflowFixture.now)
     }
 
     private func makeClaim(source: SessionUserEvidence, route: AgentModelRoute) throws -> MemoryExtractionClaim {
         let now = TaskWorkflowFixture.now
-        let binding = AgentRouteBinding(
-            scope: .global, purpose: AgentModelPurposeID.memoryExtraction, routeID: route.id, revision: 1)
-        let selection = AgentModelRouteResolution(route: route, binding: binding)
+        let selection = AgentModelRouteResolution(route: route, binding: nil)
         let origin = MemoryExtractionOrigin(
             source: source.reference, completedExecutionID: source.reference.originalExecutionID,
             completionEventID: source.reference.admissionEventID, completionHead: source.observedHead)
         let job = MemoryExtractionJob(
             id: .init(), origin: origin, workspaceID: source.workspaceID,
-            policyRevision: 2, state: .running, attemptCount: 1, createdAt: now, updatedAt: now)
-        let policy = MemoryCapturePolicy(
-            revision: 2, mode: .automaticWithUndo, dailyTokenLimit: 100_000, enabledAt: now)
+            state: .running, attemptCount: 1, createdAt: now, updatedAt: now)
         return .init(
-            job: job, source: source, policy: policy, selection: selection, leaseID: UUID(),
+            job: job, source: source, selection: selection, leaseID: UUID(),
             leaseExpiresAt: now.addingTimeInterval(300), attemptID: UUID())
     }
 

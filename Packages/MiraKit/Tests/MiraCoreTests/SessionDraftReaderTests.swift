@@ -4,24 +4,30 @@ import Testing
 
 @Suite("Session draft reader")
 struct SessionDraftReaderTests {
-    @Test func reconstructsIndependentInterleavedComponents() async throws {
+    @Test func readsOrderedLatestSnapshotWithoutJournalTraversal() async throws {
         let fixture = try DraftFixture()
-        let reader = SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads)
-        let result = try await reader.read(state: fixture.state, executionID: fixture.executionID)
-        #expect(result[.answer] == Data("你好 answer".utf8)) // i18n-fixture: Draft patches preserve multibyte UTF-8 text.
-        #expect(result[.thinking] == Data("thinking".utf8))
-        #expect(result[.transcript] == Data("transcript".utf8))
+        let result = try await SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads)
+            .read(state: fixture.state, executionID: fixture.executionID)
+        #expect(result[.answer] == Data("answer".utf8))
+        #expect(result[.thinking] == Data("firstlast".utf8))
+        let transcript = try SessionCodec.decode(SessionActiveDraft.self, from: #require(result[.transcript]))
+        #expect(transcript.blocks.map(\.id) == ["think-1", "text", "think-2"])
+        #expect(fixture.state.sequence == 4)
     }
 
-    @Test func unknownExecutionThrows() async throws {
+    @Test func staleOwnerCannotSupplyVisibleDraft() async throws {
         let fixture = try DraftFixture()
-        let reader = SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads)
-        await #expect(throws: MiraError.self) { try await reader.read(state: fixture.state, executionID: ExecutionID()) }
+        let original = try #require(fixture.payloads.draft)
+        fixture.payloads.draft = .init(request: original.request, executionID: original.executionID,
+            attemptID: UUID(), authorizationEpoch: 0, revision: 2, blocks: original.blocks)
+        let result = try await SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads)
+            .read(state: fixture.state, executionID: fixture.executionID)
+        #expect(result[.answer] == Data())
+        #expect(result[.transcript] == nil)
     }
 
-    @Test func terminalAndExcludedExecutionsDoNotReadPayloads() async throws {
+    @Test func terminalAndExcludedExecutionsCannotReadSidecar() async throws {
         let fixture = try DraftFixture()
-        fixture.payloads.values.removeAll()
         for terminal in [true, false] {
             var state = fixture.state
             let facts: [SessionFact]
@@ -30,48 +36,16 @@ struct SessionDraftReaderTests {
                          .attemptResolved(.init(attemptID: fixture.attemptID, status: .interrupted)),
                          .finished(.init(executionID: fixture.executionID, status: .interrupted))]
             } else {
-                let hidden = Set(state.references.values.filter { [.executionPlan, .request, .draft].contains($0.kind) }.map(\.retentionGroup))
+                let hidden = Set(state.references.values.filter { [.executionPlan, .request].contains($0.kind) }.map(\.retentionGroup))
                 facts = [.invalidated(.init(operationID: UUID(), executionIDs: [fixture.executionID], retentionGroups: hidden,
                                             authorizationEpoch: 1, reason: .forgotten))]
             }
             try state.apply(.init(id: UUID(), sessionID: state.id, expectedSequence: state.sequence,
                 events: facts.enumerated().map { .init(sequence: state.sequence + Int64($0.offset) + 1, occurredAt: Date(), fact: $0.element) }))
-            let result = try await SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads).read(state: state, executionID: fixture.executionID)
+            let result = try await SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads)
+                .read(state: state, executionID: fixture.executionID)
             #expect(result.isEmpty)
         }
-    }
-
-    @Test func pagesAdvanceAndFactsAfterCapturedSequenceAreIgnored() async throws {
-        let fixture = try DraftFixture(); let extra = SessionBatch(id: UUID(), sessionID: fixture.state.id, expectedSequence: fixture.state.sequence, events: [SessionEvent(sequence: fixture.state.sequence + 2, occurredAt: Date(), fact: .archived(revision: 99))])
-        for journal in [MemoryJournal(batches: fixture.journal.batches + [extra]), PagedJournal(batches: fixture.journal.batches + [extra])] {
-            let reader = SessionDraftReader(journal: journal, payloads: fixture.payloads)
-            #expect(try await reader.read(state: fixture.state, executionID: fixture.executionID)[.answer] == fixture.answerData)
-        }
-    }
-
-    @Test func missingInvalidatedPayloadFailsClosedAndNonProgressCursorFails() async throws {
-        let fixture = try DraftFixture(); fixture.payloads.values.removeValue(forKey: fixture.answerReference.id)
-        let reader = SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads)
-        await #expect(throws: MiraError.self) { try await reader.read(state: fixture.state, executionID: fixture.executionID) }
-        let stalled = SessionDraftReader(journal: NonProgressJournal(batches: fixture.journal.batches), payloads: fixture.payloads)
-        await #expect(throws: MiraError.self) { try await stalled.read(state: fixture.state, executionID: fixture.executionID) }
-    }
-
-    @Test func malformedBatchEnvelopeFailsBeforeDraftReconstruction() async throws {
-        let fixture = try DraftFixture(); let original = try #require(fixture.journal.batches.last)
-        let malformed = SessionBatch(id: original.id, sessionID: original.sessionID, expectedSequence: original.expectedSequence, events: [SessionEvent(sequence: original.expectedSequence + 2, occurredAt: Date(), fact: original.events[0].fact)])
-        let reader = SessionDraftReader(journal: MemoryJournal(batches: Array(fixture.journal.batches.dropLast()) + [malformed]), payloads: fixture.payloads)
-        await #expect(throws: MiraError.self) { try await reader.read(state: fixture.state, executionID: fixture.executionID) }
-    }
-
-    @Test func stalePatchChainAndInvalidatedPayloadFailClosed() async throws {
-        let fixture = try DraftFixture()
-        let stale = SessionDraftCheckpoint(executionID: fixture.executionID, attemptID: fixture.attemptID, part: .answer, baseSequence: 999, prefixByteCount: 0, suffixByteCount: 0, replacement: fixture.answerReference, resultByteCount: fixture.answerData.count)
-        let original = try #require(fixture.journal.batches.last)
-        let events = original.events.enumerated().map { index, event in index == 0 ? SessionEvent(id: event.id, sequence: event.sequence, occurredAt: event.occurredAt, fact: .draftCheckpoint(stale)) : event }
-        let badBatch = SessionBatch(id: original.id, sessionID: original.sessionID, expectedSequence: original.expectedSequence, events: events)
-        let journal = MemoryJournal(batches: Array(fixture.journal.batches.dropLast()) + [badBatch]); let reader = SessionDraftReader(journal: journal, payloads: fixture.payloads)
-        await #expect(throws: MiraError.self) { try await reader.read(state: fixture.state, executionID: fixture.executionID) }
     }
 }
 
@@ -93,58 +67,51 @@ private class MemoryJournal: SessionJournal, @unchecked Sendable {
     func close() async throws {}
 }
 
-private final class PagedJournal: MemoryJournal, @unchecked Sendable {
-    override func read(sessionID: ConversationID, after sequence: Int64, limit: Int) async throws -> [SessionBatch] { Array(try await super.read(sessionID: sessionID, after: sequence, limit: 1)) }
-}
 
-private final class NonProgressJournal: MemoryJournal, @unchecked Sendable {
-    override func read(sessionID: ConversationID, after sequence: Int64, limit: Int) async throws -> [SessionBatch] { [batches[0]] }
-}
-
-private final class MemoryPayloads: SessionPayloadStore, @unchecked Sendable {
-    var values: [UUID: Data] = [:]
-    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference { fatalError() }
-    func read(_ reference: SessionPayloadReference) async throws -> Data { guard let value = values[reference.id] else { throw MiraError(.storage, "missing") }; return value }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws {}
+private final class MemoryPayloads: SessionPayloadReader, @unchecked Sendable {
+    var draft: SessionActiveDraft?
+    func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? { draft }
+    func read(_ reference: SessionPayloadReference) async throws -> Data {
+        throw MiraError(.storage, "Unexpected payload read.")
+    }
 }
 
 private struct DraftFixture {
     let state: SessionState
     let journal: MemoryJournal
     let payloads: MemoryPayloads
-    let executionID: ExecutionID
-    let attemptID: UUID
-    let answerReference: SessionPayloadReference
-    let answerData = Data("你好 answer".utf8) // i18n-fixture: Draft patches preserve multibyte UTF-8 text.
+    let executionID = ExecutionID()
+    let attemptID = UUID()
 
     init() throws {
-        let sid = ConversationID(); let executionID = ExecutionID(); self.executionID = executionID; let answerData = Data("你好 answer".utf8) // i18n-fixture: Draft patches preserve multibyte UTF-8 text.
-        let payloads = MemoryPayloads(); self.payloads = payloads
-        let group = UUID()
-        func ref(_ kind: SessionPayloadKind, _ batch: UUID, _ count: Int = 1, _ retention: UUID = UUID()) -> SessionPayloadReference { SessionPayloadReference(id: UUID(), sessionID: sid, batchID: batch, retentionGroup: retention, kind: kind, byteCount: count, digest: String(repeating: "0", count: 64)) }
-        let openID = UUID(); let title = ref(.title, openID); payloads.values[title.id] = Data("Title".utf8)
-        let routeBatch = UUID(); let route = ref(.executionPlan, routeBatch); payloads.values[route.id] = Data("route".utf8)
-        let admitBatch = UUID(); let body = ref(.userText, admitBatch); payloads.values[body.id] = Data("hello".utf8)
-        let admittedRoute = SessionPayloadReference(id: route.id, sessionID: sid, batchID: admitBatch, retentionGroup: route.retentionGroup, kind: route.kind, byteCount: route.byteCount, digest: route.digest); payloads.values[admittedRoute.id] = Data("route".utf8)
-        let requestBatch = UUID(); let request = ref(.request, requestBatch); payloads.values[request.id] = Data("request".utf8)
-        let answerBatch = UUID(); let answer = ref(.draft, answerBatch, answerData.count, group); payloads.values[answer.id] = answerData
-        let thinkingBatch = answerBatch; let thinkingData = Data("thinking".utf8); let thinking = ref(.draft, thinkingBatch, thinkingData.count, group); payloads.values[thinking.id] = thinkingData
-        let transcriptData = Data("transcript".utf8); let transcript = ref(.draft, thinkingBatch, transcriptData.count, group); payloads.values[transcript.id] = transcriptData
-        var state = SessionState(id: sid); var batches: [SessionBatch] = []
-        let events: [(UUID, SessionFact)] = [
-            (openID, .opened(SessionHeader(workspaceID: nil, title: title))),
-            (admitBatch, .admitted(SessionAdmission(executionID: executionID, userMessageID: MessageID(), userBody: body, plan: admittedRoute, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))),
+        let sid = ConversationID()
+        func ref(_ kind: SessionPayloadKind, _ batch: UUID) -> SessionPayloadReference {
+            .init(id: UUID(), sessionID: sid, batchID: batch, retentionGroup: UUID(),
+                kind: kind, byteCount: 1, digest: String(repeating: "0", count: 64))
+        }
+        let open = UUID(), admission = UUID(), requestBatch = UUID()
+        let request = ref(.request, requestBatch)
+        var state = SessionState(id: sid)
+        let facts: [(UUID, SessionFact)] = [
+            (open, .opened(.init(workspaceID: nil, title: ref(.title, open)))),
+            (admission, .admitted(.init(executionID: executionID, userMessageID: MessageID(),
+                userBody: ref(.userText, admission), plan: ref(.executionPlan, admission), hasModelRoute: true,
+                authorizationEpoch: 0, timeZoneIdentifier: "UTC"))),
             (UUID(), .phaseChanged(executionID: executionID, phase: .preparing)),
-            (requestBatch, .attemptStarted(SessionAttempt(id: UUID(), executionID: executionID, stepID: UUID(), stepIndex: 1, attemptIndex: 1, request: request)))
+            (requestBatch, .attemptStarted(.init(id: attemptID, executionID: executionID,
+                stepID: UUID(), stepIndex: 1, attemptIndex: 1, request: request)))
         ]
-        var sequence: Int64 = 0
-        for (id, fact) in events { let b = SessionBatch(id: id, sessionID: sid, expectedSequence: sequence, events: [SessionEvent(sequence: sequence + 1, occurredAt: Date(), fact: fact)]); try state.apply(b); batches.append(b); sequence += 1 }
-        let attemptID = try #require(state.executions[executionID]?.attemptIDs.first); self.attemptID = attemptID
-        let answerCheckpoint = SessionDraftCheckpoint(executionID: executionID, attemptID: attemptID, part: .answer, baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0, replacement: answer, resultByteCount: answerData.count)
-        let thinkingCheckpoint = SessionDraftCheckpoint(executionID: executionID, attemptID: attemptID, part: .thinking, baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0, replacement: thinking, resultByteCount: thinkingData.count)
-        let transcriptCheckpoint = SessionDraftCheckpoint(executionID: executionID, attemptID: attemptID, part: .transcript, baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0, replacement: transcript, resultByteCount: transcriptData.count)
-        let draftBatch = SessionBatch(id: answerBatch, sessionID: sid, expectedSequence: sequence, events: [SessionEvent(sequence: sequence + 1, occurredAt: Date(), fact: .draftCheckpoint(answerCheckpoint)), SessionEvent(sequence: sequence + 2, occurredAt: Date(), fact: .draftCheckpoint(thinkingCheckpoint)), SessionEvent(sequence: sequence + 3, occurredAt: Date(), fact: .draftCheckpoint(transcriptCheckpoint))]); try state.apply(draftBatch); batches.append(draftBatch)
-        _ = attemptID; self.answerReference = answer; self.state = state; self.journal = MemoryJournal(batches: batches)
-        _ = thinkingBatch
+        for (id, fact) in facts {
+            try state.apply(.init(id: id, sessionID: sid, expectedSequence: state.sequence,
+                events: [.init(sequence: state.sequence + 1, occurredAt: Date(), fact: fact)]))
+        }
+        payloads = MemoryPayloads()
+        payloads.draft = .init(request: request, executionID: executionID, attemptID: attemptID,
+            authorizationEpoch: 0, revision: 1, blocks: [
+                .init(id: "think-1", content: .thinking("first")),
+                .init(id: "text", content: .text("answer")),
+                .init(id: "think-2", content: .thinking("last"))])
+        self.state = state
+        journal = MemoryJournal(batches: [])
     }
 }

@@ -1,0 +1,1663 @@
+{
+  "description": "New authored synthetic bilingual comparison set, frozen before model runs. Near-neighbor facts, distinct people/times/contexts, 104 answerable queries including 8 multi-fact queries, and 8 unanswerable probes. Not an independently labeled external benchmark. Non-English text is intentional search fixture data.",
+  "memories": [
+    {
+      "id": "food-0",
+      "text": "我的午餐需要避免花生，但可以吃核桃。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "food-1",
+      "text": "同事林安的午餐需要避免核桃，可以吃花生。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "food-2",
+      "text": "我的晚餐希望清淡，少放辣椒。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "food-3",
+      "text": "周末聚餐时我的伴侣希望提供纯素菜。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "food-4",
+      "text": "公司的周五自助餐提供花生酱和核桃蛋糕。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "food-5",
+      "text": "我家猫的食物不能含洋葱。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "beverage-0",
+      "text": "我工作日上午喝热红茶，不喝冰茶。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "beverage-1",
+      "text": "我运动结束后更喜欢常温白水。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "beverage-2",
+      "text": "同事许夏上午喜欢冰美式咖啡。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "beverage-3",
+      "text": "我睡前只想喝温水，不要给我推荐浓茶。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "beverage-4",
+      "text": "来访客户在会议中更喜欢气泡水。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "beverage-5",
+      "text": "周末下午朋友常带奶茶来家里。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "meetings-0",
+      "text": "我周一下午保留给产品评审，不能安排销售例会。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "meetings-1",
+      "text": "我的销售例会固定在周三上午。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "meetings-2",
+      "text": "陈默的销售例会在周一下午，这不是我的安排。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "meetings-3",
+      "text": "周五上午是我每周的无会议专注时间。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "meetings-4",
+      "text": "设计团队周五下午举行作品评审。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "meetings-5",
+      "text": "周三下午的招聘面试由王宁负责。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "travel-0",
+      "text": "我个人去南京出差时，住宿每晚预算不超过六百元。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "travel-1",
+      "text": "我去杭州参加公司培训时，每晚住宿报销上限是八百元。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "travel-2",
+      "text": "同事周齐去南京的住宿预算是每晚九百元。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "travel-3",
+      "text": "我去南京时优先选择靠近南站的酒店。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "travel-4",
+      "text": "去苏州旅游时我更看重酒店附近的步行街。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "travel-5",
+      "text": "公司管理层去杭州的住宿标准是每晚一千二百元。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "display-0",
+      "text": "我读代码时希望正文至少十六号字。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "display-1",
+      "text": "我的演示文稿正文至少二十四号字。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "display-2",
+      "text": "同事叶晴读代码通常用十四号字。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "display-3",
+      "text": "我晚上看文档希望使用深色背景。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "display-4",
+      "text": "打印合同应使用白色背景和黑色文字。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "display-5",
+      "text": "客户演示图表的标注不能小于十八号字。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "timezone-0",
+      "text": "我自己的日程按 Asia/Shanghai 时区解释。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "timezone-1",
+      "text": "伦敦客户的工作时间按 Europe/London 解释。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "timezone-2",
+      "text": "给东京团队的会议邀请需要同时标出 Asia/Tokyo 当地时间。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "timezone-3",
+      "text": "服务器审计记录保存 UTC 时间。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "timezone-4",
+      "text": "纽约合作方的电话预约使用 America/New_York。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "timezone-5",
+      "text": "历史行程里的原始时区标记不能被覆盖。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "provider-0",
+      "text": "工作区 Cedar 的远程对话只使用 DeepSeek，当前没有其他服务商凭据。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "provider-1",
+      "text": "工作区 Cedar 的文本向量由本机 Qwen 模型计算，不发送到远程向量接口。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "provider-2",
+      "text": "工作区 Birch 的远程对话使用测试服务商 MockChat。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "provider-3",
+      "text": "自动提取记忆使用冻结的用途路线，不允许在失败时换成另一个服务商。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "provider-4",
+      "text": "MockChat 仅供合成测试，不得自动进入正式生产路线。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "provider-5",
+      "text": "API key 放在系统钥匙串，数据库只能记录凭据引用。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "storage-0",
+      "text": "Cedar 的规范事实保存在 SQLite，搜索索引只是可以重建的副本。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "storage-1",
+      "text": "原始对话保存在追加式会话日志中，不允许由摘要覆盖。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "storage-2",
+      "text": "向量记录绑定记忆 ID 和修订版本，旧修订的结果不能覆盖新事实。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "storage-3",
+      "text": "删除记忆时需要同时使向量、缓存和排队任务失效。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "storage-4",
+      "text": "归档导出不携带模型权重，模型可以重新下载。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "storage-5",
+      "text": "临时基准数据库使用独立目录，不打开个人资料库。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "language-0",
+      "text": "给我解释产品方案时请使用简体中文。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "language-1",
+      "text": "源代码里的标识符、注释和内置提示词使用英文。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "language-2",
+      "text": "最终用户写下的原文必须保留，不能为了界面语言而翻译改写。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "language-3",
+      "text": "产品界面支持英语和简体中文，翻译集中在资源目录中。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "language-4",
+      "text": "给海外客户的月报使用英文。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "language-5",
+      "text": "第三方原始版权声明保留原文。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "hardware-0",
+      "text": "我的主力开发电脑是 M1 Pro，统一内存十六 GB。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "hardware-1",
+      "text": "办公室共享测试机是 M2，统一内存八 GB。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "hardware-2",
+      "text": "公司的图形工作站是 M3 Max，统一内存六十四 GB。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "hardware-3",
+      "text": "我出差携带的备用电脑是 M1 Air，统一内存八 GB。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "hardware-4",
+      "text": "手机测试设备运行 iOS，但当前版本不实现移动端。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "hardware-5",
+      "text": "CI 编译节点没有配置真实模型 API key。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "budget-0",
+      "text": "我给家庭 NAS 硬盘预留的总预算是两千元人民币。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "budget-1",
+      "text": "我给办公椅的预算上限是一千五百元人民币。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "budget-2",
+      "text": "工作组购买测试显示器的预算是五千元人民币。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "budget-3",
+      "text": "伴侣购买办公椅的预算是三千元人民币。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "budget-4",
+      "text": "NAS 机箱本身的预算另计，不包含在硬盘预算中。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "budget-5",
+      "text": "公司季度软件订阅预算为两万元人民币。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "export-0",
+      "text": "我导出报销明细时需要 UTF-8 编码的 CSV 文件。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "export-1",
+      "text": "报销明细中的小数使用点号，金额保留两位小数。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "export-2",
+      "text": "给法国客户的正式报价表使用 XLSX，不是 CSV。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "export-3",
+      "text": "日志中的日期使用 ISO 8601 格式，并保留时区。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "export-4",
+      "text": "导出的知识笔记使用 Markdown 格式。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "export-5",
+      "text": "CSV 字段里的逗号和换行需要按标准转义。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "reminders-0",
+      "text": "我希望普通事项只提醒一次，除非明确说需要重复。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "reminders-1",
+      "text": "每个月第一天提醒我检查房租是否已经支付。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "reminders-2",
+      "text": "出差当天的航班提醒需要提前两小时。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "reminders-3",
+      "text": "同事秦越的会议提醒只需要提前十分钟。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "reminders-4",
+      "text": "任务到期和提醒时间是两个独立字段。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "reminders-5",
+      "text": "本地应用完全退出时，后台记忆提取不会继续运行。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "history-0",
+      "text": "从九月开始，我把常用笔记工具改成 Obsidian。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "history-1",
+      "text": "我在八月以前使用的笔记工具是 Notion，现在只是历史信息。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "history-2",
+      "text": "同事宋岚从九月开始使用 Notion，没有改用 Obsidian。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "history-3",
+      "text": "团队共享知识库仍在 Wiki，不随我的个人笔记工具变化。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "history-4",
+      "text": "旧项目的交付文件仍保存在原来的网盘中。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "history-5",
+      "text": "个人笔记文件的同步不代表对话历史也要上传。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "identifiers-0",
+      "text": "Cedar 项目的工单代号是 CD-104，不是 CD-140。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "identifiers-1",
+      "text": "Birch 项目的工单代号是 CD-140。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "identifiers-2",
+      "text": "试验分支名是 codex/memory-embedding-prototype。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "identifiers-3",
+      "text": "正式应用的数据目录叫 Mira，基准临时目录叫 memory-embedding。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "identifiers-4",
+      "text": "代码审查报告的编号是 RV-014，发布时间与工单号无关。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "identifiers-5",
+      "text": "测试数据集版本是 fixture-v2，模型版本另有记录。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "capture-0",
+      "text": "日常对话记忆应自动形成，不需要逐条弹出确认框。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "capture-1",
+      "text": "明确说记住或忘记时，要在操作提交成功后才能声称完成。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "capture-2",
+      "text": "普通回合结束只更新待处理进度，积累到批次条件才请求模型提取。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "capture-3",
+      "text": "回复不强制展示记忆引用，来源详情可以链接到原会话。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "capture-4",
+      "text": "提取器需要看到足够的前文，才能理解这一个或第二种这样的指代。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    },
+    {
+      "id": "capture-5",
+      "text": "低置信度推测不能直接覆盖明确表达的用户偏好。",
+      "scope": "global",
+      "allowed": true,
+      "active": true,
+      "revision": 1
+    }
+  ],
+  "queries": [
+    {
+      "id": "food-q0",
+      "text": "帮我记一下，给我选午餐时应该排除哪种坚果？",
+      "expected": [
+        "food-0"
+      ],
+      "category": "food"
+    },
+    {
+      "id": "food-q1",
+      "text": "林安吃午饭时有什么坚果禁忌？",
+      "expected": [
+        "food-1"
+      ],
+      "category": "food"
+    },
+    {
+      "id": "food-q2",
+      "text": "今天晚饭给我做什么口味比较好？",
+      "expected": [
+        "food-2"
+      ],
+      "category": "food"
+    },
+    {
+      "id": "food-q3",
+      "text": "周末为我的伴侣点菜有什么要求？",
+      "expected": [
+        "food-3"
+      ],
+      "category": "food"
+    },
+    {
+      "id": "food-q4",
+      "text": "Which nut should be excluded from my lunch?",
+      "expected": [
+        "food-0"
+      ],
+      "category": "food"
+    },
+    {
+      "id": "food-q5",
+      "text": "我晚上那顿饭对辣度有什么偏好？",
+      "expected": [
+        "food-2"
+      ],
+      "category": "food"
+    },
+    {
+      "id": "beverage-q0",
+      "text": "上班日早上给我准备哪种茶，温度有什么要求？",
+      "expected": [
+        "beverage-0"
+      ],
+      "category": "beverage"
+    },
+    {
+      "id": "beverage-q1",
+      "text": "锻炼完给我带什么饮料？",
+      "expected": [
+        "beverage-1"
+      ],
+      "category": "beverage"
+    },
+    {
+      "id": "beverage-q2",
+      "text": "早上给许夏买什么咖啡？",
+      "expected": [
+        "beverage-2"
+      ],
+      "category": "beverage"
+    },
+    {
+      "id": "beverage-q3",
+      "text": "临睡前适合按我的习惯准备什么喝的？",
+      "expected": [
+        "beverage-3"
+      ],
+      "category": "beverage"
+    },
+    {
+      "id": "beverage-q4",
+      "text": "What do I prefer to drink after a workout?",
+      "expected": [
+        "beverage-1"
+      ],
+      "category": "beverage"
+    },
+    {
+      "id": "beverage-q5",
+      "text": "我平常上班早晨喝冷茶还是热茶？",
+      "expected": [
+        "beverage-0"
+      ],
+      "category": "beverage"
+    },
+    {
+      "id": "meetings-q0",
+      "text": "我的周一下午为什么不能再插入销售会议？",
+      "expected": [
+        "meetings-0"
+      ],
+      "category": "meetings"
+    },
+    {
+      "id": "meetings-q1",
+      "text": "我的销售例会应该排到哪一天的哪个时段？",
+      "expected": [
+        "meetings-1"
+      ],
+      "category": "meetings"
+    },
+    {
+      "id": "meetings-q2",
+      "text": "陈默在什么时候参加销售例会？",
+      "expected": [
+        "meetings-2"
+      ],
+      "category": "meetings"
+    },
+    {
+      "id": "meetings-q3",
+      "text": "我在哪个半天不希望被会议打断？",
+      "expected": [
+        "meetings-3"
+      ],
+      "category": "meetings"
+    },
+    {
+      "id": "meetings-q4",
+      "text": "When is my regular sales meeting?",
+      "expected": [
+        "meetings-1"
+      ],
+      "category": "meetings"
+    },
+    {
+      "id": "meetings-q5",
+      "text": "产品评审在我的周计划里占用了哪段时间？",
+      "expected": [
+        "meetings-0"
+      ],
+      "category": "meetings"
+    },
+    {
+      "id": "travel-q0",
+      "text": "帮我筛选南京出差的酒店，单晚最高能花多少？",
+      "expected": [
+        "travel-0"
+      ],
+      "category": "travel"
+    },
+    {
+      "id": "travel-q1",
+      "text": "杭州公司培训的房费可以报销到多少？",
+      "expected": [
+        "travel-1"
+      ],
+      "category": "travel"
+    },
+    {
+      "id": "travel-q2",
+      "text": "周齐到南京住酒店的单晚预算是多少？",
+      "expected": [
+        "travel-2"
+      ],
+      "category": "travel"
+    },
+    {
+      "id": "travel-q3",
+      "text": "我在南京挑酒店主要关注哪个位置？",
+      "expected": [
+        "travel-3"
+      ],
+      "category": "travel"
+    },
+    {
+      "id": "travel-q4",
+      "text": "What is my nightly hotel budget for a business trip to Nanjing?",
+      "expected": [
+        "travel-0"
+      ],
+      "category": "travel"
+    },
+    {
+      "id": "travel-q5",
+      "text": "这次去杭州受训，选八百元以内的住宿有依据吗？",
+      "expected": [
+        "travel-1"
+      ],
+      "category": "travel"
+    },
+    {
+      "id": "display-q0",
+      "text": "给我设置代码编辑器，字号最低应该是多少？",
+      "expected": [
+        "display-0"
+      ],
+      "category": "display"
+    },
+    {
+      "id": "display-q1",
+      "text": "我做幻灯片时正文文字的最小字号是多少？",
+      "expected": [
+        "display-1"
+      ],
+      "category": "display"
+    },
+    {
+      "id": "display-q2",
+      "text": "叶晴自己的代码字号习惯是多少？",
+      "expected": [
+        "display-2"
+      ],
+      "category": "display"
+    },
+    {
+      "id": "display-q3",
+      "text": "夜间阅读文档时我希望背景是什么风格？",
+      "expected": [
+        "display-3"
+      ],
+      "category": "display"
+    },
+    {
+      "id": "display-q4",
+      "text": "What minimum font size do I want for reading code?",
+      "expected": [
+        "display-0"
+      ],
+      "category": "display"
+    },
+    {
+      "id": "display-q5",
+      "text": "帮我检查汇报页的正文有没有小于我的字号要求。",
+      "expected": [
+        "display-1"
+      ],
+      "category": "display"
+    },
+    {
+      "id": "timezone-q0",
+      "text": "我说的明早九点默认按哪个时区？",
+      "expected": [
+        "timezone-0"
+      ],
+      "category": "timezone"
+    },
+    {
+      "id": "timezone-q1",
+      "text": "伦敦客户的营业时段应该以哪个地区的钟表时间为准？",
+      "expected": [
+        "timezone-1"
+      ],
+      "category": "timezone"
+    },
+    {
+      "id": "timezone-q2",
+      "text": "发给东京同事的邀请需要额外标注什么？",
+      "expected": [
+        "timezone-2"
+      ],
+      "category": "timezone"
+    },
+    {
+      "id": "timezone-q3",
+      "text": "服务端审计日志的时间基准是什么？",
+      "expected": [
+        "timezone-3"
+      ],
+      "category": "timezone"
+    },
+    {
+      "id": "timezone-q4",
+      "text": "Which timezone is used for server audit timestamps?",
+      "expected": [
+        "timezone-3"
+      ],
+      "category": "timezone"
+    },
+    {
+      "id": "timezone-q5",
+      "text": "安排我个人的日历事件时不要默认用哪种海外时间，而应使用什么？",
+      "expected": [
+        "timezone-0"
+      ],
+      "category": "timezone"
+    },
+    {
+      "id": "provider-q0",
+      "text": "Cedar 项目现在有哪些可用的远程聊天凭据？",
+      "expected": [
+        "provider-0"
+      ],
+      "category": "provider"
+    },
+    {
+      "id": "provider-q1",
+      "text": "Cedar 的 embedding 是在远端算的吗？",
+      "expected": [
+        "provider-1"
+      ],
+      "category": "provider"
+    },
+    {
+      "id": "provider-q2",
+      "text": "Birch 测试工作区接的是哪种聊天服务？",
+      "expected": [
+        "provider-2"
+      ],
+      "category": "provider"
+    },
+    {
+      "id": "provider-q3",
+      "text": "记忆提取请求失败后能悄悄换服务商再试吗？",
+      "expected": [
+        "provider-3"
+      ],
+      "category": "provider"
+    },
+    {
+      "id": "provider-q4",
+      "text": "Where are embeddings computed for Cedar?",
+      "expected": [
+        "provider-1"
+      ],
+      "category": "provider"
+    },
+    {
+      "id": "provider-q5",
+      "text": "我在 Cedar 对话时能直接使用第二家的 API key 吗？",
+      "expected": [
+        "provider-0"
+      ],
+      "category": "provider"
+    },
+    {
+      "id": "storage-q0",
+      "text": "搜索索引坏了之后，Cedar 的记忆应从什么权威数据重建？",
+      "expected": [
+        "storage-0"
+      ],
+      "category": "storage"
+    },
+    {
+      "id": "storage-q1",
+      "text": "生成摘要以后，原始聊天正文还应该放在哪里？",
+      "expected": [
+        "storage-1"
+      ],
+      "category": "storage"
+    },
+    {
+      "id": "storage-q2",
+      "text": "较早发起的向量任务晚返回了，为什么不能直接写回当前记忆？",
+      "expected": [
+        "storage-2"
+      ],
+      "category": "storage"
+    },
+    {
+      "id": "storage-q3",
+      "text": "忘掉一件事时，仅删除数据库事实那一行就够了吗？",
+      "expected": [
+        "storage-3"
+      ],
+      "category": "storage"
+    },
+    {
+      "id": "storage-q4",
+      "text": "What prevents an old embedding job from overwriting a newer memory?",
+      "expected": [
+        "storage-2"
+      ],
+      "category": "storage"
+    },
+    {
+      "id": "storage-q5",
+      "text": "SQLite 和向量索引哪个拥有事实的最终解释权？",
+      "expected": [
+        "storage-0"
+      ],
+      "category": "storage"
+    },
+    {
+      "id": "language-q0",
+      "text": "给我讲这个产品设计时应该用什么语言？",
+      "expected": [
+        "language-0"
+      ],
+      "category": "language"
+    },
+    {
+      "id": "language-q1",
+      "text": "新代码的注释和模型内置提示词应该用中文吗？",
+      "expected": [
+        "language-1"
+      ],
+      "category": "language"
+    },
+    {
+      "id": "language-q2",
+      "text": "切换显示语言后能把用户以前写的内容一起翻译保存吗？",
+      "expected": [
+        "language-2"
+      ],
+      "category": "language"
+    },
+    {
+      "id": "language-q3",
+      "text": "界面翻译应放在 Swift 文件里还是资源目录？",
+      "expected": [
+        "language-3"
+      ],
+      "category": "language"
+    },
+    {
+      "id": "language-q4",
+      "text": "Which language belongs in source comments and built-in prompts?",
+      "expected": [
+        "language-1"
+      ],
+      "category": "language"
+    },
+    {
+      "id": "language-q5",
+      "text": "我阅读需求说明时更希望看到英文还是简体中文？",
+      "expected": [
+        "language-0"
+      ],
+      "category": "language"
+    },
+    {
+      "id": "hardware-q0",
+      "text": "在我每天写代码的电脑上估算内存预算，应该按多少 GB？",
+      "expected": [
+        "hardware-0"
+      ],
+      "category": "hardware"
+    },
+    {
+      "id": "hardware-q1",
+      "text": "办公室那台共用测试电脑的芯片和内存是多少？",
+      "expected": [
+        "hardware-1"
+      ],
+      "category": "hardware"
+    },
+    {
+      "id": "hardware-q2",
+      "text": "做大型图形任务的公司机器是哪种配置？",
+      "expected": [
+        "hardware-2"
+      ],
+      "category": "hardware"
+    },
+    {
+      "id": "hardware-q3",
+      "text": "我出差带的备用笔记本是哪一款？",
+      "expected": [
+        "hardware-3"
+      ],
+      "category": "hardware"
+    },
+    {
+      "id": "hardware-q4",
+      "text": "What chip and memory does my main development laptop have?",
+      "expected": [
+        "hardware-0"
+      ],
+      "category": "hardware"
+    },
+    {
+      "id": "hardware-q5",
+      "text": "我们低内存测试机用的是十六 GB 还是八 GB？",
+      "expected": [
+        "hardware-1"
+      ],
+      "category": "hardware"
+    },
+    {
+      "id": "budget-q0",
+      "text": "挑选家里 NAS 用的磁盘时，总价不能超过多少？",
+      "expected": [
+        "budget-0"
+      ],
+      "category": "budget"
+    },
+    {
+      "id": "budget-q1",
+      "text": "给我自己买椅子，最高价格是多少？",
+      "expected": [
+        "budget-1"
+      ],
+      "category": "budget"
+    },
+    {
+      "id": "budget-q2",
+      "text": "团队那台测试显示器最多能花多少钱？",
+      "expected": [
+        "budget-2"
+      ],
+      "category": "budget"
+    },
+    {
+      "id": "budget-q3",
+      "text": "给我伴侣选椅子时应该用哪个预算？",
+      "expected": [
+        "budget-3"
+      ],
+      "category": "budget"
+    },
+    {
+      "id": "budget-q4",
+      "text": "What is the total budget for my home NAS disks?",
+      "expected": [
+        "budget-0"
+      ],
+      "category": "budget"
+    },
+    {
+      "id": "budget-q5",
+      "text": "我个人的办公座椅预算是一千五还是三千？",
+      "expected": [
+        "budget-1"
+      ],
+      "category": "budget"
+    },
+    {
+      "id": "export-q0",
+      "text": "把我的报销记录导出来时要什么文件格式和编码？",
+      "expected": [
+        "export-0"
+      ],
+      "category": "export"
+    },
+    {
+      "id": "export-q1",
+      "text": "报销金额的小数分隔符和小数位应该怎么处理？",
+      "expected": [
+        "export-1"
+      ],
+      "category": "export"
+    },
+    {
+      "id": "export-q2",
+      "text": "法国客户要的正式报价文件应该是哪种格式？",
+      "expected": [
+        "export-2"
+      ],
+      "category": "export"
+    },
+    {
+      "id": "export-q3",
+      "text": "系统日志中的时间应如何格式化？",
+      "expected": [
+        "export-3"
+      ],
+      "category": "export"
+    },
+    {
+      "id": "export-q4",
+      "text": "What encoding and file type do I need for expense exports?",
+      "expected": [
+        "export-0"
+      ],
+      "category": "export"
+    },
+    {
+      "id": "export-q5",
+      "text": "报销表的价格写成逗号小数还是点号小数？",
+      "expected": [
+        "export-1"
+      ],
+      "category": "export"
+    },
+    {
+      "id": "reminders-q0",
+      "text": "我只说提醒我一下的时候，要默认创建重复提醒吗？",
+      "expected": [
+        "reminders-0"
+      ],
+      "category": "reminders"
+    },
+    {
+      "id": "reminders-q1",
+      "text": "我的房租检查提醒多久执行一次？",
+      "expected": [
+        "reminders-1"
+      ],
+      "category": "reminders"
+    },
+    {
+      "id": "reminders-q2",
+      "text": "出差坐飞机那天，应提前多长时间提醒我？",
+      "expected": [
+        "reminders-2"
+      ],
+      "category": "reminders"
+    },
+    {
+      "id": "reminders-q3",
+      "text": "秦越参加会议前多久希望收到提示？",
+      "expected": [
+        "reminders-3"
+      ],
+      "category": "reminders"
+    },
+    {
+      "id": "reminders-q4",
+      "text": "Should an ordinary reminder repeat by default for me?",
+      "expected": [
+        "reminders-0"
+      ],
+      "category": "reminders"
+    },
+    {
+      "id": "reminders-q5",
+      "text": "每月月初我要求检查的付款事项是什么？",
+      "expected": [
+        "reminders-1"
+      ],
+      "category": "reminders"
+    },
+    {
+      "id": "history-q0",
+      "text": "现在给我推荐笔记插件应该针对哪个软件？",
+      "expected": [
+        "history-0"
+      ],
+      "category": "history"
+    },
+    {
+      "id": "history-q1",
+      "text": "我八月以前使用的是哪个笔记工具？",
+      "expected": [
+        "history-1"
+      ],
+      "category": "history"
+    },
+    {
+      "id": "history-q2",
+      "text": "宋岚九月之后在用什么笔记应用？",
+      "expected": [
+        "history-2"
+      ],
+      "category": "history"
+    },
+    {
+      "id": "history-q3",
+      "text": "我换了个人笔记工具之后，团队资料库在哪里？",
+      "expected": [
+        "history-3"
+      ],
+      "category": "history"
+    },
+    {
+      "id": "history-q4",
+      "text": "Which note-taking app do I use now, after the September switch?",
+      "expected": [
+        "history-0"
+      ],
+      "category": "history"
+    },
+    {
+      "id": "history-q5",
+      "text": "Notion 是我现在的选择，还是八月以前的历史选择？",
+      "expected": [
+        "history-1"
+      ],
+      "category": "history"
+    },
+    {
+      "id": "identifiers-q0",
+      "text": "Cedar 的正确工单编号是 CD-104 还是 CD-140？",
+      "expected": [
+        "identifiers-0"
+      ],
+      "category": "identifiers"
+    },
+    {
+      "id": "identifiers-q1",
+      "text": "哪个项目对应 CD-140 这张工单？",
+      "expected": [
+        "identifiers-1"
+      ],
+      "category": "identifiers"
+    },
+    {
+      "id": "identifiers-q2",
+      "text": "做本地向量模型试验用的分支叫什么？",
+      "expected": [
+        "identifiers-2"
+      ],
+      "category": "identifiers"
+    },
+    {
+      "id": "identifiers-q3",
+      "text": "基准测试允许清理的临时目录名称是什么？",
+      "expected": [
+        "identifiers-3"
+      ],
+      "category": "identifiers"
+    },
+    {
+      "id": "identifiers-q4",
+      "text": "What is the ticket identifier for Cedar?",
+      "expected": [
+        "identifiers-0"
+      ],
+      "category": "identifiers"
+    },
+    {
+      "id": "identifiers-q5",
+      "text": "Birch 那张工单的完整编号是什么？",
+      "expected": [
+        "identifiers-1"
+      ],
+      "category": "identifiers"
+    },
+    {
+      "id": "capture-q0",
+      "text": "从聊天里记下日常偏好前，需要我每次点确认吗？",
+      "expected": [
+        "capture-0"
+      ],
+      "category": "capture"
+    },
+    {
+      "id": "capture-q1",
+      "text": "我让系统忘记某个偏好后，什么时候才可以回答已经忘记？",
+      "expected": [
+        "capture-1"
+      ],
+      "category": "capture"
+    },
+    {
+      "id": "capture-q2",
+      "text": "每一轮聊天结束都应该额外调用一次模型来写记忆吗？",
+      "expected": [
+        "capture-2"
+      ],
+      "category": "capture"
+    },
+    {
+      "id": "capture-q3",
+      "text": "普通回答中必须展示记忆的逐句引用吗？",
+      "expected": [
+        "capture-3"
+      ],
+      "category": "capture"
+    },
+    {
+      "id": "capture-q4",
+      "text": "Should every completed conversation turn trigger another extraction API call?",
+      "expected": [
+        "capture-2"
+      ],
+      "category": "capture"
+    },
+    {
+      "id": "capture-q5",
+      "text": "日常记忆的保存流程是无感的，还是必须逐条审核？",
+      "expected": [
+        "capture-0"
+      ],
+      "category": "capture"
+    },
+    {
+      "id": "multi-0",
+      "text": "帮我分别整理午餐的坚果限制和晚餐的口味要求。",
+      "expected": [
+        "food-0",
+        "food-2"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "multi-1",
+      "text": "给我选南京出差酒店时，要同时遵守哪个价格上限和位置偏好？",
+      "expected": [
+        "travel-0",
+        "travel-3"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "multi-2",
+      "text": "Cedar 项目里，远程聊天和文本向量各由谁负责？",
+      "expected": [
+        "provider-0",
+        "provider-1"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "multi-3",
+      "text": "记忆被修改或者被遗忘时，后台向量任务应分别遵守什么规则？",
+      "expected": [
+        "storage-2",
+        "storage-3"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "multi-4",
+      "text": "给我讲方案的语言和写代码注释的语言分别是什么？",
+      "expected": [
+        "language-0",
+        "language-1"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "multi-5",
+      "text": "对比我的主力开发电脑与办公室共享测试机的内存配置。",
+      "expected": [
+        "hardware-0",
+        "hardware-1"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "multi-6",
+      "text": "导出报销明细要同时满足什么文件编码、格式和金额表示规则？",
+      "expected": [
+        "export-0",
+        "export-1"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "multi-7",
+      "text": "普通对话记忆在是否确认和模型请求频率上，分别有什么要求？",
+      "expected": [
+        "capture-0",
+        "capture-2"
+      ],
+      "category": "multi-fact"
+    },
+    {
+      "id": "none-0",
+      "text": "我的家庭 NAS 管理员密码是什么？",
+      "expected": [],
+      "category": "no-answer"
+    },
+    {
+      "id": "none-1",
+      "text": "南京这次出差已经订好的酒店订单号是多少？",
+      "expected": [],
+      "category": "no-answer"
+    },
+    {
+      "id": "none-2",
+      "text": "我那台主力电脑的序列号是什么？",
+      "expected": [],
+      "category": "no-answer"
+    },
+    {
+      "id": "none-3",
+      "text": "CD-104 工单最后一次修改的准确时间是什么？",
+      "expected": [],
+      "category": "no-answer"
+    },
+    {
+      "id": "none-4",
+      "text": "我每月房租的具体金额是多少？",
+      "expected": [],
+      "category": "no-answer"
+    },
+    {
+      "id": "none-5",
+      "text": "我伴侣的出生日期是什么？",
+      "expected": [],
+      "category": "no-answer"
+    },
+    {
+      "id": "none-6",
+      "text": "What is the exact DeepSeek API key for Cedar?",
+      "expected": [],
+      "category": "no-answer"
+    },
+    {
+      "id": "none-7",
+      "text": "What is the password for the shared office test machine?",
+      "expected": [],
+      "category": "no-answer"
+    }
+  ]
+}

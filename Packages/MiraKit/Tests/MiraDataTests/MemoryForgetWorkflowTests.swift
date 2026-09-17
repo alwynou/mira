@@ -132,8 +132,7 @@ struct MemoryForgetWorkflowTests {
                 let historyScope = RuntimeScope(kind: .application)
                 let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
                 let historyReader = JournalSessionReader(journal: f.library, payloads: f.library)
-                let history = MemoryApplication(store: currentMemory, capturePolicyStore: currentMemory,
-                    extractionBudgetReader: extraction, extractionStatusReader: extraction, reader: historyReader, privacyHistory: plans,
+                let history = MemoryApplication(store: currentMemory, extractionStatusReader: extraction, reader: historyReader, privacyHistory: plans,
                     access: f.access, scope: historyScope, now: { TaskWorkflowFixture.now })
                 do {
                     for address in affected {

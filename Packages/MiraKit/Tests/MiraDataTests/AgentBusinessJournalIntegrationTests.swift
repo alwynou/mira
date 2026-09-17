@@ -277,10 +277,10 @@ private final class BusinessJournalFixture: Sendable {
         let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1)
         let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
         let attemptCommit = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let staged = try await AgentRequestRecord.stage(build, context: context)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
-                        attemptIndex: 1, request: requestRef))]
+                        attemptIndex: 1, request: staged.request, contents: staged.contents))]
         }
         try requireCommitted(attemptCommit, "Attempt start")
 
@@ -333,7 +333,7 @@ private final class BusinessJournalFixture: Sendable {
             "required": .array([.string("ok")]), "additionalProperties": .bool(false)])
         let descriptor = AgentToolDescriptor(definition: toolDefinition, revision: 1, outputSchema: output,
             executionMode: .exclusive, timeoutMilliseconds: 1_000, maximumResultBytes: 1_024)
-        return .init(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: callDigest,
+        return .init(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests", callDigest: callDigest, inheritedSources: [],
             plan: .init(input: .object([:]), sources: [], targets: []))
     }
 

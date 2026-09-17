@@ -291,7 +291,7 @@ struct PoolModelEditorModelTests {
     private func withHTTPLibrary(_ body: (MacLibrary) async throws -> Void) async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
             do {

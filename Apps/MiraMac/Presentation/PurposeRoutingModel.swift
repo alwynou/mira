@@ -43,11 +43,7 @@ final class PurposeRoutingModel {
         didLoad && !isDemo && !isLoading && !isSaving && hasChanges
             && (followsLastSelection || (routeID.map { id in options.contains { $0.id == id } } ?? true))
     }
-    private var requiredCapabilities: Set<String> {
-        purpose == AgentModelPurposeID.memoryExtraction
-            ? [AgentModelCapabilityID.streamingText, AgentModelCapabilityID.jsonOutput]
-            : [AgentModelCapabilityID.streamingText]
-    }
+    private var requiredCapabilities: Set<String> { [AgentModelCapabilityID.streamingText] }
 
     func refresh(options candidates: [PurposeRoutingOption]) async {
         let token = UUID()

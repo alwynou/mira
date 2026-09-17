@@ -4,6 +4,8 @@ import Foundation
 public protocol TaskReadStore: Sendable {
     func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) async throws -> [MiraTask]
     func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> MiraTask
+    /// Resolves one immutable revision while checking the current task and workspace in the same read snapshot.
+    func taskRevision(_ id: MiraTaskID, revision: Int, workspaceID: WorkspaceID?) async throws -> TaskRevision
     func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> [TaskRevision]
     func taskProposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal]
 }

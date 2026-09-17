@@ -1,6 +1,6 @@
 import Foundation
 import GRDB
-import MiraCore
+@testable import MiraCore
 import MiraData
 import Testing
 
@@ -28,7 +28,7 @@ struct AgentToolContextChallengeTests {
             #expect(input.messages.contains { $0.role == .context && $0.text.contains("Extension-owned source") })
             #expect(input.tools.map(\.name) == [CounterExtensionTool.name])
             let request = try #require(state.attempts.values.min(by: { $0.sequence < $1.sequence })?.attempt.request)
-            let build = try SessionCodec.decode(AgentContextBuild.self, from: await f.data.library.read(request))
+            let build = try await AgentRequestRecord.read(request, payloads: f.data.library)
             #expect(
                 build.evidence.contains { $0.contributorID == CounterSource.id && $0.sources == [f.source.reference] })
             #expect(build.sources.contains(f.source.reference))
@@ -136,7 +136,7 @@ struct AgentToolContextChallengeTests {
                 await f.application.waitForExecution(id: command.executionID, sessionID: command.sessionID))
             let state = try await f.application.sessionSnapshot(id: command.sessionID)
             let request = try #require(state.attempts.values.min(by: { $0.sequence < $1.sequence })?.attempt.request)
-            let build = try SessionCodec.decode(AgentContextBuild.self, from: await f.data.library.read(request))
+            let build = try await AgentRequestRecord.read(request, payloads: f.data.library)
             #expect(build.evidence.isEmpty)
             #expect(build.omissions.contains { $0.contributorID == CounterSource.id && $0.reason == .unauthorized })
             #expect(

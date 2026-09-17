@@ -15,6 +15,7 @@ actor MacLibraryStorage {
     let settings: SQLiteAgentModelSettings
     let modelMetadata: SQLiteAgentModelMetadataStore
     let memories: SQLiteMemoryStore
+    let embeddings: any MemoryEmbeddingService
     let extraction: SQLiteMemoryExtractionStore
     let knowledge: SQLiteKnowledgeStore
     let tasks: SQLiteTaskStore
@@ -33,7 +34,7 @@ actor MacLibraryStorage {
         authority: SQLiteLibraryAuthority, access: AgentLibraryAccess,
         workspaces: SQLiteWorkspaceStore, settings: SQLiteAgentModelSettings,
         modelMetadata: SQLiteAgentModelMetadataStore,
-        memories: SQLiteMemoryStore, extraction: SQLiteMemoryExtractionStore,
+        memories: SQLiteMemoryStore, embeddings: any MemoryEmbeddingService, extraction: SQLiteMemoryExtractionStore,
         knowledge: SQLiteKnowledgeStore, tasks: SQLiteTaskStore, business: SQLiteBusinessEffects,
         businessPrivacy: SQLiteBusinessPrivacyStore, privacyPlans: SQLiteSessionPrivacyPlanStore,
         contextPolicy: SQLiteAgentContextPolicy, projection: SQLiteSessionProjection,
@@ -49,6 +50,7 @@ actor MacLibraryStorage {
         self.settings = settings
         self.modelMetadata = modelMetadata
         self.memories = memories
+        self.embeddings = embeddings
         self.extraction = extraction
         self.knowledge = knowledge
         self.tasks = tasks
@@ -63,7 +65,7 @@ actor MacLibraryStorage {
     }
 
     /// Opening owns its blocking I/O independently of the UI actor and waiter cancellation.
-    static func open(directory: URL, expectedLibraryID: UUID? = nil, environment: RuntimeEnvironment = .init())
+    static func open(embeddings injectedEmbeddings: (any MemoryEmbeddingService)? = nil, directory: URL, expectedLibraryID: UUID? = nil, environment: RuntimeEnvironment = .init())
         async throws -> MacLibraryStorage
     {
         try Task.checkCancellation()
@@ -107,7 +109,11 @@ actor MacLibraryStorage {
                 cleanups.append { await settings.close() }
                 let modelMetadata = try SQLiteAgentModelMetadataStore(
                     database: database, libraryID: authority.libraryID)
-                let memories = try SQLiteMemoryStore(database: database, libraryID: authority.libraryID)
+                let models = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("MiraModels/qwen3-embedding-0.6b-4bit", isDirectory: true)
+                let embeddings: any MemoryEmbeddingService = injectedEmbeddings ?? MacMemoryEmbeddingService(directory: models)
+                cleanups.append { await embeddings.close() }
+                let memories = try SQLiteMemoryStore(database: database, libraryID: authority.libraryID, embeddings: embeddings)
                 cleanups.append { await memories.close() }
                 let extraction = try SQLiteMemoryExtractionStore(database: database, libraryID: authority.libraryID)
                 cleanups.append { await extraction.close() }
@@ -151,7 +157,7 @@ actor MacLibraryStorage {
                     directory: directory, database: database, sessions: sessions,
                     authority: authority, access: access, workspaces: workspaces, settings: settings,
                     modelMetadata: modelMetadata,
-                    memories: memories, extraction: extraction, knowledge: knowledge, tasks: tasks,
+                    memories: memories, embeddings: embeddings, extraction: extraction, knowledge: knowledge, tasks: tasks,
                     business: business, businessPrivacy: businessPrivacy, privacyPlans: privacyPlans,
                     contextPolicy: contextPolicy, projection: projection, searchIndex: searchIndex,
                     archiveModules: modules, changes: changes)
@@ -171,6 +177,7 @@ actor MacLibraryStorage {
             do { try await business.close() } catch { failure = MiraError.safe(error) }
             await extraction.close()
             await memories.close()
+            await embeddings.close()
             await knowledge.close()
             await tasks.close()
             await workspaces.close()
@@ -234,6 +241,7 @@ actor MacLibraryStorage {
         let allowed: Set<String> = [
             "Business.sqlite", "Business.sqlite-wal", "Business.sqlite-shm", "Business.sqlite-journal",
             "Sessions", "Knowledge", "Projections", "credential-cleanup.json", "credential-cleanup.json.next",
+            ".DS_Store",
         ]
         let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
         guard Set(names).isSubset(of: allowed) else { throw invalidDirectory }
@@ -243,7 +251,7 @@ actor MacLibraryStorage {
                 guard attributes[.type] as? FileAttributeType == .typeDirectory else { throw invalidDirectory }
             }
         }
-        for name in ["credential-cleanup.json", "credential-cleanup.json.next"] {
+        for name in ["credential-cleanup.json", "credential-cleanup.json.next", ".DS_Store"] {
             if let attributes = try attributesIfPresent(directory.appendingPathComponent(name)) {
                 guard attributes[.type] as? FileAttributeType == .typeRegular,
                     (attributes[.referenceCount] as? NSNumber)?.intValue == 1

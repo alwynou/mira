@@ -5,17 +5,37 @@ import Testing
 
 @Suite("Durable model draft timer", .timeLimit(.minutes(1)))
 struct AgentModelDraftTimerTests {
+    @Test func cancellationBeforeTimerCapturesLatestAccumulator() async throws {
+        let fixture = try await DraftTimerFixture.make()
+        let task = Task { try await fixture.execute() }
+        do {
+            await fixture.probe.waitUntilDispatched()
+            try await Task.sleep(for: .milliseconds(20))
+            task.cancel()
+            _ = try? await task.value
+            await fixture.probe.waitUntilDrained()
+            let draft = try #require(try await fixture.payloads.activeDraft(sessionID: fixture.sessionID))
+            #expect(draft.blocks.contains { if case .text(let value) = $0.content { return value == "partial answer" }; return false })
+            #expect(draft.blocks.contains { if case .thinking(let value) = $0.content { return value == "partial thinking" }; return false })
+            #expect(draft.continuation?.isComplete == false)
+        } catch {
+            task.cancel(); _ = try? await task.value
+            await fixture.close()
+            throw error
+        }
+        await fixture.close()
+    }
+
     @Test func pausedStreamDraftSurvivesCancellationAndReopen() async throws {
         let fixture = try await DraftTimerFixture.make()
         let task = Task { try await fixture.execute() }
         do {
             await fixture.probe.waitUntilDispatched()
             let draft = try await fixture.waitForDraft()
-            #expect(draft[.answer] == Data("partial answer".utf8))
-            #expect(draft[.thinking] == Data("partial thinking".utf8))
-            let transcript = try SessionCodec.decode(JSONValue.self, from: #require(draft[.transcript]))
-            #expect(transcript["continuation"]?["payload"] == .object(["opaque": .string("timer-proof")]))
-            #expect(transcript["continuation"]?["isComplete"] == .bool(false))
+            #expect(draft.blocks.contains { if case .text(let value) = $0.content { return value == "partial answer" }; return false })
+            #expect(draft.blocks.contains { if case .thinking(let value) = $0.content { return value == "partial thinking" }; return false })
+            #expect(draft.continuation?.payload == .object(["opaque": .string("timer-proof")]))
+            #expect(draft.continuation?.isComplete == false)
 
             task.cancel()
             do { _ = try await task.value; Issue.record("A cancelled paused stream completed") }
@@ -23,6 +43,7 @@ struct AgentModelDraftTimerTests {
             await fixture.probe.waitUntilDrained()
             let before = await fixture.runtime.snapshot()
             #expect(before.executions[fixture.executionID]?.completion == nil)
+            let finalDraft = try #require(try await fixture.payloads.activeDraft(sessionID: fixture.sessionID))
             await fixture.runtime.close()
             try await fixture.journal.close()
 
@@ -30,10 +51,8 @@ struct AgentModelDraftTimerTests {
             do {
                 let reopened = try await SessionRuntime.open(id: fixture.sessionID, journal: reopenedLibrary, payloads: reopenedLibrary)
                 do {
-                    let reopenedState = await reopened.snapshot()
-                    let reopenedDraft = try await SessionDraftReader(journal: reopenedLibrary, payloads: reopenedLibrary)
-                        .read(state: reopenedState, executionID: fixture.executionID)
-                    #expect(reopenedDraft == draft)
+                    let reopenedDraft = try #require(try await reopenedLibrary.activeDraft(sessionID: fixture.sessionID))
+                    #expect(reopenedDraft == finalDraft)
                     await reopened.close()
                     try await reopenedLibrary.close()
                 } catch {
@@ -87,41 +106,19 @@ struct AgentModelDraftTimerTests {
             do {
                 _ = try await task.value
                 Issue.record("A draft checkpoint durability failure completed")
-            } catch let error as AgentDurabilityFailure {
-                switch (mode, error) {
-                case (.notCommitted, .rejected(let failure)): #expect(failure.code == .storage)
-                case (.indeterminate, .uncertain(_, let failure)): #expect(failure.code == .storage)
-                default: Issue.record("Unexpected durability failure classification: \(error)")
-                }
-            } catch { Issue.record("Unexpected checkpoint error: \(error)") }
+            } catch let error as MiraError { #expect(error.code == .storage || error.code == .malformedStream) }
+            catch { Issue.record("Unexpected checkpoint error: \(error)") }
             await fixture.probe.waitUntilDrained()
             #expect(await fixture.probe.count == 1)
             let state = await fixture.runtime.snapshot()
-            #expect(state.attempts[fixture.attemptID]?.resolution == nil)
+            #expect(state.attempts[fixture.attemptID]?.resolution?.status == .failed)
             let batches = try await fixture.journal.read(sessionID: fixture.sessionID, after: 0,
                                                          limit: SessionFormatLimits.maximumReadBatches)
             #expect(batches.filter { batch in batch.events.contains { if case .attemptStarted = $0.fact { return true }; return false } }.count == 1)
-            #expect(batches.filter { batch in batch.events.contains { if case .draftCheckpoint = $0.fact { return true }; return false } }.count == (mode == .indeterminate ? 1 : 0))
-            #expect(batches.allSatisfy { batch in batch.events.allSatisfy { event in
-                if case .attemptResolved = event.fact { return false }; return true
-            }})
-            if mode == .indeterminate {
-                let expectedBatchID = try #require(triggeredBatchID)
-                #expect(batches.contains { $0.id == expectedBatchID })
-                let reconciliation = await fixture.runtime.reconcile()
-                guard case .committed = reconciliation else {
-                    throw MiraError(.storage, "The indeterminate draft batch did not reconcile: \(reconciliation)")
-                }
-                let state = await fixture.runtime.snapshot()
-                let drafts = try await SessionDraftReader(journal: fixture.journal, payloads: fixture.payloads)
-                    .read(state: state, executionID: fixture.executionID)
-                #expect(drafts[.answer] == Data("partial answer".utf8))
-                #expect(drafts[.thinking] == Data("partial thinking".utf8))
-                let reconciledBatches = try await fixture.journal.read(sessionID: fixture.sessionID, after: 0,
-                                                                        limit: SessionFormatLimits.maximumReadBatches)
-                #expect(reconciledBatches.filter { $0.id == expectedBatchID }.count == 1)
-                #expect(await fixture.probe.count == 1)
-            }
+            #expect(batches.allSatisfy { $0.events.count > 0 })
+            let remainingDraft = try await fixture.payloads.activeDraft(sessionID: fixture.sessionID)
+            #expect(remainingDraft == nil)
+            #expect(await fixture.probe.count == 1)
         } catch {
             task.cancel(); _ = try? await task.value
             await fixture.close()
@@ -326,12 +323,9 @@ private final class DraftTimerFixture: Sendable {
             adapter: adapter, toolEffects: tools, authorizer: authority, priority: .foreground)
     }
 
-    func waitForDraft() async throws -> [SessionDraftPart: Data] {
+    func waitForDraft() async throws -> SessionActiveDraft {
         for _ in 0..<200 {
-            let state = await runtime.snapshot()
-            if let execution = state.executions[executionID], !execution.drafts.isEmpty {
-                return try await SessionDraftReader(journal: journal, payloads: payloads).read(state: state, executionID: executionID)
-            }
+            if let draft = try await payloads.activeDraft(sessionID: sessionID) { return draft }
             try await Task.sleep(for: .milliseconds(25))
         }
         throw MiraError(.timeout, "The model draft timer did not checkpoint within the test bound.")
@@ -352,14 +346,6 @@ private actor DraftFaultJournal: SessionJournal, SessionPayloadStore {
     private var waiters: [CheckedContinuation<Void, Never>] = []
     init(base: FileSessionLibrary, mode: DraftFaultMode) { self.base = base; self.mode = mode }
     func append(_ batch: SessionBatch) async -> SessionAppendOutcome {
-        if armed && batch.events.contains(where: { if case .draftCheckpoint = $0.fact { return true }; return false }) {
-            armed = false; triggered = true; triggeredID = batch.id; waiters.forEach { $0.resume() }; waiters.removeAll()
-            if mode == .notCommitted { return .notCommitted(.init(.storage, "Synthetic draft checkpoint rejection.")) }
-            guard case .committed = await base.append(batch) else {
-                return .indeterminate(.init(.storage, "Synthetic draft checkpoint publication failed."))
-            }
-            return .indeterminate(.init(.storage, "Synthetic draft checkpoint uncertainty."))
-        }
         return await base.append(batch)
     }
     func reconcile(_ batch: SessionBatch) async -> SessionAppendOutcome { await base.reconcile(batch) }
@@ -371,6 +357,19 @@ private actor DraftFaultJournal: SessionJournal, SessionPayloadStore {
     func close() async throws { try await base.close() }
     func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference { try await base.stage(data, sessionID: sessionID, batchID: batchID, retentionGroup: retentionGroup, kind: kind) }
     func read(_ reference: SessionPayloadReference) async throws -> Data { try await base.read(reference) }
+    func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? { try await base.activeDraft(sessionID: sessionID) }
+    func saveActiveDraft(_ draft: SessionActiveDraft) async throws {
+        if armed {
+            armed = false; triggered = true; triggeredID = draft.attemptID; waiters.forEach { $0.resume() }; waiters.removeAll()
+            if mode == .notCommitted { throw MiraError(.storage, "Synthetic active draft rejection.") }
+            try await base.saveActiveDraft(draft)
+            throw MiraError(.storage, "Synthetic active draft publication uncertainty.")
+        }
+        try await base.saveActiveDraft(draft)
+    }
+    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) async throws {
+        try await base.removeActiveDraft(sessionID: sessionID, attemptID: attemptID)
+    }
     func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws { try await base.purge(sessionID: sessionID, retentionGroups: retentionGroups) }
     func waitUntilTriggered() async { if !triggered { await withCheckedContinuation { waiters.append($0) } } }
     func triggeredBatchID() -> UUID? { triggeredID }

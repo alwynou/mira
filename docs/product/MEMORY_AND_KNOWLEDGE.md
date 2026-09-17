@@ -1,7 +1,7 @@
 # 记忆与知识产品规范
 
 **文档版本：** v1.2  
-**更新日期：** 2026-09-05  
+**更新日期：** 2026-09-16
 **状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
 
 定义 Memory、Project Context、Working Memory、Knowledge 与 Artifact 的用户语义、反馈和纠正体验；技术模型由对应 architecture 文档负责。
@@ -12,9 +12,9 @@
 
 The previous Memory and Knowledge management screens have been removed at the user's request. Their sidebar entries remain visible as inert destinations with a "Not implemented yet" help label; clicking them preserves the current conversation and draft. The toolbar Knowledge entry is also inert. The conversation memory extraction disclosure and status panel have also been removed at the user's request; replacement feedback presentation is pending. Replacement management interfaces are pending design and implementation; the management interactions described below are product requirements, not currently available UI.
 
-This removes presentation only. Memory extraction, recall, conversation citations, explicit save/approval flows, settings, persisted records, and knowledge retrieval remain in place.
+This removes presentation only. Memory extraction, recall, conversation citations, explicit save flows, settings, persisted records, and knowledge retrieval remain in place.
 
-Memory settings now uses compact capture-mode and daily-budget cards, shared dropdowns and inputs, and one remaining-token summary. Detailed routing and usage diagnostics are omitted; a missing extraction model links to Models settings. Capturing policy, sensitive-memory boundaries, token-budget enforcement, explicit saves, and errors are unchanged. Discard Changes appears only for an edited draft.
+Memory settings explains always-automatic background capture using the conversation model. There is no capture-mode selector, separate extraction-model setup, daily token quota, remaining-budget display, or Save/Discard flow. A local search card shows the pinned Qwen3 0.6B 4-bit model and preparation state; embeddings require no API key. Actual usage and cache counters remain available in execution inspection. Source authorization and sensitive-memory boundaries remain in force.
 
 ---
 
@@ -78,7 +78,7 @@ Workspace 是检索与数据发送边界，标签和实体链接不会自动授�
 
 ### 1.3 Memory 的分级产生策略
 
-这是**基线默认**，需要通过真实使用和 Eval 持续调整。普通用户输入会进入自动关联评估，即按当前请求自动预取相关 Memory；这不会开启自动捕获或改变后台提取设置。是否提交后台提取、使用远程用途模型或直接生效，仍受用户设置、用途授权和以下规则约束。
+这是**基线默认**，需要通过真实使用和 Eval 持续调整。普通用户输入会进入自动关联评估，即按当前请求自动预取相关 Memory；记忆始终自动捕获，后台提取沿用该会话已完成回合的模型，受批量阈值、模型上下文限制、当前发送权限和以下规则约束。
 
 #### A. 用户明确要求记住
 
@@ -112,31 +112,11 @@ Workspace 是检索与数据发送边界，标签和实体链接不会自动授�
 
 同类 Memory 只有在表达同一具体方面且用户自然表达了变化时才视为可能替代；不同方面的偏好可以同时保留。模型提供的方面标识只用于发现候选冲突，不是用户授权，也不能单独触发替代。
 
-Mira 应在对话或 Activity 中轻量提示：
-
-```text
-Mira 记住了：
-你倾向避免过度设计。
-
-[撤销] [编辑] [查看来源]
-```
-
-这类 Memory 可以参与召回，但权威性低于用户明确要求记住的内容。
+这类记忆在后台自然生效，不逐条弹窗或要求确认，也不要求在回答中显示引用。内部来源可以关联整个会话批次，供纠正和遗忘时追踪依赖。管理界面的编辑和撤销入口仍是待实现产品要求，不能把当前不可用入口当成已交付能力。
 
 #### C. 推断、敏感、冲突或低置信内容
 
-以下内容进入 Candidate（候选），不参与普通召回：
-
-- Mira 根据多次行为推测的偏好；
-- 外部资料中推断出的用户立场；
-- 会替代一条已确认 Memory 的新内容；
-- 与已有 Memory 可能属于同一具体方面但变化对象或表达不够确定；
-- 涉及敏感个人信息；
-- 主体、时间或范围不明确；
-- 提取置信度较低；
-- 可能只是当前情绪或短期状态。
-
-Candidate 集中进入审核入口，不应每次打断 Conversation。
+后台提取跳过推断、临时、敏感、低置信或无法确定替代目标的内容，不生成待审核列表。模型负责判断语义并输出简洁、独立可读的记忆；宿主负责范围、当前修订、发送许可和抑制规则。明确表达的纠正可在旧记忆修订仍匹配时生效；含糊冲突不覆盖旧记录。
 
 <a id="s09-04"></a>
 
@@ -190,7 +170,7 @@ confirms   独立信息支持旧认知
 challenges 新信息质疑旧认知
 ```
 
-高影响的 `replaces` 在用户确认前不能让旧 Memory 退出正常召回。
+含糊或高风险的替代不自动提交。清晰纠正同一主体和具体方面时，无需再次确认；提交前必须检查目标修订。
 
 <a id="s09-06"></a>
 
@@ -241,7 +221,9 @@ Agent 主动深度检索
 处理历史性、全量性、综合性问题
 ```
 
-预取只带入少量高相关、当前有效、范围匹配的 Memory；没有高相关内容时可以不注入。
+预取最多六条当前有效、范围匹配的记忆。最多两条明确归类为沟通或语言偏好的记忆构成小型用户档案；其余通过本地向量与词法搜索选择。回答应保留主体和时间，不把语义相近当成确定事实。模型未准备好时继续提供词法检索。
+
+Memory search returns relevant matches, up to its result limit, and can return none. A small library must not cause unrelated searches to return every stored memory. The search tool does not append the automatic communication/language profile. A related result may provide context without containing the answer to a specific question.
 
 当用户询问“我们过去讨论过哪些方案”“找出所有来源”等问题时，Agent 应主动调用 Memory / Knowledge 搜索工具，而不是依赖一次预取猜中所有内容。
 
@@ -260,13 +242,13 @@ The replacement management interface must open a specific memory from its proces
 
 ### 1.9 自动记忆设置与处理反馈
 
-首次启用自动记忆时说明：哪些用户消息会被处理、使用哪个用途模型、是否产生额外远程费用，以及如何关闭。用户未启用时，不在后台发送消息做自动提取；手动新增与明确“记住”的操作仍可使用。
+记忆统一自动处理，不提供手动／自动模式选择，也不要求单独选择提取模型。后台提取使用对应会话的模型；设置页说明批量处理和额外 token 消耗，不设置每日提取预算。明确“记住”的操作仍可即时保存，不必等到后台批次。
 
 自动记忆关闭且没有处理记录时，界面明确显示关闭状态和设置入口，不能只显示“没有提取任务”。开启后说明新完成的对话会进入处理；已有历史不自动补提取。
 
-用户可以切换“自动捕获并可撤销”“只生成候选”“仅手动”三种模式。启用自动模式后的分类规则仍遵守[相关规范 §1.3](MEMORY_AND_KNOWLEDGE.md#s09-03)。自动操作展示处理中、已记住、需审核或失败状态；没有已提交记录时，Assistant 不能声称“已记住”。
+普通对话采用确定性批量触发：累计四轮完成的对话、约 2,000 输入 token、空闲两分钟或最早未处理轮次已满十分钟。触发后才调用一次提取模型，单次上限为十六轮与约 8,192 输入 token，不为每轮再调用模型做分流。未提交成功前，Assistant 不能声称“已记住”。
 
-自动提取不阻塞正常回复。用户紧接着开启新 Conversation 时，可以看到尚未完成的提取，并选择等待或继续；Mira 不伪装已经拥有尚未落库的记忆。
+自动提取和本地索引不阻塞正常回复。新记忆先可通过词法搜索找回，本地索引完成后加入语义搜索；尚未落库的内容不冒充已保存。当前后台状态查看入口仍待设计。
 
 <a id="s09-10"></a>
 
@@ -286,7 +268,7 @@ The replacement management interface must open a specific memory from its proces
 更新 Source 或删除来源时，已人工确认的 Memory 不静默消失或重新解释为新版本资料的结论。显示其依据的原始版本或“来源已不可用”状态。若 Evidence 存在归属错误或不能再支撑该记忆，退出自动事实注入并等待纠正。Memory 因此失效时，已提交的历史消息、回复和可显示 Trace 可以继续在本地查看并显示状态标签，但相关内容（包括历史依赖的传递后代）不得再次进入 Provider Context。
 
 > **参考设计标注｜Nowledge Mem**  
-> 借鉴其将原始对话与可独立复用的 Memory 分开、保留来源、Working Memory 与知识演化的思路。Mira 不照搬固定审核队列：对清晰的用户陈述采用“自动生效 + 易撤销”，把推断、敏感和冲突内容保留为 Candidate。
+> 借鉴其将原始对话与可独立复用的 Memory 分开、保留来源、Working Memory 与知识演化的思路。Mira 不照搬固定审核队列：对清晰的用户陈述采用“自动生效 + 易撤销”，跳过后台推断、敏感和含糊冲突。
 
 ---
 

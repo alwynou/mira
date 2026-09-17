@@ -142,7 +142,7 @@ The bundled models.dev catalog supplies model names, context/output limits, moda
 
 Applied catalog restrictions exclude incompatible modalities, excessive output budgets and unsupported reasoning modes from execution. Thinking controls are first-class route settings: when a reviewed protocol supports them, Mira preserves visible thinking and the provider continuation material needed for that protocol. Models whose required thinking or continuation policy is not supported remain visible for management but unavailable for execution. Current compatibility and sources are defined in [Model catalog](../architecture/MODEL_CATALOG.md); the continuation boundaries are defined in [Thinking](../architecture/THINKING.md).
 
-JSON extraction has its own capability declaration and Test JSON Extraction action. A simple synthetic JSON test establishes only that format check; it does not prove memory quality, factual attribution or native structured-output support. Automatic memory still requires its separate switch, budget and explicit purpose selection.
+JSON extraction has its own capability declaration and Test JSON Extraction action. A simple synthetic JSON test establishes only that format check; it does not prove memory quality, factual attribution or native structured-output support. Memory is always automatic and uses the actual conversation model without a daily extraction quota; per-request context and output limits still apply. JSON capability testing remains diagnostic; it is not a separate memory model setup requirement.
 
 Mira 可以读取 Provider 模型列表，但用户始终可以手工填写 Model ID。
 
@@ -152,12 +152,11 @@ Mira 可以读取 Provider 模型列表，但用户始终可以手工填写 Mode
 
 ### 2.4 用途级路由
 
-用户可以为不同用途设置模型：
+架构允许模块声明不同用途；当前设置页提供会话模型，记忆提取自动沿用会话模型。其他用途按对应里程碑实现：
 
 ```text
 conversation
 agentReasoning
-memoryExtraction
 knowledgeProcessing
 compact
 embedding
@@ -169,7 +168,7 @@ speech
 
 跨 Provider Fallback（跨服务商降级）默认禁止；只有用户显式配置后才能发生。
 
-用途路线缺失时提示配置，不把主对话模型默认为所有后台任务的已授权路线。可以由用户一键将已配置路线应用到选定用途，并说明这些用途的额外数据处理。
+记忆提取使用同一会话的实际模型和已验证发送权限，不设独立用途。其他用途路线缺失时提示配置，不把主对话模型默认为所有后台任务的已授权路线。可以由用户一键将已配置路线应用到选定用途，并说明这些用途的额外数据处理。
 
 <a id="s13-05"></a>
 

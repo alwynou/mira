@@ -7,20 +7,20 @@ import Testing
 
 @Suite("Memory through the journal and current agent modules", .timeLimit(.minutes(1)))
 struct MemoryWorkflowTests {
-    @Test func explicitRememberCommitsFullEvidenceAndLocalOnlyReceipt() async throws {
+    @Test func explicitRememberCommitsFullEvidenceAndRecallableReceipt() async throws {
         let content = "I prefer green tea"
         let text = "Remember: I prefer green tea"
         let call = try CanonicalToolCall(
             id: "remember", name: "memory.remember", arguments: arguments(content: content).jsonString())
         try await withTaskWorkflow(
-            outputs: [modelToolStream([call]), [.blockStarted(.init(id: "text", content: .text("Saved locally."))), .blockFinished(id: "text"), .finished(.stop)]],
+            outputs: [modelToolStream([call]), [.blockStarted(.init(id: "text", content: .text("Saved."))), .blockFinished(id: "text"), .finished(.stop)]],
             memoryEnabled: true
         ) { f in
             let address = try await f.run(text)
             let store = try #require(f.memory)
             let memory = try #require(
                 try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10).memories.first)
-            #expect(memory.draft?.allowsRemoteUse == false)
+            #expect(memory.draft?.allowsRemoteUse == true)
             let detail = try await store.memoryDetail(memory.id, workspaceID: nil)
             #expect(detail.evidence.first?.source == .userMessage(try await f.evidence(address).reference))
             let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
@@ -34,7 +34,7 @@ struct MemoryWorkflowTests {
             #expect(
                 try await store.recallMemories(
                     query: "green tea", request: request, limit: 6, at: TaskWorkflowFixture.now
-                ).memories.isEmpty)
+                ).memories.map(\.id) == [memory.id])
         }
     }
 
@@ -83,8 +83,7 @@ struct MemoryWorkflowTests {
             let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
             let privacy = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
             let application = MemoryApplication(
-                store: store, capturePolicyStore: store,
-                extractionBudgetReader: extraction, extractionStatusReader: extraction, reader: .init(journal: f.library, payloads: f.library),
+                store: store, extractionStatusReader: extraction, reader: .init(journal: f.library, payloads: f.library),
                 privacyHistory: privacy, access: f.access, scope: f.scope)
             do {
                 _ = try await application.reviseMemory(
@@ -185,7 +184,7 @@ struct MemoryWorkflowTests {
     }
 
     @Test(arguments: [false, true])
-    func capturePolicyDistinguishesOrdinaryStatementsFromExplicitReview(explicit: Bool) async throws {
+    func saveToolNeedsNoExtraApprovalAndSensitiveMemoriesRemainLocal(explicit: Bool) async throws {
         let content = "I prefer herbal tea"
         let input: JSONValue = .object([
             "content": .string(content), "quote": .string(content), "kind": .string("preference"),
@@ -194,22 +193,18 @@ struct MemoryWorkflowTests {
         let call = try CanonicalToolCall(id: "remember", name: "memory.remember", arguments: input.jsonString())
         try await withTaskWorkflow(
             outputs: [
-                modelToolStream([call]), [.blockStarted(.init(id: "text", content: .text("No save was approved."))), .blockFinished(id: "text"), .finished(.stop)],
+                modelToolStream([call]), [.blockStarted(.init(id: "text", content: .text("Saved locally."))), .blockFinished(id: "text"), .finished(.stop)],
             ], memoryEnabled: true
         ) { f in
             let store = try #require(f.memory)
-            let authorization = try await f.authority.authorization()
-            try await store.saveMemoryCapturePolicy(
-                .init(revision: 2, mode: .candidateOnly, enabledAt: TaskWorkflowFixture.now),
-                expectedRevision: 1, authorization: authorization, at: TaskWorkflowFixture.now)
             let address = try await f.run(explicit ? "Remember: " + content : content)
             let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
             let invocation = try #require(state.invocations.values.first)
-            #expect((invocation.approval != nil) == explicit)
-            #expect(invocation.dispatchedAt == nil)
-            #expect(
-                try await store.memoryList(workspaceID: nil, states: [.active, .candidate], query: "", limit: 10)
-                    .memories.isEmpty)
+            #expect(invocation.approval == nil)
+            #expect(invocation.resolution?.status == .succeeded)
+            let saved = try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10).memories
+            #expect(saved.count == 1)
+            #expect(saved.first?.draft?.allowsRemoteUse == false)
         }
     }
 

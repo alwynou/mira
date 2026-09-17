@@ -49,6 +49,14 @@ flowchart TD
 
 `AgentToolPlan` 保存规范化输入、来源修订和目标修订。提案再固定工具定义、输出约束、副作用类型、命名空间及原调用正文摘要。`toolPrepared` 把提案引用与库级授权身份写入日志；`AgentEffectProof` 同时指向该事实的批次、序号、会话、执行和调用。业务层必须检查这些身份一致，不能接受仅凭调用 ID 自述的“已授权”。
 
+### Tool-owned and inherited sources
+
+`AgentToolPlan.sources` contains only the sources selected by the tool's preparation. `AgentToolProposal.inheritedSources` separately stores the exact ordered source set of the model request that produced the call. The proposal's `sources` property is their deduplicated union. A read tool receives its own prepared plan; a local write validator can require an empty tool-owned source list without rejecting prior conversation history or another domain's recall.
+
+The executor validates the union through `AgentSourceAuthorizer` before obtaining business authorization, after policy approval, immediately before the tool body, and before publishing successful read/external results. Domain validators still enforce their own prepared reads and exact mutation targets. Library fencing and transactional authorization remain the write gate. The effect resolver requires inherited sources to equal the durable request's sources, rejecting both missing and injected dependencies. Model continuation and privacy maintenance consume the union; neither can drop inherited evidence to make a tool succeed.
+
+`inheritedSources` is a required field in the current proposal encoding. There is no old-format decoder or migration bridge. Development libraries containing obsolete proposals are recreated under the contributor cleanup policy. Verification is recorded in [production tool verification](../engineering/TOOL_VERIFICATION.md).
+
 `AgentToolContext` 只携带执行／调用身份、完整 `SessionUserEvidence` 和本次接纳的 `AgentModelRoute`。原始证据包括会话、首次执行、消息、接纳事件／序号、正文引用与摘要、首次接纳时间／时区、工作空间、所观察到的日志 head 和会话授权代次。工具不再只拿到一组无法独立定位原始事实的标量。
 
 `SessionRuntime.userEvidence` 使用运行时自己的日志、正文存储和必需扩展修订表，经过同一个权威读取器解析证据。工具执行器核对证据与保存的请求正文、工作空间和授权代次一致；准备后的语义请求还必须匹配执行、步骤、系统指令、最后用户消息及本次冻结路线的适配器和能力。被调用的工具必须包含在保存的请求定义中。业务凭证解析器执行相同的证据／路线核对，再交给事务校验器。
@@ -105,7 +113,7 @@ flowchart LR
 
 审批绑定调用 ID、提案正文摘要、执行 ID、库级授权代次和期限。来源、目标修订及库身份包含在已保存的提案和意图中。审批请求和决定也是日志事实：没有提案不能申请，待决或拒绝的审批不能派发，过期后不能新增批准。无界面、界面断开、重启和取消都不会变成批准。中断结算先拒绝未决审批，再结束调用。
 
-连续的 `parallelSafe` 工具组成一个有界并行段；`ordered` 和 `exclusive` 在本执行批次内形成屏障。结果始终按模型顺序返回。当前没有宣称跨会话的通用资源互斥；数据库事务或平台资源所有者负责其资源的排他语义。
+连续的 `parallelSafe` 工具组成一个有界并行段；`ordered` 和 `exclusive` 在本执行批次内形成屏障。结果始终按模型顺序写入 `tool/result` 并返回。后序调用不阻塞工具正文并发，但等待前序调用完成持久结算后才能发布结果；读取和外部工具等待后重新校验来源与策略。取消或结算失败会释放等待者，并由既有恢复流程处理未结算调用。当前没有宣称跨会话的通用资源互斥；数据库事务或平台资源所有者负责其资源的排他语义。
 
 每个调用保留独立审批和派发状态。只有剩余调用全部等待审批时，会话阶段才进入 `waitingForUser`；仍有运行中的工具时保留 `waitingForTools`，避免把并行状态压成错误的全局等待。
 

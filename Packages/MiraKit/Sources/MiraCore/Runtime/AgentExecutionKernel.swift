@@ -108,7 +108,7 @@ actor AgentExecutionKernel {
         self.tools = try route?.capabilities.callsTools == true ? catalog.tools : AgentToolCatalog([])
         self.modelExecutor = .init(runtime: runtime, journal: journal, payloads: payloads, libraryLease: libraryLease, scheduler: scheduler, environment: environment)
         self.toolExecutor = try .init(runtime: runtime, payloads: payloads, libraryLease: libraryLease, catalog: tools, policy: policy,
-            authority: authority, business: business, approvals: approvals,
+            authority: authority, business: business, authorizer: authorizer, approvals: approvals,
             maximumParallelTools: limits.maximumParallelTools, environment: environment)
         self.finalizer = .init(runtime: runtime, authorizer: authorizer, environment: environment)
     }
@@ -315,7 +315,7 @@ actor AgentExecutionKernel {
                 blocks: [.init(id: "result-\(call.id)", content: .toolResult(callID: call.id, text: try observation.jsonString()))]))
             if let reference = state.invocations[resolution.invocationID]?.intent?.intent.proposal {
                 let proposal = try SessionCodec.decode(AgentToolProposal.self, from: await payloads.read(reference))
-                sources += proposal.plan.sources
+                sources += proposal.sources
             }
         }
         try await eligible()

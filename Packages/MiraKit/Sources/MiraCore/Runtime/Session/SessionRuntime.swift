@@ -79,6 +79,33 @@ public actor SessionRuntime {
 
     public func snapshot() -> SessionState { state }
 
+    /// Replaces recovery state without advancing the authoritative journal cursor.
+    func saveActiveDraft(_ draft: SessionActiveDraft) async throws {
+        try await acquireLane()
+        defer { releaseLane() }
+        try draft.validate()
+        guard pending == nil, draft.request.sessionID == id,
+              state.activeExecutionID == draft.executionID,
+              state.authorizationEpoch == draft.authorizationEpoch,
+              !state.excludedExecutionIDs.contains(draft.executionID),
+              state.executions[draft.executionID]?.attemptIDs.last == draft.attemptID,
+              let attempt = state.attempts[draft.attemptID], attempt.resolution == nil,
+              attempt.attempt.request == draft.request else {
+            throw MiraError(.interrupted, "The active draft owner is no longer authorized.")
+        }
+        try await payloads.saveActiveDraft(draft)
+    }
+
+    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) async throws {
+        try await acquireLane()
+        defer { releaseLane() }
+        guard sessionID == id, pending == nil else {
+            throw MiraError(.interrupted, "The active draft cannot be retired during reconciliation.")
+        }
+        try await payloads.removeActiveDraft(sessionID: id, attemptID: attemptID)
+    }
+
+
     /// Resolves original user evidence through the same journal and extension schemas as this session.
     /// This read does not grant a business permission or reserve a future commit.
     public func userEvidence(executionID: ExecutionID) async throws -> SessionUserEvidence {
@@ -309,7 +336,7 @@ public actor SessionRuntime {
             }
             for event in batch.events {
                 switch event.fact {
-                case .attemptStarted, .toolPrepared, .toolDispatched, .draftCheckpoint, .toolProposed,
+                case .attemptStarted, .toolPrepared, .toolDispatched, .toolProposed,
                      .toolApprovalRequested:
                     throw MiraError(.cancelled, "A cancellation request prevents new execution work.")
                 case .toolApprovalResolved(_, let approved) where approved:

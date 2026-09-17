@@ -159,10 +159,14 @@ public struct MemoryWriteReceipt: Codable, Equatable, Sendable {
     public var disposition: MemoryWriteDisposition
     public init(memory: Memory, disposition: MemoryWriteDisposition) { self.memory = memory; self.disposition = disposition }
 }
+public enum MemoryRetrievalMethod: String, Sendable { case lexical, hybrid }
 public struct MemorySearchResult: Sendable {
     public var memories: [Memory]
     public var isTruncated: Bool
-    public init(memories: [Memory], isTruncated: Bool = false) { self.memories = memories; self.isTruncated = isTruncated }
+    public var retrieval: MemoryRetrievalMethod
+    public init(memories: [Memory], isTruncated: Bool = false, retrieval: MemoryRetrievalMethod = .lexical) {
+        self.memories = memories; self.isTruncated = isTruncated; self.retrieval = retrieval
+    }
 }
 public struct MemoryUsage: Codable, Equatable, Sendable {
     public var memoryID: MemoryID

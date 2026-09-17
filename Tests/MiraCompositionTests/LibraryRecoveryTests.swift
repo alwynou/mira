@@ -8,7 +8,7 @@ import Testing
 struct LibraryRecoveryTests {
     @Test func pendingMaintenancePreservesUnrelatedDraftsButStillSuppressesRevokedSources() async throws {
         try await withDirectory { directory in
-            let storage = try await MacLibraryStorage.open(directory: directory)
+            let storage = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
             var addresses: [AgentExecutionAddress] = []
             do {
                 let authorization = try await storage.authority.authorization()
@@ -41,12 +41,12 @@ struct LibraryRecoveryTests {
                 throw error
             }
 
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
             #expect(await library.status().phase == .ready)
             #expect(await library.pendingMaintenance() == nil)
             #expect(await library.close().isSettled)
-            let reopened = try await MacLibraryStorage.open(directory: directory)
+            let reopened = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
             do {
                 for (index, address) in addresses.enumerated() {
                     let reader = JournalSessionReader(journal: reopened.sessions, payloads: reopened.sessions)
@@ -121,32 +121,21 @@ private func stageInterruptedDraft(_ sessions: FileSessionLibrary, sources: [Age
                     prepared: .init(
                         adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                     inheritedSources: sources, evidence: [], omissions: [])
-                let reference = try await context.stage(build, kind: .request, retentionGroup: UUID())
+                let staged = try await AgentRequestRecord.stage(build, context: context)
                 return [
                     .phaseChanged(executionID: address.executionID, phase: .preparing),
                     .attemptStarted(
                         .init(
                             id: attemptID, executionID: address.executionID, stepID: stepID,
-                            stepIndex: 1, attemptIndex: 1, request: reference)),
+                            stepIndex: 1, attemptIndex: 1, request: staged.request, contents: staged.contents)),
                 ]
             })
-        try committed(
-            await runtime.commit(id: UUID()) { context in
-                var facts: [SessionFact] = []
-                for (part, text): (SessionDraftPart, String) in [
-                    (.answer, "Interrupted answer"), (.thinking, "Interrupted thinking"),
-                ] {
-                    let bytes = Data(text.utf8)
-                    let reference = try await context.stageBytes(bytes, kind: .draft, retentionGroup: UUID())
-                    facts.append(
-                        .draftCheckpoint(
-                            .init(
-                                executionID: address.executionID, attemptID: attemptID,
-                                part: part, baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0,
-                                replacement: reference, resultByteCount: bytes.count)))
-                }
-                return facts
-            })
+        let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
+        let request = try #require(requestValue)
+        try await runtime.saveActiveDraft(.init(request: request, executionID: address.executionID, attemptID: attemptID,
+            authorizationEpoch: 0, revision: 1, blocks: [
+                .init(id: "answer", content: .text("Interrupted answer")),
+                .init(id: "thinking", content: .thinking("Interrupted thinking"))]))
         await runtime.close()
         return address
     } catch {

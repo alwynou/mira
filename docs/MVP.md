@@ -3,6 +3,16 @@
 **版本：** v1.0  
 **日期：** 2026-09-07
 
+Production tool verification on 2026-09-15 reproduced inherited-context rejection across all eight registered tools and task-list/mutation failures after successful commits. Source ownership and immutable task-revision authorization are corrected, with Responses schema/stream fixes and scoped package/host checks. [Tool verification](engineering/TOOL_VERIFICATION.md) records the evidence, development-library reset, and remaining live-model/native workflow limits.
+
+The 2026-09-16 [memory redesign plan](engineering/MEMORY_IMPLEMENTATION_PLAN.md) was first evaluated in an isolated [Qwen/MLX native prototype](engineering/MEMORY_EMBEDDING_PROTOTYPE.md). BF16 passed all prototype checks; the community 4-bit model retains one failed numeric-reference gate. These historical prototype results do not close M3 quality gates.
+
+An [expanded BF16/4-bit comparison](engineering/EMBEDDING_PRECISION_COMPARISON.md) supported the user's selection of 4-bit for its substantially smaller resident footprint and preserved observed Recall@6, with BF16 retained as a development reference. The [production integration](engineering/LOCAL_MEMORY_IMPLEMENTATION.md) now connects this model to revision-bound vectors, hybrid recall and batched automatic extraction in the native app. Release and memory-quality gates remain open as recorded there.
+
+The subsequent user-requested [daily quota removal](engineering/LOCAL_MEMORY_IMPLEMENTATION.md#daily-quota-removal-follow-up) removes the default 10,000-token extraction gate and budget settings after a real four-turn run was rejected before dispatch. Actual usage/cache accounting and per-request model limits remain.
+
+The [memory search relevance correction](engineering/MEMORY_SEARCH_RELEVANCE.md) filters low-scoring vector neighbors so small libraries no longer return every memory for unrelated queries. Focused tool/store tests and a real local-model fixture passed; broad answerability calibration remains open.
+
 **状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒底层能力保留。2026-09-08 按用户要求移除原记忆、知识库和任务管理界面，菜单保留为无跳转的待实现入口，替代界面待设计；历史原生界面验收不代表当前可用界面。本机通知授权、应用完全退出后的普通提醒送达，以及重启后的到期状态曾通过用户配合验收。专注模式与正式分发按用户选择暂缓。历史证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 服务商接入流程已按“配置并激活服务商 → 选择服务商模型 → 模型池 → 选择模型”更新，模型池阶段验收见 [模型池验收记录](engineering/PROVIDER_POOL_VERIFICATION.md)。新增服务商目录、models.dev 资料和用途筛选的当前范围见 [目录与筛选验收](engineering/MODEL_CATALOG_VERIFICATION.md)。
@@ -13,7 +23,9 @@ Formula rendering now validates and resolves native images before drawing, with 
 
 已形成借鉴 DSH、坚持核心优先的 Swift [Agent 核心架构方案](architecture/AGENT_CORE_PROPOSAL.md)与[实施计划](engineering/AGENT_CORE_IMPLEMENTATION_PLAN.md)，包含作用域扩展、拟议会话日志方案、核心架构图和执行流程图。用户已于 2026-09-13 授权通过 Goal 在 `codex/agent-core` 分支实施；iOS 暂不实现。新会话以日志为权威，业务事实保留在独立领域 SQLite，各阶段通过证据验收，不提前标记核心已完成。
 
-新核心已实现会话日志与正文、执行循环、作用域模块、模型与工具、调度与审批、来源授权、业务回执、记忆／知识／任务、持久维护及独立资料库恢复。macOS 的会话、工作区、记忆、Data 和 Provider 设置直接使用新服务，完整 App 已恢复构建；没有旧会话 SQL 仓库、旧模型协议或兼容运行时。核心继续只依赖 Foundation，平台能力由宿主模块组装。
+新核心已实现会话日志与正文（当前 v5 追加式 JSONL 使用有界语义事件和 transaction commit 标记，正文通过受管 inline／external 引用存储；活动草稿使用独立 sidecar，见[实现与验证记录](engineering/TYPED_SESSION_JOURNAL.md)）、执行循环、作用域模块、模型与工具、调度与审批、来源授权、业务回执、记忆／知识／任务、持久维护及独立资料库恢复。macOS 的会话、工作区、记忆、Data 和 Provider 设置直接使用新服务，完整 App 已恢复构建；没有旧会话 SQL 仓库、旧模型协议或兼容运行时。核心继续只依赖 Foundation，平台能力由宿主模块组装。
+
+当前日志已按语义 turn／step 结构记录请求、助手消息、尝试、工具调用和结果；结算时保存有序输出块，重放和请求清理通过 manifest 引用传播。可见最终答案与思考保留独立的隐私生命周期摘要，因此在该边界仍可能存在产品所需的可见历史副本。[DSH source research](engineering/DSH_SESSION_LOG_RESEARCH.md)记录设计依据，[语义日志验收](engineering/SEMANTIC_SESSION_JOURNAL_VERIFICATION.md)记录定向测试、进程崩溃恢复与原生重开证据。
 
 当前验收与准确测试结果统一记录在[核心验证记录](engineering/AGENT_CORE_VERIFICATION.md)。持久偏移索引与完整状态检查点已实现并可从日志重建；会话全文检索与宿主服务已实现；六类[公开扩展挑战](engineering/AGENT_CORE_EXTENSION_CHALLENGE.md)已通过，默认循环和会话归约器未为案例修改；另已通过[16 个真实进程终止与恢复场景](engineering/AGENT_PROCESS_CRASH_VERIFICATION.md)。[历史记忆状态查询](architecture/AGENT_MEMORY_HISTORY.md)及宿主提示刷新已接通；[独立后台提取状态与费用查询](architecture/AGENT_EXTRACTION_QUERIES.md)已接入检查器；[规模实测](engineering/AGENT_CORE_SCALE_VERIFICATION.md)已覆盖十万真实消息的文件读取路径及一万记忆／五万知识片段的领域检索，修复候选正文排序超时、短语排名和启动全库正文遍历问题；同库核心启动 P95 已从约 7.00 秒降至 2.45 秒，恢复摘要保持日志与必需扩展校验；联合参考库、完整上下文及原生启动仍未通过验收。剩余失败矩阵、尚未关闭的原生行为边界与完整原生流程列为后续验收；首轮本地演示不代替这些验收。原验收行为与未关闭缺口见[验收承接清单](engineering/AGENT_CORE_ACCEPTANCE_TRANSFER.md)。用户于 2026-09-14 确认收缩范围，以已确认正确性修复、核心关键链路及集成回归、中文文档与图示收尾；该范围的[核心重建已完成](engineering/AGENT_CORE_COMPLETION.md)。联合规模、严格 P95、完整原生矩阵、Instruments 和穷举故障窗口列为后续产品验收，不再自动扩大本次 Goal；iOS 不实现。
 
@@ -75,7 +87,7 @@ The [appearance transition fix](engineering/APPEARANCE_TRANSITIONS.md) removes c
 | F01 | Workspace / Inbox、创建与归档对话、固定项目背景、文本消息与历史浏览 | [工作空间产品规范](product/WORKSPACE_AND_CONVERSATION.md)、[Runtime](architecture/RUNTIME.md) | M1 |
 | F02 | 两类 Provider 连接、API Key、手工 Model ID、用途级配置、能力验证、流式与取消 | [Provider 设计](architecture/PROVIDERS.md) | M1 |
 | F03 | 单对话单活动执行、工具配对、拒绝与错误回执、有界循环和最小执行检查器 | [Runtime](architecture/RUNTIME.md) | M2 |
-| F04 | 手动保存、明确记住、自动捕获开关、候选批准 / 拒绝、来源与 Scope、修改 / 替代 / 撤销 / 遗忘 | [记忆产品规范](product/MEMORY_AND_KNOWLEDGE.md)、[记忆设计](architecture/MEMORY_AND_KNOWLEDGE.md) | M3 |
+| F04 | 手动保存、明确记住、批量自动捕获开关、来源与 Scope、修改 / 替代 / 撤销 / 遗忘 | [记忆产品规范](product/MEMORY_AND_KNOWLEDGE.md)、[记忆设计](architecture/MEMORY_AND_KNOWLEDGE.md) | M3 |
 | F05 | Active Memory 有限预取、Agent 主动搜索、最小 Context Inspector 与有效引用 | [Context](architecture/CONTEXT.md)、[Search](architecture/SEARCH.md) | M3 |
 | F06 | 用户选择 Markdown 文件导入快照、版本化 Source / Chunk、本地搜索与来源查看 | [知识产品规范](product/MEMORY_AND_KNOWLEDGE.md)、[知识设计](architecture/MEMORY_AND_KNOWLEDGE.md) | M4 |
 | F07 | 文件授权、Workspace / 对象发送策略、来源继承、数据清理及审计正文保留 | [隐私产品规范](product/DATA_AND_PRIVACY.md)、[平台与安全](architecture/PLATFORM_AND_SECURITY.md) | M1–M5，相关路径开放前完成 |
@@ -90,7 +102,7 @@ The [appearance transition fix](engineering/APPEARANCE_TRANSITIONS.md) removes c
 |---|---|---|
 | `memory.search` | query、受限数量与过滤；返回当前 Scope 内可发送的有界结果及引用 | 只读；M3 |
 | `memory.get` | Memory ID；返回通过 Scope / Privacy 校验的指定版本正文与来源 | 只读；M3 |
-| `memory.remember` | 当前用户原文引用、内容、主体和 Scope；返回已提交 Memory 或明确失败 / 待确认 | 内部写入；明确用户意图或有效确认，M3 |
+| `memory.remember` | 当前用户原文引用、内容、主体和 Scope；返回已提交 Memory 或明确失败 | 内部写入；明确保存无需额外确认，M3 |
 | `knowledge.search` | query 与 Source 过滤；返回有界 Chunk 预览和证据句柄 | 只读；M4 |
 | `source.open` | Source ID / version；返回元数据、标题和有界目录 / 预览 | 只读；M4 |
 | `source.read_chunk` | Chunk ID；返回已授权版本正文与定位 | 只读；M4 |
@@ -286,3 +298,8 @@ The first composer focus no longer initializes the macOS OTP AutoFill panel. The
 完成每个里程碑时更新本文件的状态和证据链接；规范变更写回唯一负责文档，评审记录只保留理由和定位。
 
 Code blocks now use a shared height limit with native two-axis scrolling and final-line scrollbar clearance. Focused rendering and native evidence is recorded in [code block scrolling verification](engineering/CODE_BLOCK_SCROLLING_VERIFICATION.md).
+
+
+### Local memory integration — 2026-09-16
+
+The `codex/memory-embedding-prototype` branch now integrates the pinned Qwen3 0.6B 4-bit MLX adapter, revision-bound SQLite vectors, semantic/lexical recall, bounded communication/language profile, always-automatic capture using the conversation model, confirmation-free explicit saves and v3 batched model extraction. Automatic extraction skips ambiguous items instead of creating a review inbox. Archive/recovery/privacy paths include derived-index invalidation and batch lineage. See [implementation evidence](engineering/LOCAL_MEMORY_IMPLEMENTATION.md) for exact passing checks, the open native window-animation failure, unverified minimum-size UI, and remaining quality gates. The removed management screens remain deferred; this does not close M3 release acceptance. A follow-up removes capture mode and dedicated extraction-model setup, freezes the actual completed conversation route, and reuses bounded request prefixes with provider tool calls disabled. The follow-up passed 173 focused package tests, native settings tests and the host target; live cache-hit savings and minimum-window verification remain open in the same evidence record.

@@ -182,7 +182,7 @@ public struct JournalAgentHistoryReader: Sendable {
     private func readReplay(_ reference: SessionPayloadReference, state: SessionState) async throws -> AgentReplayRecord? {
         guard let committed = state.references[reference.id], committed == reference else { return nil }
         guard reference.kind == .replay else { throw MiraError(.storage, "The historical replay reference has the wrong kind.") }
-        return try SessionCodec.decode(AgentReplayRecord.self, from: try await payloads.read(reference))
+        return try await AgentReplayManifest.read(reference, state: state, payloads: payloads)
     }
 
     private func readAnswer(_ reference: SessionPayloadReference, state: SessionState) async throws -> String {
@@ -211,8 +211,7 @@ public struct JournalAgentHistoryReader: Sendable {
         var sources = Set<AgentSourceReference>()
         for attemptID in execution.attemptIDs {
             guard let attempt = state.attempts[attemptID] else { return nil }
-            let build = try SessionCodec.decode(AgentContextBuild.self,
-                from: try await payloads.read(attempt.attempt.request))
+            let build = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
             guard build.request.sessionID == state.id,
                   build.request.executionID == execution.admission.executionID,
                   build.request.workspaceID == state.header?.workspaceID,
@@ -222,7 +221,7 @@ public struct JournalAgentHistoryReader: Sendable {
             guard let sourceRoute = build.request.destination.modelRoute else {
                 throw MiraError(.storage, "The incomplete historical request destination is unavailable.")
             }
-            try build.prepared.validate(for: sourceRoute)
+            try build.validate(for: sourceRoute)
             for source in build.sources { try source.validate() }
             sources.formUnion(build.sources)
             guard sources.count <= 65_536 else { return nil }

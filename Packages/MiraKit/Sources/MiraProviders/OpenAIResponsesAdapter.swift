@@ -57,7 +57,8 @@ public struct OpenAIResponsesAdapter: AgentModelAdapter {
                 urlRequest.setValue(request.input.stepID.uuidString, forHTTPHeaderField: "X-Mira-Request-ID")
                 urlRequest.httpBody = try SessionCodec.encode(request.wirePayload)
                 operation = transport.stream(request: urlRequest)
-                try await parse(operation!.events, route: route, tools: request.input.tools, continuation: continuation)
+                try await parse(operation!.events, route: route, tools: request.input.tools,
+                                allowsToolCalls: request.input.allowsToolCalls, continuation: continuation)
                 await operation!.close()
                 continuation.finish()
             } catch {
@@ -130,8 +131,9 @@ public struct OpenAIResponsesAdapter: AgentModelAdapter {
             "stream": .bool(true),
             "store": .bool(false),
             "include": .array([.string("reasoning.encrypted_content")]),
-            "max_output_tokens": .number(Double(policy.maximumOutputTokens))
+            "max_output_tokens": .number(Double(input.outputTokenLimit ?? policy.maximumOutputTokens))
         ]
+        if !input.allowsToolCalls { fields["tool_choice"] = .string("none") }
         if let effort = policy.thinking.effort {
             fields["reasoning"] = .object(["effort": .string(effort.rawValue)])
         } else if policy.thinking.mode == .disabled {
@@ -140,6 +142,7 @@ public struct OpenAIResponsesAdapter: AgentModelAdapter {
         let toolValues = input.tools.map { definition in
             JSONValue.object([
                 "type": .string("function"), "name": .string(ResponsesToolNameMap(definitions: input.tools).wireName(for: definition.name)),
+                "strict": .bool(false),
                 "description": .string(definition.description), "parameters": definition.inputSchema
             ])
         }
@@ -230,10 +233,13 @@ public struct OpenAIResponsesAdapter: AgentModelAdapter {
 private extension OpenAIResponsesAdapter {
     func parse(_ input: AsyncThrowingStream<HTTPTransportEvent, any Error>, route: AgentModelRoute,
                tools: [ToolDefinition],
+               allowsToolCalls: Bool,
                continuation: AsyncThrowingStream<AgentModelStreamEvent, any Error>.Continuation) async throws {
         var responseReceived = false
         var parser = ResponsesSSEParser()
-        var state = ResponsesStreamState(adapter: identity, toolDefinitions: route.capabilities.callsTools ? tools : [])
+        var state = ResponsesStreamState(adapter: identity,
+                                         toolDefinitions: route.capabilities.callsTools ? tools : [],
+                                         toolsEnabled: allowsToolCalls && route.capabilities.callsTools && !tools.isEmpty)
         func process(_ frame: ResponsesSSEFrame) throws { try state.process(frame, continuation: continuation) }
         for try await event in input {
             try Task.checkCancellation()
@@ -264,6 +270,7 @@ private enum ResponsesStreamLimits {
 private struct ResponsesStreamState {
     let adapter: AgentAdapterIdentity
     let toolNames: ResponsesToolNameMap
+    let toolsEnabled: Bool
     var items: [String: JSONValue] = [:]
     var itemOrder: [String] = []
     var textStarted = Set<String>()
@@ -278,9 +285,10 @@ private struct ResponsesStreamState {
     var usage: TokenUsage?
     var finished = false
 
-    init(adapter: AgentAdapterIdentity, toolDefinitions: [ToolDefinition]) {
+    init(adapter: AgentAdapterIdentity, toolDefinitions: [ToolDefinition], toolsEnabled: Bool) {
         self.adapter = adapter
         self.toolNames = ResponsesToolNameMap(definitions: toolDefinitions)
+        self.toolsEnabled = toolsEnabled
     }
 
     mutating func process(_ frame: ResponsesSSEFrame, continuation: AsyncThrowingStream<AgentModelStreamEvent, any Error>.Continuation) throws {
@@ -303,6 +311,7 @@ private struct ResponsesStreamState {
             guard let item = object["item"], let id = item["id"]?.stringValue, !id.isEmpty,
                   items[id] == nil, itemOrder.count < ResponsesStreamLimits.maxItems else { throw ResponsesProtocolError.malformed }
             if item["type"]?.stringValue == "function_call" {
+                guard toolsEnabled else { throw ResponsesProtocolError.malformed }
                 functionCallIDs.insert(id)
                 pendingFunctionCalls.insert(id)
             } else if hasEarlierFunctionCall {
@@ -365,6 +374,7 @@ private struct ResponsesStreamState {
             guard let item = object["item"], let id = item["id"]?.stringValue,
                   items[id] != nil, !completedItems.contains(id) else { throw ResponsesProtocolError.malformed }
             if item["type"]?.stringValue == "function_call" {
+                guard toolsEnabled else { throw ResponsesProtocolError.malformed }
                 guard let callID = item["call_id"]?.stringValue, !callID.isEmpty,
                       let arguments = item["arguments"]?.stringValue,
                       item["name"]?.stringValue?.isEmpty == false else { throw ResponsesProtocolError.malformed }
@@ -380,6 +390,8 @@ private struct ResponsesStreamState {
             try finishResponse(object["response"], reason: .stop, continuation: continuation)
         case "response.incomplete":
             try finishResponse(object["response"], reason: .outputLimit, continuation: continuation, complete: false)
+        case "error":
+            throw ResponsesProtocolError.provider
         case "response.failed": throw ResponsesProtocolError.provider
         default: break
         }
@@ -554,11 +566,24 @@ private struct ResponsesStreamState {
         guard responseObject["status"]?.stringValue == (complete ? "completed" : "incomplete") else {
             throw ResponsesProtocolError.malformed
         }
+        func validTerminalStatus(_ status: String) -> Bool {
+            complete ? status == "completed" : ["completed", "incomplete"].contains(status)
+        }
         for (index, value) in values.enumerated() {
             guard let id = value["id"]?.stringValue, id == itemOrder[index] else { throw ResponsesProtocolError.malformed }
-            guard let status = value["status"]?.stringValue else { throw ResponsesProtocolError.malformed }
-            let valid = complete ? status == "completed" : ["completed", "incomplete"].contains(status)
-            guard valid else { throw ResponsesProtocolError.malformed }
+            if let statusValue = value["status"] {
+                guard let status = statusValue.stringValue, validTerminalStatus(status) else {
+                    throw ResponsesProtocolError.malformed
+                }
+            } else {
+                // The terminal response can omit item status after the
+                // corresponding output_item.done event established it.
+                guard completedItems.contains(id) else { throw ResponsesProtocolError.malformed }
+                if let cachedStatusValue = items[id]?["status"] {
+                    guard let cachedStatus = cachedStatusValue.stringValue,
+                          validTerminalStatus(cachedStatus) else { throw ResponsesProtocolError.malformed }
+                }
+            }
             if value["type"]?.stringValue == "function_call" {
                 guard let callID = value["call_id"]?.stringValue, !callID.isEmpty,
                       let arguments = value["arguments"]?.stringValue,
@@ -668,7 +693,10 @@ private func yield(_ event: AgentModelStreamEvent,
 private func responsesError(_ error: any Error) -> MiraError {
     if let error = error as? MiraError { return error }
     if error is CancellationError { return MiraError(.cancelled, "Generation was stopped.") }
-    if error is ResponsesProtocolError { return MiraError(.malformedStream, "The provider returned an unparseable Responses stream.") }
+    if let error = error as? ResponsesProtocolError {
+        if case .provider = error { return MiraError(.providerRejected, "The provider rejected the request.") }
+        return MiraError(.malformedStream, "The provider returned an unparseable Responses stream.")
+    }
     if let status = error as? ResponsesHTTPStatusError {
         switch status.statusCode { case 401, 403: return MiraError(.unauthorized, "The provider credential was rejected."); case 429: return MiraError(.rateLimited, "Too many requests; try again later."); case 500...599: return MiraError(.network, "The provider is temporarily unavailable; try again later."); default: return MiraError(.providerRejected, "The provider rejected the request.") }
     }

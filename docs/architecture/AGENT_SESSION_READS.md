@@ -16,7 +16,7 @@
 
 每次尝试保留日志中的开始时间、步骤／尝试身份、准备好的请求、模型输出或失败记录，以及该次尝试已登记的工具调用、提案和结果。请求消息按照持久记录顺序返回，保留可见思考与协议续接数据；宿主的本地审计面板可以展示这些显式读取内容，普通日志不得写入它们。不存在模型尝试的本地执行仍可返回执行摘要和计划。
 
-正文分为 `available`、`absent` 和 `purged`。读取前根据元数据检查整页正文预算；被撤销的保留组和已清理的工具结果直接返回 `purged`，不得尝试读取物理正文。可用正文损坏、类型或身份不匹配应明确失败，不能伪装成空记录或采用旧格式解码。读取结束仍需通过租约复核；取消、撤权或工作组关闭必须等待实际读取排空。
+正文展示仍分为 `available`、`absent` 和 `purged`；`purged` 表示正文因 invalidated 保留组而逻辑不可用，不证明物理字节已经擦除，显式隐私清理完成前也可如此返回。读取前根据元数据检查整页正文预算；`SessionPayloadReader.read` 对所有 invalidated 组（包括 retryCleared）抛出 `notFound`，不得尝试读取物理正文。归档内部的 `FileSessionSnapshot.readRetainedPayload` 读取未物理擦除的历史正文，包括退休的工具证明；只有 erased 组返回 `nil`，不授予普通对话读取权限。可用正文损坏、类型或身份不匹配应明确失败，不能伪装成空记录或采用旧格式解码。读取结束仍需通过租约复核；取消、撤权或工作组关闭必须等待实际读取排空。
 
 ```mermaid
 sequenceDiagram
@@ -97,17 +97,17 @@ flowchart TD
 
 ## 固定前缀
 
-`SessionJournalHead` 包含会话、最后事件序号和最后批次 ID。序号为零时批次 ID 必须为空；非零序号必须对应完整批次。`head` 只返回已完成持久性屏障并向读取方发布的记录。不确定追加在核对完成前不进入 head。
+`SessionJournalHead` 包含会话、最后事件序号和最后已提交事务 ID。序号为零时事务 ID 必须为空；非零序号必须对应完整事务及其 `transaction_commit`。`head` 只返回已完成持久性屏障并向读取方发布的事件。不确定追加在核对完成前不进入 head。
 
-`JournalSessionReader.snapshot` 先捕获 head，再按页读取并由 `SessionState` 归约到该批次，期间的新追加不扩大读取目标。读取会验证序号连续性、会话归属、事件身份、状态转换和必需扩展 schema。空页、重复页、目标落在批次中间、目标批次身份不匹配均失败。这里的“固定”指日志前缀，不表示正文保留或业务授权被冻结。
+`JournalSessionReader.snapshot` 先捕获 head，再按页读取并由 `SessionState` 归约到该事务，期间的新追加不扩大读取目标。读取会验证序号连续性、会话归属、事件身份、状态转换、事务提交校验和及必需扩展 schema。空页、重复页、目标落在事务中间、目标事务身份不匹配均失败。这里的“固定”指日志前缀，不表示正文保留或业务授权被冻结。
 
-会话打开和业务回执发布校验共用该读取器。后者必须提交整个批次的游标，不能使用批次内部事件的序号冒充已完整发布的前缀。
+会话打开和业务回执发布校验共用该读取器。后者必须提交整个事务的游标，不能使用事务内部事件的序号冒充已完整发布的前缀。
 
 ## 持久偏移索引与状态检查点
 
-`FileSessionLibrary` 不再常驻全部 `SessionBatch`。每个会话保存批次身份、连续序号、文件偏移、记录长度、原始记录摘要和前缀摘要链；正文引用与失效组仍属于日志存储层的派生元数据。分页通过序号二分定位，再用 `pread` 读取指定记录，重新检查原始字节摘要、批次封装和身份。普通页只解码所请求的批次，归档校验与缺失缓存后的严格扫描是独立路径。
+`FileSessionLibrary` 不再常驻全部 `SessionBatch`。每个会话保存批次身份、连续序号、事务起始文件偏移、事务字节长度、原始事务摘要和前缀摘要链；正文引用与失效组仍属于日志存储层的派生元数据。v5 semantic event 行及其最终 `transaction_commit` 一同受校验和保护，正文节点直接从语义字段读取；`external` 引用仍经正文端口读取。分页通过序号二分定位，再用 `pread` 读取完整提交事务，重新检查原始字节摘要、事件行、提交校验和、inline 原始字节哈希和身份。普通页只解码所请求的事务，归档校验与缺失缓存后的严格扫描是独立路径。
 
-`indexes/<session>.index` 可删除、可重建。启动时先验证库写入器签发的 HMAC、当前格式及结构，再流式计算**整个源日志**的 SHA-256，与该索引绑定的字节数和摘要比较。不能只用文件时间、最后序号或批次 ID 判断缓存有效。缓存缺失、损坏、格式不符、来自别库或源字节不匹配时，从日志逐记录扫描并重新建立索引；完整日志记录损坏仍明确失败，不会因为有缓存而跳过。符号链接、硬链接及不安全目录直接拒绝，不作为缓存丢失处理。
+`indexes/<session>.index` 可删除、可重建，并绑定当前 JSONL 记录格式、每个已提交事务的起始字节偏移／总长度／摘要以及正文引用元数据；索引偏移只指向完整提交事务，不指向单个 payload 或事件行。inline 正文通过其所属事件的语义字段和正文 ID 定位。启动时缓存命中先验证库写入器签发的 HMAC、当前格式及结构，再流式计算**整个源日志**的 SHA-256，与索引绑定的字节数和摘要比较；不因缓存命中而逐个解码 inline 正文。缓存缺失、损坏、格式不符、来自别库或源字节不匹配时，从日志逐事务扫描并重新建立批次索引；完整日志记录损坏仍明确失败。索引／缓存必须绑定完整源日志前缀摘要，不能仅凭单条事务或 payload 哈希复用。实际 inline 读取时再校验正文 UTF-8、长度和 digest。符号链接、硬链接及不安全目录直接拒绝，不作为缓存丢失处理。
 
 `SessionCheckpointJournal` 是可选的核心读取加速能力；没有实现它的日志仍由同一个 `JournalSessionReader` 完整归约，不存在旧格式或旧运行时适配。检查点使用完整的 `SessionState`，包括执行／尝试／工具状态、全部身份集合、正文保留所有权、失效操作和授权代次；没有消息正文、模型请求正文或 Provider 凭据。`SessionStateCheckpointFormat.version` 在归约规则或状态编码发生不兼容变更时必须更新。
 
@@ -135,7 +135,7 @@ flowchart TB
     Validate --> Return[返回状态；可选缓存发布]
 ```
 
-库初始化仍验证完整日志源字节，按已提交失效事实继续删除正文，并通过[待发布批次记录](AGENT_PAYLOAD_RECOVERY.md)定向恢复未完成的正文发布；普通启动不再打开所有有效正文或遍历全部正文批次目录。每次实际正文读取仍检查当前保留授权、路径、文件类型、长度及摘要；归档流式验证全部保留正文，显式隐私维护仍全库回收并验证未发布文件。因而未访问历史正文的损坏可能在首次读取或归档时才报告，不能继续宣称启动已完成全库正文健康检查。删除同步屏障保持：上次尝试可能已 unlink 却未完成目录 fsync，因此不能把“文件不存在”当作删除已经持久完成。索引、检查点和定向恢复仍须通过完整参考规模与原生启动验收。
+库初始化仍验证完整日志源字节，只按已提交显式物理擦除事实继续删除正文，并通过[待发布批次记录](AGENT_PAYLOAD_RECOVERY.md)定向恢复未完成的 external 正文发布；普通启动不再打开所有有效 external 正文或遍历全部正文批次目录；缓存命中时校验认证元数据与完整源字节摘要，缓存未命中时逐事务校验 typed event 正文节点及引用哈希。每次实际正文读取仍检查当前保留授权、存储类型、路径（external 时）、文件类型、长度及摘要；逻辑退休正文仍保留物理历史但由普通读取 API 隐藏。归档流式验证全部未擦除正文，显式隐私维护仍全库回收 external 未发布文件并验证 erased inline 已从重写后的事件／提交移除。因而未访问历史 external 正文的损坏可能在首次读取或归档时才报告，不能继续宣称启动已完成全库正文健康检查。删除同步屏障保持：上次尝试可能已 unlink 却未完成目录 fsync，因此不能把“文件不存在”当作删除已经持久完成。索引、检查点和定向恢复仍须通过完整参考规模与原生启动验收。
 
 摘要与缓存认证的十六进制文本采用固定小写 ASCII 编码，避免逐字节调用通用格式化；SHA-256／HMAC 及其持久文本格式相同。真实消息语料、独立进程重开和当前初始化瓶颈的证据见[规模验证](../engineering/AGENT_CORE_SCALE_VERIFICATION.md)，不沿用只有少量正文的元数据基准作启动结论。
 
@@ -143,7 +143,7 @@ flowchart TB
 
 ## 原始用户证据
 
-`SessionEvidenceReference` 记录会话、原始执行、用户消息、接纳事件 ID／序号，以及完整正文引用。正文引用继续携带批次、保留组、字节数和摘要。它用于重新定位不可变接纳事实，不携带可复制的正文，也不是权限凭证。
+`SessionEvidenceReference` 记录会话、原始执行、用户消息、接纳事件 ID／序号，以及完整正文引用。正文引用继续携带批次（必要时 `source_batch`）、保留组、字节数、摘要和 `inline`／`external` 存储枚举。它用于重新定位不可变接纳事实，不携带可复制的正文，也不是权限凭证。
 
 重试沿相同用户消息找到最初接纳，不把重试计划中的时间或时区当作用户说话时刻。解析结果保留原始时间、时区、Workspace、观察到的日志 head 和会话授权代次。存储引用再次使用时，必须与原始接纳逐项相等，再从正文端口读取。正文缺失、损坏或 UTF-8 无效不能变成空字符串；执行被排除或正文组被明确失效时，报告证据不可用。
 
@@ -151,7 +151,7 @@ flowchart TB
 
 ## 历史执行来源
 
-历史上下文读取还可选择取消或中断执行的已保留可见回答；thinking 阶段中断且没有可见回答时，仍保留原始用户消息和一个中性的中断提示。此交换只由原始用户消息、可选的标记为 `isIncomplete` 的 assistant text 和中性的中断提示组成；持久正文保持原文。成功 replay、思考正文、协议续接和未配对工具交换均不从失败执行推导。读取器从该执行已提交的请求证据重建来源集合，按当前目的地重新授权，并在正文保留组失效、来源撤权或重开后正文不可读时舍弃交换。提示属于交换消息，因此计入历史消息和字节预算。
+历史上下文读取还可选择取消或中断执行的已保留可见回答；thinking 阶段中断且没有可见回答时，仍保留原始用户消息和一个中性的中断提示。此交换只由原始用户消息、可选的标记为 `isIncomplete` 的 assistant text 和中性的中断提示组成；持久正文保持原文。成功路径读取 settled assistant blocks 与 replay manifest references；失败路径不从未结算的 active-draft sidecar 推导模型历史。读取器从该执行已提交的 request manifest 证据重建来源集合，按当前目的地重新授权，并在正文保留组失效、来源撤权或重开后正文不可读时舍弃交换。提示属于交换消息，因此计入历史消息和字节预算。
 
 `AgentSourceReference` 直接采用两种类型，不把不同权威来源拼接成字符串，也不解码旧的无类型对象：
 
@@ -199,7 +199,7 @@ flowchart TB
 - 消息页：原始用户消息与已结算助手消息，分别保留正文和思考引用。
 - 执行摘要：接纳、阶段、终态和上下文排除标记。
 
-重试新增执行，不重复创建用户消息。终态以 `completion` 表达；`phase` 保留最后执行阶段，不能单独判断终态。上下文排除与可见正文清理独立：被排除的回答仍可能按产品规则保留给用户查看，正文可读性最终由正文存储当前保留规则判断。
+重试新增执行，不重复创建用户消息。终态以 `completion` 表达；`phase` 保留最后执行阶段，不能单独判断终态。retryCleared 只追加逻辑退休事实，不删除原始 journal 或 external 字节；上下文排除与读取隐藏独立于显式隐私物理擦除。被排除的回答仍可保留为归档物理历史；普通 `SessionPayloadReader` 对其抛出 `notFound`，归档内部校验则可读取未物理擦除的历史证明。正文可读性最终由 `invalidatedRetentionGroups`／`erasedRetentionGroups` 当前状态判断。
 
 SQLite 适配器使用独立、可丢弃的查询数据库。每批在同一事务中更新派生行、批次身份摘要和 head。相同批次重复应用不产生第二份消息；身份冲突或序号缺口拒绝应用，事务回滚。缓存版本只接受当前格式，不提供旧格式解码或迁移桥接。它不访问业务存储或调用领域处理器。
 
@@ -239,7 +239,7 @@ sequenceDiagram
 
 `messagePage` 自动追赶所选会话，再读取页面。侧栏 `sessions` 只读取已有投影；宿主在收到持久状态唤醒后显式同步受影响会话，或主动调用 `synchronizeLibrary` 刷新全库。全库刷新以每批 128 个会话枚举，当前最多 4,096 个，并验证身份唯一及排序；它不是每次侧栏翻页或草稿更新的前置操作。分页参数最多 128 行，服务最多同时接纳 16 个查询。页面读取先累计全部将读取的正文引用字节数，再开始任何正文 I/O，默认上限 64 MiB，可配置范围为 1 字节至 128 MiB。
 
-`SessionTextContent` 区分三种展示事实：`available` 为可见原文，`absent` 为该部分本来不存在，`purged` 为日志明确失效的正文。未失效的正文缺失、损坏、长度不符或 UTF-8 无效均抛出错误，不能伪装为空消息；已清理部分不再调用正文读取端口。执行被排除出模型上下文，不必然删除允许保留给用户看的回答。
+`SessionTextContent` 只区分三种展示事实：`available` 为可见原文，`absent` 为该部分本来不存在，`purged` 为日志已将该正文标为逻辑不可用。`purged` 不证明物理擦除；invalidated 与 erased 部分均不再调用正文读取端口。执行被排除出模型上下文，不必然物理删除允许保留给本地归档的回答。
 
 `persistedDraft` 捕获权威日志前缀，只重建回答与可见思考；私人 Provider transcript／续接数据不进入展示读取。它在读取补丁前检查最终可见草稿容量，各补丁继续遵守日志格式上限。普通恢复／模型续接读取默认仍包含全部三种草稿部分。此接口需要扫描捕获前缀，**不作为逐 token 的实时展示通道**；独立[实时输出通知](AGENT_LIVE_OUTPUT.md)已经接入模型执行器，原生展示层仍需直接绑定。
 
@@ -283,6 +283,6 @@ sequenceDiagram
 
 ## Ordered execution activity reads
 
-`executionActivities` reads each selected execution's attempts in step/attempt order and projects only visible model-output blocks and tool argument/result payloads. It does not expose request snapshots or provider continuation. The previous latest-eight summary cap is removed; the shared page byte budget still bounds actual payload reads, including all patches needed to reconstruct the current draft. Missing or purged payloads have explicit presentation states. Pending model tool blocks can appear before invocation registration; once registered, their durable arguments/results are correlated by model order and validated against the canonical call. No presentation identity is randomly generated while reading.
+`executionActivities` reads each selected execution's attempts in step/attempt order and projects only visible model-output blocks and tool argument/result payloads. It does not expose request snapshots or provider continuation. The previous latest-eight summary cap is removed; the shared page byte budget still bounds actual payload reads, including the bounded active-draft snapshot when an attempt is still running. Missing or purged payloads have explicit presentation states. Pending model tool blocks can appear before invocation registration; once registered, their durable arguments/results are correlated by model order and validated against the canonical call. No presentation identity is randomly generated while reading.
 
 Only a retained draft belonging to the latest attempt without committed output can supplement that attempt. Earlier resolved steps cannot be overwritten by the draft from a later model round. Cancelled/interrupted final visible message text remains available through the existing message query even when private draft material has been retired.

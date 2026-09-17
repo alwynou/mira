@@ -3,8 +3,8 @@ import Foundation
 import XCTest
 
 final class EverydayMemoryBaselineTests: XCTestCase {
-    /// Give the host an optimistic, whole-source proposal for every utterance.
-    /// This isolates the host gate; it is neither an extractor nor an LLM eval.
+    /// Exercise v3 classification fields with authored labels, independently of language.
+    /// This tests structural policy only; semantic accuracy requires a real extractor eval.
     func testCorpusSafetyAndRecordCaptureCoverage() throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "scenarios", withExtension: "json"))
         let corpus = try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
@@ -23,15 +23,15 @@ final class EverydayMemoryBaselineTests: XCTestCase {
             let source = Self.syntheticEvidence(text: scenario.statement, executionID: executionID)
             let annotation = corpus.hostAnnotations[scenario.id]
             let item: [String: Any] = [
-                "content": scenario.statement, "quote": scenario.statement,
+                "content": scenario.statement, "inputIndex": 0,
                 "kind": "preference", "subject": "user", "sensitivity": "standard",
                 "inferred": false, "stable": true, "confidence": "high",
                 "validFrom": NSNull(), "validUntil": NSNull(),
-                "assertion": ["mode": annotation?.assertionMode ?? "directStable", "aspectKey": annotation?.aspectKey ?? "unannotated.preference", "changeIntent": annotation?.changeIntent ?? "independent"]
+                "assertion": ["mode": annotation?.assertionMode ?? "uncertain", "aspectKey": annotation?.aspectKey ?? "unannotated.preference", "changeIntent": annotation?.changeIntent ?? "independent"]
             ]
-            let data = try JSONSerialization.data(withJSONObject: ["version": 2, "items": [item]])
+            let data = try JSONSerialization.data(withJSONObject: ["version": 3, "items": [item]])
             let proposals = try MemoryExtractionValidator.validate(
-                output: String(decoding: data, as: UTF8.self), source: source, mode: .automaticWithUndo)
+                output: String(decoding: data, as: UTF8.self), source: source)
             let active = proposals.contains { $0.triage == .active }
             results.append(.init(id: scenario.id, expected: scenario.expectation, gate: active ? "active" : "candidate"))
             if scenario.expectation == "notActive" {
@@ -39,7 +39,7 @@ final class EverydayMemoryBaselineTests: XCTestCase {
             }
         }
         let report = Report(
-            qualification: "none; optimistic synthetic extractor output isolates host triage only",
+            qualification: "none; authored semantic labels test v3 host policy, not extractor accuracy",
             expectedActive: results.filter { $0.expected == "active" }.count,
             acceptedActive: results.filter { $0.expected == "active" && $0.gate == "active" }.count,
             unsafeActive: results.filter { $0.expected == "notActive" && $0.gate == "active" }.count,

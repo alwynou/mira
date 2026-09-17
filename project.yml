@@ -17,6 +17,15 @@ settings:
     ENABLE_APP_SANDBOX: NO
     SWIFT_EMIT_LOC_STRINGS: YES
 packages:
+  MLX:
+    url: https://github.com/ml-explore/mlx-swift
+    exactVersion: 0.31.4
+  MLXLM:
+    url: https://github.com/ml-explore/mlx-swift-lm
+    exactVersion: 3.31.4
+  Transformers:
+    url: https://github.com/huggingface/swift-transformers
+    exactVersion: 1.3.0
   MiraKit:
     path: Packages/MiraKit
   MarkdownView:
@@ -54,6 +63,14 @@ targets:
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
     dependencies:
+      - package: MLX
+        product: MLX
+      - package: MLXLM
+        product: MLXEmbedders
+      - package: MLXLM
+        product: MLXLMCommon
+      - package: Transformers
+        product: Tokenizers
       - package: MiraKit
         product: MiraCore
       - package: MiraKit
@@ -87,6 +104,7 @@ targets:
       - Apps/MiraMac/Composition/MacLibraryWorkloads.swift
       - Apps/MiraMac/Composition/MacConnectionTestService.swift
       - Apps/MiraMac/Platform/Keychain
+      - Apps/MiraMac/Platform/MemoryEmbedding
       - Apps/MiraMac/Platform/Notifications/MacLocalNotifications.swift
       - Apps/MiraMac/Platform/Notifications/MacNotificationRetirement.swift
       - Apps/MiraMac/Presentation/WorkspaceEditorModel.swift
@@ -140,11 +158,20 @@ targets:
       - Tests/MiraSettingsTests/WorkspaceEditorModelTests.swift
       - Tests/MiraLocalizationTests/CostPresentationTests.swift
       - Tests/MiraCompositionTests
+      - Tests/MiraTestSupport
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira.composition-tests
     dependencies:
+      - package: MLX
+        product: MLX
+      - package: MLXLM
+        product: MLXEmbedders
+      - package: MLXLM
+        product: MLXLMCommon
+      - package: Transformers
+        product: Tokenizers
       - package: MarkdownView
         product: MarkdownView
       - package: MarkdownView
@@ -191,9 +218,11 @@ targets:
       - Apps/MiraMac/Resources/Localizable.xcstrings
       - Tests/MiraLocalizationTests
       - Tests/MiraPlatformTests
+      - Tests/MiraTestSupport
       - path: Tests/Fixtures/EverydayMemory/scenarios.json
         buildPhase: resources
       - Apps/MiraMac/Platform/Keychain
+      - Apps/MiraMac/Platform/MemoryEmbedding
       - Apps/MiraMac/Presentation/ConversationStreamBuffer.swift
       - Apps/MiraMac/Presentation/TranscriptViewportLayout.swift
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
@@ -209,6 +238,14 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.alwynou.mira.host-tests
     dependencies:
+      - package: MLX
+        product: MLX
+      - package: MLXLM
+        product: MLXEmbedders
+      - package: MLXLM
+        product: MLXLMCommon
+      - package: Transformers
+        product: Tokenizers
       - package: MiraKit
         product: MiraCore
       - package: MiraKit

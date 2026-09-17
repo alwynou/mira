@@ -332,24 +332,19 @@ private final class RecoveryFixture: Sendable {
                 prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                 inheritedSources: [], evidence: [], omissions: [])
             let started = await runtime.commit(id: UUID()) { context in
-                let request = try await context.stage(build, kind: .request, retentionGroup: UUID())
+                let staged = try await AgentRequestRecord.stage(build, context: context)
                 return [.phaseChanged(executionID: executionID, phase: .preparing),
                         .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID,
-                            stepIndex: 1, attemptIndex: 1, request: request))]
+                            stepIndex: 1, attemptIndex: 1, request: staged.request, contents: staged.contents))]
             }
             try requireCommitted(started, stage: "attempt")
-            let answer = Data("partial answer".utf8), thinking = Data("partial thinking".utf8)
-            let checkpoint = await runtime.commit(id: UUID()) { context in
-                let answerReference = try await context.stageBytes(answer, kind: .draft, retentionGroup: UUID())
-                let thinkingReference = try await context.stageBytes(thinking, kind: .draft, retentionGroup: UUID())
-                return [.draftCheckpoint(.init(executionID: executionID, attemptID: attemptID, part: .answer,
-                            baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0,
-                            replacement: answerReference, resultByteCount: answer.count)),
-                        .draftCheckpoint(.init(executionID: executionID, attemptID: attemptID, part: .thinking,
-                            baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0,
-                            replacement: thinkingReference, resultByteCount: thinking.count))]
-            }
-            try requireCommitted(checkpoint, stage: "draft")
+            let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
+            let requestReference = try #require(requestValue)
+            try await runtime.saveActiveDraft(.init(
+                request: requestReference, executionID: executionID, attemptID: attemptID,
+                authorizationEpoch: 0, revision: 1, blocks: [
+                    .init(id: "thinking", content: .thinking("partial thinking")),
+                    .init(id: "answer", content: .text("partial answer"))]))
         }
         return fixture
     }

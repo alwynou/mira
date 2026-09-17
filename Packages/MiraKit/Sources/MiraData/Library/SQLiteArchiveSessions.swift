@@ -12,6 +12,7 @@ struct SQLiteArchiveSessions {
     }
     struct Completion {
         let value: SessionCompletion
+        let occurredAt: Date
         let head: SessionJournalHead
     }
     struct Session {
@@ -59,7 +60,7 @@ struct SQLiteArchiveSessions {
                         }
                     case .finished(let value):
                         session.completions[event.id] = Completion(
-                            value: value,
+                            value: value, occurredAt: event.occurredAt,
                             head: .init(cursor: batch.cursor, batchID: batch.id))
                     case .invalidated(let value):
                         session.authorizationEpoch = max(session.authorizationEpoch, value.authorizationEpoch)

@@ -6,6 +6,44 @@ import MiraCore
 /// Journal evidence and library authorization are supplied by the caller; this
 /// reducer never reads session or conversation tables.
 extension SQLiteMemoryStore {
+    static func commitExtractionBatchProposals(
+        _ proposals: [MemoryExtractionProposal], claim: MemoryExtractionClaim,
+        sources: [SessionUserEvidence], at: Date, in db: Database
+    ) throws -> (memoryIDs: [MemoryID], candidateMemoryIDs: [MemoryID], decisions: [MemoryExtractionDecision]) {
+        guard !sources.isEmpty, proposals.count <= 6 else { throw invalid }
+        var memories: [MemoryID] = [], candidates: [MemoryID] = [], decisions: [MemoryExtractionDecision] = []
+        for (index, proposal) in proposals.enumerated() {
+            guard sources.indices.contains(proposal.inputIndex) else { throw invalid }
+            let source = sources[proposal.inputIndex]
+            let selected = [proposal]
+            guard selected.allSatisfy({ $0.quote == source.text || source.text.range(of: $0.quote) != nil }) else { throw invalid }
+            guard !selected.isEmpty else { continue }
+            let result = try commitExtractionProposals(selected, claim: claim, source: source, at: at, in: db)
+            for decision in result.decisions where decision.disposition == .created {
+                let memory = try read(decision.memoryID, workspaceID: source.workspaceID, in: db)
+                guard let draft = memory.draft else { throw invalid }
+                for context in sources where context.reference != source.reference {
+                    let resolved = try resolve(.userMessage(evidence: context, excerpt: String(context.text.prefix(2_048))), draft: draft, in: db)
+                    try bindSource(resolved, in: db)
+                    let evidence = MemoryEvidence(memoryID: memory.id, source: resolved.identity,
+                        sourceWorkspaceID: context.workspaceID, excerpt: resolved.excerpt,
+                        sourceHash: resolved.bodyHash, createdAt: at)
+                    try db.execute(sql: "INSERT INTO memory_evidence(id, memory_id, source_key, source_workspace_id, json) VALUES (?, ?, ?, ?, ?)",
+                        arguments: [key(evidence.id), key(memory.id), try sourceKey(resolved.identity), context.workspaceID.map(key), try encode(evidence)])
+                }
+            }
+            memories.append(contentsOf: result.memoryIDs)
+            candidates.append(contentsOf: result.candidateMemoryIDs)
+            decisions.append(contentsOf: result.decisions.map { decision in
+                .init(proposalIndex: index, memoryID: decision.memoryID, memoryRevision: decision.memoryRevision,
+                      memoryState: decision.memoryState, disposition: decision.disposition,
+                      validationReviewReason: decision.validationReviewReason, conflictReason: decision.conflictReason,
+                      conflictingMemoryIDs: decision.conflictingMemoryIDs, replacedMemoryID: decision.replacedMemoryID)
+            })
+        }
+        return (memories.reduce(into: []) { if !$0.contains($1) { $0.append($1) } }, candidates.reduce(into: []) { if !$0.contains($1) { $0.append($1) } }, decisions)
+    }
+
     static func commitExtractionProposals(
         _ proposals: [MemoryExtractionProposal],
         claim: MemoryExtractionClaim,
@@ -16,11 +54,14 @@ extension SQLiteMemoryStore {
         try claim.validate()
         try MemoryExtractionRequestBuilder.validate(source: source)
         try date(at)
-        guard source.reference == claim.source.reference,
-            source.workspaceID == claim.source.workspaceID,
-            source.admittedAt == claim.source.admittedAt,
-            source.timeZoneIdentifier == claim.source.timeZoneIdentifier,
-            source.text == claim.source.text,
+        guard (source.reference == claim.source.reference || claim.job.turns.contains { $0.source == source.reference }),
+            source.workspaceID == claim.job.workspaceID,
+            claim.batchSources.contains(where: {
+                $0.reference == source.reference && $0.text == source.text &&
+                $0.workspaceID == source.workspaceID && $0.admittedAt == source.admittedAt &&
+                $0.timeZoneIdentifier == source.timeZoneIdentifier &&
+                $0.sessionAuthorizationEpoch == source.sessionAuthorizationEpoch
+            }),
             source.sessionAuthorizationEpoch == claim.source.sessionAuthorizationEpoch,
             proposals.count <= 6
         else { throw invalid }
@@ -32,7 +73,8 @@ extension SQLiteMemoryStore {
         var candidateIDs: [MemoryID] = []
         var decisions: [MemoryExtractionDecision] = []
         for (index, proposal) in proposals.enumerated() {
-            try validate(proposal, source: source, policy: claim.policy)
+            try validate(proposal, source: source)
+            guard proposal.triage == .active else { continue }
             let resolved = try resolve(
                 .userMessage(evidence: source, excerpt: proposal.quote), draft: proposal.draft, in: db)
             try bindSource(resolved, in: db)
@@ -55,15 +97,38 @@ extension SQLiteMemoryStore {
                 continue
             }
 
-            let matches = try matchingMemories(for: proposal, in: db)
+            if let duplicate = claim.existingMemories.first(where: {
+                $0.scope == proposal.draft.scope && $0.subject == proposal.draft.subject &&
+                $0.draft.map { normalized($0.content) == normalized(proposal.draft.content) } == true
+            }) {
+                let current = try read(duplicate.id, workspaceID: source.workspaceID, in: db)
+                guard current.revision == duplicate.revision, current.isCurrent else { throw conflict }
+                decisions.append(.init(proposalIndex: index, memoryID: current.id, memoryRevision: current.revision,
+                                       memoryState: current.state, disposition: .reused, validationReviewReason: nil))
+                append(current, to: &memoryIDs, candidates: &candidateIDs)
+                continue
+            }
+            let matches: [(memory: Memory, metadataRevision: Int)]
+            if let target = proposal.replacesIndex {
+                guard claim.existingMemories.indices.contains(target) else { throw invalid }
+                let expected = claim.existingMemories[target]
+                let current = try read(expected.id, workspaceID: source.workspaceID, in: db)
+                guard current == expected else { throw conflict }
+                matches = [(current, current.revision)]
+            } else {
+                matches = try matchingMemories(for: proposal, in: db)
+            }
             let current = matches.count == 1 ? matches[0] : nil
             let replaces =
                 current.map {
                     canAutomaticallyReplace(
                         $0.memory, metadataRevision: $0.metadataRevision,
-                        proposal: proposal, source: source, policy: claim.policy)
+                        proposal: proposal, source: source)
                 } ?? false
-            let state: MemoryState = proposal.triage == .active && (matches.isEmpty || replaces) ? .active : .candidate
+            // Automatic extraction never creates a review inbox. Ambiguous
+            // conflicts and low-confidence items are skipped atomically.
+            guard proposal.triage == .active, matches.isEmpty || replaces else { continue }
+            let state: MemoryState = .active
             let memory = Memory(
                 draft: proposal.draft, scope: proposal.draft.scope, subject: proposal.draft.subject,
                 state: state, origin: proposal.origin, authority: proposal.authority,
@@ -127,8 +192,7 @@ extension SQLiteMemoryStore {
     }
 
     private static func validate(
-        _ proposal: MemoryExtractionProposal, source: SessionUserEvidence,
-        policy: MemoryCapturePolicy
+        _ proposal: MemoryExtractionProposal, source: SessionUserEvidence
     ) throws {
         try proposal.draft.validate()
         guard !proposal.quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -142,19 +206,10 @@ extension SQLiteMemoryStore {
         }
         try validateAspect(proposal.assertion)
         if proposal.triage == .active {
-            guard policy.mode == .automaticWithUndo,
-                proposal.assertion.mode == .directStable,
-                proposal.assertion.aspectKey != nil,
-                proposal.assertion.changeIntent != .uncertain,
-                proposal.origin == .observedUserStatement,
-                proposal.authority == .observedUser,
-                proposal.draft.sensitivity == .standard,
-                proposal.draft.subject == .user,
-                [.preference, .constraint].contains(proposal.draft.kind),
-                proposal.draft.validFrom == nil, proposal.draft.validUntil == nil,
-                proposal.quote == source.text,
-                proposal.draft.content == source.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            else { throw invalid }
+            guard proposal.assertion.mode == .directStable,
+                  proposal.assertion.changeIntent != .uncertain,
+                  proposal.origin == .observedUserStatement, proposal.authority == .observedUser,
+                  proposal.draft.sensitivity == .standard else { throw invalid }
         }
     }
 
@@ -206,16 +261,12 @@ extension SQLiteMemoryStore {
     private static func canAutomaticallyReplace(
         _ current: Memory, metadataRevision: Int,
         proposal: MemoryExtractionProposal,
-        source: SessionUserEvidence,
-        policy: MemoryCapturePolicy
+        source: SessionUserEvidence
     ) -> Bool {
-        guard policy.mode == .automaticWithUndo,
-            proposal.triage == .active,
+        guard proposal.triage == .active,
             proposal.assertion.mode == .directStable,
             proposal.assertion.changeIntent == .explicitReplacement,
             metadataRevision == current.revision,
-            current.origin == .observedUserStatement,
-            current.authority == .observedUser,
             current.state == .active, current.supersededBy == nil,
             current.deletedAt == nil, current.forgottenAt == nil,
             let oldDraft = current.draft,
@@ -225,8 +276,7 @@ extension SQLiteMemoryStore {
             oldDraft.sensitivity == proposal.draft.sensitivity,
             oldDraft.allowsRemoteUse == proposal.draft.allowsRemoteUse,
             oldDraft.allowedConnectionIDs == proposal.draft.allowedConnectionIDs,
-            (try? compatible(proposal.draft, previous: current)) != nil,
-            proposal.quote == source.text
+            (try? compatible(proposal.draft, previous: current)) != nil
         else { return false }
         return true
     }

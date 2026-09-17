@@ -138,6 +138,8 @@ extension SQLiteMemoryStore: MemoryPrivacyStore {
             }
 
             guard
+                try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_embeddings WHERE memory_id=?", arguments: [Self.key(target.id)]) == 0,
+                try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_embedding_jobs WHERE memory_id=?", arguments: [Self.key(target.id)]) == 0,
                 try Int.fetchOne(
                     db, sql: "SELECT count(*) FROM memory_search WHERE memory_id = ?",
                     arguments: [Self.key(target.id)]) == 0,
@@ -164,13 +166,13 @@ extension SQLiteMemoryStore: MemoryPrivacyStore {
             for value in evidence {
                 let sourceKey = try Self.sourceKey(value.source)
                 let jobs = try Row.fetchAll(
-                    db, sql: "SELECT * FROM memory_extraction_jobs WHERE source_key = ? LIMIT ?",
+                    db, sql: "SELECT j.* FROM memory_extraction_jobs j JOIN memory_extraction_sources s ON s.job_id=j.id WHERE s.source_key = ? LIMIT ?",
                     arguments: [sourceKey, Self.maximumForgetRevisions + 1])
                 guard jobs.count <= Self.maximumForgetRevisions else { throw Self.limit }
                 for jobRow in jobs {
                     let job = try SQLiteMemoryExtractionStore.job(jobRow)
                     if case .userMessage(let reference) = value.source {
-                        guard job.origin.source == reference,
+                        guard job.origin.source == reference || job.turns.contains(where: { $0.source == reference }),
                             job.workspaceID == value.sourceWorkspaceID
                         else { throw Self.corrupt }
                     }

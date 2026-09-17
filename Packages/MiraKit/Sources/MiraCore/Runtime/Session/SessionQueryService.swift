@@ -197,12 +197,6 @@ public actor SessionQueryService {
             guard let executionID = snapshot.state.activeExecutionID,
                 !snapshot.state.excludedExecutionIDs.contains(executionID)
             else { return nil }
-            let drafts = snapshot.state.executions[executionID]?.drafts ?? [:]
-            let answerSize = drafts[.answer]?.checkpoint.resultByteCount ?? 0
-            let thinkingSize = drafts[.thinking]?.checkpoint.resultByteCount ?? 0
-            guard answerSize >= 0, thinkingSize >= 0, answerSize <= self.maximumPageBytes,
-                thinkingSize <= self.maximumPageBytes - answerSize
-            else { throw Self.pageTooLarge }
             let values = try await lease.read {
                 try await SessionDraftReader(journal: self.journal, payloads: lease.reader(from: self.payloads))
                     .read(state: snapshot.state, executionID: executionID, parts: [.answer, .thinking])

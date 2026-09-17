@@ -42,10 +42,11 @@ public struct SessionAttempt: Codable, Sendable, Equatable, Identifiable {
     public let stepIndex: Int
     public let attemptIndex: Int
     public let request: SessionPayloadReference
+    public let contents: [SessionPayloadReference]
     public init(id: UUID, executionID: ExecutionID, stepID: UUID, stepIndex: Int,
-                attemptIndex: Int, request: SessionPayloadReference) {
+                attemptIndex: Int, request: SessionPayloadReference, contents: [SessionPayloadReference] = []) {
         self.id = id; self.executionID = executionID; self.stepID = stepID
-        self.stepIndex = stepIndex; self.attemptIndex = attemptIndex; self.request = request
+        self.stepIndex = stepIndex; self.attemptIndex = attemptIndex; self.request = request; self.contents = contents
     }
 }
 
@@ -102,25 +103,6 @@ public struct SessionToolResolution: Codable, Sendable, Equatable {
 }
 
 public enum SessionDraftPart: String, Codable, Sendable, Hashable { case answer, thinking, transcript }
-
-/// Patches apply to one independent draft component; answer and replay never share a deletion lifetime.
-public struct SessionDraftCheckpoint: Codable, Sendable, Equatable {
-    public let executionID: ExecutionID
-    public let attemptID: UUID
-    public let part: SessionDraftPart
-    public let baseSequence: Int64?
-    public let prefixByteCount: Int
-    public let suffixByteCount: Int
-    public let replacement: SessionPayloadReference
-    public let resultByteCount: Int
-    public init(executionID: ExecutionID, attemptID: UUID, part: SessionDraftPart, baseSequence: Int64?,
-                prefixByteCount: Int, suffixByteCount: Int, replacement: SessionPayloadReference,
-                resultByteCount: Int) {
-        self.executionID = executionID; self.attemptID = attemptID; self.part = part; self.baseSequence = baseSequence
-        self.prefixByteCount = prefixByteCount; self.suffixByteCount = suffixByteCount
-        self.replacement = replacement; self.resultByteCount = resultByteCount
-    }
-}
 
 public struct SessionCompletion: Codable, Sendable, Equatable {
     public let executionID: ExecutionID
@@ -234,7 +216,6 @@ public enum SessionFact: Codable, Sendable, Equatable {
     case toolApprovalResolved(invocationID: UUID, approved: Bool)
     case toolDispatched(invocationID: UUID, authorizationEpoch: UInt64)
     case toolResolved(SessionToolResolution)
-    case draftCheckpoint(SessionDraftCheckpoint)
     case finished(SessionCompletion)
     case invalidated(SessionInvalidation)
     case retryCleared(SessionRetryCleanup)
@@ -246,12 +227,11 @@ public enum SessionFact: Codable, Sendable, Equatable {
         case .modelSelectionChanged: []
         case .renamed(let title, _): [title]
         case .admitted(let value): [value.userBody, value.plan].compactMap { $0 }
-        case .attemptStarted(let value): [value.request]
+        case .attemptStarted(let value): [value.request] + value.contents
         case .attemptResolved(let value): [value.output, value.error].compactMap { $0 }
         case .toolProposed(let value): [value.call]
         case .toolPrepared(let value): [value.proposal]
         case .toolResolved(let value): [value.result].compactMap { $0 }
-        case .draftCheckpoint(let value): [value.replacement]
         case .finished(let value): [value.answer, value.visibleThinking, value.replay, value.error].compactMap { $0 }
         case .extensionRecorded(_, _, _, let body): [body]
         case .archived, .phaseChanged, .toolDispatched, .toolApprovalRequested, .toolApprovalResolved,

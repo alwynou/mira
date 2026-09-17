@@ -128,6 +128,7 @@ public actor MemoryExtractionWorker {
         for _ in 0..<32 {
             try Task.checkCancellation()
             try await lease.check()
+            try await store.flushDirtyMemoryExtraction(at: timestamp(), authorization: lease.authorization)
             let cursor = lastScheduledSession
             guard let job = try await lease.read({ try await self.store.nextQueuedMemoryExtraction(after: cursor) })
             else {
@@ -143,7 +144,8 @@ public actor MemoryExtractionWorker {
             do {
                 source = try await lease.read { try await self.reader.userEvidence(job.origin.source) }
                 try MemoryExtractionRequestBuilder.validate(source: source)
-                selection = try await resolve(for: job)
+                selection = .init(route: try await reader.memoryExtractionContext(for: job).route, binding: nil)
+                try await resolver.validateCurrent(selection.route, catalog: catalog)
             } catch {
                 try Task.checkCancellation()
                 try await lease.check()
@@ -161,7 +163,7 @@ public actor MemoryExtractionWorker {
                 continue
             }
             try await lease.check()
-            let claim: MemoryExtractionClaim
+            var claim: MemoryExtractionClaim
             do {
                 guard
                     let next = try await store.claimMemoryExtraction(
@@ -186,36 +188,38 @@ public actor MemoryExtractionWorker {
             }
             progressed = true
             emit(.changed)
+            do {
+                claim.batchSources = try await freshSources(for: claim, lease: lease)
+                claim.assistantReplies = try await conversationReplies(for: claim, lease: lease)
+                let prefix = try await reader.memoryExtractionContext(for: claim.job)
+                claim.prefix = prefix.bounded(for: claim)
+            } catch {
+                await settle(claim, error: Self.safe(error), lease: lease)
+                continue
+            }
             await process(claim, lease: lease)
         }
         return progressed
     }
 
-    private func process(_ claim: MemoryExtractionClaim, lease: AgentLibraryAccessLease) async {
+    private func process(_ initialClaim: MemoryExtractionClaim, lease: AgentLibraryAccessLease) async {
+        var claim = initialClaim
         do {
             try claim.validate()
             let adapter = try catalog.model(identity: claim.route.adapter)
-            let input = try MemoryExtractionRequestBuilder.input(for: claim)
-            let prepared = try await Self.timed(clock: environment.clock, seconds: 30) {
-                try Task.checkCancellation()
-                let value = try adapter.prepare(input, route: claim.route)
-                try Task.checkCancellation()
-                return value
-            }
-            try prepared.validate(for: claim.route)
-            guard prepared.input == input else {
-                throw MiraError(.configuration, "The extraction adapter changed its prepared model input.")
-            }
-            var source = try await freshSource(for: claim, lease: lease)
-            _ = try await store.prepareMemoryExtraction(
-                claim, request: prepared, source: source,
-                authorization: lease.authorization, at: timestamp())
+            claim.outputTokenLimit = try adapter.outputTokenLimit(for: 2_048, route: claim.route)
+            let preparation = try await prepare(claim, adapter: adapter, lease: lease)
+            claim = preparation.claim
+            let prepared = preparation.request
+            var source = preparation.source
             emit(.changed)
             let modelLease = try await scheduler.acquire(executionID: claim.executionID, priority: .background)
             let output: AgentModelOutput
             do {
                 try await validateSelection(claim)
+                claim.batchSources = try await freshSources(for: claim, lease: lease)
                 source = try await freshSource(for: claim, lease: lease)
+                try await validateConversationReplies(claim, lease: lease)
                 try await store.markMemoryExtractionDispatched(
                     claim, source: source,
                     authorization: lease.authorization, at: timestamp())
@@ -227,7 +231,9 @@ public actor MemoryExtractionWorker {
                 await modelLease.release()
                 throw error
             }
+            claim.batchSources = try await freshSources(for: claim, lease: lease)
             source = try await freshSource(for: claim, lease: lease)
+            try await validateConversationReplies(claim, lease: lease)
             try await validateSelection(claim)
             _ = try await store.completeMemoryExtraction(
                 claim, source: source, output: output,
@@ -251,16 +257,46 @@ public actor MemoryExtractionWorker {
         }
     }
 
-    private func resolve(for job: MemoryExtractionJob) async throws -> AgentModelRouteResolution {
-        try await resolver.resolve(
-            purpose: AgentModelPurposeID.memoryExtraction, explicitRouteID: nil,
-            sessionSelection: .inherit, workspaceID: job.workspaceID, catalog: catalog,
-            requiredCapabilities: [AgentModelCapabilityID.jsonOutput])
+    private func prepare(_ initial: MemoryExtractionClaim, adapter: any AgentModelAdapter,
+                         lease: AgentLibraryAccessLease) async throws
+        -> (claim: MemoryExtractionClaim, request: AgentPreparedModelRequest, source: SessionUserEvidence) {
+        var claim = initial
+        while true {
+            do {
+                let input = try MemoryExtractionRequestBuilder.input(for: claim)
+                let route = claim.route
+                let prepared = try await Self.timed(clock: environment.clock, seconds: 30) {
+                    try Task.checkCancellation()
+                    let value = try adapter.prepare(input, route: route)
+                    try Task.checkCancellation()
+                    return value
+                }
+                try prepared.validate(for: route)
+                guard prepared.input == input else {
+                    throw MiraError(.configuration, "The extraction adapter changed its prepared model input.")
+                }
+                let source = try await freshSource(for: claim, lease: lease)
+                try await validateConversationReplies(claim, lease: lease)
+                try await validateSelection(claim)
+                _ = try await store.prepareMemoryExtraction(claim, request: prepared, source: source,
+                    authorization: lease.authorization, at: timestamp())
+                return (claim, prepared, source)
+            } catch let error as MiraError where [.contextLimit, .outputLimit].contains(error.code) {
+                // Refitting is pure preparation, before any dispatch. Keep the same
+                // model/system/tools and drop the optional copied history once.
+                guard let prefix = claim.prefix, !prefix.input.messages.isEmpty else { throw error }
+                claim.prefix = prefix.withoutMessages()
+            }
+        }
     }
 
     private func validateSelection(_ claim: MemoryExtractionClaim) async throws {
-        guard try await resolve(for: claim.job) == claim.selection else {
-            throw MiraError(.configuration, "The dedicated memory extraction route has changed.")
+        try await resolver.validateCurrent(claim.route, catalog: catalog)
+        let prefix = try await reader.memoryExtractionContext(for: claim.job)
+        var expected = prefix.bounded(for: claim)
+        if claim.prefix?.input.messages.isEmpty == true { expected = expected.withoutMessages() }
+        guard prefix.route == claim.route, expected == claim.prefix else {
+            throw MiraError(.configuration, "The conversation model or extraction prefix is no longer available.")
         }
     }
 
@@ -278,6 +314,47 @@ public actor MemoryExtractionWorker {
         }
         try await lease.check()
         return source
+    }
+
+    private func freshSources(for claim: MemoryExtractionClaim, lease: AgentLibraryAccessLease) async throws -> [SessionUserEvidence] {
+        let references = claim.job.turns.isEmpty ? [claim.source.reference] : claim.job.turns.map(\.source)
+        var result: [SessionUserEvidence] = []
+        for reference in references {
+            let evidence = try await lease.read { try await self.reader.userEvidence(reference) }
+            try MemoryExtractionRequestBuilder.validate(source: evidence)
+            guard evidence.workspaceID == claim.job.workspaceID else { throw MiraError(.unauthorized, "The extraction batch crosses workspace scope.") }
+            guard try await isFresh(evidence, claim: claim, lease: lease) else {
+                throw MiraError(.unauthorized, "A batched memory source authorization has changed.")
+            }
+            result.append(evidence)
+        }
+        return result
+    }
+
+    private func conversationReplies(for claim: MemoryExtractionClaim, lease: AgentLibraryAccessLease) async throws -> [String?] {
+        var result: [String?] = []
+        for turn in claim.job.turns {
+            result.append(try await lease.read { try await self.reader.memoryExtractionReply(turn) })
+        }
+        return result
+    }
+
+    private func validateConversationReplies(_ claim: MemoryExtractionClaim, lease: AgentLibraryAccessLease) async throws {
+        guard try await conversationReplies(for: claim, lease: lease) == claim.assistantReplies else {
+            throw MiraError(.unauthorized, "The extraction conversation context changed.")
+        }
+        _ = try await freshSources(for: claim, lease: lease)
+    }
+
+    private func isFresh(_ evidence: SessionUserEvidence, claim: MemoryExtractionClaim, lease: AgentLibraryAccessLease) async throws -> Bool {
+        if evidence.reference == claim.source.reference { return true }
+        try await lease.check()
+        return evidence.sessionAuthorizationEpoch == claim.source.sessionAuthorizationEpoch
+    }
+
+    private func settle(_ claim: MemoryExtractionClaim, error: MiraError, lease: AgentLibraryAccessLease) async {
+        do { try await store.failMemoryExtraction(claim, error: error, authorization: lease.authorization, at: environment.now()) }
+        catch { emit(.failure(Self.safe(error))) }
     }
 
     private func collect(
@@ -351,10 +428,45 @@ public actor MemoryExtractionWorker {
     private func removeObserver(_ id: UUID) { observers[id] = nil }
 }
 
+/// Reusable foreground prefix. Bodies are admitted only when their entire lineage
+/// is already owned by the extraction batch or its revision-checked prior memories.
+public struct MemoryExtractionPrefix: Sendable, Equatable {
+    public let route: AgentModelRoute
+    public let input: AgentModelInput
+    public let sources: [AgentSourceReference]
+
+    public init(route: AgentModelRoute, input: AgentModelInput, sources: [AgentSourceReference]) {
+        self.route = route; self.input = input; self.sources = sources
+    }
+
+    public func bounded(for claim: MemoryExtractionClaim) -> Self {
+        let executions = Set(claim.job.turns.map(\.completedExecutionID) + [claim.job.origin.completedExecutionID])
+        let covered = sources.allSatisfy { source in
+            switch source {
+            case .sessionExecution(let sessionID, let executionID):
+                return sessionID == claim.job.origin.source.sessionID && executions.contains(executionID)
+            case .domain(let namespace, let id, let revision):
+                return namespace == "memories" && claim.existingMemories.contains { $0.id.rawValue == id && $0.revision == revision }
+            }
+        }
+        // Avoid paying for unbounded history to chase a best-effort cache hit. The
+        // stable system instructions and tool schema remain reusable when history
+        // exceeds this bound or would introduce untracked privacy dependencies.
+        let bytes = (try? SessionCodec.encode(input.messages).count) ?? Int.max
+        let messages = covered && bytes <= 16_384 && input.messages.count < 256 ? input.messages : []
+        return messages.isEmpty ? withoutMessages() : self
+    }
+
+    public func withoutMessages() -> Self {
+        .init(route: route, input: .init(stepID: input.stepID, executionID: input.executionID,
+            instructions: input.instructions, messages: [], tools: input.tools), sources: [])
+    }
+}
+
 /// Builds a bounded single-call model input. Evidence identity stays in the business attempt;
 /// the model sees original text and provenance dates, never authority-bearing IDs it could reuse.
 public enum MemoryExtractionRequestBuilder {
-    public static let revision = 1
+    public static let revision = 4
     public static func validate(source: SessionUserEvidence) throws {
         try source.reference.validate()
         try source.observedHead.validate()
@@ -368,20 +480,55 @@ public enum MemoryExtractionRequestBuilder {
         }
     }
     public static func input(for claim: MemoryExtractionClaim) throws -> AgentModelInput {
+        try input(for: claim, sources: claim.batchSources)
+    }
+
+    /// Builds the production multi-turn request. Input indexes are internal
+    /// lineage only; the host maps them back to journal references before any
+    /// commit and they are never shown as user citations.
+    public static func input(for claim: MemoryExtractionClaim, sources: [SessionUserEvidence]) throws -> AgentModelInput {
         try claim.validate()
-        let timestamp = ISO8601DateFormatter()
-        timestamp.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let source = JSONValue.object([
-            "content": .string(claim.source.text),
-            "createdAt": .string(timestamp.string(from: claim.source.admittedAt)),
-            "timeZone": .string(claim.source.timeZoneIdentifier),
-        ])
+        guard !sources.isEmpty, sources.count <= MemoryExtractionBatching.maximumTurns else {
+            throw MiraError(.invalidInput, "The extraction batch is empty or exceeds its turn bound.")
+        }
+        var total = 0
+        var entries: [JSONValue] = []
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        for (index, source) in sources.enumerated() {
+            try MemoryExtractionRequestBuilder.validate(source: source)
+            total += max(1, source.text.utf8.count / 4)
+            guard total <= MemoryExtractionBatching.maximumInputTokens else {
+                throw MiraError(.outputLimit, "The extraction context exceeds its bounded input budget.")
+            }
+            entries.append(.object([
+                "inputIndex": .number(Double(index)),
+                "speaker": .string("user"),
+                "content": .string(source.text),
+                "createdAt": .string(formatter.string(from: source.admittedAt)),
+                "timeZone": .string(source.timeZoneIdentifier)
+            ]))
+            if claim.assistantReplies.indices.contains(index), let reply = claim.assistantReplies[index] {
+                entries.append(.object(["speaker": .string("assistant"), "content": .string(reply),
+                                        "contextOnly": .bool(true)]))
+            }
+        }
+        let existing = claim.existingMemories.enumerated().compactMap { index, memory -> JSONValue? in
+            guard let draft = memory.draft else { return nil }
+            return .object(["index": .number(Double(index)), "content": .string(draft.content),
+                            "subject": .string(memory.subject.rawValue), "kind": .string(draft.kind.rawValue)])
+        }
+        let payload = JSONValue.object(["turns": .array(entries), "existingMemories": .array(existing)])
+        let task = MemoryExtractionValidator.instructions + " This is an internal background memory extraction task. Return JSON only; do not answer the conversation or call tools. Extract facts only from the explicitly listed target turns below. Earlier conversation and recalled memories are context, not new evidence. Every item must include inputIndex identifying the supporting target user turn. Do not emit visible citations. Use this exact output schema: " + (try MemoryExtractionValidator.outputSchema.jsonString())
+        let prefix = claim.prefix
+        let messages = prefix?.input.messages ?? []
         let input = AgentModelInput(
             stepID: claim.attemptID, executionID: claim.executionID,
-            instructions: MemoryExtractionValidator.instructions + " Use this exact output schema: "
-                + (try MemoryExtractionValidator.outputSchema.jsonString()),
-            messages: [.init(role: .user,
-                             blocks: [.init(id: "user", content: .text(try source.jsonString()))])], tools: [])
+            instructions: prefix?.input.instructions ?? MemoryExtractionValidator.instructions,
+            messages: messages + [.init(role: .user, blocks: [.init(id: "memory-extraction", content: .text(task + "\nTarget input:\n" + (try payload.jsonString())))])],
+            tools: prefix?.input.tools ?? [], allowsToolCalls: false,
+            prefixMessageCount: messages.isEmpty ? nil : messages.count,
+            outputTokenLimit: claim.outputTokenLimit ?? min(2_048, claim.route.maximumOutputTokens))
         try input.validate(for: claim.route)
         return input
     }

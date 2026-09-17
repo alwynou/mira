@@ -30,6 +30,13 @@ struct SessionStateTests {
         ], id: retryBatchID))
 
         #expect(fixture.state.invalidatedRetentionGroups == groups)
+        #expect(fixture.state.erasedRetentionGroups.isEmpty)
+        #expect(fixture.state.privacyGroups(for: [fixture.executionID], retention: .preserveVisibleHistory).isSuperset(of: groups))
+        #expect(throws: MiraError.self) {
+            try fixture.state.apply(fixture.batch([.invalidated(.init(operationID: UUID(),
+                executionIDs: [fixture.executionID, retryID], retentionGroups: [], authorizationEpoch: 1,
+                reason: .forgotten))]))
+        }
         #expect(fixture.state.references.values.contains { $0.kind == .userText &&
             !fixture.state.invalidatedRetentionGroups.contains($0.retentionGroup) })
         #expect(fixture.state.references.values.contains { $0.kind == .executionPlan &&
@@ -214,31 +221,19 @@ struct SessionStateTests {
         #expect(throws: MiraError.self) { try fixture.state.apply(fixture.batch([.admitted(retry)], id: retryBatchID)) }
     }
 
-    @Test func draftRejectsLateAttemptCallbacksAndTerminalSettlementIsUnique() throws {
+    @Test func settledAttemptsAndTerminalSettlementAreUnique() throws {
         var fixture = StateFixture(); try fixture.startAttempt()
         let attempt = try #require(fixture.state.attempts.values.first?.attempt)
-        let draftBatchID = UUID(); let group = UUID()
-        let draft = fixture.reference(kind: .draft, batchID: draftBatchID, group: group, count: 4)
-        let checkpoint = SessionDraftCheckpoint(executionID: fixture.executionID, attemptID: attempt.id,
-            part: .answer, baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0,
-            replacement: draft, resultByteCount: 4)
-        try fixture.state.apply(fixture.batch([.draftCheckpoint(checkpoint)], id: draftBatchID))
-        let previousSequence = fixture.state.sequence
         try fixture.apply([.attemptResolved(.init(attemptID: attempt.id, status: .failed)),
             .phaseChanged(executionID: fixture.executionID, phase: .preparing)])
         let retry = SessionAttempt(id: UUID(), executionID: fixture.executionID, stepID: attempt.stepID,
             stepIndex: 1, attemptIndex: 2, request: attempt.request)
         try fixture.apply([.attemptStarted(retry)])
-        let lateBatchID = UUID()
-        let late = SessionDraftCheckpoint(executionID: fixture.executionID, attemptID: attempt.id,
-            part: .answer, baseSequence: previousSequence, prefixByteCount: 4, suffixByteCount: 0,
-            replacement: fixture.reference(kind: .draft, batchID: lateBatchID, group: group, count: 1), resultByteCount: 5)
-        #expect(throws: MiraError.self) { try fixture.state.apply(fixture.batch([.draftCheckpoint(late)], id: lateBatchID)) }
+        #expect(throws: MiraError.self) { try fixture.apply([.attemptResolved(.init(attemptID: attempt.id, status: .failed))]) }
         #expect(throws: MiraError.self) { try fixture.apply([.finished(.init(executionID: fixture.executionID, status: .failed))]) }
         try fixture.apply([.phaseChanged(executionID: fixture.executionID, phase: .cancelling),
             .attemptResolved(.init(attemptID: retry.id, status: .interrupted)),
             .finished(.init(executionID: fixture.executionID, status: .cancelled))])
-        #expect(fixture.state.executions[fixture.executionID]?.drafts.isEmpty == true)
         #expect(throws: MiraError.self) { try fixture.apply([.finished(.init(executionID: fixture.executionID, status: .cancelled))]) }
     }
 
@@ -254,6 +249,7 @@ struct SessionStateTests {
         try fixture.apply([.invalidated(.init(operationID: UUID(), executionIDs: [fixture.executionID],
             retentionGroups: hidden, authorizationEpoch: 1, reason: .forgotten))])
         #expect(fixture.state.excludedExecutionIDs == [fixture.executionID])
+        #expect(fixture.state.erasedRetentionGroups == hidden)
         #expect(fixture.state.references.values.filter { $0.kind == .userText }
             .allSatisfy { !fixture.state.invalidatedRetentionGroups.contains($0.retentionGroup) })
         #expect(throws: MiraError.self) { try fixture.apply([.phaseChanged(executionID: fixture.executionID, phase: .preparing)]) }
@@ -276,30 +272,7 @@ struct SessionStateTests {
         #expect(fixture.state.invalidatedRetentionGroups.contains(body.retentionGroup))
     }
 
-    @Test func bytePatchesRoundTripUnicodeAndHaveLinearAppendStorage() throws {
-        // Unicode is synthetic test content for byte-level patch boundary coverage.
-        let snapshots = ["a☕z", "a🌍z", "", "字", "字🙂"] // i18n-fixture: Synthetic Unicode patch boundaries.
-        var previous = Data(); var sequence: Int64?; var storedBytes = 0
-        let fixture = StateFixture(); let group = UUID()
-        for (index, snapshot) in snapshots.enumerated() {
-            let current = Data(snapshot.utf8)
-            let patch = try SessionDraftPatch(previous: previous, current: current)
-            let checkpoint = SessionDraftCheckpoint(executionID: fixture.executionID, attemptID: UUID(), part: .thinking,
-                baseSequence: sequence, prefixByteCount: patch.prefixByteCount, suffixByteCount: patch.suffixByteCount,
-                replacement: fixture.reference(kind: .draft, batchID: UUID(), group: group, count: patch.replacement.count),
-                resultByteCount: patch.resultByteCount)
-            #expect(try SessionDraftPatch.apply(checkpoint, replacement: patch.replacement,
-                previous: previous, previousSequence: sequence) == current)
-            previous = current; sequence = Int64(index + 1)
-        }
-        previous = Data()
-        for _ in 0..<128 {
-            let current = previous + Data(repeating: 120, count: 1024)
-            let patch = try SessionDraftPatch(previous: previous, current: current)
-            storedBytes += patch.replacement.count; previous = current
-        }
-        #expect(storedBytes == 128 * 1024)
-    }
+
 }
 
 private struct StateFixture {
@@ -381,7 +354,7 @@ private struct StateFixture {
             timeoutMilliseconds: 1_000, maximumResultBytes: 1_024)
         let proposal = AgentToolProposal(descriptor: descriptor, effect: invocation.effect,
             businessNamespace: invocation.effect == .localWrite ? "test.write" : nil,
-            callDigest: String(repeating: "a", count: 64),
+            callDigest: String(repeating: "a", count: 64), inheritedSources: [],
             plan: .init(input: .object([:]), sources: [], targets: []))
         let bytes = try SessionCodec.encode(proposal)
         let reference = SessionPayloadReference(id: UUID(), sessionID: state.id, batchID: batchID,

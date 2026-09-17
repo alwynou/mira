@@ -37,7 +37,7 @@ struct FileSessionCheckpointTests {
             try forgeUnkeyedCache(indexURL, format: "MIRA-SESSION-INDEX-2") { value in
                 value["references"] = []
             }
-            try forgeUnkeyedCache(checkpointURL(directory, runtime.id), format: "MIRA-SESSION-STATE-2") { value in
+            try forgeUnkeyedCache(checkpointURL(directory, runtime.id), format: "MIRA-SESSION-STATE-3") { value in
                 var snapshot = value["snapshot"] as! [String: Any]
                 var state = snapshot["state"] as! [String: Any]
                 state["isArchived"] = true; snapshot["state"] = state; value["snapshot"] = snapshot
@@ -140,13 +140,13 @@ struct FileSessionCheckpointTests {
                     operationID: UUID(), executionIDs: [], retentionGroups: [group], authorizationEpoch: 1, reason: .forgotten)))])
             #expect(await reopened.append(invalidation) == .committed(invalidation.cursor))
             try await reopened.purge(sessionID: runtime.id, retentionGroups: [group])
-            // Direct journal append leaves the older state sidecar as a valid prefix.
+            // Privacy erasure changes the physical prefix, so the old sidecar must be rebuilt.
             try await reopened.close()
             let recovered = try FileSessionLibrary(directory: directory)
             let result = try await reader(recovered).snapshot(sessionID: runtime.id)
             #expect(result.state.authorizationEpoch == 1)
             #expect(result.state.invalidatedRetentionGroups.contains(group))
-            #expect(await recovered.readMetrics().restoredCheckpoints == 1)
+            #expect(await recovered.readMetrics().restoredCheckpoints == 0)
             let reference = try #require(original.references.values.first { $0.retentionGroup == group })
             await #expect(throws: MiraError.self) { _ = try await recovered.read(reference) }
             try await recovered.close()

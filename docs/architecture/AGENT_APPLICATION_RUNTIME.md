@@ -15,7 +15,7 @@ flowchart TB
   Modules --> Registry[类型化能力注册表]
   Registry -->|冻结代次与租约| Catalog[AgentRuntimeCatalog]
   App -->|原子接纳| Session[SessionRuntime\n每会话命令通道]
-  Session --> Journal[SessionJournal / SessionPayloadStore\n日志与独立正文]
+  Session --> Journal[SessionJournal / SessionPayloadStore\n日志与内联／外置正文]
   App -->|持有任务| Kernel[AgentExecutionKernel]
   Catalog --> Kernel
   Kernel --> Driver[精确版本的 AgentDriver]
@@ -84,19 +84,19 @@ flowchart TD
 
 用户重试表示**重新回答原问题**。应用在同一接纳批次中追加 `admitted` 与 `retryCleared`，后者必须紧跟本批次的新执行接纳。归约器核对原问题、源执行和完整清理集合：该问题之前所有尝试尚未失效的生成正文、思考、续接、请求、草稿、工具正文及错误数据均被退休；原始用户消息、标题和冻结执行计划不在集合中。生成数据为空也记录空清理事实，以保持命令核对一致。
 
-日志确认后，应用仍持有会话预留和冻结目录，等待正文存储完成实际删除；失败返回 `indeterminate`，禁止模型／工具派发，通过同一命令的 `reconcileAdmission` 继续清理。删除不在日志索引安装的中途执行，避免已落盘的批次与内存索引只安装一半。重开文件库时从持久失效集合补完删除；应用启动也在恢复活动执行前经过清理屏障，恢复只结算中断，不自动重新回答。
+日志确认后，应用仍持有会话预留和冻结目录；`retryCleared` 只将旧生成正文、思考、续接、请求、草稿、工具正文及错误数据标记为逻辑退休，保留 append-only 日志字节，不执行物理删除。失败返回 `indeterminate`，禁止模型／工具派发，通过同一命令的 `reconcileAdmission` 继续完成逻辑退休。显式隐私维护另行将所有受影响（包括已退休）的正文纳入 durable invalidation 后的物理清理。重开文件库时重建失效／退休状态，不因 retryCleared 删除日志正文；应用启动也在恢复活动执行前经过状态屏障，恢复只结算中断，不自动重新回答。
 
-新回答从原问题重新构建上下文，不拼接旧回复。旧执行仅保留必要状态、计量和身份元数据，已清理正文在查询／审计中返回 `.purged`，搜索追赶时移除相应文档。已经提交的任务、记忆等工具业务效果不被撤销；副作用未知的执行仍不允许重试。此操作不使用会递归作废依赖执行的来源隐私撤销流程。
+新回答从原问题重新构建上下文，不拼接旧回复。旧执行保留日志正文和必要状态、计量及身份元数据，但普通正文读取对逻辑退休正文抛出 `notFound`，查询／审计和搜索追赶均隐藏它；`purged` 只是逻辑不可用状态，不证明显式隐私物理擦除已经完成。已经提交的任务、记忆等工具业务效果不被撤销；副作用未知的执行仍不允许重试。此操作不使用会递归作废依赖执行的来源隐私撤销流程。
 
 ```mermaid
 flowchart LR
     Retry[重新回答原问题] --> Batch[原子接纳新执行并记录旧数据清理]
-    Batch --> Purge[删除旧正文、思考及续接等数据]
-    Purge -->|失败| Pending[保留命令并等待核对]
-    Pending --> Purge
-    Purge -->|成功| Generate[从原问题重新生成]
+    Batch --> Retire[逻辑退休旧正文、思考及续接等数据]
+    Retire -->|失败| Pending[保留命令并等待核对]
+    Pending --> Retire
+    Retire -->|成功| Generate[从原问题重新生成]
     Generate --> Row[在同一回答位置展示]
-    Restart[应用重开] --> Recovery[补完删除并结算中断\n不自动调用模型]
+    Restart[应用重开] --> Recovery[恢复退休／失效状态并结算中断\n不自动调用模型]
 ```
 
 会话创建、重命名、归档也由应用任务持有，并使用同一会话预留。重命名与归档检查预期修订。命令结果不确定时只核对它自己的批次；如果会话被另一个命令的不确定批次隔离，新命令明确返回未提交，不能接管那个批次的身份。

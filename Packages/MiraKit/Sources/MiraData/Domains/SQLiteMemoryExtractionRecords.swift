@@ -6,37 +6,31 @@ import MiraCore
 extension SQLiteMemoryExtractionStore {
     struct ClaimIdentity: Codable, Equatable, Sendable {
         let job: MemoryExtractionJob
-        let policy: MemoryCapturePolicy
         let route: AgentModelRoute
-        let binding: AgentRouteBinding
         let leaseID: UUID
         let leaseExpiresAt: Date
         let attemptID: UUID
         let admittedAt: Date
         let timeZoneIdentifier: String
         let sourceEpoch: UInt64
+        let existingMemories: [MemoryUsage]
 
         init(_ claim: MemoryExtractionClaim) throws {
             try claim.validate()
             job = claim.job
-            policy = claim.policy
             route = claim.route
-            binding = claim.selection.binding!
             leaseID = claim.leaseID
             leaseExpiresAt = claim.leaseExpiresAt
             attemptID = claim.attemptID
             admittedAt = claim.source.admittedAt
             timeZoneIdentifier = claim.source.timeZoneIdentifier
             sourceEpoch = claim.source.sessionAuthorizationEpoch
+            existingMemories = claim.existingMemories.map { .init(memoryID: $0.id, revision: $0.revision) }
         }
         func validate() throws {
             try job.validate()
-            try policy.validate()
             try route.validate()
-            try binding.validate()
-            guard job.state == .running, job.attemptCount > 0, job.policyRevision == policy.revision,
-                policy.mode != .manualOnly, let enabledAt = policy.enabledAt, admittedAt >= enabledAt,
-                binding.purpose == AgentModelPurposeID.memoryExtraction, binding.routeID == route.id,
+            guard job.state == .running, job.attemptCount > 0,
                 leaseExpiresAt.timeIntervalSince1970.isFinite, leaseExpiresAt > job.updatedAt,
                 admittedAt.timeIntervalSince1970.isFinite, TimeZone(identifier: timeZoneIdentifier) != nil
             else { throw Self.invalid }
@@ -49,7 +43,6 @@ extension SQLiteMemoryExtractionStore {
         let identity: ClaimIdentity
         var status: AttemptStatus = .claimed
         var request: AgentPreparedModelRequest?
-        var budgetDay: Date?
         var reservedTokens = 0
         var chargedTokens = 0
         var dispatchedAt: Date?
@@ -63,7 +56,7 @@ extension SQLiteMemoryExtractionStore {
         var accounting: MemoryExtractionAttemptUsage {
             .init(id: identity.attemptID, jobID: identity.job.id, ordinal: identity.job.attemptCount,
                   state: status, startedAt: identity.job.updatedAt, dispatchedAt: dispatchedAt,
-                  settledAt: settledAt, budgetDay: budgetDay, reservedTokens: reservedTokens,
+                  settledAt: settledAt, reservedTokens: reservedTokens,
                   chargedTokens: chargedTokens, usage: reportedUsage,
                   route: bodyPurgedAt == nil ? identity.route : nil, bodyPurgedAt: bodyPurgedAt)
         }
@@ -74,10 +67,9 @@ extension SQLiteMemoryExtractionStore {
             guard (0...10_000_000).contains(reservedTokens), chargedTokens >= 0,
                 chargedTokens <= TokenUsage.maximumAggregateTokens,
                 (status.isLive && settledAt == nil) || (!status.isLive && settledAt != nil),
-                [budgetDay, dispatchedAt, settledAt, bodyPurgedAt].allSatisfy({
+                [dispatchedAt, settledAt, bodyPurgedAt].allSatisfy({
                     $0.map { $0.timeIntervalSince1970.isFinite } ?? true
                 }),
-                budgetDay.map({ (try? Self.day($0)) == $0 }) ?? true,
                 bodyPurgedAt == nil
                     || (!status.isLive && request == nil && output == nil && decisions == nil && error == nil)
             else { throw Self.invalid }
@@ -86,7 +78,7 @@ extension SQLiteMemoryExtractionStore {
             }
             if status == .completed { guard error == nil else { throw Self.invalid } }
             if status == .claimed {
-                guard request == nil, reservedTokens == 0, budgetDay == nil, dispatchedAt == nil else {
+                guard request == nil, reservedTokens == 0, dispatchedAt == nil else {
                     throw Self.invalid
                 }
             }
@@ -97,21 +89,22 @@ extension SQLiteMemoryExtractionStore {
             if status == .failed { guard dispatchedAt == nil, chargedTokens == 0 else { throw Self.invalid } }
             if status.isLive { guard chargedTokens == 0, output == nil, error == nil else { throw Self.invalid } }
             if reservedTokens > 0 {
-                guard budgetDay != nil, bodyPurgedAt != nil || request != nil else { throw Self.invalid }
+                guard bodyPurgedAt != nil || request != nil else { throw Self.invalid }
             } else {
-                guard request == nil, budgetDay == nil else { throw Self.invalid }
+                guard request == nil else { throw Self.invalid }
             }
             if let request {
                 try request.validate(for: identity.route)
                 guard request.input.executionID == ExecutionID(identity.attemptID),
                     request.input.stepID == identity.attemptID,
-                    request.input.tools.isEmpty
+                    !request.input.allowsToolCalls
                 else { throw Self.invalid }
             }
             if status == .completed {
                 guard bodyPurgedAt != nil || (output != nil && decisions != nil) else { throw Self.invalid }
                 if let decisions {
-                    guard decisions.count <= 6, decisions.map(\.proposalIndex) == Array(decisions.indices) else {
+                    guard decisions.count <= 6, decisions.map(\.proposalIndex) == decisions.map(\.proposalIndex).sorted(),
+                          Set(decisions.map(\.proposalIndex)).count == decisions.count else {
                         throw Self.invalid
                     }
                     for decision in decisions { try decision.validate() }
@@ -121,7 +114,7 @@ extension SQLiteMemoryExtractionStore {
                     try SQLiteMemoryExtractionStore.validate(output, route: identity.route)
                     let value = try SessionCodec.decode(JSONValue.self, from: Data(output.text.utf8))
                     guard case .object(let object) = value, case .array(let items) = object["items"],
-                        items.count == decisions?.count
+                        items.count <= 6, decisions?.allSatisfy({ items.indices.contains($0.proposalIndex) }) == true
                     else { throw Self.invalid }
                 }
             } else {
@@ -129,18 +122,11 @@ extension SQLiteMemoryExtractionStore {
             }
         }
         private static var invalid: MiraError { SQLiteMemoryExtractionStore.invalid }
-        private static func day(_ at: Date) throws -> Date { try SQLiteMemoryExtractionStore.day(at) }
     }
 
     static func key<Tag>(_ id: EntityID<Tag>) -> String { key(id.rawValue) }
     static func key(_ id: UUID) -> String { id.uuidString.lowercased() }
     static func date(_ at: Date) throws { guard at.timeIntervalSince1970.isFinite else { throw invalid } }
-    static func day(_ at: Date) throws -> Date {
-        try date(at)
-        let value = floor(at.timeIntervalSince1970 / 86_400) * 86_400
-        guard value.isFinite else { throw invalid }
-        return .init(timeIntervalSince1970: value)
-    }
     static func encode<T: Encodable>(_ value: T, maximum: Int = 131_072) throws -> Data {
         let bytes = try SessionCodec.encode(value)
         guard bytes.count <= maximum else { throw limit }
@@ -160,7 +146,6 @@ extension SQLiteMemoryExtractionStore {
             key(job.origin.source.sessionID) == row["session_id"] as String,
             key(job.origin.completedExecutionID) == row["execution_id"] as String,
             job.workspaceID.map(key) == row["workspace_id"] as String?,
-            job.policyRevision == row["policy_revision"] as Int,
             job.extractorRevision == row["extractor_revision"] as Int,
             job.state.rawValue == row["state"] as String, job.attemptCount == row["attempt_count"] as Int,
             job.createdAt.timeIntervalSince1970 == row["created_at"] as Double
@@ -179,12 +164,17 @@ extension SQLiteMemoryExtractionStore {
         if insert {
             try db.execute(
                 sql:
-                    "INSERT INTO memory_extraction_jobs(id, source_key, session_id, execution_id, workspace_id, policy_revision, extractor_revision, state, attempt_count, created_at, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO memory_extraction_jobs(id, source_key, session_id, execution_id, workspace_id, extractor_revision, state, attempt_count, created_at, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 arguments: [
                     key(job.id), try sourceKey(job.origin.source), key(job.origin.source.sessionID), key(job.origin.completedExecutionID),
-                    job.workspaceID.map(key), job.policyRevision, job.extractorRevision, job.state.rawValue,
+                    job.workspaceID.map(key), job.extractorRevision, job.state.rawValue,
                     job.attemptCount, job.createdAt.timeIntervalSince1970, try encode(job),
                 ])
+            let references = job.turns.isEmpty ? [job.origin.source] : job.turns.map(\.source)
+            for reference in references {
+                let executionID = job.turns.first(where: { $0.source == reference })?.completedExecutionID ?? job.origin.completedExecutionID
+                try db.execute(sql: "INSERT INTO memory_extraction_sources(job_id, source_key, execution_id) VALUES (?, ?, ?)", arguments: [key(job.id), try sourceKey(reference), key(executionID)])
+            }
         } else {
             try db.execute(
                 sql: "UPDATE memory_extraction_jobs SET state = ?, attempt_count = ?, json = ? WHERE id = ?",
@@ -213,42 +203,22 @@ extension SQLiteMemoryExtractionStore {
         if insert {
             try db.execute(
                 sql:
-                    "INSERT INTO memory_extraction_attempts(id, job_id, ordinal, status, budget_day, reserved_tokens, charged_tokens, accounting_digest, accounting, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO memory_extraction_attempts(id, job_id, ordinal, status, reserved_tokens, charged_tokens, accounting_digest, accounting, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 arguments: [
                     key(attempt.identity.attemptID), key(attempt.identity.job.id), attempt.identity.job.attemptCount,
-                    attempt.status.rawValue, attempt.budgetDay?.timeIntervalSince1970, attempt.reservedTokens,
+                    attempt.status.rawValue, attempt.reservedTokens,
                     attempt.chargedTokens, digest, accounting, bytes,
                 ])
         } else {
             try db.execute(
                 sql:
-                    "UPDATE memory_extraction_attempts SET status = ?, budget_day = ?, reserved_tokens = ?, charged_tokens = ?, accounting_digest = ?, accounting = ?, json = ? WHERE id = ?",
+                "UPDATE memory_extraction_attempts SET status = ?, reserved_tokens = ?, charged_tokens = ?, accounting_digest = ?, accounting = ?, json = ? WHERE id = ?",
                 arguments: [
-                    attempt.status.rawValue, attempt.budgetDay?.timeIntervalSince1970, attempt.reservedTokens,
+                    attempt.status.rawValue, attempt.reservedTokens,
                     attempt.chargedTokens, digest, accounting, bytes, key(attempt.identity.attemptID),
                 ])
             guard db.changesCount == 1 else { throw conflict }
         }
-    }
-    static func budget(at: Date, in db: Database) throws -> MemoryExtractionBudget {
-        let start = try day(at)
-        let cursor = try Row.fetchCursor(
-            db, sql: "SELECT " + accountingColumns + " FROM memory_extraction_attempts WHERE budget_day = ?",
-            arguments: [start.timeIntervalSince1970])
-        var reserved = 0
-        var charged = 0
-        while let row = try cursor.next() {
-            let attempt = try accounting(row)
-            let amount = attempt.state.isLive ? attempt.reservedTokens : 0
-            let (nextReserved, reservationOverflow) = reserved.addingReportingOverflow(amount)
-            let (nextCharged, chargeOverflow) = charged.addingReportingOverflow(attempt.chargedTokens)
-            guard !reservationOverflow, !chargeOverflow else { throw invalid }
-            reserved = nextReserved
-            charged = nextCharged
-        }
-        return .init(
-            dayStart: start, tokenLimit: try SQLiteMemoryStore.currentCapturePolicy(in: db).dailyTokenLimit,
-            reservedTokens: reserved, chargedTokens: charged)
     }
     static func validateSource(_ source: SessionUserEvidence, job: MemoryExtractionJob, in db: Database) throws {
         try MemoryExtractionRequestBuilder.validate(source: source)
@@ -263,12 +233,8 @@ extension SQLiteMemoryExtractionStore {
     static func validateSelection(_ selection: AgentModelRouteResolution, job: MemoryExtractionJob, in db: Database)
         throws
     {
-        guard let binding = selection.binding else { throw unauthorized }
-        let current = try SQLiteAgentModelSettings.select(
-            purpose: AgentModelPurposeID.memoryExtraction,
-            workspaceID: job.workspaceID, in: db)
-        guard binding == current.binding, binding.routeID == selection.route.id else { throw unauthorized }
-        try current.candidate.validate(requiredCapabilities: [AgentModelCapabilityID.jsonOutput])
+        guard selection.binding == nil else { throw unauthorized }
+        try selection.route.validate()
         try SQLiteAgentModelSettings.validateFrozenIdentity(selection.route, in: db)
         try SQLiteWorkspaceStore.validatePolicy(job.workspaceID, connectionID: selection.route.connectionID, in: db)
     }
@@ -283,12 +249,30 @@ extension SQLiteMemoryExtractionStore {
             job.attemptCount == claim.job.attemptCount, attempt.status.isLive,
             at >= claim.job.updatedAt, at < claim.leaseExpiresAt,
             at >= (attempt.dispatchedAt ?? claim.job.updatedAt),
-            try SQLiteMemoryStore.currentCapturePolicy(in: db) == claim.policy,
             source.admittedAt == claim.source.admittedAt, source.timeZoneIdentifier == claim.source.timeZoneIdentifier,
             source.sessionAuthorizationEpoch == claim.source.sessionAuthorizationEpoch,
             source.text == claim.source.text
         else { throw conflict }
         try validateSource(source, job: job, in: db)
+        let references = job.turns.isEmpty ? [job.origin.source] : job.turns.map(\.source)
+        guard claim.batchSources.map(\.reference) == references else { throw unauthorized }
+        for evidence in claim.batchSources {
+            try MemoryExtractionRequestBuilder.validate(source: evidence)
+            guard evidence.workspaceID == job.workspaceID,
+                  evidence.sessionAuthorizationEpoch == source.sessionAuthorizationEpoch,
+                  evidence.admittedAt.timeIntervalSince1970.isFinite,
+                  SQLiteMemoryStore.embeddingHash(evidence.text) == evidence.reference.body.digest,
+                  try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(evidence.reference), in: db)
+            else { throw unauthorized }
+        }
+        let request = AgentContextRequest(sessionID: source.reference.sessionID, executionID: claim.executionID,
+            workspaceID: source.workspaceID, userText: source.text,
+            authorizationEpoch: source.sessionAuthorizationEpoch, destination: .model(claim.route))
+        guard claim.existingMemories.count <= 32 else { throw invalid }
+        for memory in claim.existingMemories {
+            let current = try SQLiteMemoryStore.recall(memory.id, request: request, at: at, in: db)
+            guard current == memory else { throw conflict }
+        }
         try validateSelection(claim.selection, job: job, in: db)
         return (job, attempt)
     }

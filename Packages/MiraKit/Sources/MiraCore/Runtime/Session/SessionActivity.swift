@@ -198,41 +198,19 @@ struct SessionActivityReader: Sendable {
         return .available(try SessionCodec.decode(AgentModelOutput.self, from: bytes))
     }
 
-    private struct DraftTranscript: Decodable {
-        let blocks: [AgentModelBlock]
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            blocks = try container.decode([AgentModelBlock].self, forKey: .blocks)
-        }
-        private enum CodingKeys: String, CodingKey { case blocks }
-    }
-
     private static func draftBlocks(
         state: SessionState, executionID: ExecutionID, journal: any SessionJournal,
         attempt: SessionAttemptState?, payloads: any SessionPayloadReader, remaining: inout Int
     ) async throws -> [SessionActivityBlock]? {
         guard let attempt,
-              let draft = state.executions[executionID]?.drafts[.transcript],
-              draft.checkpoint.attemptID == attempt.attempt.id,
-              draft.checkpoint.resultByteCount <= remaining,
-              state.references[draft.checkpoint.replacement.id] == draft.checkpoint.replacement,
-              !state.invalidatedRetentionGroups.contains(draft.checkpoint.replacement.retentionGroup)
-        else { return nil }
-        let bounded = ActivityDraftPayloadReader(base: payloads, remaining: remaining)
-        let values: [SessionDraftPart: Data]
-        do {
-            values = try await SessionDraftReader(journal: journal, payloads: bounded)
-                .read(state: state, executionID: executionID, parts: [.transcript])
-        } catch ActivityDraftPayloadReader.Limit.exceeded {
-            remaining = await bounded.remaining
-            return nil
-        }
-        remaining = await bounded.remaining
-        guard let bytes = values[.transcript] else { return nil }
-        let transcript = try SessionCodec.decode(DraftTranscript.self, from: bytes)
+              let draft = try await SessionDraftReader.active(state: state, executionID: executionID, payloads: payloads),
+              draft.attemptID == attempt.attempt.id else { return nil }
+        let byteCount = try SessionCodec.encode(draft).count
+        guard byteCount <= remaining else { return nil }
+        remaining -= byteCount
         var invocationIndex = 0
         var blocks: [SessionActivityBlock] = []
-        for block in transcript.blocks {
+        for block in draft.blocks {
             switch block.content {
             case .thinking(let text): blocks.append(.init(id: block.id, content: .thinking(.available(text))))
             case .text(let text): blocks.append(.init(id: block.id, content: .text(.available(text))))
@@ -271,17 +249,4 @@ struct SessionActivityReader: Sendable {
     }
 
     private static var invalidPage: MiraError { .init(.storage, "The session activity is inconsistent.") }
-}
-
-/// Counts actual patch reads, not just the reconstructed draft size.
-private actor ActivityDraftPayloadReader: SessionPayloadReader {
-    enum Limit: Error { case exceeded }
-    let base: any SessionPayloadReader
-    private(set) var remaining: Int
-    init(base: any SessionPayloadReader, remaining: Int) { self.base = base; self.remaining = remaining }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
-        guard reference.byteCount <= remaining else { throw Limit.exceeded }
-        remaining -= reference.byteCount
-        return try await base.read(reference)
-    }
 }

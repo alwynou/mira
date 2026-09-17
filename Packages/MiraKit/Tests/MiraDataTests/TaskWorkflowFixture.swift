@@ -136,7 +136,7 @@ func withTaskWorkflow(outputs: [[AgentModelStreamEvent]] = [], permission: Notif
         let authorizer = JournalAgentSourceAuthorizer(reader: .init(journal: library, payloads: library), policy: policy, domains: domains)
         var modules: [any RuntimeModule] = [TaskModule(registry: registry, store: t, sourceAuthorities: domains), TaskRuntimeModule(registry: registry, model: probe)]
         if let memory {
-            modules.append(MemoryModule(registry: registry, store: memory, capturePolicy: memory,
+            modules.append(MemoryModule(registry: registry, store: memory,
                                         sourceAuthorities: domains, now: { TaskWorkflowFixture.now }))
         }
         if let knowledge {

@@ -75,9 +75,14 @@ actor AgentExecutionFinalizer {
             }
             if observation.requiresReconciliation { return reconciliation }
             let cancelled = await runtime.isCancellationRequested(executionID: pending.intent.executionID)
-            return await runtime.commit(id: pending.commandID) { context in
+            let result = await runtime.commit(id: pending.commandID) { context in
                 try await Self.facts(pending, context: context, cancellationRequested: cancelled, authorizer: authorizer)
             }
+            if case .committed = result, let attemptID = pending.intent.expectedAttemptID {
+                // A stale sidecar is harmless after settlement; cleanup can be retried at startup.
+                try? await runtime.removeActiveDraft(sessionID: runtime.id, attemptID: attemptID)
+            }
+            return result
         }
         operation = task
         let result = await task.value
@@ -100,7 +105,10 @@ actor AgentExecutionFinalizer {
         var status: ExecutionStatus = revoked ? .interrupted : (cancelled ? .cancelled : intent.status)
         var suppressContent = revoked
         var terminalError = intent.error
+        let activeDraft = revoked ? nil : try await SessionDraftReader.active(
+            state: context.state, executionID: intent.executionID, payloads: context.payloads)
         let publishesContent = !(intent.answer?.isEmpty ?? true) || !(intent.visibleThinking?.isEmpty ?? true)
+            || activeDraft?.blocks.isEmpty == false || activeDraft?.continuation != nil
         if !revoked, status == .completed || publishesContent {
             var sources: [AgentSourceReference] = []
             var contextRequest: AgentContextRequest?
@@ -109,13 +117,13 @@ actor AgentExecutionFinalizer {
                 guard let reference = context.state.attempts[attemptID]?.attempt.request else {
                     throw MiraError(.storage, "The execution attempt is unavailable during settlement.")
                 }
-                let build = try SessionCodec.decode(AgentContextBuild.self, from: await context.payloads.read(reference))
-                guard build.request.destination.modelRoute == plan.route,
-                      build.request.workspaceID == context.state.header?.workspaceID,
-                      build.request.executionID == intent.executionID, build.request.sessionID == context.state.id else {
+                let record = try await AgentRequestRecord.read(reference, payloads: context.payloads)
+                guard record.request.destination.modelRoute == plan.route,
+                      record.request.workspaceID == context.state.header?.workspaceID,
+                      record.request.executionID == intent.executionID, record.request.sessionID == context.state.id else {
                     throw MiraError(.storage, "The execution request evidence is inconsistent.")
                 }
-                sources += build.sources; contextRequest = build.request
+                sources += record.sources; contextRequest = record.request
             }
             let expectedSources = AgentContextBuild.orderedSources(sources)
             if let replay = intent.replay {
@@ -133,6 +141,7 @@ actor AgentExecutionFinalizer {
         }
         let cancelling = status == .cancelled || status == .interrupted
         var facts: [SessionFact] = []
+        var terminalUsage = intent.usage
         let phase: ExecutionPhase = cancelling ? .cancelling : .settling
         if execution.phase != phase { facts.append(.phaseChanged(executionID: intent.executionID, phase: phase)) }
         for attemptID in execution.attemptIDs {
@@ -141,7 +150,19 @@ actor AgentExecutionFinalizer {
             }
             if attempt.resolution == nil {
                 guard status != .completed else { throw MiraError(.conflict, "A running model attempt cannot finish successfully.") }
-                facts.append(.attemptResolved(.init(attemptID: attemptID, status: cancelling ? .interrupted : .failed)))
+                var output: SessionPayloadReference?
+                var usage = TokenUsage()
+                if !suppressContent, let draft = activeDraft, draft.attemptID == attemptID {
+                    usage = draft.usage
+                    terminalUsage = terminalUsage.adding(usage)
+                    if !draft.blocks.isEmpty || draft.continuation != nil {
+                        output = try await context.stage(AgentModelOutput(blocks: draft.blocks,
+                            continuation: draft.continuation, usage: draft.usage, finishReason: .stop),
+                            kind: .modelOutput, retentionGroup: UUID())
+                    }
+                }
+                facts.append(.attemptResolved(.init(attemptID: attemptID,
+                    status: cancelling ? .interrupted : .failed, output: output, usage: usage)))
             }
             for invocationID in attempt.invocationIDs {
                 guard let invocation = context.state.invocations[invocationID] else {
@@ -161,7 +182,7 @@ actor AgentExecutionFinalizer {
                 }
             }
         }
-        try intent.usage.validate(maximumTokens: TokenUsage.maximumAggregateTokens)
+        try terminalUsage.validate(maximumTokens: TokenUsage.maximumAggregateTokens)
         var answer: SessionPayloadReference?
         var thinking: SessionPayloadReference?
         var replay: SessionPayloadReference?
@@ -195,7 +216,7 @@ actor AgentExecutionFinalizer {
                         instructions: "", messages: value.messages, tools: []).validate(for: route)
                 }
                 for source in value.sources { try source.validate() }
-                replay = try await context.stage(value, kind: .replay, retentionGroup: UUID())
+                replay = try await AgentReplayManifest.stage(value, execution: execution, context: context)
             }
         }
         if !revoked, let value = terminalError {
@@ -203,7 +224,7 @@ actor AgentExecutionFinalizer {
         }
         facts.append(.finished(.init(executionID: intent.executionID, status: status,
             assistantMessageID: answer != nil || thinking != nil ? pending.messageID : nil,
-            answer: answer, visibleThinking: thinking, replay: replay, error: error, usage: intent.usage)))
+            answer: answer, visibleThinking: thinking, replay: replay, error: error, usage: terminalUsage)))
         return facts
     }
 }

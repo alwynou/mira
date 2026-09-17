@@ -43,6 +43,12 @@ private actor SchedulerStore: TaskStore {
         guard let task = tasks.first(where: { $0.id == id }) else { throw MiraError(.notFound, "Task is unavailable.") }
         return task
     }
+    func taskRevision(_ id: MiraTaskID, revision: Int, workspaceID: WorkspaceID?) async throws -> TaskRevision {
+        guard let task = tasks.first(where: { $0.id == id && $0.revision == revision }) else {
+            throw MiraError(.notFound, "Task revision is unavailable.")
+        }
+        return .init(task: task, operation: "synthetic", actor: "test", changedAt: task.updatedAt)
+    }
     func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> [TaskRevision] { [] }
     func taskProposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal] { [] }
     func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus,

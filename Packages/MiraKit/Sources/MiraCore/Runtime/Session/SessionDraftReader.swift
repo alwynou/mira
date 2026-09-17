@@ -1,75 +1,88 @@
 import Foundation
 
-/// Reconstructs active streaming draft components from committed journal facts.
-/// The reader owns no cache and never interprets provider output.
+/// Reads recovery output from settled steps and the single replaceable active draft.
+/// Streaming checkpoints are never part of the canonical session journal.
 public struct SessionDraftReader: Sendable {
-    private let journal: any SessionJournal
     private let payloads: any SessionPayloadReader
-    private static let maximumParts = 3
-    private static let maximumTotalBytes = SessionFormatLimits.maximumPayloadBytes * maximumParts
 
     public init(journal: any SessionJournal, payloads: any SessionPayloadReader) {
-        self.journal = journal
         self.payloads = payloads
+    }
+
+    static func active(state: SessionState, executionID: ExecutionID,
+                       payloads: any SessionPayloadReader) async throws -> SessionActiveDraft? {
+        guard state.activeExecutionID == executionID,
+              let execution = state.executions[executionID], execution.completion == nil,
+              !state.excludedExecutionIDs.contains(executionID),
+              let attemptID = execution.attemptIDs.last,
+              let attempt = state.attempts[attemptID], attempt.resolution == nil,
+              let draft = try await payloads.activeDraft(sessionID: state.id),
+              draft.executionID == executionID, draft.attemptID == attemptID,
+              draft.authorizationEpoch == state.authorizationEpoch,
+              draft.request == attempt.attempt.request,
+              state.references[draft.request.id] == draft.request,
+              !state.invalidatedRetentionGroups.contains(draft.request.retentionGroup) else { return nil }
+        try draft.validate()
+        return draft
+    }
+
+    func thinkingPrefix(state: SessionState, executionID: ExecutionID) async throws -> String {
+        guard let execution = state.executions[executionID], execution.completion == nil,
+              !state.excludedExecutionIDs.contains(executionID) else { return "" }
+        var text = ""
+        for id in execution.attemptIDs {
+            guard let attempt = state.attempts[id], attempt.resolution?.status == .completed,
+                  let reference = attempt.resolution?.output,
+                  !state.invalidatedRetentionGroups.contains(reference.retentionGroup) else { continue }
+            let output = try SessionCodec.decode(AgentModelOutput.self, from: await payloads.read(reference))
+            text += output.thinkingText
+            guard text.utf8.count <= SessionFormatLimits.maximumPayloadBytes else {
+                throw MiraError(.outputLimit, "The execution thinking exceeds its read limit.")
+            }
+        }
+        return text
     }
 
     public func read(state: SessionState, executionID: ExecutionID,
                      parts: Set<SessionDraftPart> = [.answer, .thinking, .transcript]) async throws -> [SessionDraftPart: Data] {
-        guard let execution = state.executions[executionID] else { throw MiraError(.notFound, "The execution is unavailable.") }
+        guard let execution = state.executions[executionID] else {
+            throw MiraError(.notFound, "The execution is unavailable.")
+        }
         guard execution.completion == nil, !state.excludedExecutionIDs.contains(executionID) else { return [:] }
-        guard execution.drafts.count <= Self.maximumParts else { throw MiraError(.storage, "The session draft contains too many components.") }
-        let expectedDrafts = execution.drafts.filter { parts.contains($0.key) }
-        if expectedDrafts.isEmpty { return [:] }
-
-        var values: [SessionDraftPart: Data] = [:]
-        var sequences: [SessionDraftPart: Int64?] = [:]
-        var latest: [SessionDraftPart: SessionDraftCheckpoint] = [:]
-        var cursor: Int64 = 0
-        while cursor < state.sequence {
-            try Task.checkCancellation()
-            let page = try await journal.read(sessionID: state.id, after: cursor, limit: SessionFormatLimits.maximumReadBatches)
-            guard !page.isEmpty else { throw MiraError(.storage, "The session journal ended before the captured draft state.") }
-            for batch in page {
-                try batch.validate()
-                guard batch.sessionID == state.id, batch.cursor.sequence > cursor,
-                      batch.expectedSequence == cursor else { throw MiraError(.storage, "The session journal cursor is malformed.") }
-                if batch.expectedSequence >= state.sequence { cursor = state.sequence; break }
-                for event in batch.events where event.sequence <= state.sequence {
-                    if case .draftCheckpoint(let checkpoint) = event.fact, checkpoint.executionID == executionID,
-                       parts.contains(checkpoint.part) {
-                        guard execution.attemptIDs.contains(checkpoint.attemptID),
-                              state.references[checkpoint.replacement.id] == checkpoint.replacement,
-                              checkpoint.replacement.kind == .draft,
-                              !state.invalidatedRetentionGroups.contains(checkpoint.replacement.retentionGroup) else {
-                            throw MiraError(.storage, "The session draft checkpoint is not an authorized committed reference.")
-                        }
-                        let previous = values[checkpoint.part, default: Data()]
-                        let previousSequence = sequences[checkpoint.part] ?? nil
-                        try Task.checkCancellation()
-                        let replacement = try await payloads.read(checkpoint.replacement)
-                        try Task.checkCancellation()
-                        values[checkpoint.part] = try SessionDraftPatch.apply(checkpoint, replacement: replacement, previous: previous, previousSequence: previousSequence)
-                        sequences[checkpoint.part] = event.sequence
-                        latest[checkpoint.part] = checkpoint
-                    }
-                }
-                if batch.cursor.sequence > state.sequence { throw MiraError(.storage, "The captured state is not at a committed batch boundary.") }
-                cursor = batch.cursor.sequence
-                if cursor == state.sequence { break }
-            }
-        }
-
-        guard Set(values.keys) == Set(expectedDrafts.keys) else { throw MiraError(.storage, "The captured session draft components are incomplete.") }
+        var thinking = ""
+        var latest: [AgentModelBlock] = []
         var total = 0
-        for (part, expected) in expectedDrafts {
-            guard let bytes = values[part], let sequence = sequences[part], let checkpoint = latest[part],
-                  bytes.count <= SessionFormatLimits.maximumPayloadBytes,
-                  expected.sequence == sequence,
-                  expected.checkpoint.resultByteCount == bytes.count,
-                  expected.checkpoint == checkpoint else { throw MiraError(.storage, "The reconstructed session draft metadata does not match.") }
-            total += bytes.count; guard total <= Self.maximumTotalBytes else { throw MiraError(.outputLimit, "The session draft exceeds the read limit.") }
+        for id in execution.attemptIDs {
+            try Task.checkCancellation()
+            guard let attempt = state.attempts[id] else { throw MiraError(.storage, "The execution attempt is unavailable.") }
+            // Only successful earlier steps belong to the current response. Failed retries
+            // retain their own activity but do not enter the next model step's draft.
+            guard let output = attempt.resolution?.output,
+                  attempt.resolution?.status == .completed || id == execution.attemptIDs.last else { continue }
+            guard state.references[output.id] == output, output.kind == .modelOutput,
+                  !state.invalidatedRetentionGroups.contains(output.retentionGroup) else { continue }
+            total += output.byteCount
+            guard total <= SessionFormatLimits.maximumPayloadBytes * 3 else {
+                throw MiraError(.outputLimit, "The execution draft exceeds the read limit.")
+            }
+            let value = try SessionCodec.decode(AgentModelOutput.self, from: await payloads.read(output))
+            thinking += value.thinkingText
+            latest = value.blocks
         }
-        try Task.checkCancellation()
+        let active = try await Self.active(state: state, executionID: executionID, payloads: payloads)
+        if let active {
+            thinking += AgentModelOutput.thinking(in: active.blocks)
+            latest = active.blocks
+        } else if let last = execution.attemptIDs.last, state.attempts[last]?.resolution == nil {
+            latest = []
+        }
+        var values: [SessionDraftPart: Data] = [:]
+        if parts.contains(.answer) { values[.answer] = Data(AgentModelOutput.text(in: latest).utf8) }
+        if parts.contains(.thinking) { values[.thinking] = Data(thinking.utf8) }
+        if parts.contains(.transcript), let active { values[.transcript] = try SessionCodec.encode(active) }
+        guard values.values.allSatisfy({ $0.count <= SessionFormatLimits.maximumPayloadBytes }) else {
+            throw MiraError(.outputLimit, "The execution draft exceeds the read limit.")
+        }
         return values
     }
 }

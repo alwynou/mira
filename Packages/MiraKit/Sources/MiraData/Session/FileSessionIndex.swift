@@ -28,13 +28,15 @@ final class FileSessionIndex {
         let records: [Record]
         let references: [SessionPayloadReference]
         let invalidated: Set<UUID>
+        let erased: Set<UUID>
     }
 
-    static let initialDigest = FileSessionIO.digest(Data("MIRA-SESSION-PREFIX-2".utf8))
+    static let initialDigest = FileSessionIO.digest(Data("MIRA-SESSION-PREFIX-5".utf8))
     let sessionID: ConversationID
     var records: [Record] = []
     var references: [SessionPayloadReference] = []
     var invalidated: Set<UUID> = []
+    var erased: Set<UUID> = []
     var savedRecordCount = 0
     var sourceIdentity: FileSessionIO.Identity?
     var byteCount: Int64 { records.last.map { $0.offset + Int64($0.byteCount) } ?? 0 }
@@ -57,12 +59,12 @@ final class FileSessionIndex {
     /// Unsafe filesystem objects are rejected before the recoverable cache decode.
     static func load(at url: URL, journal: URL, sessionID: ConversationID,
                      authentication: FileSessionCacheAuthentication) throws -> FileSessionIndex? {
-        guard let snapshot = try FileSessionCacheIO.load(Snapshot.self, at: url, format: "MIRA-SESSION-INDEX-2", authentication: authentication),
-              snapshot.version == 2, snapshot.sessionID == sessionID,
+        guard let snapshot = try FileSessionCacheIO.load(Snapshot.self, at: url, format: "MIRA-SESSION-INDEX-5", authentication: authentication),
+              snapshot.version == 5, snapshot.sessionID == sessionID,
               snapshot.journalByteCount >= 0 else { return nil }
         let index = FileSessionIndex(sessionID: sessionID)
         index.records = snapshot.records; index.references = snapshot.references
-        index.invalidated = snapshot.invalidated
+        index.invalidated = snapshot.invalidated; index.erased = snapshot.erased
         guard (try? index.validate()) != nil, index.byteCount == Int64(snapshot.journalByteCount) else { return nil }
         // Stat timestamps alone cannot establish that the source bytes are unchanged.
         let before = try FileSessionIO.identity(journal)
@@ -79,10 +81,10 @@ final class FileSessionIndex {
         guard let sourceIdentity, sourceIdentity == (try FileSessionIO.identity(journal)) else { throw FileSessionIO.failure() }
         let source = try BackupFileIO.inspect(journal, limit: Int.max)
         guard source.byteCount == byteCount, sourceIdentity == (try FileSessionIO.identity(journal)) else { throw FileSessionIO.failure() }
-        let snapshot = Snapshot(version: 2, sessionID: sessionID,
+        let snapshot = Snapshot(version: 5, sessionID: sessionID,
             journalByteCount: source.byteCount, journalDigest: source.digest,
-            records: records, references: references, invalidated: invalidated)
-        if try FileSessionCacheIO.save(snapshot, at: url, format: "MIRA-SESSION-INDEX-2",
+            records: records, references: references, invalidated: invalidated, erased: erased)
+        if try FileSessionCacheIO.save(snapshot, at: url, format: "MIRA-SESSION-INDEX-5",
             authentication: authentication,
             beforeWrite: { try fault(.beforeIndexWrite) }, afterWrite: { try fault(.afterIndexWrite) },
             beforePublication: { try fault(.beforeIndexPublication) }, afterPublication: { try fault(.afterIndexPublication) }) {
@@ -91,13 +93,14 @@ final class FileSessionIndex {
     }
 
     private func validate() throws {
+        guard erased.isSubset(of: invalidated) else { throw FileSessionIO.failure() }
         var end: Int64 = 0, sequence: Int64 = 0
         var ids: Set<UUID> = []
         var prefix = Self.initialDigest
         for record in records {
             guard record.offset == end, record.expectedSequence == sequence,
                   record.sequence > sequence, record.sequence - sequence <= SessionFormatLimits.maximumEventsPerBatch,
-                  (1...(SessionFormatLimits.maximumBatchBytes + 257)).contains(record.byteCount),
+                  (1...(FileSessionRecord.maximumBytes + 257)).contains(record.byteCount),
                   end <= Int64.max - Int64(record.byteCount), ids.insert(record.id).inserted,
                   record.digest.count == 64, record.digest.utf8.allSatisfy(Self.isHex) else { throw FileSessionIO.failure() }
             guard record.prefixDigest == FileSessionIO.digest(Data((prefix + record.digest).utf8)) else { throw FileSessionIO.failure() }

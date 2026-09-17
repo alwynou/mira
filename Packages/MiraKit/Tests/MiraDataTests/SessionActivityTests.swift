@@ -112,7 +112,7 @@ struct SessionActivityTests {
                 try await taskEventually { await fixture.model.streamHeld }
                 try await taskEventually {
                     let state = try await fixture.runtime.sessionSnapshot(id: sessionID)
-                    return state.executions[executionID]?.drafts[.transcript] != nil
+                    return try await fixture.library.activeDraft(sessionID: sessionID) != nil
                 }
                 try await withActivity(fixture) { query in
                     let first = try await query.executionActivities(sessionID: address.sessionID, executionIDs: [address.executionID])

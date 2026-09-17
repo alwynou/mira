@@ -171,6 +171,15 @@ struct JournalAgentHistoryReaderTests {
 }
 
 private actor MemoryPayloads: SessionPayloadStore {
+    private var activeDrafts: [ConversationID: SessionActiveDraft] = [:]
+    func activeDraft(sessionID: ConversationID) -> SessionActiveDraft? { activeDrafts[sessionID] }
+    func saveActiveDraft(_ draft: SessionActiveDraft) throws {
+        try draft.validate(); activeDrafts[draft.request.sessionID] = draft
+    }
+    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) {
+        if activeDrafts[sessionID]?.attemptID == attemptID { activeDrafts.removeValue(forKey: sessionID) }
+    }
+
     var values: [UUID: Data] = [:]
     func put(_ reference: SessionPayloadReference, _ data: Data) { values[reference.id] = data }
     func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference { fatalError() }
@@ -262,7 +271,8 @@ private struct Fixture {
             await payloads.put(answerRef, Data(answer.utf8))
             let replayRef: SessionPayloadReference?
             if includeReplay {
-                let replay = AgentReplayRecord(messages: replayMessages ?? [.init(role: .assistant, blocks: [.init(id: "text", content: .text(answer))])], sources: sources)
+                let replay = AgentReplayManifest(executionID: executionID, sources: sources,
+                    items: (replayMessages ?? [.init(role: .assistant, blocks: [.init(id: "text", content: .text(answer))])]).map { .local($0) })
                 let reference = ref(sessionID, .replay, finishBatch)
                 await payloads.put(reference, try SessionCodec.encode(replay)); replayRef = reference
             } else { replayRef = nil }
@@ -330,7 +340,15 @@ private struct Fixture {
                 prepared: .init(adapter: route.adapter, input: .init(stepID: UUID(), executionID: id, instructions: "Answer.",
                     messages: [.init(role: .user, blocks: [.init(id: "user", content: .text("Partial question"))])], tools: []),
                     wirePayload: .object([:]), estimatedInputTokens: 1), inheritedSources: [], evidence: [], omissions: [])
-            await payloads.put(requestRef, try SessionCodec.encode(requestBuild))
+            let headerRef = ref(sessionID, .requestComponent, attemptBatch)
+            let messageRef = ref(sessionID, .requestComponent, attemptBatch)
+            let header = AgentRequestManifest.Header(instructions: "Answer.", tools: [], allowsToolCalls: true, outputTokenLimit: nil, adapter: route.adapter)
+            let manifest = AgentRequestManifest(request: requestBuild.request, executionID: id, stepID: requestBuild.prepared.input.stepID,
+                header: headerRef, prefixMessageCount: nil, estimatedInputTokens: 1, currentUserMessageIndex: 0,
+                inheritedSources: [], evidence: [], omissions: [], entries: [.init(reference: messageRef, representation: .message)])
+            await payloads.put(headerRef, try SessionCodec.encode(header))
+            await payloads.put(messageRef, try SessionCodec.encode(requestBuild.prepared.input.messages[0]))
+            await payloads.put(requestRef, try SessionCodec.encode(manifest))
             if let answerRef { await payloads.put(answerRef, Data("Partial answer".utf8)) }
             if let thinkingRef { await payloads.put(thinkingRef, Data("Partial thought".utf8)) }
             let answerStatus: ExecutionStatus = interruptPartial ? .interrupted : .cancelled

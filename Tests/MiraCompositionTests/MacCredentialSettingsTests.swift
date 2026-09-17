@@ -7,7 +7,7 @@ struct MacCredentialSettingsTests {
     @Test func createsReplacesDeletesAndReopensWithTheSameCredentialStore() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             var surviving: MacConnectionSaveResult?
@@ -55,7 +55,7 @@ struct MacCredentialSettingsTests {
                 throw error
             }
 
-            let reopened = try await MacLibrary.open(
+            let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -80,7 +80,7 @@ struct MacCredentialSettingsTests {
     @Test func keychainFailureAndSQLConflictRetainCurrentSettingsAndCleanNewReferences() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -133,7 +133,7 @@ struct MacCredentialSettingsTests {
     @Test func credentialsRemainScopedToTheSelectedEndpoint() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -203,7 +203,7 @@ struct MacCredentialSettingsTests {
     @Test func cleanupFailureIsReportedAndRetryRemovesOnlyUnretainedCredentials() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -244,7 +244,7 @@ struct MacCredentialSettingsTests {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
             var oldReference: AgentCredentialReference?
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -268,7 +268,7 @@ struct MacCredentialSettingsTests {
                 throw error
             }
 
-            let reopened = try await MacLibrary.open(
+            let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -290,7 +290,7 @@ struct MacCredentialSettingsTests {
     @Test func callerCancellationDoesNotDiscardAnAcceptedSave() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -322,7 +322,7 @@ struct MacCredentialSettingsTests {
     @Test func closeDrainsANonCooperativeSave() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -357,7 +357,7 @@ struct MacCredentialSettingsTests {
     @Test func cancelledReadAndCloseWaitForNonCooperativeCredentialCall() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {
@@ -393,7 +393,7 @@ struct MacCredentialSettingsTests {
     @Test func maintenanceWaitsForKeychainAndNewWorkGroupReconcilesAbandonedReference() async throws {
         try await withDirectory { directory in
             let credentials = CompositionCredentials()
-            let library = try await MacLibrary.open(
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
                 directory: directory, notifications: CompositionNotifications(), credentials: credentials,
                 modules: { _ in [] })
             do {

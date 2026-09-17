@@ -100,7 +100,7 @@ public struct AgentContextHistory: Codable, Sendable, Equatable {
     }
 }
 
-public struct AgentContextBuild: Codable, Sendable, Equatable {
+public struct AgentContextBuild: Sendable, Equatable {
     public let request: AgentContextRequest
     public let prepared: AgentPreparedModelRequest
     public let inheritedSources: [AgentSourceReference]

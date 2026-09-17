@@ -59,7 +59,7 @@ Workspace／Inbox、归档、开始时间（含）和结束时间（不含）先
 
 服务最多接纳 16 个查询。并发查询共享一个有独立访问租约的追赶任务，某个等待者取消不取消其他查询的追赶。服务关闭和库维护会取消并排空所有查询及追赶中的实际 I/O，迟到正文不会返回。宿主关闭物理索引之前必须先关闭服务。
 
-隐私维护在工作组排空、日志失效与正文清理之后，删除整个搜索数据库及 WAL／SHM／journal，再同步目录并建立空缓存；失败后保持不可读并允许重试。验证同时检查会话、批次、文档和 FTS vocabulary，不能仅查询 external-content FTS 的行数。缓存不进入业务归档，恢复后从日志重新追赶。保留的历史回答即使被排除出模型上下文，仍可供本地搜索；已清理正文不能因重建而恢复。
+隐私维护在工作组排空、日志失效与正文清理之后，删除整个搜索数据库及 WAL／SHM／journal，再同步目录并建立空缓存；失败后保持不可读并允许重试。验证同时检查会话、批次、文档和 FTS vocabulary，不能仅查询 external-content FTS 的行数。缓存不进入业务归档，恢复后从日志重新追赶。逻辑退休或其他 invalidated 正文从搜索结果中移除，即使其物理历史仍保留在归档；只有未失效正文可供本地搜索，erased 正文不能因重建而恢复。
 
 当前没有针对任意人为篡改数据库内部行的自动完整性重建；损坏可能要求在工作组关闭后清除缓存，再从来源重建。索引不能提供正文或权限权威，但这一限制可能造成漏项。冷索引重建、十万消息库延迟与峰值内存尚待规模验收；当前实现不等于搜索界面或整套核心验收完成。
 
@@ -92,6 +92,8 @@ Rank / Deduplicate
         ↓
 Typed SearchResult
 ```
+
+Memory semantic recall applies a cosine admission floor before top-K selection. The current pinned Qwen 4-bit memory-query space uses 0.50; low-scoring neighbors are discarded even when fewer than six eligible memories exist. This is a relevance heuristic, not an answerability or truth guarantee, and must be reevaluated when the embedding space or query instruction changes. Keyword retrieval remains independent and can return a literal match below the semantic floor. Empty recall queries return no memories; the separate management-list operation may still list records with an empty query. Truncation means eligible matching candidates were actually omitted, not merely that the result count equals the requested limit. Focused evidence and calibration limits are in [memory search relevance](../engineering/MEMORY_SEARCH_RELEVANCE.md).
 
 <a id="s25-02"></a>
 
@@ -173,13 +175,17 @@ SearchResult
 
 ### 1.5 Vector Index
 
-向量检索是可选增强：
+记忆使用本地 Qwen3-Embedding-0.6B 4-bit DWQ（固定修订 `6c3ae70858513f1a78e9cdca3cae330d9075cd2a`），通过 macOS MLX 生成 1,024 维、Float32 归一化向量。量化的是模型权重，存储的向量不量化。无需远程 embedding API key，未准备好或推理失败时保留词法召回。
 
-- 索引可重建；
-- 记录 Embedding Model、维度和版本；
-- 不把向量数据库作为事实源；
-- Provider 不可用时 FTS 仍可工作；
-- 隐私策略决定哪些内容可以发送远程 Embedding。
+- SQLite 规范记忆与修订是事实源；向量及 outbox 是可重建派生数据。
+- 每次规范写入同事务失效旧向量，任务携带记忆修订、正文散列及索引代次；晚到结果重新检查后才提交。
+- 指纹包括权重修订、量化、tokenizer/右侧 padding/最后有效 token pooling、维数、归一化及查询模板。指纹变化重建整个索引，禁止混合空间。
+- Scope、来源工作区、状态、时效、发送许可和连接过滤在向量 top-K 之前执行。准确点积扫描当前合格的向量；模型相关性不授予发送权限。
+- 语义结果优先，容量大于一时为独有词法结果保留一个位置；不使用原型中效果较差的等权排名融合。
+- 上下文最多六条，最多两条沟通/语言偏好档案占用该总额度。查询工具仍用于进一步检索。返回主体与权威性，并保留内容中的时间限定。
+- 归档不携带派生向量，恢复后按规范记录重新排队；模型文件存储在库目录外的 Application Support/MiraModels。
+
+生产大规模检索质量与端到端 p95 延迟仍需单独验收，不能用原型点积耗时替代完整 SQL、权限检查、推理与上下文构建耗时。
 
 <a id="s25-06"></a>
 

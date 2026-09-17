@@ -40,6 +40,24 @@ public final class SQLiteTaskStore: TaskStore, @unchecked Sendable {
         try await owner.read { try Self.readTask(id, workspaceID: workspaceID, in: $0) }
     }
 
+    public func taskRevision(_ id: MiraTaskID, revision: Int, workspaceID: WorkspaceID?) async throws -> TaskRevision {
+        guard (1...1_000_000).contains(revision) else { throw Self.taskUnavailable }
+        return try await owner.read { db in
+            let current = try Self.readTask(id, workspaceID: workspaceID, in: db)
+            guard let row = try Row.fetchOne(
+                db,
+                sql: "SELECT * FROM task_revisions WHERE task_id = ? AND revision = ?",
+                arguments: [Self.id(id), revision]
+            ) else { throw Self.taskUnavailable }
+            let historical = try Self.revisionRecord(row)
+            guard current.id == historical.task.id,
+                  current.workspaceID == historical.task.workspaceID,
+                  current.revision >= revision,
+                  historical.task.revision == revision else { throw Self.taskUnavailable }
+            return historical
+        }
+    }
+
     public func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> [TaskRevision] {
         try await owner.read { db in
             _ = try Self.readTask(id, workspaceID: workspaceID, in: db)

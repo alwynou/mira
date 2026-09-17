@@ -326,8 +326,8 @@ struct SessionQueryServiceTests {
                                 adapter: f.route.adapter, input: input, wirePayload: .object([:]),
                                 estimatedInputTokens: 1),
                             inheritedSources: [], evidence: [], omissions: [])
-                        let request = try await context.stage(build, kind: .request, retentionGroup: UUID())
-                        var facts: [SessionFact] = [
+                        let staged = try await AgentRequestRecord.stage(build, context: context)
+                        let facts: [SessionFact] = [
                             .opened(.init(workspaceID: nil, title: title)),
                             .admitted(
                                 .init(
@@ -337,23 +337,18 @@ struct SessionQueryServiceTests {
                             .attemptStarted(
                                 .init(
                                     id: attemptID, executionID: executionID, stepID: input.stepID,
-                                    stepIndex: 1, attemptIndex: 1, request: request)),
+                                    stepIndex: 1, attemptIndex: 1, request: staged.request, contents: staged.contents)),
                         ]
-                        for (part, text) in [
-                            (SessionDraftPart.answer, "Visible answer"), (.thinking, "Visible thinking"),
-                            (.transcript, "Private provider continuation"),
-                        ] {
-                            let bytes = Data(text.utf8)
-                            let ref = try await context.stageBytes(bytes, kind: .draft, retentionGroup: UUID())
-                            facts.append(
-                                .draftCheckpoint(
-                                    .init(
-                                        executionID: executionID, attemptID: attemptID, part: part,
-                                        baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0, replacement: ref,
-                                        resultByteCount: bytes.count)))
-                        }
                         return facts
                     })
+                let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
+                let request = try #require(requestValue)
+                try await runtime.saveActiveDraft(.init(request: request, executionID: executionID, attemptID: attemptID,
+                    authorizationEpoch: 0, revision: 1, blocks: [
+                        .init(id: "answer", content: .text("Visible answer")),
+                        .init(id: "thinking", content: .thinking("Visible thinking"))],
+                    continuation: .init(adapter: f.route.adapter, format: "synthetic.draft",
+                        payload: .string("Private provider continuation"), isComplete: false)))
                 let state = await runtime.snapshot()
                 let reader = QueryPayloadProbe(base: f.library)
                 try await withQuery(f, reader: reader) { query, _ in
@@ -361,11 +356,7 @@ struct SessionQueryServiceTests {
                     #expect(draft.executionID == executionID)
                     #expect(draft.head.cursor.sequence == state.sequence)
                     #expect(draft.answer == "Visible answer" && draft.thinking == "Visible thinking")
-                    let expected = Set(
-                        [SessionDraftPart.answer, .thinking].compactMap {
-                            state.executions[executionID]?.drafts[$0]?.checkpoint.replacement
-                        })
-                    #expect(Set(await reader.references) == expected)
+                    #expect(await reader.references.isEmpty)
                     #expect(await f.model.inputs.isEmpty)
                 }
                 let budgetReader = QueryPayloadProbe(base: f.library)
@@ -483,6 +474,10 @@ private actor QueryPayloadProbe: SessionPayloadReader {
             }
         }
         return bytes
+    }
+
+    func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? {
+        try await base.activeDraft(sessionID: sessionID)
     }
 }
 

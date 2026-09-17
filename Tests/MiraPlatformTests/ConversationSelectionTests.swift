@@ -388,7 +388,7 @@ private struct SelectionFixture: Sendable {
         let credentials = SelectionCredentials()
         self.directory = root
         self.credentials = credentials
-        self.library = try await MacLibrary.open(
+        self.library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
             directory: root,
             notifications: SelectionNotifications(),
             credentials: credentials,

@@ -79,14 +79,14 @@ public actor SessionPrivacyMaintenance {
                 for attemptID in execution.attemptIDs {
                     guard let attempt = snapshot.state.attempts[attemptID] else { throw SessionPrivacyPlan.invalid }
                     if available(attempt.attempt.request, in: snapshot.state) {
-                        let build = try SessionCodec.decode(
-                            AgentContextBuild.self, from: await payloads.read(attempt.attempt.request))
-                        guard build.request.sessionID == id, build.request.executionID == executionID,
-                            build.request.workspaceID == snapshot.state.header?.workspaceID,
-                            build.prepared.input.executionID == executionID,
-                            build.prepared.input.stepID == attempt.attempt.stepID
+                        let metadata = try await AgentRequestRecord.metadata(from: attempt.attempt.request, payloads: payloads)
+                        guard metadata.request.sessionID == id, metadata.request.executionID == executionID,
+                            metadata.request.workspaceID == snapshot.state.header?.workspaceID,
+                            metadata.executionID == executionID,
+                            metadata.stepID == attempt.attempt.stepID
                         else { throw SessionPrivacyPlan.invalid }
-                        sources.formUnion(build.sources)
+                        sources.formUnion(metadata.inheritedSources)
+                        sources.formUnion(metadata.evidence.flatMap(\.sources))
                     }
                     for invocationID in attempt.invocationIDs {
                         guard let invocation = snapshot.state.invocations[invocationID] else {
@@ -96,12 +96,12 @@ public actor SessionPrivacyMaintenance {
                             let value = try SessionCodec.decode(
                                 AgentToolProposal.self, from: await payloads.read(proposal))
                             try value.validate()
-                            sources.formUnion(value.plan.sources + value.plan.targets)
+                            sources.formUnion(value.sources + value.plan.targets)
                         }
                     }
                 }
                 if let replay = execution.completion?.replay, available(replay, in: snapshot.state) {
-                    let value = try SessionCodec.decode(AgentReplayRecord.self, from: await payloads.read(replay))
+                    let value = try await AgentReplayManifest.metadata(replay, payloads: payloads)
                     sources.formUnion(value.sources)
                 }
                 let record = SessionPrivacyDependencies(executionID: executionID, sources: Array(sources))
