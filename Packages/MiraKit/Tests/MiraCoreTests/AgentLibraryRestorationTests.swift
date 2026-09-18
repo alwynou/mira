@@ -52,20 +52,22 @@ struct AgentLibraryRestorationTests {
     @Test func receiptForUnknownSessionIsRejectedWithoutAcknowledgement() async throws {
         let journal = RestorationJournal()
         let authorization = AgentLibraryAuthorization(libraryID: UUID(), epoch: 1)
-        let proposal = SessionPayloadReference(
-            id: UUID(), sessionID: ConversationID(), batchID: UUID(), retentionGroup: UUID(),
-            kind: .effectIntent, byteCount: 1, digest: String(repeating: "a", count: 64))
+        let proposalSessionID = ConversationID()
+        let proposalBatchID = UUID()
+        let proposalDigest = String(repeating: "a", count: 64)
+        let proposal = SessionContent(
+            id: UUID(), kind: .effectIntent, bytes: Data("effect".utf8))
         let proof = AgentEffectProof(
-            sessionID: proposal.sessionID, executionID: ExecutionID(), invocationID: UUID(),
-            intentBatchID: proposal.batchID, intentSequence: 1,
+            sessionID: proposalSessionID, executionID: ExecutionID(), invocationID: UUID(),
+            intentBatchID: proposalBatchID, intentSequence: 1,
             authorization: authorization, proposal: proposal)
         let receipt = AgentBusinessReceipt(
             reference: .init(
                 id: UUID(), invocationID: proof.invocationID,
                 authorization: authorization,
-                intentDigest: proposal.digest,
+                intentDigest: proposalDigest,
                 resultDigest: String(repeating: "b", count: 64)),
-            result: nil)
+            result: Data("result".utf8))
         let receipts = RestorationReceipts(publications: [.init(proof: proof, receipt: receipt)])
         let service = AgentLibraryRestoration(
             journal: journal, payloads: journal, receipts: receipts,
@@ -82,7 +84,7 @@ struct AgentLibraryRestorationTests {
         let runtime = try await SessionRuntime.open(id: sessionID, journal: journal, payloads: journal)
         let opened = await runtime.commit(id: UUID()) { context in
             let title = try await context.stageBytes(
-                Data("Restored session".utf8), kind: .title, retentionGroup: UUID())
+                Data("Restored session".utf8), kind: .title)
             return [.opened(.init(workspaceID: nil, title: title))]
         }
         guard case .committed = opened else { throw MiraError(.storage, "Fixture session did not open.") }
@@ -90,9 +92,9 @@ struct AgentLibraryRestorationTests {
             let plan = AgentExecutionPlan(
                 runtimeID: UUID(), catalogGeneration: 1, driverID: "local",
                 driverRevision: 1, instructions: "", limits: .init(), priority: .foreground, route: nil)
-            let planReference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+            let planReference = try await context.stage(plan, kind: .executionPlan)
             let user = try await context.stageBytes(
-                Data("Recover locally".utf8), kind: .userText, retentionGroup: UUID())
+                Data("Recover locally".utf8), kind: .userText)
             let executionID = ExecutionID()
             return [
                 .admitted(
@@ -123,16 +125,7 @@ struct AgentLibraryRestorationTests {
 
 }
 
-private actor RestorationJournal: SessionJournal, SessionPayloadStore {
-    private var activeDrafts: [ConversationID: SessionActiveDraft] = [:]
-    func activeDraft(sessionID: ConversationID) -> SessionActiveDraft? { activeDrafts[sessionID] }
-    func saveActiveDraft(_ draft: SessionActiveDraft) throws {
-        try draft.validate(); activeDrafts[draft.request.sessionID] = draft
-    }
-    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) {
-        if activeDrafts[sessionID]?.attemptID == attemptID { activeDrafts.removeValue(forKey: sessionID) }
-    }
-
+private actor RestorationJournal: SessionJournal, SessionContentStore {
     private let sessionIDs: [ConversationID]
     private let waitForFirstCall: Bool
     private var firstCallEntered = false
@@ -141,7 +134,7 @@ private actor RestorationJournal: SessionJournal, SessionPayloadStore {
     private var releaseContinuation: CheckedContinuation<Void, Never>?
     var openCount = 0
     private var batches: [UUID: SessionBatch] = [:]
-    private var payloadData: [SessionPayloadReference: Data] = [:]
+    private var payloadData: [SessionContent: Data] = [:]
 
     init(sessionIDs: [ConversationID] = [], waitForFirstSessionsCall: Bool = false) {
         self.sessionIDs = sessionIDs
@@ -202,23 +195,18 @@ private actor RestorationJournal: SessionJournal, SessionPayloadStore {
 
     func stage(
         _ data: Data, sessionID: ConversationID, batchID: UUID,
-        retentionGroup: UUID, kind: SessionPayloadKind
-    ) async throws -> SessionPayloadReference {
-        let reference = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: batchID,
-            retentionGroup: retentionGroup, kind: kind, byteCount: data.count,
-            digest: String(repeating: "a", count: 64))
+        kind: SessionContentKind
+    ) async throws -> SessionContent {
+        let reference = SessionContent(id: UUID(), kind: kind, bytes: data)
         payloadData[reference] = data
         return reference
     }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         guard let data = payloadData[reference] else {
             throw MiraError(.notFound, "Fixture payload is unavailable.")
         }
         return data
     }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws {}
-
     func waitForFirstSessionsCall() async {
         if !firstCallEntered { await withCheckedContinuation { firstCallWaiters.append($0) } }
     }

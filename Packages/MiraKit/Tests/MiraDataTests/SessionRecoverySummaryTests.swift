@@ -37,13 +37,13 @@ struct SessionRecoverySummaryTests {
             let reopened = try FileSessionLibrary(directory: directory)
             let session = settled.id, batchID = UUID(), executionID = ExecutionID()
             let user = try await reopened.stage(Data("user".utf8), sessionID: session,
-                                                batchID: batchID, retentionGroup: UUID(), kind: .userText)
+                                                batchID: batchID, kind: .userText)
             let executionPlan = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1,
                 driverID: "summary.local", driverRevision: 1, instructions: "Synthetic local answer.",
                 limits: .init(), priority: .foreground, route: nil)
             try executionPlan.validate()
             let plan = try await reopened.stage(SessionCodec.encode(executionPlan), sessionID: session,
-                                                batchID: batchID, retentionGroup: UUID(), kind: .executionPlan)
+                                                batchID: batchID, kind: .executionPlan)
             let batch = SessionBatch(id: batchID, sessionID: session, expectedSequence: settled.sequence,
                 events: [.init(sequence: settled.sequence + 1, occurredAt: Date(), fact: .admitted(.init(
                     executionID: executionID, userMessageID: MessageID(), userBody: user, plan: plan,
@@ -76,7 +76,7 @@ struct SessionRecoverySummaryTests {
                 if damage == "truncated" { bytes = Data(bytes.prefix(max(1, bytes.count / 2))) }
                 else if damage == "damaged" { bytes[bytes.count - 1] ^= 1 }
                 else {
-                    let format = "MIRA-SESSION-RECOVERY-3", prefix = Data((format + "\n").utf8)
+                    let format = "MIRA-SESSION-RECOVERY-2", prefix = Data((format + "\n").utf8)
                     var value = try #require(JSONSerialization.jsonObject(with: bytes.dropFirst(prefix.count + 65)) as? [String: Any])
                     switch damage {
                     case "version": value["version"] = 999
@@ -118,7 +118,7 @@ struct SessionRecoverySummaryTests {
             let schemas: [String: Set<Int>] = ["summary.fixture": [1]]
             let runtime = try await makeSession(library, renames: 8, schemas: schemas)
             try committed(await runtime.commit(id: UUID()) { context in
-                let body = try await context.stageBytes(Data("extension".utf8), kind: .module, retentionGroup: UUID())
+                let body = try await context.stageBytes(Data("extension".utf8), kind: .module)
                 return [.extensionRecorded(namespace: "summary.fixture", schemaVersion: 1, required: true, body: body)]
             })
             await runtime.close(); try await library.close()
@@ -181,7 +181,7 @@ struct SessionRecoverySummaryTests {
             let old = try await library.head(sessionID: runtime.id)
             try await library.flush()
             _ = try committed(await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("newer".utf8), kind: .title, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("newer".utf8), kind: .title)
                 return [.renamed(title: title, revision: 10)]
             })
             try await library.flush()
@@ -203,12 +203,12 @@ struct SessionRecoverySummaryTests {
                              schemas: [String: Set<Int>] = [:]) async throws -> SessionRuntime {
         let runtime = try await SessionRuntime.open(id: ConversationID(), journal: library, payloads: library, extensionSchemas: schemas)
         try committed(await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic title".utf8), kind: .title, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic title".utf8), kind: .title)
             return [.opened(.init(workspaceID: nil, title: title))]
         })
         for revision in 2...(renames + 1) {
             try committed(await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Synthetic title \(revision)".utf8), kind: .title, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Synthetic title \(revision)".utf8), kind: .title)
                 return [.renamed(title: title, revision: revision)]
             })
         }

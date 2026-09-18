@@ -103,11 +103,7 @@ struct TaskTimeTests {
 
     private func syntheticEvidenceReference() -> SessionEvidenceReference {
         let sessionID = ConversationID()
-        let batchID = UUID()
-        let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
-                                           retentionGroup: UUID(), kind: .userText, byteCount: 1,
-                                           digest: String(repeating: "0", count: 64))
         return .init(sessionID: sessionID, originalExecutionID: ExecutionID(), userMessageID: MessageID(),
-                     admissionEventID: UUID(), admissionSequence: 1, body: body)
+                     admissionEventID: UUID(), admissionSequence: 1)
     }
 }

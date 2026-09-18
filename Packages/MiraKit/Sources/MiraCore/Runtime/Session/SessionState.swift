@@ -46,7 +46,7 @@ public struct SessionState: Sendable, Equatable, Codable {
     public let id: ConversationID
     public private(set) var sequence: Int64 = 0
     public private(set) var header: SessionHeader?
-    public private(set) var title: SessionPayloadReference?
+    public private(set) var title: SessionContent?
     public private(set) var revision = 0
     public private(set) var isArchived = false
     public private(set) var authorizationEpoch: UInt64 = 0
@@ -59,55 +59,12 @@ public struct SessionState: Sendable, Equatable, Codable {
     public private(set) var executions: [ExecutionID: SessionExecutionState] = [:]
     public private(set) var attempts: [UUID: SessionAttemptState] = [:]
     public private(set) var invocations: [UUID: SessionInvocationState] = [:]
-    public private(set) var excludedExecutionIDs: Set<ExecutionID> = []
-    public private(set) var invalidatedRetentionGroups: Set<UUID> = []
-    /// Groups retired by retry remain logically unavailable but are physically erasable only
-    /// after a later explicit privacy operation authorizes their removal.
-    public private(set) var erasedRetentionGroups: Set<UUID> = []
-    public private(set) var references: [UUID: SessionPayloadReference] = [:]
+    public private(set) var supersededExecutionIDs: Set<ExecutionID> = []
+    public private(set) var references: [UUID: SessionContent] = [:]
     private var eventIDs: Set<UUID> = []
     private var batchIDs: Set<UUID> = []
     private var messageIDs: Set<MessageID> = []
-    private var invalidationIDs: Set<UUID> = []
-    private var retentionOwners: [UUID: RetentionOwner] = [:]
-
-    private struct RetentionOwner: Sendable, Equatable, Codable {
-        let executionID: ExecutionID?
-        let visible: Bool
-    }
-
     public init(id: ConversationID) { self.id = id }
-
-    var privacyOperationIDs: Set<UUID> { invalidationIDs }
-
-    /// Retention ownership is established by the reducer, never inferred from a query projection.
-    func privacyGroups(for executionIDs: Set<ExecutionID>, retention: SessionPrivacyRetention) -> Set<UUID> {
-        Set(references.values.compactMap { reference in
-            guard let owner = retentionOwners[reference.retentionGroup],
-                  let executionID = owner.executionID, executionIDs.contains(executionID) else { return nil }
-            if !owner.visible || invalidatedRetentionGroups.contains(reference.retentionGroup) {
-                return reference.retentionGroup
-            }
-            if retention == .purgeGeneratedHistory,
-               reference.kind == .visibleAnswer || reference.kind == .visibleThinking { return reference.retentionGroup }
-            return nil
-        })
-    }
-
-    /// Generated retry bodies are retired while the execution plan remains
-    /// available for admission idempotency and recovery validation.
-    func retryCleanupGroups(forUserMessageID userMessageID: MessageID) -> Set<UUID> {
-        Set(references.values.compactMap { reference in
-            guard let owner = retentionOwners[reference.retentionGroup],
-                  let executionID = owner.executionID,
-                  executions[executionID]?.admission.userMessageID == userMessageID,
-                  !invalidatedRetentionGroups.contains(reference.retentionGroup) else { return nil }
-            switch reference.kind {
-            case .title, .userText, .executionPlan: return nil
-            default: return reference.retentionGroup
-            }
-        })
-    }
 
     /// Rejection leaves the complete pre-batch state intact, including the sequence and identities.
     public mutating func apply(_ batch: SessionBatch,
@@ -180,7 +137,7 @@ public struct SessionState: Sendable, Equatable, Codable {
                 guard executionOrder.last == previousID, let previous = executions[previousID],
                       let completion = previous.completion, completion.status != .completed,
                       previous.admission.userMessageID == value.userMessageID, value.userBody == nil,
-                      !excludedExecutionIDs.contains(previousID), effectsAreKnown(previous) else {
+                      !supersededExecutionIDs.contains(previousID), effectsAreKnown(previous) else {
                     throw invalid("Only the last eligible unsuccessful execution can be retried.")
                 }
             } else {
@@ -216,7 +173,7 @@ public struct SessionState: Sendable, Equatable, Codable {
                 if value.stepID == old.stepID {
                     guard resolution.status == .failed, old.attemptIndex < Int.max,
                           value.stepIndex == old.stepIndex, value.attemptIndex == old.attemptIndex + 1,
-                          value.request == old.request, value.contents == old.contents else {
+                          value.request == old.request else {
                         throw invalid("A retry must retain its frozen request and step.")
                     }
                 } else {
@@ -230,18 +187,6 @@ public struct SessionState: Sendable, Equatable, Codable {
                 throw invalid("The first model attempt must start at step one.")
             }
             try register(value.request, kind: .request, owner: value.executionID, batchID: batchID)
-            guard value.contents.count <= 512, Set(value.contents.map(\.id)).count == value.contents.count else {
-                throw invalid("The model request contains too many or duplicate content references.")
-            }
-            for reference in value.contents {
-                if let committed = references[reference.id] {
-                    guard committed == reference, !invalidatedRetentionGroups.contains(reference.retentionGroup) else {
-                        throw invalid("The model request references unavailable content.")
-                    }
-                } else {
-                    try register(reference, kind: .requestComponent, owner: value.executionID, batchID: batchID)
-                }
-            }
             attempts[value.id] = .init(attempt: value, sequence: event.sequence, startedAt: event.occurredAt)
             executions[value.executionID]?.attemptIDs.append(value.id)
             executions[value.executionID]?.phase = .waitingForModel
@@ -250,13 +195,13 @@ public struct SessionState: Sendable, Equatable, Codable {
             guard let attempt = attempts[value.attemptID], attempt.resolution == nil,
                   value.status != .prepared else { throw invalid("The model attempt is already settled or missing.") }
             let execution = try active(attempt.attempt.executionID, allowExcluded: true)
-            if excludedExecutionIDs.contains(attempt.attempt.executionID) {
+            if supersededExecutionIDs.contains(attempt.attempt.executionID) {
                 guard value.status == .interrupted, value.output == nil, value.error == nil else {
                     throw invalid("A revoked model attempt cannot publish content.")
                 }
             }
-            guard execution.phase != .cancelling || value.status == .interrupted else {
-                throw invalid("A cancelling model attempt must settle as interrupted.")
+            if execution.phase == .cancelling, value.status != .interrupted {
+                throw invalid("A cancelling attempt must settle as interrupted.")
             }
             guard value.status != .completed || value.output != nil else {
                 throw invalid("A completed model attempt requires its output.")
@@ -297,7 +242,7 @@ public struct SessionState: Sendable, Equatable, Codable {
                   let attempt = attempts[invocation.invocation.attemptID], attempt.resolution?.status == .completed,
                   let execution = executions[attempt.attempt.executionID], activeExecutionID == attempt.attempt.executionID,
                   execution.completion == nil,
-                  !excludedExecutionIDs.contains(attempt.attempt.executionID),
+                  !supersededExecutionIDs.contains(attempt.attempt.executionID),
                   [.waitingForTools, .waitingForUser].contains(execution.phase),
                   expiresAt.timeIntervalSince(event.occurredAt).isFinite,
                   expiresAt > event.occurredAt, expiresAt.timeIntervalSince(event.occurredAt) <= 86_400 else {
@@ -314,7 +259,7 @@ public struct SessionState: Sendable, Equatable, Codable {
                 throw invalid("The tool approval request is missing or already resolved.")
             }
             if approved {
-                guard !excludedExecutionIDs.contains(attempt.attempt.executionID),
+                guard !supersededExecutionIDs.contains(attempt.attempt.executionID),
                       [.waitingForTools, .waitingForUser].contains(execution.phase),
                       event.occurredAt < approval.expiresAt else { throw invalid("The tool approval has expired or is no longer authorized.") }
             }
@@ -340,16 +285,16 @@ public struct SessionState: Sendable, Equatable, Codable {
                 throw invalid("The tool invocation is already settled or missing.")
             }
             _ = try active(attempt.attempt.executionID, allowExcluded: true)
-            if excludedExecutionIDs.contains(attempt.attempt.executionID), value.result != nil {
+            if supersededExecutionIDs.contains(attempt.attempt.executionID), value.result != nil {
                 throw invalid("A revoked tool cannot publish content.")
             }
             if invocation.dispatchedAt == nil {
                 guard [.invalidArguments, .notFound, .denied, .cancelledBeforeDispatch].contains(value.status),
-                      value.effectIsKnown, value.businessReceipt == nil, !value.resultWasPurged else {
+                      value.effectIsKnown, value.businessReceipt == nil else {
                     throw invalid("An undispatched tool cannot report an effect.")
                 }
             } else if value.status == .succeeded {
-                guard value.effectIsKnown, value.result != nil || value.resultWasPurged,
+                guard value.effectIsKnown, value.result != nil,
                       invocation.invocation.effect != .localWrite || value.businessReceipt != nil else {
                     throw invalid("A successful local write requires a durable business receipt.")
                 }
@@ -368,12 +313,9 @@ public struct SessionState: Sendable, Equatable, Codable {
                 guard let intent = invocation.intent?.intent, receipt.invocationID == value.invocationID,
                       receipt.authorization == intent.authorization, receipt.intentDigest == intent.proposal.digest,
                       value.effectIsKnown, value.status == .succeeded,
-                      value.result.map({ $0.digest == receipt.resultDigest }) ?? value.resultWasPurged else {
+                      value.result.map({ $0.digest == receipt.resultDigest }) ?? false else {
                     throw invalid("The business receipt does not match the durable tool intent or result.")
                 }
-            }
-            guard !value.resultWasPurged || (value.businessReceipt != nil && value.result == nil && value.status == .succeeded) else {
-                throw invalid("Only a committed business receipt can have a purged result.")
             }
             try register(value.result, kind: .toolResult, owner: attempt.attempt.executionID, batchID: batchID)
             invocations[value.invocationID]?.resolution = value
@@ -386,18 +328,17 @@ public struct SessionState: Sendable, Equatable, Codable {
                       guard let attempt = attempts[id], attempt.resolution != nil else { return false }
                       return attempt.invocationIDs.allSatisfy { invocations[$0]?.resolution != nil }
                   }) else { throw invalid("An execution with unsettled work cannot finish.") }
-            if excludedExecutionIDs.contains(value.executionID) || execution.phase == .cancelling {
+            if supersededExecutionIDs.contains(value.executionID) || execution.phase == .cancelling {
                 guard value.status == .cancelled || value.status == .interrupted else {
                     throw invalid("A cancelled execution cannot complete successfully.")
                 }
             }
-            if excludedExecutionIDs.contains(value.executionID) {
+            if supersededExecutionIDs.contains(value.executionID) {
                 guard event.fact.payloadReferences.isEmpty else { throw invalid("A revoked execution cannot publish content.") }
             }
             let hasVisibleContent = value.answer != nil || value.visibleThinking != nil
             guard (value.assistantMessageID != nil) == hasVisibleContent,
-                  value.status != .completed || hasVisibleContent,
-                  value.status == .completed || value.replay == nil else {
+                  value.status != .completed || hasVisibleContent || !execution.attemptIDs.isEmpty else {
                 throw invalid("The assistant result and completion do not agree.")
             }
             if let messageID = value.assistantMessageID, !messageIDs.insert(messageID).inserted {
@@ -406,50 +347,25 @@ public struct SessionState: Sendable, Equatable, Codable {
             try value.usage.validate(maximumTokens: TokenUsage.maximumAggregateTokens)
             try register(value.answer, kind: .visibleAnswer, owner: value.executionID, batchID: batchID)
             try register(value.visibleThinking, kind: .visibleThinking, owner: value.executionID, batchID: batchID)
-            try register(value.replay, kind: .replay, owner: value.executionID, batchID: batchID)
             try register(value.error, kind: .error, owner: value.executionID, batchID: batchID)
             executions[value.executionID]?.completion = value
             activeExecutionID = nil
 
-        case .invalidated(let value):
-            guard !invalidationIDs.contains(value.operationID), authorizationEpoch < UInt64.max,
-                  value.authorizationEpoch == authorizationEpoch + 1,
-                  value.executionIDs.allSatisfy({ executions[$0] != nil }),
-                  value.retentionGroups.allSatisfy({ group in
-                      guard let owner = retentionOwners[group] else { return false }
-                      return owner.executionID.map { value.executionIDs.contains($0) } ?? true
-                  }) else {
-                throw invalid("The invalidation epoch or ownership is invalid.")
-            }
-            let affectedMessages = Set(value.executionIDs.compactMap { executions[$0]?.admission.userMessageID })
-            guard executions.allSatisfy({ executionID, execution in
-                !affectedMessages.contains(execution.admission.userMessageID) || value.executionIDs.contains(executionID)
-            }), retentionOwners.allSatisfy({ group, owner in
-                guard let executionID = owner.executionID, value.executionIDs.contains(executionID),
-                      !owner.visible || invalidatedRetentionGroups.contains(group) else { return true }
-                return value.retentionGroups.contains(group) || erasedRetentionGroups.contains(group)
-            }) else { throw invalid("Invalidation must include retry descendants and their hidden payloads.") }
-            invalidationIDs.insert(value.operationID)
-            authorizationEpoch = value.authorizationEpoch
-            excludedExecutionIDs.formUnion(value.executionIDs)
-            invalidatedRetentionGroups.formUnion(value.retentionGroups)
-            erasedRetentionGroups.formUnion(value.retentionGroups)
-
-        case .retryCleared(let value):
+        case .retrySuperseded(let value):
             guard activeExecutionID == value.retryExecutionID,
                   let retry = executions[value.retryExecutionID], retry.completion == nil,
                   retry.admissionBatchID == batchID,
-                  event.sequence == retry.admissionSequence + 1,
                   retry.admission.retryOfExecutionID == value.sourceExecutionID,
                   let source = executions[value.sourceExecutionID], let completion = source.completion,
                   completion.status != .completed,
                   source.admission.userMessageID == retry.admission.userMessageID,
-                  !excludedExecutionIDs.contains(value.sourceExecutionID), effectsAreKnown(source),
-                  value.retentionGroups == retryCleanupGroups(forUserMessageID: retry.admission.userMessageID),
-                  value.retentionGroups.allSatisfy({ !invalidatedRetentionGroups.contains($0) }) else {
-                throw invalid("Retry cleanup is stale, incomplete, or targets an invalid execution.")
+                  effectsAreKnown(source) else {
+                throw invalid("The retry does not identify an eligible original execution.")
             }
-            invalidatedRetentionGroups.formUnion(value.retentionGroups)
+            for (id, execution) in executions where id != value.retryExecutionID &&
+                execution.admission.userMessageID == retry.admission.userMessageID {
+                supersededExecutionIDs.insert(id)
+            }
 
         case .extensionRecorded(let namespace, let schemaVersion, let required, let body):
             guard Self.validIdentifier(namespace, maximumBytes: 128), !namespace.hasPrefix("mira."),
@@ -463,7 +379,7 @@ public struct SessionState: Sendable, Equatable, Codable {
 
     private func active(_ executionID: ExecutionID, allowExcluded: Bool = false) throws -> SessionExecutionState {
         guard activeExecutionID == executionID, let execution = executions[executionID],
-              execution.completion == nil, allowExcluded || !excludedExecutionIDs.contains(executionID) else {
+              execution.completion == nil, allowExcluded || !supersededExecutionIDs.contains(executionID) else {
             throw invalid("The execution is inactive, settled, or revoked.")
         }
         return execution
@@ -476,25 +392,15 @@ public struct SessionState: Sendable, Equatable, Codable {
         }
     }
 
-    private mutating func register(_ reference: SessionPayloadReference?, kind: SessionPayloadKind,
+    private mutating func register(_ reference: SessionContent?, kind: SessionContentKind,
                                    owner: ExecutionID?, batchID: UUID) throws {
         guard let reference else { return }
-        guard reference.kind == kind, !invalidatedRetentionGroups.contains(reference.retentionGroup) else {
-            throw invalid("The payload kind or retention eligibility is invalid.")
-        }
-        let lifetime = RetentionOwner(executionID: owner,
-                                      visible: [.title, .userText, .visibleAnswer, .visibleThinking].contains(kind))
-        if let old = references[reference.id] {
-            guard old == reference, retentionOwners[reference.retentionGroup] == lifetime else {
-                throw invalid("An existing payload identity cannot change ownership.")
-            }
+        guard reference.kind == kind else { throw invalid("The session content kind is invalid.") }
+        try reference.validate()
+        if let existing = references[reference.id] {
+            guard existing == reference else { throw invalid("Committed session content cannot change identity.") }
         } else {
-            guard reference.batchID == batchID,
-                  retentionOwners[reference.retentionGroup].map({ $0 == lifetime }) ?? true else {
-                throw invalid("New payloads must belong to this batch and one retention lifetime.")
-            }
             references[reference.id] = reference
-            retentionOwners[reference.retentionGroup] = lifetime
         }
     }
 

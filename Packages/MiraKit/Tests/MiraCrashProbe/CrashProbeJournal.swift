@@ -6,8 +6,8 @@ enum CrashProbeJournal {
     private struct Input: Codable {
         let scenario: String
         let batch: SessionBatch
-        let originalTitle: SessionPayloadReference
-        let newTitle: SessionPayloadReference
+        let originalTitle: SessionContent
+        let newTitle: SessionContent
     }
 
     static func crash(_ context: CrashProbeContext, scenario: String) async throws {
@@ -18,7 +18,7 @@ enum CrashProbeJournal {
             let firstID = UUID()
             let original = try await library.stage(
                 Data("Original synthetic title".utf8), sessionID: session,
-                batchID: firstID, retentionGroup: UUID(), kind: .title)
+                batchID: firstID, kind: .title)
             let first = SessionBatch(
                 id: firstID, sessionID: session, expectedSequence: 0,
                 events: [
@@ -32,7 +32,7 @@ enum CrashProbeJournal {
             let nextID = UUID()
             let changed = try await library.stage(
                 Data("Changed synthetic title".utf8), sessionID: session,
-                batchID: nextID, retentionGroup: UUID(), kind: .title)
+                batchID: nextID, kind: .title)
             let batch = SessionBatch(
                 id: nextID, sessionID: session, expectedSequence: 1,
                 events: [
@@ -105,8 +105,6 @@ enum CrashProbeJournal {
                 try probeRequire(
                     (try? await library.read(input.newTitle)) == nil, "An unpublished body became readable.")
             }
-            try await library.purgeUnpublished()
-            try await library.verifyNoUnpublished()
             let after = try await library.head(sessionID: input.batch.sessionID)
             try probeRequire(after == before, "Verification replayed a journal command.")
             let batches = try await library.read(sessionID: input.batch.sessionID, after: 0, limit: 128)

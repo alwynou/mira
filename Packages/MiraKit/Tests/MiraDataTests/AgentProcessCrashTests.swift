@@ -7,9 +7,8 @@ import Testing
 struct AgentProcessCrashTests {
     @Test(arguments: [
         "payloadStaged", "beforeJournalWrite", "afterJournalWrite", "afterJournalSync", "tornJournalTail",
-        "pendingPayloadMarked", "pendingPayloadWritten", "pendingPayloadClearing", "pendingPayloadCleared",
-        "businessCommitted", "toolResultPublished", "privacyInvalidated", "privacyBodyDeleted",
-        "admissionPublished", "thinkingDraft", "terminalPublished",
+        "businessCommitted", "toolResultPublished",
+        "admissionPublished", "interruptedStream", "terminalPublished",
     ])
     func killedWriterRecoversInNewProcesses(scenario: String) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -23,28 +22,18 @@ struct AgentProcessCrashTests {
         let first = try await ProbeProcess.run(mode: "verify", scenario: scenario, directory: directory)
         try #require(!first.signal && first.status == 0, Comment(rawValue: first.error))
         let report = try SessionCodec.decode([String: Int].self, from: first.output)
-        if scenario.hasPrefix("privacy") {
-            #expect(report["hiddenBodies"] == 0)
-            #expect(report["retainedBodies"] == 2)
-            #expect(report["maintenancePending"] == 0)
-        } else if scenario.hasPrefix("pendingPayload") {
-            #expect(report["journalSequence"] == (scenario == "pendingPayloadMarked" || scenario == "pendingPayloadWritten" ? 1 : 2))
-            #expect(report["newBatch"] == (scenario == "pendingPayloadMarked" || scenario == "pendingPayloadWritten" ? 0 : 1))
-            #expect(report["oldBody"] == 1)
-            #expect(report["unpublishedBodies"] == 0)
-            #expect(report["pendingMarkers"] == 0)
-        } else if scenario == "businessCommitted" || scenario == "toolResultPublished" {
+        if scenario == "businessCommitted" || scenario == "toolResultPublished" {
             #expect(report["businessWrites"] == 1)
             #expect(report["modelCalls"] == 1)
             #expect(report["outstandingReceipts"] == 0)
             #expect(report["settledInvocations"] == 1)
-        } else if ["admissionPublished", "thinkingDraft", "terminalPublished"].contains(scenario) {
+        } else if ["admissionPublished", "interruptedStream", "terminalPublished"].contains(scenario) {
             #expect(report["executions"] == 1)
             #expect(report["terminalFacts"] == 1)
             #expect(
-                report["modelCalls"] == (scenario == "admissionPublished" ? 0 : scenario == "thinkingDraft" ? 1 : 2))
-            #expect(report["businessWrites"] == (scenario == "terminalPublished" ? 1 : 0))
-            #expect(report["thinkingBytes"] == (scenario == "thinkingDraft" ? 6080 : 0))
+                report["modelCalls"] == (scenario == "admissionPublished" ? 0 : 2))
+            #expect(report["businessWrites"] == (["interruptedStream", "terminalPublished"].contains(scenario) ? 1 : 0))
+            #expect(report["thinkingBytes"] == 0)
         } else {
             let committed = scenario == "afterJournalWrite" || scenario == "afterJournalSync"
             #expect(report["journalSequence"] == (committed ? 3 : 1))

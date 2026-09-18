@@ -91,9 +91,6 @@ private struct ExtractionJobDetail: View {
                             } else {
                                 Text("No recorded calls").foregroundStyle(.secondary)
                             }
-                            if attempt.bodyPurgedAt != nil {
-                                Label("Audit content cleared", systemImage: "eye.slash").foregroundStyle(.secondary)
-                            }
                         }.font(.caption)
                     } label: {
                         Text(L10n.format("Attempt %lld", locale: locale, Int64(attempt.ordinal))).font(.caption)

@@ -114,7 +114,7 @@ struct AgentModelTests {
         AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
             modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1,
             adapter: AgentAdapterIdentity(id: adapterID, revision: 1), invocationID: "invocation-\(adapterID)",
-            invocationRevision: 1, endpointID: "endpoint-\(adapterID)", metadataEvidence: [], modelID: "model-1",
+            invocationRevision: 1, endpointID: "endpoint-\(adapterID)", modelID: "model-1",
             credential: AgentCredentialReference(reference: "credential-ref", version: 1), contextWindow: contextWindow,
             maximumOutputTokens: maximumOutputTokens,
             capabilities: .init(streamsText: true, callsTools: true, producesThinking: true), configuration: .object(["opaque": .string("raw")]))

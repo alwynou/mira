@@ -77,101 +77,6 @@ struct SessionSearchServiceTests {
         }
     }
 
-    @Test func rebuildSkipsPurgedHistoricalBodiesButKeepsVisibleExcludedHistory() async throws {
-        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Retained answer"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
-            let address = try await f.run("Purged question")
-            #expect(await f.runtime.shutdown().isSettled)
-            let runtime = try await SessionRuntime.open(id: address.sessionID, journal: f.library, payloads: f.library)
-            do {
-                let state = await runtime.snapshot()
-                let groups = Set(state.references.values.filter { $0.kind != .visibleAnswer }.map(\.retentionGroup))
-                try searchCommitted(
-                    await runtime.commit(id: UUID()) { _ in
-                        [
-                            .invalidated(
-                                .init(
-                                    operationID: UUID(), executionIDs: [address.executionID],
-                                    retentionGroups: groups, authorizationEpoch: 1, reason: .forgotten))
-                        ]
-                    })
-                try await f.library.purge(sessionID: address.sessionID, retentionGroups: groups)
-                let reader = SearchPayloadProbe(base: f.library)
-                try await withSearch(f, reader: reader) { service, index in
-                    #expect(try await service.search(.init(text: "Purged")).hits.isEmpty)
-                    #expect(try await service.search(.init(text: "Retained")).hits.first?.snippet == "Retained answer")
-                    #expect(Set(await reader.references.map(\.kind)) == [.visibleAnswer])
-                    await service.close()
-                    try await index.clear()
-                    try await index.verifyEmpty()
-                    let fresh = try SessionSearchService(
-                        journal: f.library, payloads: reader, index: index, access: f.access, scope: f.scope)
-                    do {
-                        #expect(try await fresh.search(.init(text: "Retained")).hits.count == 1)
-                        #expect(try await fresh.search(.init(text: "Purged")).hits.isEmpty)
-                        await fresh.close()
-                    } catch {
-                        await fresh.close()
-                        throw error
-                    }
-                }
-                await runtime.close()
-            } catch {
-                await runtime.close()
-                throw error
-            }
-        }
-    }
-
-    @Test func privacyMaintenanceDiscardsPopulatedTextCacheBeforeReopeningSearch() async throws {
-        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Generated secret"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
-            let address = try await f.run("Original question")
-            try await withSearch(f) { service, index in
-                #expect(try await service.search(.init(text: "secret")).hits.count == 1)
-                #expect(await f.runtime.shutdown().isSettled)
-                await service.close()
-                let expected = await f.access.snapshot().authorization
-                let source = AgentSourceReference.sessionExecution(
-                    sessionID: address.sessionID, executionID: address.executionID)
-                let operation = try await f.access.begin(
-                    .init(
-                        id: UUID(), namespace: "privacy.fixture", revision: 1,
-                        scope: .sources([source]), requestedAt: TaskWorkflowFixture.now), expected: expected)
-                try await f.access.waitForQuiescence()
-                let plans = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
-                let engine = SessionPrivacyMaintenance(journal: f.library, payloads: f.library, plans: plans)
-                do {
-                    let plan = try await engine.prepare(
-                        operation: operation, roots: [source], retention: .purgeGeneratedHistory, reason: .forgotten)
-                    try await engine.apply(operation: operation)
-                    try await engine.verify(operation: operation)
-                    let projections = try SessionPrivacyProjections(
-                        journal: f.library, payloads: f.library, stores: [], searchIndexes: [index])
-                    await #expect(throws: MiraError.self) { try await projections.verify(plan: plan) }
-                    try await projections.rebuild(plan: plan)
-                    try await projections.verify(plan: plan)
-                    // Repeating maintenance is safe even after the first clear already removed every cache file.
-                    try await projections.rebuild(plan: plan)
-                    try await projections.verify(plan: plan)
-                    _ = try await f.access.complete(operation, at: TaskWorkflowFixture.now)
-                    let fresh = try SessionSearchService(
-                        journal: f.library, payloads: f.library, index: index, access: f.access, scope: f.scope)
-                    do {
-                        #expect(try await fresh.search(.init(text: "secret")).hits.isEmpty)
-                        #expect(try await fresh.search(.init(text: "Original")).hits.count == 1)
-                        await fresh.close()
-                    } catch {
-                        await fresh.close()
-                        throw error
-                    }
-                    await plans.close()
-                } catch {
-                    await plans.close()
-                    throw error
-                }
-            }
-        }
-    }
-
     @Test func staleLocationsAreRecheckedAgainstCurrentArchiveScopeAndOriginalEvent() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Search answer"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
             let address = try await f.run("Search question")
@@ -288,7 +193,7 @@ struct SessionSearchServiceTests {
 }
 
 private func withSearch(
-    _ f: TaskWorkflowFixture, reader: (any SessionPayloadReader)? = nil,
+    _ f: TaskWorkflowFixture, reader: (any SessionContentReader)? = nil,
     maximumPageBytes: Int = 64 * 1_024 * 1_024,
     _ body: (SessionSearchService, SQLiteSessionSearchIndex) async throws -> Void
 ) async throws {
@@ -305,15 +210,15 @@ private func withSearch(
     try await index.close()
 }
 
-private actor SearchPayloadProbe: SessionPayloadReader {
+private actor SearchPayloadProbe: SessionContentReader {
     enum Failure { case missing, encoding }
-    let base: any SessionPayloadReader
+    let base: any SessionContentReader
     private var failure: Failure?
     private var hold = false
     private var continuation: CheckedContinuation<Void, Never>?
-    private(set) var references: [SessionPayloadReference] = []
+    private(set) var references: [SessionContent] = []
     private(set) var isHeld = false
-    init(base: any SessionPayloadReader) { self.base = base }
+    init(base: any SessionContentReader) { self.base = base }
     func reset() { references.removeAll() }
     func fail(_ failure: Failure?) { self.failure = failure }
     func holdNextRead() { hold = true }
@@ -322,7 +227,7 @@ private actor SearchPayloadProbe: SessionPayloadReader {
         continuation = nil
         isHeld = false
     }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         references.append(reference)
         let bytes = try await base.read(reference)
         if hold {

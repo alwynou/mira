@@ -298,22 +298,6 @@ struct NativeTranscriptRowTests {
         #expect(answer.textLabelView.selectionRange == nil)
     }
 
-    @Test("purging a row removes the previous private markdown")
-    func purgingClearsRenderedMarkdown() throws {
-        _ = NSApplication.shared
-        let row = NativeTranscriptRow(frame: .zero)
-        let theme = theme()
-        let privateText = "Private answer that must be forgotten"
-        configure(row, id: "answer", text: privateText, theme: theme)
-        let answer = try #require(renderedMarkdownView(in: row))
-        #expect(answer.textLabelView.attributedText.string.contains(privateText))
-
-        configure(row, id: "answer", text: "", bodyPurged: true, theme: theme)
-
-        #expect(markdownViews(in: row).allSatisfy { !$0.textLabelView.attributedText.string.contains(privateText) })
-        #expect(answer.textLabelView.attributedText.string.isEmpty)
-    }
-
     @Test("ordered process stays visible while running and settles around the same final body")
     func orderedProcessPreservesFinalBodyAndIndependentDisclosures() throws {
         _ = NSApplication.shared
@@ -373,7 +357,6 @@ struct NativeTranscriptRowTests {
         _ row: NativeTranscriptRow,
         id: String,
         text: String,
-        bodyPurged: Bool = false,
         theme: MarkdownTheme,
         measurement: Bool = false
     ) {
@@ -383,10 +366,9 @@ struct NativeTranscriptRowTests {
             role: .assistant,
             text: text,
             status: .completed,
-            isStreaming: false,
-            isBodyPurged: bodyPurged
+            isStreaming: false
         )
-        let body = bodyPurged ? nil : MarkdownContent(markdown: text, theme: theme, locale: locale)
+        let body = MarkdownContent(markdown: text, theme: theme, locale: locale)
         row.configure(
             item: item,
             body: body,

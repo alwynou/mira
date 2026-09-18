@@ -345,12 +345,11 @@ final class MemoryEditorModel {
     private func authoritativeReference(
         for identity: MemorySourceIdentity, in state: SessionState
     ) throws -> SessionEvidenceReference {
-        guard let execution = state.executions[identity.executionID],
+        guard state.id == identity.sessionID,
+            let execution = state.executions[identity.executionID],
             execution.admission.userMessageID == identity.messageID,
             execution.admission.retryOfExecutionID == nil,
             let body = execution.admission.userBody,
-            body.batchID == execution.admissionBatchID,
-            body.sessionID == identity.sessionID,
             body.kind == .userText
         else {
             throw MiraError(.unauthorized, "The selected user message is no longer authoritative evidence.")
@@ -360,8 +359,7 @@ final class MemoryEditorModel {
             originalExecutionID: identity.executionID,
             userMessageID: identity.messageID,
             admissionEventID: execution.admissionEventID,
-            admissionSequence: execution.admissionSequence,
-            body: body)
+            admissionSequence: execution.admissionSequence)
         try reference.validate()
         return reference
     }

@@ -161,7 +161,7 @@ struct AgentModelOutputTests {
         .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
               modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1,
               adapter: adapter, invocationID: "output-invocation", invocationRevision: 1,
-              endpointID: "output-endpoint", metadataEvidence: [], modelID: "model", credential: nil,
+              endpointID: "output-endpoint", modelID: "model", credential: nil,
               contextWindow: 8_192, maximumOutputTokens: 1_024,
               capabilities: .init(streamsText: true, callsTools: callsTools, producesThinking: producesThinking),
               configuration: .object([:]))

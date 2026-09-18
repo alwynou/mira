@@ -50,31 +50,6 @@ struct NativeTranscriptStateTests {
         #expect(state.tokens == [terminalToken])
     }
 
-    @Test func deletionAndPrivacyPurgeClearThinkingExpansion() {
-        var state = NativeTranscriptState()
-        let visible = item(id: "visible", text: "Answer")
-        let deleted = item(id: "deleted", text: "Removed answer")
-
-        _ = state.apply([visible, deleted])
-        state.toggleActivity("visible")
-        state.toggleActivity("deleted")
-        #expect(state.expandedActivity == ["visible", "deleted"])
-
-        let purged = item(id: "visible", text: "Private answer", isBodyPurged: true)
-        let purgeChange = state.apply([purged, deleted])
-        #expect(purgeChange.removed.isEmpty)
-        #expect(purgeChange.updated.map(\.id) == ["visible"])
-        #expect(!state.expandedActivity.contains("visible"))
-        #expect(state.expandedActivity == ["deleted"])
-
-        let deletion = state.apply([purged])
-        #expect(deletion.removed == ["deleted"])
-        #expect(state.expandedActivity.isEmpty)
-
-        state.toggleActivity("visible")
-        #expect(state.expandedActivity.isEmpty)
-    }
-
     @Test func deletionAndReinsertDoNotReuseStaleRevision() throws {
         var state = NativeTranscriptState()
         let original = item(id: "message", text: "Original")
@@ -112,16 +87,14 @@ struct NativeTranscriptStateTests {
         id: String,
         text: String,
         status: ExecutionStatus? = .completed,
-        isStreaming: Bool = false,
-        isBodyPurged: Bool = false
+        isStreaming: Bool = false
     ) -> TranscriptItem {
         TranscriptItem(
             id: id,
             role: .assistant,
             text: text,
             status: status,
-            isStreaming: isStreaming,
-            isBodyPurged: isBodyPurged
+            isStreaming: isStreaming
         )
     }
 }

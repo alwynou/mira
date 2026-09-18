@@ -7,8 +7,7 @@ import Testing
 struct MacLibraryDiagnosticsTests {
     @Test func reportsTheLinkedSQLiteEngineAndCanBeRepeatedWithoutSchemaChanges() async throws {
         try await withDirectory { directory in
-            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                directory: directory, notifications: CompositionNotifications(),
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(), modules: { _ in [] })
             do {
                 let first = try await library.diagnostics()
@@ -19,8 +18,7 @@ struct MacLibraryDiagnosticsTests {
                 #expect(second == first)
                 #expect(await library.status().phase == .ready)
                 #expect(await library.close().isSettled)
-                let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                    directory: directory, notifications: CompositionNotifications(),
+                let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
                     #expect(try await reopened.diagnostics() == first)
@@ -38,8 +36,7 @@ struct MacLibraryDiagnosticsTests {
 
     @Test func diagnosticsRequiresReadyAccessAndSurvivesACompletedMaintenanceGeneration() async throws {
         try await withDirectory { directory in
-            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                directory: directory, notifications: CompositionNotifications(),
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(), modules: { _ in [] })
             do {
                 let request = AgentLibraryMaintenanceRequest(

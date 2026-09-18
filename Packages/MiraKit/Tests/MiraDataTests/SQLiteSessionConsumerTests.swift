@@ -432,9 +432,9 @@ private final class ConsumerFixture: Sendable {
             let plan = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1, driverID: "tests.driver", driverRevision: 1,
                 instructions: "", limits: .init(), priority: .foreground, route: nil)
             let admitted = await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Consumer test".utf8), kind: .title, retentionGroup: UUID())
-                let body = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-                let planReference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Consumer test".utf8), kind: .title)
+                let body = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+                let planReference = try await context.stage(plan, kind: .executionPlan)
                 return [.opened(.init(workspaceID: nil, title: title)),
                     .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: body,
                         plan: planReference, hasModelRoute: false, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
@@ -445,7 +445,7 @@ private final class ConsumerFixture: Sendable {
             }
             guard case .committed = phaseResult else { throw MiraError(.storage, "Consumer fixture phase append failed.") }
             let moduleResult = await runtime.commit(id: UUID()) { context in
-                let body = try await context.stageBytes(Data("consumer-extension".utf8), kind: .module, retentionGroup: UUID())
+                let body = try await context.stageBytes(Data("consumer-extension".utf8), kind: .module)
                 return [.extensionRecorded(namespace: "tests.consumer", schemaVersion: 1, required: false, body: body)]
             }
             guard case .committed = moduleResult else { throw MiraError(.storage, "Consumer fixture extension append failed.") }

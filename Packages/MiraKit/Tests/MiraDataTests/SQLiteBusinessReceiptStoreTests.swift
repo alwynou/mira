@@ -7,13 +7,12 @@ import Testing
 
 @Suite("SQLite business receipt store", .timeLimit(.minutes(1)))
 struct SQLiteBusinessReceiptStoreTests {
-    @Test(arguments: [false, true])
-    func readsRealCommittedReceiptAndAcknowledgesWithoutReplaying(purged: Bool) async throws {
+    @Test
+    func readsRealCommittedReceiptAndAcknowledgesWithoutReplaying() async throws {
         try await withReceiptWorkflow { fixture, address in
             try await fixture.database.write { db in
                 // Simulate lost publication acknowledgement after the journal committed.
                 try db.execute(sql: "UPDATE business_receipts SET acknowledged=0, publication_json=NULL")
-                if purged { try db.execute(sql: "UPDATE business_operations SET result_blob=NULL, result_purged=1") }
             }
             let receipts = try SQLiteBusinessReceiptStore(
                 database: fixture.database, libraryID: fixture.authority.libraryID,
@@ -26,7 +25,7 @@ struct SQLiteBusinessReceiptStoreTests {
                     return
                 }
                 #expect(recovered.reference == publication.receipt.reference)
-                #expect((recovered.result == nil) == purged)
+                #expect(recovered.result == publication.receipt.result)
                 await #expect(throws: MiraError.self) {
                     try await receipts.acknowledge(
                         recovered.reference, at: .init(sessionID: address.sessionID, sequence: 0))

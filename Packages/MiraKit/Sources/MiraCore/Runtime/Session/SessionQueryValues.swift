@@ -1,11 +1,10 @@
 import Foundation
 
-/// Absence and deliberate retention cleanup are distinct from an unreadable or corrupt payload.
+/// Absence is distinct from an unreadable or corrupt payload.
 /// Storage failures throw; they never become an empty message.
 public enum SessionTextContent: Sendable, Equatable {
     case available(String)
     case absent
-    case purged
 
     public var text: String? {
         if case .available(let text) = self { text } else { nil }
@@ -34,8 +33,8 @@ public struct SessionQueryMessage: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Metadata comes from one projection transaction. Content was read under the same
-/// library access lease and remains subject to invalidation after delivery to a host.
+/// Metadata comes from one projection transaction. Content is read under the same
+/// library access lease before delivery to a host.
 public struct SessionQueryMessagePage: Sendable, Equatable {
     public let session: SessionQueryItem?
     public let messages: [SessionQueryMessage]
@@ -49,20 +48,5 @@ public struct SessionQueryMessagePage: Sendable, Equatable {
         self.messages = messages
         self.executions = executions
         self.hasMore = hasMore
-    }
-}
-
-/// A persisted draft at a captured journal prefix. It excludes private provider
-/// continuation/transcript data and is not a live token notification channel.
-public struct SessionQueryDraft: Sendable, Equatable {
-    public let head: SessionJournalHead
-    public let executionID: ExecutionID
-    public let answer: String
-    public let thinking: String
-    public init(head: SessionJournalHead, executionID: ExecutionID, answer: String, thinking: String) {
-        self.head = head
-        self.executionID = executionID
-        self.answer = answer
-        self.thinking = thinking
     }
 }

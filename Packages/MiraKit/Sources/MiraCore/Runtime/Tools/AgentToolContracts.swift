@@ -162,10 +162,10 @@ public struct AgentEffectProof: Codable, Sendable, Equatable {
     public let intentBatchID: UUID
     public let intentSequence: Int64
     public let authorization: AgentLibraryAuthorization
-    public let proposal: SessionPayloadReference
+    public let proposal: SessionContent
     public init(sessionID: ConversationID, executionID: ExecutionID, invocationID: UUID,
                 intentBatchID: UUID, intentSequence: Int64, authorization: AgentLibraryAuthorization,
-                proposal: SessionPayloadReference) {
+                proposal: SessionContent) {
         self.sessionID = sessionID; self.executionID = executionID; self.invocationID = invocationID
         self.intentBatchID = intentBatchID; self.intentSequence = intentSequence
         self.authorization = authorization; self.proposal = proposal
@@ -191,9 +191,9 @@ public struct AgentBusinessReceiptReference: Codable, Sendable, Equatable {
 
 public struct AgentBusinessReceipt: Codable, Sendable, Equatable {
     public let reference: AgentBusinessReceiptReference
-    /// Canonical encoded JSON result. Nil means privacy maintenance removed the body, not the committed fact.
-    public let result: Data?
-    public init(reference: AgentBusinessReceiptReference, result: Data?) { self.reference = reference; self.result = result }
+    /// Canonical encoded JSON result retained with the committed business fact.
+    public let result: Data
+    public init(reference: AgentBusinessReceiptReference, result: Data) { self.reference = reference; self.result = result }
 }
 
 public enum AgentBusinessCommitOutcome: Sendable, Equatable {

@@ -45,18 +45,12 @@ struct MiraCrashProbe {
             case "payloadStaged", "beforeJournalWrite", "afterJournalWrite", "afterJournalSync", "tornJournalTail":
                 if arguments[1] == "crash" { try await CrashProbeJournal.crash(context, scenario: scenario) }
                 report = try await CrashProbeJournal.verify(context, scenario: scenario)
-            case "pendingPayloadMarked", "pendingPayloadWritten", "pendingPayloadClearing", "pendingPayloadCleared":
-                if arguments[1] == "crash" { try await CrashProbePendingPayloads.crash(context, scenario: scenario) }
-                report = try await CrashProbePendingPayloads.verify(context, scenario: scenario)
             case "businessCommitted", "toolResultPublished":
                 if arguments[1] == "crash" { try await CrashProbeBusiness.crash(context, scenario: scenario) }
                 report = try await CrashProbeBusiness.verify(context, scenario: scenario)
-            case "admissionPublished", "thinkingDraft", "terminalPublished":
+            case "admissionPublished", "interruptedStream", "terminalPublished":
                 if arguments[1] == "crash" { try await CrashProbeExecution.crash(context, scenario: scenario) }
                 report = try await CrashProbeExecution.verify(context, scenario: scenario)
-            case "privacyInvalidated", "privacyBodyDeleted":
-                if arguments[1] == "crash" { try await CrashProbePrivacy.crash(context, scenario: scenario) }
-                report = try await CrashProbePrivacy.verify(context, scenario: scenario)
             default:
                 throw MiraError(.invalidInput, "The crash probe scenario is unknown.")
             }

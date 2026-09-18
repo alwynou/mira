@@ -1,11 +1,10 @@
 import Foundation
 
-/// One model producer, one consumer, and independent coalescing timer signals.
+/// One model producer, one consumer, and an independent coalescing live-output signal.
 /// The owner closes the channel and drains both producers before releasing the scheduler lease.
 actor AgentModelStreamChannel {
     enum Input: Sendable {
         case event(AgentModelStreamEvent)
-        case checkpoint
         case output
     }
 
@@ -16,7 +15,6 @@ actor AgentModelStreamChannel {
 
     private var pendingEvent: (AgentModelStreamEvent, CheckedContinuation<Void, any Error>)?
     private var reader: CheckedContinuation<Input?, any Error>?
-    private var checkpointPending = false
     private var outputPending = false
     private var end: End?
     private var closed = false
@@ -44,19 +42,7 @@ actor AgentModelStreamChannel {
         try Task.checkCancellation()
     }
 
-    /// A slow disk cannot accumulate an unbounded queue of timer ticks.
-    func checkpoint() -> Bool {
-        guard !closed, end == nil else { return false }
-        if let reader {
-            self.reader = nil
-            reader.resume(returning: .checkpoint)
-        } else {
-            checkpointPending = true
-        }
-        return true
-    }
-
-    /// Live presentation does not create a durable checkpoint or queue per-token copies.
+    /// Live presentation does not create a durable record or queue per-token copies.
     func output() -> Bool {
         guard !closed, end == nil else { return false }
         if let reader {
@@ -71,7 +57,6 @@ actor AgentModelStreamChannel {
     func finish(error: (any Error)? = nil) {
         guard !closed, end == nil else { return }
         end = error.map { .failed($0) } ?? .completed
-        checkpointPending = false
         outputPending = false
         if let reader {
             self.reader = nil
@@ -83,11 +68,6 @@ actor AgentModelStreamChannel {
         try Task.checkCancellation()
         guard !closed else { throw CancellationError() }
         guard reader == nil else { throw Self.conflictingOwners }
-        // Checkpoints cannot be starved by a continuous stream of small model events.
-        if checkpointPending {
-            checkpointPending = false
-            return .checkpoint
-        }
         if outputPending {
             outputPending = false
             return .output
@@ -114,7 +94,6 @@ actor AgentModelStreamChannel {
     func close() {
         guard !closed else { return }
         closed = true
-        checkpointPending = false
         outputPending = false
         pendingEvent?.1.resume(throwing: CancellationError())
         pendingEvent = nil

@@ -6,7 +6,6 @@ public actor MemoryApplication {
     private let store: any MemoryStore
     private let extractionStatusReader: any MemoryExtractionStatusReader
     private let reader: JournalSessionReader
-    private let privacyHistory: any SessionPrivacyHistoryReader
     private let access: AgentLibraryAccess
     private let scope: RuntimeScope
     private let now: @Sendable () -> Date
@@ -16,14 +15,12 @@ public actor MemoryApplication {
     public init(
         store: any MemoryStore,
         extractionStatusReader: any MemoryExtractionStatusReader, reader: JournalSessionReader,
-        privacyHistory: any SessionPrivacyHistoryReader,
         access: AgentLibraryAccess, scope: RuntimeScope,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.store = store
         self.extractionStatusReader = extractionStatusReader
         self.reader = reader
-        self.privacyHistory = privacyHistory
         self.access = access
         self.scope = scope
         self.now = now
@@ -154,8 +151,8 @@ public actor MemoryApplication {
         }
     }
 
-    /// Reads only the selected conversation page. Retained privacy provenance explains
-    /// old replies without granting citation access or making them usable model history.
+    /// Reads the selected completed replies' recorded memory sources and resolves their
+    /// current lifecycle state.
     public func contextNotices(sessionID: ConversationID, executionIDs: Set<ExecutionID>,
                                workspaceID: WorkspaceID?) async throws -> [ExecutionID: [MemoryContextNotice]] {
         guard executionIDs.count <= 128 else {
@@ -167,21 +164,20 @@ public actor MemoryApplication {
                 guard snapshot.state.header?.workspaceID == workspaceID else {
                     throw MiraError(.unauthorized, "The memory history workspace is no longer authorized.")
                 }
-                let contexts = try await self.reader.historyContexts(
-                    in: snapshot, executionIDs: executionIDs, privacyHistory: self.privacyHistory)
                 let timestamp = try await self.timestamp()
                 var result: [ExecutionID: [MemoryContextNotice]] = [:]
                 for id in executionIDs.sorted(by: { $0.rawValue.uuidString < $1.rawValue.uuidString }) {
                     try Task.checkCancellation()
-                    guard let context = contexts[id] else { continue }
-                    var sources = Set(context.sources)
-                    for operation in context.maintenance where operation.namespace == "memory.forget" {
-                        // A local save receipt can depend on the original user statement without
-                        // ever sending the new memory body. Its completed forget target still explains
-                        // why that visible reply was retained and excluded.
-                        if case .sources(let targets) = operation.scope { sources.formUnion(targets) }
+                    guard snapshot.state.executions[id] != nil else {
+                        throw MiraError(.unauthorized, "The selected reply does not belong to this session.")
                     }
-                    let references = sources.compactMap { source -> MemoryCitationReference? in
+                    let evidence: SessionRecordedContextEvidence
+                    do {
+                        evidence = try await self.reader.recordedContextEvidence(in: snapshot, executionID: id)
+                    } catch let error as MiraError where error.code == .unauthorized {
+                        continue
+                    }
+                    let references = evidence.sources.compactMap { source -> MemoryCitationReference? in
                         guard case .domain(let namespace, let id, let revision) = source,
                               namespace == "memories" else { return nil }
                         return .init(memoryID: .init(id), revision: revision)
@@ -189,7 +185,7 @@ public actor MemoryApplication {
                     guard !references.isEmpty else { continue }
                     let notices = try await self.store.memoryContextNotices(
                         references: references, workspaceID: workspaceID,
-                        connectionID: context.connectionID, at: timestamp)
+                        connectionID: evidence.route.connectionID, at: timestamp)
                     if !notices.isEmpty { result[id] = notices }
                 }
                 return result

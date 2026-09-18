@@ -12,18 +12,16 @@ public struct SessionEvidenceReference: Codable, Sendable, Equatable {
     public let userMessageID: MessageID
     public let admissionEventID: UUID
     public let admissionSequence: Int64
-    public let body: SessionPayloadReference
 
     public init(sessionID: ConversationID, originalExecutionID: ExecutionID, userMessageID: MessageID,
-                admissionEventID: UUID, admissionSequence: Int64, body: SessionPayloadReference) {
+                admissionEventID: UUID, admissionSequence: Int64) {
         self.sessionID = sessionID; self.originalExecutionID = originalExecutionID
         self.userMessageID = userMessageID; self.admissionEventID = admissionEventID
-        self.admissionSequence = admissionSequence; self.body = body
+        self.admissionSequence = admissionSequence
     }
 
     public func validate() throws {
-        try body.validate()
-        guard admissionSequence > 0, body.sessionID == sessionID, body.kind == .userText else {
+        guard admissionSequence > 0 else {
             throw MiraError(.invalidInput, "The session evidence reference is invalid.")
         }
     }
@@ -40,14 +38,11 @@ public struct SessionUserEvidence: Sendable, Equatable {
 }
 
 /// Current journal metadata for a historical exchange. It does not grant workspace or remote-use permission.
-/// Body reads remain subject to retention and library maintenance; this value does not pin payload files.
+/// The original body is resolved from the canonical session prefix when evidence is read.
 public struct SessionExecutionSourceEvidence: Sendable, Equatable {
     public let source: AgentSourceReference
     public let originalUser: SessionEvidenceReference
     public let workspaceID: WorkspaceID?
-    /// Present for successful replayable executions; absent for an incomplete
-    /// cancelled/interrupted execution whose source is only its user evidence.
-    public let replay: SessionPayloadReference?
     public let observedHead: SessionJournalHead
     public let sessionAuthorizationEpoch: UInt64
 }
@@ -68,10 +63,10 @@ public struct SessionRecordedContextEvidence: Sendable, Equatable {
 /// Reads a fixed acknowledged prefix through the authority, independently of every query projection.
 public struct JournalSessionReader: Sendable {
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let extensionSchemas: [String: Set<Int>]
 
-    public init(journal: any SessionJournal, payloads: any SessionPayloadReader,
+    public init(journal: any SessionJournal, payloads: any SessionContentReader,
                 extensionSchemas: [String: Set<Int>] = [:]) {
         self.journal = journal; self.payloads = payloads; self.extensionSchemas = extensionSchemas
     }
@@ -200,61 +195,9 @@ public struct JournalSessionReader: Sendable {
         return try await userEvidence(in: snapshot, executionID: executionID)
     }
 
-    /// The actual route and first successful foreground request are frozen journal facts.
-    /// Reading this value does not grant permission to resend its historical sources.
-    public func memoryExtractionContext(for job: MemoryExtractionJob) async throws -> MemoryExtractionPrefix {
-        let snapshot = try await snapshot(sessionID: job.origin.source.sessionID)
-        let executionID = job.turns.last?.completedExecutionID ?? job.origin.completedExecutionID
-        guard let execution = snapshot.state.executions[executionID],
-              execution.completion?.status == .completed,
-              !snapshot.state.excludedExecutionIDs.contains(executionID) else { throw Self.unavailableEvidence }
-        func requireAvailable(_ reference: SessionPayloadReference) throws {
-            guard snapshot.state.references[reference.id] == reference,
-                  !snapshot.state.invalidatedRetentionGroups.contains(reference.retentionGroup) else {
-                throw Self.unavailableEvidence
-            }
-        }
-        try requireAvailable(execution.admission.plan)
-        let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
-        guard let route = plan.route else { throw Self.unavailableEvidence }
-        for id in execution.attemptIDs {
-            guard let attempt = snapshot.state.attempts[id], attempt.resolution?.status == .completed else { continue }
-            try requireAvailable(attempt.attempt.request)
-            let record = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
-            guard record.request.sessionID == snapshot.state.id,
-                  record.request.executionID == executionID,
-                  record.request.workspaceID == job.workspaceID,
-                  record.request.destination == .model(route),
-                  record.input.executionID == executionID,
-                  record.input.stepID == attempt.attempt.stepID else { throw Self.invalidPrefix }
-            try record.validate(for: route)
-            return .init(route: route, input: record.input, sources: record.sources)
-        }
-        throw Self.unavailableEvidence
-    }
-
-    /// Bounded visible conversational context for memory extraction. Replies with auxiliary sources
-    /// are omitted: their separate disclosure and deletion lineage cannot be inferred from the text.
-    public func memoryExtractionReply(_ turn: MemoryExtractionTurn) async throws -> String? {
-        let snapshot = try await snapshot(sessionID: turn.source.sessionID)
-        guard let execution = snapshot.state.executions[turn.completedExecutionID],
-              !snapshot.state.excludedExecutionIDs.contains(turn.completedExecutionID),
-              let completion = execution.completion, completion.status == .completed,
-              let answer = completion.answer,
-              snapshot.state.references[answer.id] == answer,
-              !snapshot.state.invalidatedRetentionGroups.contains(answer.retentionGroup) else {
-            throw MiraError(.unauthorized, "The extraction conversation context is unavailable.")
-        }
-        let context = try await recordedContextEvidence(in: snapshot, executionID: turn.completedExecutionID)
-        guard context.sources.isEmpty else { return nil }
-        let bytes = try await payloads.read(answer)
-        guard let text = String(data: bytes, encoding: .utf8) else { throw Self.invalidPrefix }
-        return String(text.prefix(1_024))
-    }
-
     func userEvidence(in snapshot: SessionJournalSnapshot, executionID: ExecutionID) async throws -> SessionUserEvidence {
         guard let selected = snapshot.state.executions[executionID],
-              !snapshot.state.excludedExecutionIDs.contains(executionID),
+              !snapshot.state.supersededExecutionIDs.contains(executionID),
               let original = snapshot.state.executionOrder.compactMap({ snapshot.state.executions[$0] }).first(where: {
                   $0.admission.userMessageID == selected.admission.userMessageID && $0.admission.userBody != nil
               }) else { throw Self.unavailableEvidence }
@@ -272,6 +215,64 @@ public struct JournalSessionReader: Sendable {
         return try await evidence(original: original, snapshot: snapshot)
     }
 
+    public func memoryExtractionContext(for job: MemoryExtractionJob) async throws -> MemoryExtractionPrefix {
+        try job.validate()
+        let selectedTurn = job.turns.last
+        let source = selectedTurn?.source ?? job.origin.source
+        let executionID = selectedTurn?.completedExecutionID ?? job.origin.completedExecutionID
+        let snapshot = try await snapshot(sessionID: source.sessionID)
+        guard snapshot.state.header?.workspaceID == job.workspaceID,
+              let execution = snapshot.state.executions[executionID],
+              execution.completion?.status == .completed,
+              !snapshot.state.supersededExecutionIDs.contains(executionID) else {
+            throw Self.unavailableEvidence
+        }
+        let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
+        guard let route = plan.route else { throw Self.unavailableEvidence }
+        let evidence = try await userEvidence(in: snapshot, executionID: executionID)
+        guard evidence.reference == source else { throw Self.invalidPrefix }
+        for attemptID in execution.attemptIDs {
+            guard let attempt = snapshot.state.attempts[attemptID],
+                  attempt.resolution?.status == .completed else { continue }
+            let request = try SessionCodec.decode(AgentSessionRequest.self, from: await payloads.read(attempt.attempt.request))
+            try request.validate(for: route)
+            guard request.request.sessionID == snapshot.state.id,
+                  request.request.executionID == executionID,
+                  request.request.workspaceID == job.workspaceID,
+                  request.request.destination == .model(route) else { throw Self.invalidPrefix }
+            let input = AgentModelInput(stepID: attempt.attempt.stepID,
+                executionID: executionID, instructions: request.instructions,
+                messages: request.contextMessages + [.init(role: .user,
+                    blocks: [.init(id: "extraction-user", content: .text(evidence.text))])],
+                tools: request.tools)
+            try input.validate(for: route)
+            return .init(route: route, input: input,
+                         sources: AgentContextBuild.orderedSources(request.sources +
+                            [.sessionExecution(sessionID: snapshot.state.id,
+                                                executionID: executionID)]))
+        }
+        throw Self.unavailableEvidence
+    }
+
+    public func memoryExtractionReply(_ turn: MemoryExtractionTurn) async throws -> String? {
+        try turn.validate()
+        let snapshot = try await snapshot(sessionID: turn.source.sessionID)
+        guard let execution = snapshot.state.executions[turn.completedExecutionID],
+              execution.completion?.status == .completed,
+              !snapshot.state.supersededExecutionIDs.contains(turn.completedExecutionID),
+              execution.admission.userMessageID == turn.source.userMessageID,
+              let answer = execution.completion?.answer, answer.kind == .visibleAnswer else {
+            throw Self.unavailableEvidence
+        }
+        let evidence = try await userEvidence(in: snapshot, executionID: turn.completedExecutionID)
+        guard evidence.reference == turn.source else { throw Self.unavailableEvidence }
+        let context = try await recordedContextEvidence(in: snapshot, executionID: turn.completedExecutionID)
+        guard context.sources.isEmpty else { return nil }
+        let bytes = try await payloads.read(answer)
+        guard let text = String(data: bytes, encoding: .utf8) else { throw Self.invalidPrefix }
+        return String(text.prefix(1_024))
+    }
+
     /// Sources recorded in successful model requests for an available completed reply.
     /// This proves historical use, not current domain or disclosure permission. Callers own a
     /// library lease and must resolve each exact domain revision through its owning authority.
@@ -280,16 +281,15 @@ public struct JournalSessionReader: Sendable {
         return try await recordedContextEvidence(in: snapshot, executionID: executionID)
     }
 
-    private func recordedContextEvidence(in snapshot: SessionJournalSnapshot, executionID: ExecutionID) async throws -> SessionRecordedContextEvidence {
+    func recordedContextEvidence(in snapshot: SessionJournalSnapshot, executionID: ExecutionID) async throws -> SessionRecordedContextEvidence {
         let state = snapshot.state
         let sessionID = state.id
         guard let execution = state.executions[executionID],
               let completion = execution.completion, completion.status == .completed,
-              let answer = completion.answer, completion.assistantMessageID != nil,
-              !state.excludedExecutionIDs.contains(executionID) else { throw Self.unavailableEvidence }
-        func requireAvailable(_ reference: SessionPayloadReference) throws {
-            guard state.references[reference.id] == reference,
-                  !state.invalidatedRetentionGroups.contains(reference.retentionGroup) else { throw Self.unavailableEvidence }
+              let answer = completion.answer, answer.kind == .visibleAnswer, completion.assistantMessageID != nil,
+              !state.supersededExecutionIDs.contains(executionID) else { throw Self.unavailableEvidence }
+        func requireAvailable(_ reference: SessionContent) throws {
+            try reference.validate()
         }
         try requireAvailable(answer)
         _ = try await payloads.read(answer)
@@ -305,101 +305,19 @@ public struct JournalSessionReader: Sendable {
             guard resolution.status == .completed else { continue }
             let reference = attempt.attempt.request
             try requireAvailable(reference)
-            let record = try await AgentRequestRecord.read(reference, payloads: payloads)
-            guard record.request.sessionID == sessionID, record.request.executionID == executionID,
-                  record.request.workspaceID == state.header?.workspaceID,
-                  record.request.destination.modelRoute == route,
-                  record.input.executionID == executionID,
-                  record.input.stepID == attempt.attempt.stepID else {
+            let request = try SessionCodec.decode(AgentSessionRequest.self, from: await payloads.read(reference))
+            guard request.request.sessionID == sessionID, request.request.executionID == executionID,
+                  request.request.workspaceID == state.header?.workspaceID,
+                  request.request.destination.modelRoute == route else {
                 throw MiraError(.storage, "The execution request evidence is inconsistent.")
             }
-            for source in record.sources { try source.validate(); sources.insert(source) }
+            try request.validate(for: route)
+            for source in request.sources { try source.validate(); sources.insert(source) }
             guard sources.count <= 8_192 else { throw Self.invalidPrefix }
         }
         try Task.checkCancellation()
         return .init(workspaceID: state.header?.workspaceID, route: route,
                      sources: sources.sorted(by: AgentSourceReference.ordered))
-    }
-
-    struct HistoryContext: Sendable {
-        let connectionID: ConnectionID?
-        let sources: [AgentSourceReference]
-        var maintenance: [AgentLibraryMaintenanceRequest] = []
-    }
-
-    func historyContexts(in snapshot: SessionJournalSnapshot, executionIDs: Set<ExecutionID>,
-                         privacyHistory: any SessionPrivacyHistoryReader) async throws -> [ExecutionID: HistoryContext] {
-        let state = snapshot.state
-        guard executionIDs.count <= 128, executionIDs.allSatisfy({ state.executions[$0] != nil }) else {
-            throw MiraError(.invalidInput, "The historical execution selection is invalid.")
-        }
-        var result: [ExecutionID: HistoryContext] = [:]
-        var retained = Set<ExecutionID>()
-        var sourceCount = 0
-        for id in executionIDs {
-            try Task.checkCancellation()
-            guard let execution = state.executions[id], let completion = execution.completion, completion.status == .completed,
-                  completion.assistantMessageID != nil, let answer = completion.answer,
-                  state.references[answer.id] == answer,
-                  !state.invalidatedRetentionGroups.contains(answer.retentionGroup) else { continue }
-            if state.excludedExecutionIDs.contains(id) {
-                _ = try await payloads.read(answer)
-                retained.insert(id)
-            } else {
-                // A completed local-driver reply has no model route or dispatched
-                // context request. It is valid history, but it cannot contribute
-                // memory source notices; keep the context empty and continue.
-                _ = try await payloads.read(answer)
-                guard state.references[execution.admission.plan.id] == execution.admission.plan,
-                      !state.invalidatedRetentionGroups.contains(execution.admission.plan.retentionGroup) else {
-                    throw Self.invalidPrefix
-                }
-                let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
-                if plan.route == nil {
-                    guard execution.attemptIDs.isEmpty else { throw Self.invalidPrefix }
-                    result[id] = .init(connectionID: nil, sources: [])
-                    continue
-                }
-                let evidence = try await recordedContextEvidence(in: snapshot, executionID: id)
-                sourceCount += evidence.sources.count
-                guard sourceCount <= 65_536 else { throw Self.invalidPrefix }
-                result[id] = .init(connectionID: evidence.route.connectionID, sources: evidence.sources)
-            }
-        }
-        guard !retained.isEmpty else { return result }
-        let records = try await privacyHistory.retainedHistory(
-            sessionID: state.id, operationIDs: state.privacyOperationIDs, executionIDs: retained)
-        guard records.count == state.privacyOperationIDs.count,
-              Set(records.map(\.batch.id)).count == records.count else { throw Self.invalidPrefix }
-        var operations = Set<UUID>()
-        var sources: [ExecutionID: Set<AgentSourceReference>] = [:]
-        var maintenance: [ExecutionID: [AgentLibraryMaintenanceRequest]] = [:]
-        for record in records {
-            try Task.checkCancellation()
-            try record.request.validate()
-            let batch = record.batch
-            guard batch.sessionID == state.id, batch.cursor.sequence <= state.sequence,
-                  batch.events.count == 1, case .invalidated(let fact) = batch.events[0].fact,
-                  record.request.id == fact.operationID,
-                  state.privacyOperationIDs.contains(fact.operationID), operations.insert(fact.operationID).inserted,
-                  try await journal.batch(id: batch.id, sessionID: state.id) == batch,
-                  Set(record.dependencies.map(\.executionID)).count == record.dependencies.count,
-                  Set(record.dependencies.map(\.executionID)) == fact.executionIDs.intersection(retained) else {
-                throw Self.invalidPrefix
-            }
-            for dependency in record.dependencies {
-                try dependency.validate()
-                sources[dependency.executionID, default: []].formUnion(dependency.sources)
-                maintenance[dependency.executionID, default: []].append(record.request)
-                guard sources[dependency.executionID, default: []].count <= 8_192 else { throw Self.invalidPrefix }
-            }
-        }
-        guard Set(sources.keys) == retained else { throw Self.invalidPrefix }
-        for (id, values) in sources {
-            result[id] = .init(connectionID: nil, sources: values.sorted(by: AgentSourceReference.ordered),
-                               maintenance: maintenance[id, default: []])
-        }
-        return result
     }
 
     /// Resolves only session-execution references. Callers send domain references to their owning authority.
@@ -433,45 +351,34 @@ public struct JournalSessionReader: Sendable {
                 let executionID = selection.executionID
                 guard let execution = state.executions[executionID],
                       let completion = execution.completion,
-                      !state.excludedExecutionIDs.contains(executionID),
-                      let original = originals[execution.admission.userMessageID],
-                      !state.excludedExecutionIDs.contains(original.admission.executionID) else {
+                      !state.supersededExecutionIDs.contains(executionID),
+                      let original = originals[execution.admission.userMessageID] else {
                     throw MiraError(.unauthorized, "The historical execution source is unavailable.")
                 }
-                let replay: SessionPayloadReference?
                 if completion.status == .completed {
-                    guard let value = completion.replay, value.kind == .replay,
-                          state.references[value.id] == value,
-                          !state.invalidatedRetentionGroups.contains(value.retentionGroup) else {
+                    guard execution.attemptIDs.allSatisfy({ state.attempts[$0]?.resolution?.status == .completed }) else {
                         throw MiraError(.unauthorized, "The historical execution source is unavailable.")
                     }
-                    replay = value
+                    if !execution.attemptIDs.isEmpty {
+                        _ = try await recordedContextEvidence(in: snapshot, executionID: executionID)
+                    }
                 } else if [.cancelled, .interrupted].contains(completion.status) {
                     if let answer = completion.answer {
-                        guard answer.kind == .visibleAnswer,
-                              state.references[answer.id] == answer,
-                              !state.invalidatedRetentionGroups.contains(answer.retentionGroup) else {
+                        guard answer.kind == .visibleAnswer else {
                             throw MiraError(.unauthorized, "The historical execution source is unavailable.")
                         }
                     }
                     if let thinking = completion.visibleThinking {
-                        guard thinking.kind == .visibleThinking,
-                              state.references[thinking.id] == thinking,
-                              !state.invalidatedRetentionGroups.contains(thinking.retentionGroup) else {
+                        guard thinking.kind == .visibleThinking else {
                             throw MiraError(.unauthorized, "The historical execution source is unavailable.")
                         }
                     }
-                    replay = nil
                 } else {
                     throw MiraError(.unauthorized, "The historical execution source is unavailable.")
                 }
                 let user = try evidenceReference(original: original, sessionID: sessionID)
-                guard state.references[user.body.id] == user.body,
-                      !state.invalidatedRetentionGroups.contains(user.body.retentionGroup) else {
-                    throw MiraError(.unauthorized, "The historical execution source is unavailable.")
-                }
                 resolved[selection.index] = .init(source: sources[selection.index], originalUser: user,
-                    workspaceID: state.header?.workspaceID, replay: replay, observedHead: snapshot.head,
+                    workspaceID: state.header?.workspaceID, observedHead: snapshot.head,
                     sessionAuthorizationEpoch: state.authorizationEpoch)
             }
         }
@@ -483,11 +390,10 @@ public struct JournalSessionReader: Sendable {
 
     private func evidence(original: SessionExecutionState, snapshot: SessionJournalSnapshot) async throws -> SessionUserEvidence {
         let reference = try evidenceReference(original: original, sessionID: snapshot.state.id)
-        guard !snapshot.state.excludedExecutionIDs.contains(original.admission.executionID),
-              !snapshot.state.invalidatedRetentionGroups.contains(reference.body.retentionGroup) else {
+        guard let body = original.admission.userBody else {
             throw Self.unavailableEvidence
         }
-        let bytes = try await payloads.read(reference.body)
+        let bytes = try await payloads.read(body)
         guard let text = String(data: bytes, encoding: .utf8) else {
             throw MiraError(.storage, "The admitted user message contains invalid text encoding.")
         }
@@ -498,11 +404,10 @@ public struct JournalSessionReader: Sendable {
     }
 
     private func evidenceReference(original: SessionExecutionState, sessionID: ConversationID) throws -> SessionEvidenceReference {
-        guard original.admission.retryOfExecutionID == nil, let body = original.admission.userBody,
-              body.batchID == original.admissionBatchID else { throw Self.unavailableEvidence }
+        guard original.admission.retryOfExecutionID == nil, original.admission.userBody != nil else { throw Self.unavailableEvidence }
         let reference = SessionEvidenceReference(sessionID: sessionID, originalExecutionID: original.admission.executionID,
             userMessageID: original.admission.userMessageID, admissionEventID: original.admissionEventID,
-            admissionSequence: original.admissionSequence, body: body)
+            admissionSequence: original.admissionSequence)
         try reference.validate()
         return reference
     }

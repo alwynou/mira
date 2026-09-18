@@ -24,7 +24,9 @@ struct SQLiteLibraryRestorerTests {
                 operationID: UUID(), replacing: nil, expectedRevision: nil,
                 authorization: authorization, at: TaskWorkflowFixture.now)
             let indexJob = try #require(try await memory.pendingMemoryIndexJobs(limit: 4).first)
-            #expect(try await memory.completeMemoryIndexJob(indexJob, vector: [1] + Array(repeating: Float(0), count: 1023), authorization: authorization))
+            var vector = Array(repeating: Float.zero, count: indexJob.identity.dimensions)
+            vector[0] = 1
+            #expect(try await memory.completeMemoryIndexJob(indexJob, vector: vector, authorization: authorization))
             let imported = try await knowledge.importMarkdown(
                 .init(title: "Restored notes.md", bytes: Data("# Restored notes\nretained body".utf8)),
                 workspaceID: nil, updating: nil, expectedRevision: nil, operationID: UUID(),
@@ -33,8 +35,6 @@ struct SQLiteLibraryRestorerTests {
                 draft: .init(title: "Paused reminder", reminderAt: TaskWorkflowFixture.now.addingTimeInterval(3_600)),
                 status: .open)
             let extraction = try SQLiteMemoryExtractionStore(
-                database: fixture.database, libraryID: fixture.authority.libraryID)
-            let privacy = try SQLiteSessionPrivacyPlanStore(
                 database: fixture.database, libraryID: fixture.authority.libraryID)
             let consumer = try SQLiteSessionConsumer(
                 database: fixture.database,
@@ -45,7 +45,6 @@ struct SQLiteLibraryRestorerTests {
             let archive = fixture.directory.appendingPathComponent("restoration-archive")
             try await stopFixtureProducers(fixture)
             await extraction.close()
-            await privacy.close()
             await consumer.close()
             let interrupted = try await stageRestorationDraft(
                 fixture,
@@ -62,12 +61,11 @@ struct SQLiteLibraryRestorerTests {
                 throw error
             }
             await exporter.close()
-            let originalManifest = try await SQLiteLibraryArchiveExporter.validate(at: archive, modules: modules)
-            let exportedDatabase = try DatabaseQueue(path: archive.appendingPathComponent("Business.sqlite").path)
-            #expect(try await exportedDatabase.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_embeddings") } == 0)
-            #expect(try await exportedDatabase.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_embedding_jobs") } == 0)
-            try exportedDatabase.close()
             #expect(try await fixture.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_embeddings") } == 1)
+            let exportDatabase = try DatabaseQueue(path: archive.appendingPathComponent("Business.sqlite").path)
+            #expect(try await exportDatabase.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_embeddings") } == 0)
+            try exportDatabase.close()
+            let originalManifest = try await SQLiteLibraryArchiveExporter.validate(at: archive, modules: modules)
 
             let destination = fixture.directory.appendingPathComponent("restored-library")
             let gate = RestorationSourceGate()
@@ -114,10 +112,10 @@ struct SQLiteLibraryRestorerTests {
                     snapshot.sessions.map(\.head)
                 }
                 #expect(restoredHeads == result.sessions)
-                #expect(try await restoredMemory.pendingMemoryIndexJobs(limit: 4).map(\.memoryID) == [savedMemory.memory.id])
                 let memories = try await restoredMemory.memoryList(
                     workspaceID: nil, states: [.active, .candidate, .archived], query: "retained", limit: 10)
                 #expect(memories.memories.contains { $0.draft?.content == "A retained archive memory" })
+                #expect(try await restoredMemory.pendingMemoryIndexJobs(limit: 4).contains { $0.memoryID == savedMemory.memory.id })
                 let sources = try await restoredKnowledge.knowledgeSources(
                     scope: .init(workspaceID: nil, destination: .local), limit: 10)
                 #expect(sources.contains { $0.id == imported.source.id })
@@ -148,10 +146,9 @@ struct SQLiteLibraryRestorerTests {
                     if head.cursor.sessionID == interrupted.sessionID {
                         let completion = try #require(state.executions[interrupted.executionID]?.completion)
                         #expect(completion.status == .interrupted)
-                        let answer = try #require(completion.answer)
-                        let thinking = try #require(completion.visibleThinking)
-                        #expect(try await restoredLibrary.read(answer) == Data("Draft from retained memory".utf8))
-                        #expect(try await restoredLibrary.read(thinking) == Data("Thinking from retained memory".utf8))
+                        // This fixture has no settled output; process-local streams are absent from an archive.
+                        #expect(completion.answer == nil)
+                        #expect(completion.visibleThinking == nil)
                     }
                     await runtime.close()
                 }
@@ -165,7 +162,7 @@ struct SQLiteLibraryRestorerTests {
                     let messages = try await projection.messages(
                         sessionID: restoredHead.cursor.sessionID, beforeSequence: nil, limit: 10)
                     #expect(messages.contains { $0.role == .user && $0.body != nil })
-                    #expect(messages.contains { $0.role == .assistant && $0.body != nil })
+                    #expect(!messages.contains { $0.role == .assistant && $0.body != nil })
                     let executions = try await projection.executions(
                         sessionID: restoredHead.cursor.sessionID, beforeSequence: nil, limit: 10)
                     #expect(executions.count == 1)
@@ -205,8 +202,6 @@ struct SQLiteLibraryRestorerTests {
             let authorization = try await fixture.authority.authorization()
             let extraction = try SQLiteMemoryExtractionStore(
                 database: fixture.database, libraryID: fixture.authority.libraryID)
-            let privacy = try SQLiteSessionPrivacyPlanStore(
-                database: fixture.database, libraryID: fixture.authority.libraryID)
             let consumer = try SQLiteSessionConsumer(
                 database: fixture.database,
                 identity: .init(id: "restorer.fault.consumer", revision: 1),
@@ -214,7 +209,6 @@ struct SQLiteLibraryRestorerTests {
             let modules = try restorationModules()
             try await stopFixtureProducers(fixture)
             await extraction.close()
-            await privacy.close()
             await consumer.close()
             let archive = fixture.directory.appendingPathComponent("fault-archive")
             let exporter = try SQLiteLibraryArchiveExporter(
@@ -274,7 +268,6 @@ private func restorationModules() throws -> [SQLiteArchiveModule] {
         try SQLiteTaskStore.archiveModule(),
         try SQLiteBusinessEffects.archiveModule(),
         try SQLiteSessionConsumer.archiveModule(),
-        try SQLiteSessionPrivacyPlanStore.archiveModule(),
     ]
 }
 
@@ -400,8 +393,8 @@ private final class RestorationFaultProbe: @unchecked Sendable {
     var wasHit: Bool { lock.withLock { reached } }
 }
 
-// Stage a current-format interrupted prefix after all application producers are closed.
-// Every admission, attempt and draft still passes the real SessionRuntime reducer.
+// Stage a current-format interrupted attempt after all application producers are closed.
+// Every admission and attempt still passes the real SessionRuntime reducer.
 private func stageRestorationDraft(_ fixture: TaskWorkflowFixture, source: AgentSourceReference) async throws
     -> AgentExecutionAddress
 {
@@ -411,22 +404,19 @@ private func stageRestorationDraft(_ fixture: TaskWorkflowFixture, source: Agent
     do {
         let admitted = await runtime.commit(id: UUID()) { context in
             let title = try await context.stageBytes(
-                Data("Restoration draft".utf8), kind: .title, retentionGroup: UUID())
+                Data("Restoration draft".utf8), kind: .title)
             let user = try await context.stageBytes(
-                Data("Restore this draft".utf8), kind: .userText, retentionGroup: UUID())
+                Data("Restore this draft".utf8), kind: .userText)
             let plan = AgentExecutionPlan(
                 runtimeID: UUID(), catalogGeneration: 1, driverID: "mira.default", driverRevision: 1,
                 instructions: "Retain this draft.", limits: .init(), priority: .foreground, route: fixture.route)
-            let planReference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
-            // Exercise catalog ordering with both an active draft and an external body.
-            let external = try await context.stageBytes(Data([0xff, 0xfe]), kind: .module, retentionGroup: UUID())
+            let planReference = try await context.stage(plan, kind: .executionPlan)
             return [
                 .opened(.init(workspaceID: nil, title: title)),
                 .admitted(
                     .init(
                         executionID: address.executionID, userMessageID: .init(), userBody: user,
                         plan: planReference, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC")),
-                .extensionRecorded(namespace: "tests.archive.external", schemaVersion: 1, required: false, body: external),
             ]
         }
         try taskRequireCommitted(admitted)
@@ -445,22 +435,16 @@ private func stageRestorationDraft(_ fixture: TaskWorkflowFixture, source: Agent
                 prepared: .init(
                     adapter: fixture.route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                 inheritedSources: [source], evidence: [], omissions: [])
-            let staged = try await AgentRequestRecord.stage(build, context: context)
+            let requestReference = try await context.stage(AgentSessionRequest(build), kind: .request)
             return [
                 .phaseChanged(executionID: address.executionID, phase: .preparing),
                 .attemptStarted(
                     .init(
                         id: attemptID, executionID: address.executionID, stepID: stepID,
-                        stepIndex: 1, attemptIndex: 1, request: staged.request, contents: staged.contents)),
+                        stepIndex: 1, attemptIndex: 1, request: requestReference)),
             ]
         }
         try taskRequireCommitted(started)
-        let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
-        let request = try #require(requestValue)
-        try await runtime.saveActiveDraft(.init(request: request, executionID: address.executionID, attemptID: attemptID,
-            authorizationEpoch: 0, revision: 1, blocks: [
-                .init(id: "answer", content: .text("Draft from retained memory")),
-                .init(id: "thinking", content: .thinking("Thinking from retained memory"))]))
         await runtime.close()
         return address
     } catch {

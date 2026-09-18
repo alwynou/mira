@@ -97,7 +97,7 @@ struct AgentExecutionPlanTests {
     private func invalidRoute() -> AgentModelRoute {
         .init(id: RouteID(), revision: 0, connectionID: ConnectionID(), connectionRevision: 1,
               modelDescriptorID: ModelDescriptorID(), modelRevision: 1,
-              modelAuthorizationRevision: 1, adapter: .init(id: "model.adapter", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "fixture", credential: nil,
+              modelAuthorizationRevision: 1, adapter: .init(id: "model.adapter", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "fixture", credential: nil,
               contextWindow: 4_096, maximumOutputTokens: 512,
               capabilities: .init(streamsText: true, callsTools: false, producesThinking: false),
               configuration: .object([:]))

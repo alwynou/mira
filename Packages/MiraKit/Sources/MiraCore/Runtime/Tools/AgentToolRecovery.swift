@@ -55,12 +55,15 @@ actor AgentToolRecovery {
                 let invocation = item.invocation
                 try await denyPendingApproval(invocation, executionID: executionID)
                 if item.dispatchedAt == nil {
-                    try await resolve(invocation, status: .cancelledBeforeDispatch)
+                    try await resolve(invocation, status: .cancelledBeforeDispatch,
+                                      error: MiraError(.cancelled, "The tool was cancelled before dispatch."))
                 } else if invocation.effect == .localWrite {
                     try await reconcile(proof(for: id, executionID: executionID), invocation: invocation,
                         absentStatus: .interrupted)
                 } else {
-                    try await resolve(invocation, status: .interrupted, known: invocation.effect == .read)
+                    try await resolve(invocation, status: .interrupted,
+                                      error: MiraError(.interrupted, "The tool was interrupted before recovery could confirm its result."),
+                                      known: invocation.effect == .read)
                 }
             }
         }
@@ -96,17 +99,18 @@ actor AgentToolRecovery {
     }
 
     private func resolve(_ invocation: SessionInvocation, status: ToolResultStatus, bytes: Data? = nil,
+                         error: MiraError? = nil,
                          receipt: AgentBusinessReceiptReference? = nil,
-                         purged: Bool = false, known: Bool = true) async throws {
+                         known: Bool = true) async throws {
         let result = await runtime.commit(id: environment.uuid()) { command in
-            let reference: SessionPayloadReference?
+            let reference: SessionContent?
             if let bytes {
-                reference = try await command.stageBytes(bytes, kind: .toolResult, retentionGroup: UUID())
+                reference = try await command.stageBytes(bytes, kind: .toolResult)
             } else {
                 reference = nil
             }
             var facts: [SessionFact] = [.toolResolved(.init(invocationID: invocation.id, status: status,
-                result: reference, businessReceipt: receipt, resultWasPurged: purged, effectIsKnown: known))]
+                result: reference, businessReceipt: receipt, effectIsKnown: known, error: error))]
             if let executionID = command.state.attempts[invocation.attemptID]?.attempt.executionID,
                command.state.executions[executionID]?.phase == .waitingForTools {
                 let remaining = command.state.invocations.values.filter { value in
@@ -128,8 +132,7 @@ actor AgentToolRecovery {
 
     private func publish(_ receipt: AgentBusinessReceipt, invocation: SessionInvocation) async throws {
         try await resolve(invocation, status: .succeeded, bytes: receipt.result,
-                          receipt: receipt.reference,
-                          purged: receipt.result == nil)
+                          receipt: receipt.reference)
     }
 
     private func reconcile(_ proof: AgentEffectProof, invocation: SessionInvocation,
@@ -138,7 +141,13 @@ actor AgentToolRecovery {
         case .committed(let receipt):
             try await publish(receipt, invocation: invocation)
         case .absent:
-            try await resolve(invocation, status: absentStatus)
+            let error: MiraError
+            switch absentStatus {
+            case .failed: error = MiraError(.storage, "The tool effect was not committed.")
+            case .interrupted: error = MiraError(.interrupted, "The tool effect could not be confirmed after interruption.")
+            default: error = MiraError(.storage, "The tool effect did not produce a result.")
+            }
+            try await resolve(invocation, status: absentStatus, error: error)
         case .unavailable(let error):
             throw error
         }

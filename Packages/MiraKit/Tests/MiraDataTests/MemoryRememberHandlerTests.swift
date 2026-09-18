@@ -64,12 +64,11 @@ struct MemoryRememberHandlerTests {
         let contextEvidence = evidence ?? self.evidence(text: content, sessionID: sessionID ?? ConversationID(),
                                                          executionID: executionID ?? ExecutionID(), messageID: messageID ?? MessageID(),
                                                          batchID: batchID ?? UUID())
-        let sessionID = contextEvidence.reference.sessionID
         let executionID = contextEvidence.reference.originalExecutionID
         let invocationID = UUID()
         let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
             modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "memory.fixture", revision: 1),
-            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "memory", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
+            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "memory", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
             capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:]))
         let arguments = input ?? .object([
             "content": .string(content), "quote": .string(quote ?? content), "kind": .string("fact"),
@@ -86,11 +85,8 @@ struct MemoryRememberHandlerTests {
 
     private func evidence(text: String, sessionID: ConversationID, executionID: ExecutionID,
                           messageID: MessageID, batchID: UUID) -> SessionUserEvidence {
-        let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
-            retentionGroup: UUID(), kind: .userText, byteCount: text.utf8.count,
-            digest: String(repeating: "a", count: 64))
         return .init(reference: .init(sessionID: sessionID, originalExecutionID: executionID, userMessageID: messageID,
-                                      admissionEventID: UUID(), admissionSequence: 1, body: body),
+                                      admissionEventID: UUID(), admissionSequence: 1),
                      workspaceID: nil, admittedAt: Date(timeIntervalSince1970: 1_700_000_000), timeZoneIdentifier: "UTC",
                      text: text, observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID),
                      sessionAuthorizationEpoch: 0)

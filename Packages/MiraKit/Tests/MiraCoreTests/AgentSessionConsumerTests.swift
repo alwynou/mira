@@ -330,7 +330,7 @@ private final class ConsumerFixture: Sendable {
         } : [])
         if extensionBatch {
             let id = UUID()
-            let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: id, retentionGroup: UUID(), kind: .module, byteCount: 1, digest: String(repeating: "a", count: 64))
+            let body = SessionContent(id: UUID(), kind: .module, bytes: Data("x".utf8))
             entries = [batch(sessionID: sessionID, expected: 0, sequence: 1, id: id, fact: .extensionRecorded(namespace: "unknown", schemaVersion: 1, required: true, body: body))]
         }
         let journal = ConsumerJournal(batches: entries)

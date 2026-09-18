@@ -197,7 +197,7 @@ actor MacLibraryWorkloads {
             cleanups.append { await memoryIndex.close() }
             let memories = MemoryApplication(
                 store: storage.memories, extractionStatusReader: storage.extraction,
-                reader: reader, privacyHistory: storage.privacyPlans, access: access, scope: scope, now: environment.now)
+                reader: reader, access: access, scope: scope, now: environment.now)
             cleanups.append { await memories.close() }
             let knowledge = KnowledgeApplication(
                 store: storage.knowledge, reader: reader,

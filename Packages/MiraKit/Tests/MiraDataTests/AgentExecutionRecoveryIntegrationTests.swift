@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Agent execution recovery integration")
 struct AgentExecutionRecoveryIntegrationTests {
-    @Test func libraryRestorationSettlesPartialDraftLocally() async throws {
+    @Test func libraryRestorationSettlesInterruptedAttemptWithoutUncommittedContent() async throws {
         let fixture = try await RecoveryFixture.make(includeAttempt: true)
         await fixture.runtime.close()
         let restoration = AgentLibraryRestoration(
@@ -16,19 +16,17 @@ struct AgentExecutionRecoveryIntegrationTests {
             journal: fixture.library, payloads: fixture.library)
         let state = await reopened.snapshot()
         #expect(state.executions[fixture.executionID]?.completion?.status == .interrupted)
-        let answer = try #require(state.executions[fixture.executionID]?.completion?.answer)
-        let thinking = try #require(state.executions[fixture.executionID]?.completion?.visibleThinking)
-        #expect(try await fixture.library.read(answer) == Data("partial answer".utf8))
-        #expect(try await fixture.library.read(thinking) == Data("partial thinking".utf8))
+        #expect(state.executions[fixture.executionID]?.completion?.answer == nil)
+        #expect(state.executions[fixture.executionID]?.completion?.visibleThinking == nil)
         #expect(await fixture.journalFactCount(.toolDispatched) == 0)
-        #expect(await fixture.authorizer.localValidationCount > 0)
+        #expect(await fixture.authorizer.localValidationCount == 0)
         await reopened.close()
         await restoration.close()
         await fixture.close()
     }
 
-    @Test func libraryRestorationSuppressesRevokedDraftContent() async throws {
-        let fixture = try await RecoveryFixture.make(includeAttempt: true)
+    @Test func libraryRestorationSuppressesRevokedContent() async throws {
+        let fixture = try await RecoveryFixture.make(includeAttempt: true, includeSettledOutput: true)
         await fixture.authorizer.set(.unauthorized)
         await fixture.runtime.close()
         let restoration = AgentLibraryRestoration(
@@ -47,7 +45,7 @@ struct AgentExecutionRecoveryIntegrationTests {
     }
 
     @Test func libraryRestorationLeavesSessionUnsettledOnUnavailableAuthority() async throws {
-        let fixture = try await RecoveryFixture.make(includeAttempt: true)
+        let fixture = try await RecoveryFixture.make(includeAttempt: true, includeSettledOutput: true)
         await fixture.authorizer.set(.storage)
         await fixture.runtime.close()
         let restoration = AgentLibraryRestoration(
@@ -115,15 +113,13 @@ struct AgentExecutionRecoveryIntegrationTests {
         let original = await fixture.runtime.snapshot()
         guard let execution = original.executions[fixture.executionID],
               let completion = execution.completion,
-              completion.status == .interrupted,
-              let answer = completion.answer,
-              let thinking = completion.visibleThinking else {
-            Issue.record("Recovery did not persist the interrupted draft contents.")
+              completion.status == .interrupted else {
+            Issue.record("Recovery did not persist the interrupted terminal state.")
             await fixture.close()
             return
         }
-        #expect(try await fixture.library.read(answer) == Data("partial answer".utf8))
-        #expect(try await fixture.library.read(thinking) == Data("partial thinking".utf8))
+        #expect(completion.answer == nil)
+        #expect(completion.visibleThinking == nil)
         #expect(await fixture.journalFactCount(.attemptResolved) == 1)
 
         let directory = fixture.directory
@@ -144,8 +140,8 @@ struct AgentExecutionRecoveryIntegrationTests {
         }
     }
 
-    @Test func unauthorizedRecoverySuppressesPartialVisibleContent() async throws {
-        let fixture = try await RecoveryFixture.make(includeAttempt: true)
+    @Test func unauthorizedRecoverySuppressesSettledVisibleContent() async throws {
+        let fixture = try await RecoveryFixture.make(includeAttempt: true, includeSettledOutput: true)
         await fixture.authorizer.set(.unauthorized)
         let result = await fixture.recovery().settle()
         guard case .committed = result else {
@@ -158,14 +154,78 @@ struct AgentExecutionRecoveryIntegrationTests {
         #expect(completion.status == .interrupted)
         #expect(completion.answer == nil)
         #expect(completion.visibleThinking == nil)
-        #expect(completion.replay == nil)
         let error = try #require(completion.error)
         #expect(try SessionCodec.decode(MiraError.self, from: await fixture.library.read(error)).code == .unauthorized)
         await fixture.close()
     }
 
-    @Test func storageFailureRetainsSettlementUntilAuthorizationRecovers() async throws {
+    @Test func unauthorizedToolProposalSourceSuppressesRecoveredPartialContent() async throws {
         let fixture = try await RecoveryFixture.make(includeAttempt: true)
+        let state = await fixture.runtime.snapshot()
+        let execution = try #require(state.executions[fixture.executionID])
+        let attemptID = try #require(execution.attemptIDs.last)
+        let call = CanonicalToolCall(id: "call-1", name: "tests.read", arguments: "{}")
+        let source = AgentSourceReference.domain(namespace: "fixture", id: UUID(), revision: 1)
+        let descriptor = AgentToolDescriptor(
+            definition: .init(name: "tests.read", description: "Synthetic read",
+                              inputSchema: .object(["type": .string("object"), "properties": .object([:]),
+                                                    "additionalProperties": .bool(false)])),
+            revision: 1,
+            outputSchema: .object(["type": .string("object"), "properties": .object([:]),
+                                   "additionalProperties": .bool(false)]),
+            executionMode: .exclusive, timeoutMilliseconds: 1_000, maximumResultBytes: 1_024)
+        let proposal = AgentToolProposal(descriptor: descriptor, effect: .read, businessNamespace: nil,
+            callDigest: String(repeating: "a", count: 64), inheritedSources: [],
+            plan: .init(input: .object([:]), sources: [source], targets: []))
+        let result = await fixture.runtime.commit(id: UUID()) { context in
+            let output = try await context.stage(AgentModelOutput(
+                blocks: [.init(id: "tool", content: .toolCall(call))], continuation: nil,
+                usage: .init(), finishReason: .toolCalls), kind: .modelOutput)
+            let callReference = try await context.stage(call, kind: .toolCall)
+            let proposalReference = try await context.stage(proposal, kind: .effectIntent)
+            let invocationID = UUID()
+            return [.attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
+                    .toolProposed(.init(id: invocationID, attemptID: attemptID, modelOrder: 0,
+                        toolName: call.name, effect: .read, call: callReference)),
+                    .phaseChanged(executionID: fixture.executionID, phase: .waitingForTools),
+                    .toolPrepared(.init(invocationID: invocationID,
+                        authorization: .init(libraryID: UUID(), epoch: 0), proposal: proposalReference)),
+                    .toolResolved(.init(invocationID: invocationID, status: .denied)),
+                    .phaseChanged(executionID: fixture.executionID, phase: .preparing)]
+        }
+        guard case .committed = result else { Issue.record("Tool proposal setup did not commit"); await fixture.close(); return }
+        await fixture.authorizer.deny(source)
+        let settled = await fixture.recovery().settle()
+        guard case .committed = settled else { Issue.record("Recovery did not settle after source revocation"); await fixture.close(); return }
+        let completion = try #require(await fixture.runtime.snapshot().executions[fixture.executionID]?.completion)
+        #expect(completion.status == .interrupted)
+        #expect(completion.answer == nil)
+        #expect(completion.visibleThinking == nil)
+
+        let currentID = ExecutionID()
+        let current = await fixture.runtime.commit(id: UUID()) { context in
+            let body = try await context.stageBytes(Data("Current question".utf8), kind: .userText)
+            let plan = try await context.stage(try await AgentExecutionPlan.read(
+                for: execution.admission, from: context.payloads), kind: .executionPlan)
+            return [.admitted(.init(executionID: currentID, userMessageID: MessageID(), userBody: body,
+                plan: plan, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
+        }
+        guard case .committed = current else { Issue.record("Current execution setup did not commit"); await fixture.close(); return }
+        let currentState = await fixture.runtime.snapshot()
+        let currentExecution = try #require(currentState.executions[currentID])
+        let currentRoute = try await AgentExecutionPlan.read(for: currentExecution.admission, from: fixture.library).route
+        let currentRequest = AgentContextRequest(sessionID: fixture.sessionID, executionID: currentID, workspaceID: nil,
+            userText: "Current question", authorizationEpoch: 0, destination: .model(try #require(currentRoute)))
+        await #expect(throws: MiraError.self) {
+            _ = try await JournalAgentHistoryReader(payloads: fixture.library).read(
+                state: currentState, request: currentRequest, route: try #require(currentRoute),
+                adapter: RecoveryHistoryAdapter(), authorizer: fixture.authorizer)
+        }
+        await fixture.close()
+    }
+
+    @Test func storageFailureRetainsSettlementUntilAuthorizationRecovers() async throws {
+        let fixture = try await RecoveryFixture.make(includeAttempt: true, includeSettledOutput: true)
         let recovery = fixture.recovery()
         await fixture.authorizer.set(.storage)
         let first = await recovery.settle()
@@ -260,17 +320,34 @@ private actor RecoveryBusiness: AgentBusinessReceipts {
 private actor RecoveryAuthorizer: AgentSourceAuthorizer {
     enum Decision: Sendable { case allow, unauthorized, storage }
     private var decision: Decision = .allow
+    private var deniedSource: AgentSourceReference?
     private(set) var localValidationCount = 0
 
     func set(_ decision: Decision) { self.decision = decision }
+    func deny(_ source: AgentSourceReference) { deniedSource = source; decision = .allow }
     func validate(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {
         if case .local = request.destination { localValidationCount += 1 }
+        if let deniedSource, sources.contains(deniedSource) {
+            throw MiraError(.unauthorized, "Synthetic tool source authorization was revoked.")
+        }
         switch decision {
         case .allow: return
         case .unauthorized: throw MiraError(.unauthorized, "Synthetic source authorization was revoked.")
         case .storage: throw MiraError(.storage, "Synthetic source authorization storage failed.")
         }
     }
+}
+
+private struct RecoveryHistoryAdapter: AgentModelAdapter {
+    let identity = AgentAdapterIdentity(id: "synthetic.model", revision: 1)
+    func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest {
+        .init(adapter: identity, input: input, wirePayload: .object([:]), estimatedInputTokens: 1)
+    }
+    func stream(_ request: AgentPreparedModelRequest, route: AgentModelRoute) -> AgentModelOperation {
+        fatalError("The recovery history regression must not dispatch a model.")
+    }
+    func replay(_ messages: [AgentModelMessage], from source: AgentModelRoute, to target: AgentModelRoute,
+                boundary: AgentReplayBoundary) throws -> AgentReplayDecision { .include(messages) }
 }
 
 private final class RecoveryFixture: Sendable {
@@ -291,7 +368,8 @@ private final class RecoveryFixture: Sendable {
         self.business = business; self.authorizer = authorizer; self.fault = fault
     }
 
-    static func make(includeAttempt: Bool, fault: RecoveryFault? = nil) async throws -> RecoveryFixture {
+    static func make(includeAttempt: Bool, includeSettledOutput: Bool = false,
+                     fault: RecoveryFault? = nil) async throws -> RecoveryFixture {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("mira-recovery-\(UUID().uuidString)")
         let library: FileSessionLibrary
@@ -308,12 +386,12 @@ private final class RecoveryFixture: Sendable {
             sessionID: sessionID, executionID: executionID, business: business, authorizer: authorizer, fault: fault)
         let admittedRoute = includeAttempt ? Self.route() : nil
         let committed = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Recovery test".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Recover this".utf8), kind: .userText, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Recovery test".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Recover this".utf8), kind: .userText)
             let plan = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1,
                 driverID: "mira.default", driverRevision: 1, instructions: "Recover.", limits: .init(),
                 priority: .foreground, route: admittedRoute)
-            let planReference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+            let planReference = try await context.stage(plan, kind: .executionPlan)
             return [.opened(.init(workspaceID: nil, title: title)),
                     .admitted(.init(executionID: executionID, userMessageID: MessageID(),
                         userBody: user, plan: planReference, hasModelRoute: admittedRoute != nil,
@@ -332,19 +410,21 @@ private final class RecoveryFixture: Sendable {
                 prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
                 inheritedSources: [], evidence: [], omissions: [])
             let started = await runtime.commit(id: UUID()) { context in
-                let staged = try await AgentRequestRecord.stage(build, context: context)
+                let request = try await context.stage(AgentSessionRequest(build), kind: .request)
                 return [.phaseChanged(executionID: executionID, phase: .preparing),
                         .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID,
-                            stepIndex: 1, attemptIndex: 1, request: staged.request, contents: staged.contents))]
+                            stepIndex: 1, attemptIndex: 1, request: request))]
             }
             try requireCommitted(started, stage: "attempt")
-            let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
-            let requestReference = try #require(requestValue)
-            try await runtime.saveActiveDraft(.init(
-                request: requestReference, executionID: executionID, attemptID: attemptID,
-                authorizationEpoch: 0, revision: 1, blocks: [
-                    .init(id: "thinking", content: .thinking("partial thinking")),
-                    .init(id: "answer", content: .text("partial answer"))]))
+            if includeSettledOutput {
+                let resolved = await runtime.commit(id: UUID()) { context in
+                    let output = try await context.stage(AgentModelOutput(
+                        blocks: [.init(id: "answer", content: .text("Retained recovery answer."))],
+                        continuation: nil, usage: .init(), finishReason: .stop), kind: .modelOutput)
+                    return [.attemptResolved(.init(attemptID: attemptID, status: .completed, output: output))]
+                }
+                try requireCommitted(resolved, stage: "settled output")
+            }
         }
         return fixture
     }
@@ -352,9 +432,9 @@ private final class RecoveryFixture: Sendable {
     private static func route() -> AgentModelRoute {
         .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
               modelDescriptorID: ModelDescriptorID(), modelRevision: 1,
-              modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "synthetic",
+              modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "synthetic",
               credential: nil, contextWindow: 4_096, maximumOutputTokens: 128,
-              capabilities: .init(streamsText: true, callsTools: false, producesThinking: false),
+              capabilities: .init(streamsText: true, callsTools: true, producesThinking: false),
               configuration: .object([:]))
     }
 

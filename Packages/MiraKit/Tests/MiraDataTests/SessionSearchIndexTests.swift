@@ -60,11 +60,9 @@ struct SessionSearchIndexTests {
     }
 
     private func reference(
-        _ session: ConversationID, _ batch: UUID, kind: SessionPayloadKind, text: String, group: UUID = UUID()
-    ) -> SessionPayloadReference {
-        .init(
-            id: UUID(), sessionID: session, batchID: batch, retentionGroup: group, kind: kind,
-            byteCount: text.utf8.count, digest: FileSessionIO.digest(Data(text.utf8)))
+        _ session: ConversationID, _ batch: UUID, kind: SessionContentKind, text: String
+    ) -> SessionContent {
+        .init(id: UUID(), kind: kind, bytes: Data(text.utf8))
     }
 
     private func update(
@@ -169,41 +167,6 @@ struct SessionSearchIndexTests {
                                 .init(workspaceID: nil, title: reference(session, bid, kind: .title, text: "other"))))
                     ]), documents: [])
             await #expect(throws: MiraError.self) { try await index.apply(conflict) }
-        }
-    }
-
-    @Test("Invalidation removes every document in a retention group and clear recreates identity")
-    func invalidationAndClear() async throws {
-        let path = try temporaryPath()
-        try await withIndex(path) { index in
-            let session = ConversationID()
-            let group = UUID()
-            let bid = UUID()
-            let title = reference(session, bid, kind: .title, text: "secret", group: group)
-            let opened = SessionEvent(
-                sequence: 1, occurredAt: Date(), fact: .opened(.init(workspaceID: nil, title: title)))
-            try await index.apply(
-                update(
-                    session: session, batchID: bid, expected: 0, event: opened,
-                    document: .init(
-                        location: .init(
-                            sessionID: session, messageID: nil, executionID: nil, part: .title, sequence: 1,
-                            occurredAt: opened.occurredAt, reference: title), text: "secret")))
-            let invalidation = SessionInvalidation(
-                operationID: UUID(), executionIDs: [], retentionGroups: [group], authorizationEpoch: 1,
-                reason: .forgotten)
-            try await index.apply(
-                .init(
-                    batch: .init(
-                        id: UUID(), sessionID: session, expectedSequence: 1,
-                        events: [.init(sequence: 2, occurredAt: Date(), fact: .invalidated(invalidation))]),
-                    documents: []))
-            #expect((try await index.search(.init(text: "secret"), after: nil, limit: 10)).matches.isEmpty)
-            let old = try await index.head(sessionID: session)
-            try await index.clear()
-            try await index.verifyEmpty()
-            #expect((try await index.head(sessionID: session)) == nil)
-            #expect(old != nil)
         }
     }
 

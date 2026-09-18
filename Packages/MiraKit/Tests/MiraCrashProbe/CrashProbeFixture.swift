@@ -32,10 +32,6 @@ final class CrashProbeFixture: Sendable {
     let business: SQLiteBusinessEffects
     let workspaces: SQLiteWorkspaceStore
     static let now = Date(timeIntervalSince1970: 1_800_000_000)
-    static let interruptedThought = String(repeating: "Synthetic thought. ", count: 320)
-    static let interruptedContinuation = AgentModelContinuation(
-        adapter: .init(id: "crash.model", revision: 1),
-        format: "crash.opaque", payload: .object(["token": .string("opaque-retained")]), isComplete: false)
 
     private init(
         context: CrashProbeContext, gate: ProbeCrashGate, database: DatabaseQueue,
@@ -79,7 +75,7 @@ final class CrashProbeFixture: Sendable {
                 database: db,
                 validators: [
                     .init(
-                        identity: .init(namespace: "crash.privacy", revision: 1),
+                        identity: .init(namespace: "crash.synthetic", revision: 1),
                         validate: { request, _ in try request.validate() })
                 ])
             authority = a
@@ -179,30 +175,39 @@ final class CrashProbeFixture: Sendable {
 final class ProbeCrashGate: @unchecked Sendable {
     private let lock = NSLock()
     private var scenario: String?
+    private var modelDispatchCount = 0
     private let context: CrashProbeContext
     init(context: CrashProbeContext) { self.context = context }
-    func arm(_ scenario: String) { lock.withLock { self.scenario = scenario } }
-    var emitsInterruptedThinking: Bool { lock.withLock { scenario == "thinkingDraft" } }
+    func arm(_ scenario: String) {
+        lock.withLock {
+            self.scenario = scenario
+            modelDispatchCount = 0
+        }
+    }
+    var emitsInterruptedThinking: Bool { lock.withLock { scenario == "interruptedStream" } }
+    func modelDispatched() throws {
+        let shouldPause = lock.withLock {
+            modelDispatchCount += 1
+            return scenario == "interruptedStream" && modelDispatchCount >= 2
+        }
+        if shouldPause { try context.pause() }
+    }
     func businessCommitted() throws {
         if lock.withLock({ scenario == "businessCommitted" }) { try context.pause() }
     }
     func storage(_ stage: SessionStorageFaultStage) throws {
-        if stage == .afterPayloadDelete || stage == .afterInlinePurgePublication,
-           lock.withLock({ scenario == "privacyBodyDeleted" }) { try context.pause() }
-        if stage == .afterActiveDraftPublication, lock.withLock({ scenario == "thinkingDraft" }) { try context.pause() }
     }
     func appended(_ batch: SessionBatch) throws {
         let scenario = lock.withLock { self.scenario }
         let selected = lock.withLock {
-            batch.events.contains { event in
+            batch.events.contains(where: { event in
                 switch event.fact {
                 case .toolResolved(let value): return scenario == "toolResultPublished" && value.businessReceipt != nil
-                case .invalidated: return scenario == "privacyInvalidated"
                 case .admitted: return scenario == "admissionPublished"
                 case .finished: return scenario == "terminalPublished"
                 default: return false
                 }
-            }
+            })
         }
         if selected { try context.pause() }
     }
@@ -262,19 +267,17 @@ private struct ProbeModel: AgentModelAdapter {
                 try await database.write { db in
                     try db.execute(sql: "UPDATE probe_counts SET value = value + 1 WHERE kind = 'model'")
                 }
+                try gate.modelDispatched()
                 try Task.checkCancellation()
-                if gate.emitsInterruptedThinking {
-                    continuation.yield(.continuation(CrashProbeFixture.interruptedContinuation))
-                    continuation.yield(.blockStarted(.init(id: "thinking", content: .thinking(CrashProbeFixture.interruptedThought))))
-                    // Simulate an open transport. Sidecar publication triggers the crash.
-                    try await Task.sleep(for: .seconds(60))
-                    throw MiraError(.timeout, "The stalled probe transport was not interrupted.")
-                }
                 if request.input.messages.last?.role == .tool {
                     continuation.yield(.blockStarted(.init(id: "text", content: .text("The synthetic counter was recorded."))))
                     continuation.yield(.blockFinished(id: "text"))
                     continuation.yield(.finished(.stop))
                 } else {
+                    if gate.emitsInterruptedThinking {
+                        continuation.yield(.blockStarted(.init(id: "earlier", content: .text("Earlier committed answer."))))
+                        continuation.yield(.blockFinished(id: "earlier"))
+                    }
                     continuation.yield(.blockStarted(.init(id: "tool-0", content: .toolCall(.init(id: "counter", name: "crash.counter", arguments: "{}")))))
                     continuation.yield(.blockFinished(id: "tool-0"))
                     continuation.yield(.finished(.toolCalls))

@@ -4,10 +4,11 @@ import Foundation
 /// must not prevent the kernel from accepting cancellation or latching a deadline failure.
 struct AgentModelPreparation: Sendable {
     let runtime: SessionRuntime
-    let payloads: any SessionPayloadReader
+    let payloads: any SessionContentReader
     let request: AgentContextRequest
     let instructions: String
-    let trace: AgentContextHistory
+    let currentTrace: AgentContextHistory
+    let frozenContext: AgentFrozenContext?
     let tools: [ToolDefinition]
     let route: AgentModelRoute
     let adapter: any AgentModelAdapter
@@ -19,7 +20,7 @@ struct AgentModelPreparation: Sendable {
         guard request.destination == .model(route) else {
             throw MiraError(.configuration, "The model operation does not match its frozen context.")
         }
-        try await authorizer.validate(trace.sources, for: request)
+        try await authorizer.validate(currentTrace.sources, for: request)
         try Task.checkCancellation()
         let currentTrace = try replayTrace()
         let state = await runtime.snapshot()
@@ -29,22 +30,23 @@ struct AgentModelPreparation: Sendable {
         try Task.checkCancellation()
         return try await AgentContextAssembler().build(request: request, stepID: stepID,
             instructions: instructions, history: history, currentTrace: currentTrace, tools: tools,
-            route: route, adapter: adapter, contributors: contributors, authorizer: authorizer)
+            route: route, adapter: adapter, contributors: contributors, authorizer: authorizer,
+            frozenContext: frozenContext)
     }
 
     private func replayTrace() throws -> AgentContextHistory {
-        if trace.messages.isEmpty { return trace }
-        guard case .include(let messages) = try adapter.replay(trace.messages, from: route, to: route, boundary: .sameExecution),
-              messages.count == trace.messages.count else {
+        if currentTrace.messages.isEmpty { return currentTrace }
+        guard case .include(let messages) = try adapter.replay(currentTrace.messages, from: route, to: route, boundary: .sameExecution),
+              messages.count == currentTrace.messages.count else {
             throw MiraError(.unsupported, "The adapter cannot replay this execution's tool exchange.")
         }
         try Task.checkCancellation()
-        for (old, new) in zip(trace.messages, messages) {
+        for (old, new) in zip(currentTrace.messages, messages) {
             guard old.role == new.role, old.blocks == new.blocks,
                   new.continuation == old.continuation else {
                 throw MiraError(.malformedStream, "The adapter changed the current execution's replay content.")
             }
         }
-        return .init(messages: messages, sources: trace.sources)
+        return .init(messages: messages, sources: currentTrace.sources)
     }
 }

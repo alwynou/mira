@@ -18,7 +18,7 @@ struct MemoryExtractionWorkerTests {
             #expect(input.messages[0].text.contains(claim.source.text))
             #expect(input.messages[0].text.contains("createdAt"))
             #expect(input.messages[0].text.contains("timeZone"))
-            #expect(!input.messages[0].text.contains(claim.source.reference.body.digest))
+            #expect(!input.messages[0].text.contains(claim.source.reference.userMessageID.rawValue.uuidString))
         }
     }
 
@@ -221,14 +221,13 @@ private struct WorkerFixture: Sendable {
         let runtime = try await SessionRuntime.open(id: sessionID, journal: journal, payloads: journal)
         let routeInfo = WorkerRoute.make()
         let result = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Memory worker".utf8), kind: .title, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Memory worker".utf8), kind: .title)
             let user = try await context.stageBytes(
-                Data("I prefer compact interfaces".utf8), kind: .userText, retentionGroup: UUID())
+                Data("I prefer compact interfaces".utf8), kind: .userText)
             let plan = try await context.stage(
                 AgentExecutionPlan(
                     runtimeID: UUID(), catalogGeneration: 1, driverID: "fixture", driverRevision: 1,
-                    instructions: "You are a helpful assistant.", limits: .init(), priority: .foreground, route: routeInfo.route), kind: .executionPlan,
-                retentionGroup: UUID())
+                    instructions: "You are a helpful assistant.", limits: .init(), priority: .foreground, route: routeInfo.route), kind: .executionPlan)
             return [
                 .opened(.init(workspaceID: nil, title: title)),
                 .admitted(
@@ -249,14 +248,13 @@ private struct WorkerFixture: Sendable {
             let build = AgentContextBuild(request: .init(sessionID: sessionID, executionID: executionID,
                 workspaceID: nil, userText: "I prefer compact interfaces", authorizationEpoch: 0,
                 destination: .model(routeInfo.route)), prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
-            let staged = try await AgentRequestRecord.stage(build, context: context)
-            let request = staged.request
+            let request = try await context.stage(AgentSessionRequest(build), kind: .request)
             let output = try await context.stage(AgentModelOutput(blocks: [.init(id: "answer", content: .text("Understood."))], continuation: nil, usage: .init(), finishReason: .stop),
-                kind: .modelOutput, retentionGroup: UUID())
-            let answer = try await context.stageBytes(Data("Understood.".utf8), kind: .visibleAnswer, retentionGroup: UUID())
+                kind: .modelOutput)
+            let answer = try await context.stageBytes(Data("Understood.".utf8), kind: .visibleAnswer)
             return [
                 .phaseChanged(executionID: executionID, phase: .preparing),
-                .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID, stepIndex: 1, attemptIndex: 1, request: request, contents: staged.contents)),
+                .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID, stepIndex: 1, attemptIndex: 1, request: request)),
                 .attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
                 .phaseChanged(executionID: executionID, phase: .settling),
                 .finished(.init(executionID: executionID, status: .completed, assistantMessageID: .init(), answer: answer)),
@@ -265,9 +263,7 @@ private struct WorkerFixture: Sendable {
         guard case .committed = settled else { throw MiraError(.storage, "Worker session settlement failed.") }
         let reader = JournalSessionReader(journal: journal, payloads: journal)
         let source = try await reader.userEvidence(sessionID: sessionID, executionID: executionID)
-        if !sourceAvailable {
-            try await journal.purge(sessionID: sessionID, retentionGroups: [source.reference.body.retentionGroup])
-        }
+        if !sourceAvailable { await journal.rejectUserReads() }
         let selection = AgentModelRouteResolution(route: routeInfo.route, binding: nil)
         let settings = WorkerSettings(selection: .init(candidate: routeInfo.candidate, binding: nil))
         let scope = RuntimeScope(kind: .application)
@@ -649,18 +645,11 @@ private actor WorkerMaintenanceStore: AgentLibraryMaintenanceStore {
     { throw MiraError(.unsupported, "Fixture maintenance unavailable.") }
 }
 
-private actor WorkerJournal: SessionJournal, SessionPayloadStore {
-    private var activeDrafts: [ConversationID: SessionActiveDraft] = [:]
-    func activeDraft(sessionID: ConversationID) -> SessionActiveDraft? { activeDrafts[sessionID] }
-    func saveActiveDraft(_ draft: SessionActiveDraft) throws {
-        try draft.validate(); activeDrafts[draft.request.sessionID] = draft
-    }
-    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) {
-        if activeDrafts[sessionID]?.attemptID == attemptID { activeDrafts.removeValue(forKey: sessionID) }
-    }
-
+private actor WorkerJournal: SessionJournal, SessionContentStore {
     private var batches: [SessionBatch] = []
-    private var bytes: [SessionPayloadReference: Data] = [:]
+    private var bytes: [SessionContent: Data] = [:]
+    private var rejectsUserReads = false
+    func rejectUserReads() { rejectsUserReads = true }
     func append(_ batch: SessionBatch) async -> SessionAppendOutcome {
         batches.append(batch)
         return .committed(batch.cursor)
@@ -688,22 +677,17 @@ private actor WorkerJournal: SessionJournal, SessionPayloadStore {
     }
     func flush() async throws {}
     func close() async throws {}
-    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID, kind: SessionPayloadKind)
-        async throws -> SessionPayloadReference
-    {
-        let ref = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: retentionGroup, kind: kind,
-            byteCount: data.count, digest: String(repeating: "0", count: 64))
-        bytes[ref] = data
-        return ref
+    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, kind: SessionContentKind)
+        async throws -> SessionContent {
+        let content = SessionContent(kind: kind, bytes: data)
+        bytes[content] = data
+        return content
     }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
-        guard let data = bytes[reference],
-            batches.contains(where: { $0.events.contains { $0.fact.payloadReferences.contains(reference) } })
-        else { throw MiraError(.unauthorized, "Fixture evidence was revoked.") }
+    func read(_ reference: SessionContent) async throws -> Data {
+        if rejectsUserReads && reference.kind == .userText {
+            throw MiraError(.unauthorized, "Fixture evidence is unavailable.")
+        }
+        guard let data = bytes[reference] else { throw MiraError(.unauthorized, "Fixture evidence is unavailable.") }
         return data
-    }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws {
-        bytes = bytes.filter { $0.key.sessionID != sessionID || !retentionGroups.contains($0.key.retentionGroup) }
     }
 }

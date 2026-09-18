@@ -6,6 +6,8 @@ import MiraCore
 struct SQLiteArchiveSessions {
     struct User {
         let reference: SessionEvidenceReference
+        let digest: String
+        let byteCount: Int
         let admittedAt: Date
         let timeZoneIdentifier: String
         let authorizationEpoch: UInt64
@@ -23,7 +25,6 @@ struct SQLiteArchiveSessions {
         var executions: [ExecutionID: SessionEvidenceReference] = [:]
         var executionSequences: [ExecutionID: Int64] = [:]
         var completions: [UUID: Completion] = [:]
-        var invalidations: [UUID: SessionBatch] = [:]
     }
     private(set) var sessions: [ConversationID: Session] = [:]
 
@@ -45,9 +46,10 @@ struct SQLiteArchiveSessions {
                             let reference = SessionEvidenceReference(
                                 sessionID: captured.id, originalExecutionID: admission.executionID,
                                 userMessageID: admission.userMessageID, admissionEventID: event.id,
-                                admissionSequence: event.sequence, body: body)
+                                admissionSequence: event.sequence)
                             session.users[event.id] = User(
-                                reference: reference, admittedAt: event.occurredAt,
+                                reference: reference, digest: body.digest, byteCount: body.byteCount,
+                                admittedAt: event.occurredAt,
                                 timeZoneIdentifier: admission.timeZoneIdentifier,
                                 authorizationEpoch: admission.authorizationEpoch)
                             session.executions[admission.executionID] = reference
@@ -62,11 +64,6 @@ struct SQLiteArchiveSessions {
                         session.completions[event.id] = Completion(
                             value: value, occurredAt: event.occurredAt,
                             head: .init(cursor: batch.cursor, batchID: batch.id))
-                    case .invalidated(let value):
-                        session.authorizationEpoch = max(session.authorizationEpoch, value.authorizationEpoch)
-                        guard session.invalidations.updateValue(batch, forKey: value.operationID) == nil else {
-                            throw LibraryArchiveIO.invalid
-                        }
                     default: break
                     }
                 }

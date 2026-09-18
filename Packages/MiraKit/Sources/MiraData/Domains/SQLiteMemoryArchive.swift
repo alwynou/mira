@@ -142,7 +142,7 @@ extension SQLiteMemoryStore {
         guard let sourceHash else { return }
         guard sourceHash.utf8.count == 64,
             sourceHash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }),
-            reference.body.digest == sourceHash
+            user.digest == sourceHash
         else { throw LibraryArchiveIO.invalid }
     }
 

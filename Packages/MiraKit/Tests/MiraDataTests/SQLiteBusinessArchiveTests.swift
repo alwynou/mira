@@ -7,33 +7,12 @@ import Testing
 
 @Suite("SQLite business archive validation", .timeLimit(.minutes(1)))
 struct SQLiteBusinessArchiveTests {
-    @Test func retryRetirementPreservesCommittedToolProofForArchive() async throws {
-        let quote = "add a task to review notes"
-        var replies = try taskReplies(taskArguments(quote: quote))
-        replies[replies.count - 1] = [.blockStarted(.init(id: "text", content: .text("Interrupted tool reply"))), .blockFinished(id: "text")]
-        replies.append([.blockStarted(.init(id: "text", content: .text("Retried reply"))), .blockFinished(id: "text"), .finished(.stop)])
-        try await withTaskWorkflow(outputs: replies) { fixture in
-            let original = try await fixture.run(quote, expectedStatus: .failed)
-            let retry = ExecutionID()
-            try taskRequireCommitted(await fixture.runtime.submit(.init(
-                id: UUID(), sessionID: original.sessionID, executionID: retry,
-                input: .retry(executionID: original.executionID),
-                options: .init(instructions: "Answer the original request.", route: fixture.route))))
-            try taskRequireCommitted(await fixture.runtime.waitForExecution(id: retry, sessionID: original.sessionID))
-            #expect(try await fixture.runtime.sessionSnapshot(id: original.sessionID).executions[retry]?.completion?.status == .completed)
-            #expect(await fixture.runtime.shutdown().isSettled)
-            #expect(try await fixture.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM business_receipts") } == 1)
-            try await inspect(fixture)
-        }
-    }
-
     @Test(arguments: [false, true])
-    func validatesRealKernelReceiptsWithAcknowledgedOrPurgedResults(purge: Bool) async throws {
+    func validatesRealKernelReceiptsWithOrWithoutPublicationAcknowledgement(unacknowledged: Bool) async throws {
         try await withArchiveWorkflow { fixture in
-            if purge {
+            if unacknowledged {
                 try await fixture.database.write { db in
                     try db.execute(sql: "UPDATE business_receipts SET acknowledged=0, publication_json=NULL")
-                    try db.execute(sql: "UPDATE business_operations SET result_blob=NULL, result_purged=1")
                 }
             }
             try await inspect(fixture)
@@ -64,7 +43,7 @@ struct SQLiteBusinessArchiveTests {
                         arguments: [String(repeating: "0", count: 64)])
                 case "operationDigest":
                     try db.execute(
-                        sql: "UPDATE business_operations SET result_digest=?, result_blob=NULL, result_purged=1",
+                        sql: "UPDATE business_operations SET result_digest=?",
                         arguments: [String(repeating: "0", count: 64)])
                 case "publication":
                     let cursor = SessionCursor(sessionID: ConversationID(), sequence: 1)

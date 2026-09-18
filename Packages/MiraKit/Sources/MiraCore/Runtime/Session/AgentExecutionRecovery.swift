@@ -7,8 +7,7 @@ actor AgentExecutionRecovery {
     private let executionID: ExecutionID
     private let error: MiraError?
     private let runtime: SessionRuntime
-    private let journal: any SessionJournal
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let business: any AgentBusinessReceipts
     private let authorizer: any AgentSourceAuthorizer
     private let environment: RuntimeEnvironment
@@ -16,14 +15,13 @@ actor AgentExecutionRecovery {
     private let toolRecovery: AgentToolRecovery
     private var operation: Task<SessionCommitResult, Never>?
 
-    init(runtime: SessionRuntime, journal: any SessionJournal, payloads: any SessionPayloadReader,
+    init(runtime: SessionRuntime, journal _: any SessionJournal, payloads: any SessionContentReader,
          executionID: ExecutionID, business: any AgentBusinessReceipts,
          authorizer: any AgentSourceAuthorizer, error: MiraError? = nil,
          environment: RuntimeEnvironment) {
         self.executionID = executionID
         self.error = error
         self.runtime = runtime
-        self.journal = journal
         self.payloads = payloads
         self.business = business
         self.authorizer = authorizer
@@ -86,8 +84,11 @@ actor AgentExecutionRecovery {
                 return .committed(.init(sessionID: state.id, sequence: state.sequence))
             }
 
-            let draft = try await SessionDraftReader(journal: journal, payloads: payloads)
-                .read(state: state, executionID: executionID)
+            // A cold process restart has no executor-owned stream to recover.
+            // Only attempt resolutions that reached the journal are visible;
+            // the interrupted attempt is settled without inventing output.
+            let settled = try await SessionSettledOutput.read(
+                execution: execution, attempts: state.attempts, payloads: payloads)
             var usage: TokenUsage?
             for attemptID in execution.attemptIDs {
                 if let value = state.attempts[attemptID]?.resolution?.usage {
@@ -98,8 +99,8 @@ actor AgentExecutionRecovery {
                 executionID: executionID,
                 expectedAttemptID: execution.attemptIDs.last,
                 status: .interrupted,
-                answer: try Self.text(draft[.answer]),
-                visibleThinking: try Self.text(draft[.thinking]),
+                answer: settled.answer,
+                visibleThinking: settled.thinking,
                 error: error,
                 usage: usage ?? .init())
             finalizerStarted = true
@@ -115,11 +116,4 @@ actor AgentExecutionRecovery {
         try await toolRecovery.recover(executionID: executionID)
     }
 
-    private static func text(_ bytes: Data?) throws -> String? {
-        guard let bytes, !bytes.isEmpty else { return nil }
-        guard let value = String(data: bytes, encoding: .utf8) else {
-            throw MiraError(.storage, "The execution draft contains invalid text encoding.")
-        }
-        return value
-    }
 }

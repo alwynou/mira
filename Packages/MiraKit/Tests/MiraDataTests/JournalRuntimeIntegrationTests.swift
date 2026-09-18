@@ -5,41 +5,50 @@ import Testing
 
 @Suite("Durable session runtime integration")
 struct JournalRuntimeIntegrationTests {
-    @Test func admissionAndThinkingDraftRecoverFromRealJournal() async throws {
+    @Test func admissionAndInterruptedAttemptRecoverFromRealJournal() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("mira-runtime-integration-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         let library = try FileSessionLibrary(directory: directory)
         let sessionID = ConversationID(), executionID = ExecutionID(), attemptID = UUID()
+        let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
+            modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1,
+            adapter: .init(id: "synthetic.model", revision: 1), invocationID: "synthetic-invocation",
+            invocationRevision: 1, endpointID: "synthetic-endpoint", modelID: "synthetic",
+            credential: nil, contextWindow: 4096, maximumOutputTokens: 128,
+            capabilities: .init(streamsText: true, callsTools: false, producesThinking: true), configuration: .object([:]))
         let runtime = try await SessionRuntime.open(id: sessionID, journal: library, payloads: library)
         let admission = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic title".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Synthetic question".utf8), kind: .userText, retentionGroup: UUID())
-            let route = try await context.stageBytes(Data("Synthetic route".utf8), kind: .executionPlan, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic title".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Synthetic question".utf8), kind: .userText)
+            let planValue = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1, driverID: "mira.default",
+                driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route)
+            let plan = try await context.stage(planValue, kind: .executionPlan)
+            let messageID = MessageID()
             return [.opened(.init(workspaceID: nil, title: title)),
-                    .admitted(.init(executionID: executionID, userMessageID: MessageID(),
-                        userBody: user, plan: route, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
+                    .admitted(.init(executionID: executionID, userMessageID: messageID,
+                        userBody: user, plan: plan, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
         }
         guard case .committed = admission else { Issue.record("Admission failed"); return }
         let started = await runtime.commit(id: UUID()) { context in
-            let request = try await context.stageBytes(Data("Synthetic request".utf8), kind: .request, retentionGroup: UUID())
+            let build = AgentContextBuild(
+                request: .init(sessionID: sessionID, executionID: executionID, workspaceID: nil,
+                    userText: "Synthetic question", authorizationEpoch: 0, destination: .model(route)),
+                prepared: .init(adapter: route.adapter,
+                    input: .init(stepID: attemptID, executionID: executionID, instructions: "Answer.",
+                        messages: [.init(role: .user, blocks: [.init(id: "user", content: .text("Synthetic question"))])], tools: []),
+                    wirePayload: .object(["prompt": .string("Synthetic question")]), estimatedInputTokens: 1),
+                inheritedSources: [], evidence: [], omissions: [])
+            let request = try await context.stage(AgentSessionRequest(build), kind: .request)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
-                    .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: UUID(),
+                    .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID,
                         stepIndex: 1, attemptIndex: 1, request: request))]
         }
         guard case .committed = started else { Issue.record("Attempt preparation failed"); return }
-        let requestValue = await runtime.snapshot().attempts[attemptID]?.attempt.request
-        let request = try #require(requestValue)
-        try await runtime.saveActiveDraft(.init(request: request, executionID: executionID, attemptID: attemptID,
-            authorizationEpoch: 0, revision: 1,
-            blocks: [.init(id: "thinking", content: .thinking("Synthetic partial thinking"))]))
         let original = await runtime.snapshot()
-        let draftValue = try await library.activeDraft(sessionID: sessionID)
-        let draft = try #require(draftValue)
         await runtime.close(); try await library.close()
         let reopenedLibrary = try FileSessionLibrary(directory: directory)
         let reopened = try await SessionRuntime.open(id: sessionID, journal: reopenedLibrary, payloads: reopenedLibrary)
         #expect(await reopened.snapshot() == original)
-        #expect(try await reopenedLibrary.activeDraft(sessionID: sessionID) == draft)
         let settlement = await reopened.commit(id: UUID()) { _ in
             [.phaseChanged(executionID: executionID, phase: .cancelling),
              .attemptResolved(.init(attemptID: attemptID, status: .interrupted)),

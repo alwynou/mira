@@ -96,7 +96,7 @@ public actor SQLiteLibraryRestorer {
         let stage = try LibraryArchiveIO.createStage(for: destination)
         var published = false
         defer { if !published { try? FileManager.default.removeItem(at: stage.stage) } }
-        for path in ["Sessions", "Sessions/sessions", "Sessions/payloads", "Sessions/drafts"] {
+        for path in ["Sessions", "Sessions/sessions"] {
             try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent(path))
         }
         try LibraryArchiveFileCatalog.forEachFile(in: archive, manifest: manifest) { file in
@@ -125,11 +125,6 @@ public actor SQLiteLibraryRestorer {
         let heads = try await settle(
             directory: stage.stage, manifest: manifest, modules: modules,
             factory: factory, environment: environment, fault: fault)
-        let archiveDrafts = stage.stage.appendingPathComponent("Sessions/drafts", isDirectory: true)
-        if FileManager.default.fileExists(atPath: archiveDrafts.path) {
-            try FileManager.default.removeItem(at: archiveDrafts)
-            try FileSessionIO.syncDirectory(stage.stage.appendingPathComponent("Sessions"))
-        }
         try LibraryArchiveIO.removeEmptyStageDirectories(stage.stage)
         try verifyClosed(directory: stage.stage, manifest: manifest, heads: heads, modules: modules)
         try LibraryArchiveIO.syncTree(stage.stage)
@@ -177,14 +172,8 @@ public actor SQLiteLibraryRestorer {
             try fault(.afterPreparation)
             let schemas = Dictionary(
                 uniqueKeysWithValues: modules.flatMap { $0.sessionExtensions.map { ($0.key, $0.value) } })
-            // Inspect the canonical archive layout before opening the writer. FileSessionLibrary
-            // creates locks and indexes, so inspection must see the untouched archive roots.
-            let imported = try FileSessionArchive.inspect(directory: directory.appendingPathComponent("Sessions"))
             let library = try FileSessionLibrary(directory: directory.appendingPathComponent("Sessions"))
             sessions = library
-            for session in imported.sessions {
-                if let draft = session.activeDraft { try await library.saveActiveDraft(draft) }
-            }
             let receiptStore = try SQLiteBusinessReceiptStore(
                 database: database, libraryID: manifest.authorization.libraryID,
                 journal: library, payloads: library, extensionSchemas: schemas)
@@ -218,16 +207,9 @@ public actor SQLiteLibraryRestorer {
             try FileManager.default.removeItem(at: directory.appendingPathComponent("Sessions/.lock"))
             // Source validation is deliberately independent of every disposable cache.
             // These paths were created only by the drained writer in this private stage.
-            for name in ["indexes", "checkpoints", ".cache-authentication", "pending-payloads"] {
+            for name in ["indexes", "checkpoints", ".cache-authentication"] {
                 try FileManager.default.removeItem(at: directory.appendingPathComponent("Sessions/" + name))
             }
-            let activeDrafts = directory.appendingPathComponent("Sessions/active-drafts", isDirectory: true)
-            try FileSessionIO.checkDirectory(activeDrafts)
-            guard try FileSessionIO.directoryEntries(activeDrafts, limit: 1).isEmpty else {
-                throw LibraryArchiveIO.invalid
-            }
-            try FileManager.default.removeItem(at: activeDrafts)
-            try FileSessionIO.syncDirectory(directory.appendingPathComponent("Sessions"))
             return heads
         } catch {
             // Attempt every close even if one adapter cannot confirm closure.
@@ -267,9 +249,7 @@ public actor SQLiteLibraryRestorer {
             return try SQLiteLibraryArchiveExporter.inspectDatabase(db, snapshot: snapshot, modules: modules)
         }
         let attachmentsByPath = Dictionary(uniqueKeysWithValues: attachments.map { ($0.path, $0) })
-        let expectedSessionFiles = snapshot.sessions.reduce(0) {
-            $0 + 1 + $1.payloads.count + ($1.activeDraft == nil ? 0 : 1)
-        }
+        let expectedSessionFiles = snapshot.sessions.count
         var sessionFiles = 0, attachmentFiles = 0
         var sawBusiness = false, sawProjection = false
         var total: Int64 = 0

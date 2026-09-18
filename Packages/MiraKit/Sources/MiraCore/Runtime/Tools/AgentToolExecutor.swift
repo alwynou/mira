@@ -3,7 +3,7 @@ import Foundation
 /// Owns one execution's tool batch. Drivers cannot dispatch contributions or manufacture receipts.
 actor AgentToolExecutor {
     private let runtime: SessionRuntime
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let libraryLease: AgentLibraryAccessLease
     private let catalog: AgentToolCatalog
     private let policy: any AgentToolPolicy
@@ -56,7 +56,7 @@ actor AgentToolExecutor {
         }
     }
 
-    init(runtime: SessionRuntime, payloads: any SessionPayloadReader, libraryLease: AgentLibraryAccessLease, catalog: AgentToolCatalog,
+    init(runtime: SessionRuntime, payloads: any SessionContentReader, libraryLease: AgentLibraryAccessLease, catalog: AgentToolCatalog,
          policy: any AgentToolPolicy, authority: any AgentEffectAuthority, business: any AgentBusinessEffects,
          authorizer: any AgentSourceAuthorizer,
          approvals: RuntimeApprovalService, maximumParallelTools: Int, environment: RuntimeEnvironment = .init()) throws {
@@ -115,10 +115,10 @@ actor AgentToolExecutor {
         let state = await runtime.snapshot()
         try Self.validateFreshBatch(state, attemptID: attemptID, executionID: executionID)
         let attempt = state.attempts[attemptID]!
-        let build = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
+        let build = try SessionCodec.decode(AgentSessionRequest.self, from: await payloads.read(attempt.attempt.request))
         guard build.request.sessionID == state.id, build.request.executionID == executionID,
               build.request.authorizationEpoch == state.authorizationEpoch,
-              build.input.tools == catalog.definitions else {
+              build.tools == catalog.definitions else {
             throw MiraError(.conflict, "The tool catalog differs from the frozen model request.")
         }
         let invocations = attempt.invocationIDs.compactMap { state.invocations[$0]?.invocation }
@@ -164,20 +164,20 @@ actor AgentToolExecutor {
         }
     }
 
-    private func runOne(_ invocation: SessionInvocation, build: AgentRequestRecord) async throws {
+    private func runOne(_ invocation: SessionInvocation, build: AgentSessionRequest) async throws {
         try await checkEligibility(build.request.executionID, epoch: build.request.authorizationEpoch)
         guard let entry = catalog.entry(named: invocation.toolName) else {
-            try await resolve(invocation, status: .notFound); return
+            try await resolve(invocation, status: .notFound, error: .init(.notFound, "The requested tool is not registered.")); return
         }
         guard entry.effect == invocation.effect,
-              build.input.tools.contains(entry.descriptor.definition) else {
+              build.tools.contains(entry.descriptor.definition) else {
             throw MiraError(.conflict, "The tool differs from its frozen model request.")
         }
         let call = try SessionCodec.decode(CanonicalToolCall.self, from: await payloads.read(invocation.call))
         guard call.name == invocation.toolName else { throw MiraError(.storage, "The tool call identity does not match its journal record.") }
         let arguments: JSONValue
         do { arguments = try ToolSchemaValidator.decode(call.arguments, schema: entry.descriptor.definition.inputSchema) }
-        catch { try await resolve(invocation, status: .invalidArguments); return }
+        catch { try await resolve(invocation, status: .invalidArguments, error: MiraError.safe(error)); return }
         let context = try await toolContext(invocation, build: build)
         let invocationPolicy = AgentToolPolicyComposition(host: policy, requirement: entry.policy)
         let proposal: AgentToolProposal
@@ -190,7 +190,7 @@ actor AgentToolExecutor {
             try proposal.validate()
         } catch {
             try Task.checkCancellation()
-            try await resolve(invocation, status: .invalidArguments); return
+            try await resolve(invocation, status: .invalidArguments, error: MiraError.safe(error)); return
         }
         let authorization: AgentLibraryAuthorization
         do {
@@ -202,26 +202,26 @@ actor AgentToolExecutor {
         }
         catch {
             try Task.checkCancellation()
-            try await resolve(invocation, status: .denied); return
+            try await resolve(invocation, status: .denied, error: .init(.unauthorized, "The tool policy denied this invocation.")); return
         }
         try await checkEligibility(context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
         let intentCommit = await runtime.commit(id: environment.uuid()) { command in
             try Self.eligible(command.state, executionID: context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
-            let reference = try await command.stage(proposal, kind: .effectIntent, retentionGroup: UUID())
+            let reference = try await command.stage(proposal, kind: .effectIntent)
             return [.toolPrepared(.init(invocationID: invocation.id, authorization: authorization, proposal: reference))]
         }
         try AgentDurabilityFailure.requireCommitted(intentCommit)
         let proof = try await proof(for: invocation.id, executionID: context.executionID)
         do {
             switch try await invocationPolicy.evaluate(proposal, context: context) {
-            case .deny: try await resolve(invocation, status: .denied); return
+            case .deny: try await resolve(invocation, status: .denied, error: .init(.unauthorized, "The tool policy denied this invocation.")); return
             case .allow: break
             case .requireApproval(let prompt, let expiresAt):
                 try await approvalRequested(invocation, executionID: context.executionID, expiresAt: expiresAt)
                 let decision = try await approvals.request(.init(invocationID: invocation.id, executionID: context.executionID,
                     proposalHash: proof.proposal.digest, authorizationEpoch: authorization.epoch, expiresAt: expiresAt, prompt: prompt))
                 try await approvalResolved(invocation, executionID: context.executionID, approved: decision == .approved)
-                if decision == .denied { try await resolve(invocation, status: .denied); return }
+                if decision == .denied { try await resolve(invocation, status: .denied, error: .init(.unauthorized, "The tool policy denied this invocation.")); return }
             }
             try await checkEligibility(context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
             try await invocationPolicy.validate(proposal, context: context)
@@ -231,7 +231,7 @@ actor AgentToolExecutor {
             if error is AgentDurabilityFailure { throw error }
             try Task.checkCancellation()
             try await denyPendingApproval(invocation, executionID: context.executionID)
-            try await resolve(invocation, status: .denied); return
+            try await resolve(invocation, status: .denied, error: .init(.unauthorized, "The tool policy denied this invocation.")); return
         }
         let dispatch = await runtime.commit(id: environment.uuid()) { command in
             try Self.eligible(command.state, executionID: context.executionID, epoch: context.evidence.sessionAuthorizationEpoch)
@@ -245,7 +245,7 @@ actor AgentToolExecutor {
             try await authority.validate(authorization, proposal: proposal, context: context)
         } catch {
             try Task.checkCancellation()
-            try await resolve(invocation, status: .denied); return
+            try await resolve(invocation, status: .denied, error: .init(.unauthorized, "The tool policy denied this invocation.")); return
         }
         switch entry.tool {
         case .localWrite:
@@ -254,7 +254,7 @@ actor AgentToolExecutor {
             case .success(.committed(let receipt)):
                 try await waitForSettlement(invocation.id)
                 try await publish(receipt, invocation: invocation)
-            case .success(.notCommitted): try await resolve(invocation, status: .failed)
+            case .success(.notCommitted(let error)): try await resolve(invocation, status: .failed, error: error)
             case .success(.indeterminate): try await reconcile(proof, invocation: invocation, absentStatus: .failed)
             case .failure(let failure):
                 // A timeout cannot permit a late local mutation after recovery reports absence.
@@ -293,18 +293,17 @@ actor AgentToolExecutor {
             return true
         } catch {
             try Task.checkCancellation()
-            try await resolve(invocation, status: .interrupted, known: isRead)
+            try await resolve(invocation, status: .interrupted, error: .init(.interrupted, "The tool authorization changed before its result was published."), known: isRead)
             return false
         }
     }
 
-    private func toolContext(_ invocation: SessionInvocation, build: AgentRequestRecord) async throws -> AgentToolContext {
+    private func toolContext(_ invocation: SessionInvocation, build: AgentSessionRequest) async throws -> AgentToolContext {
         let state = await runtime.snapshot()
         try Self.eligible(state, executionID: build.request.executionID, epoch: build.request.authorizationEpoch)
         guard let execution = state.executions[build.request.executionID],
               let attempt = state.attempts[invocation.attemptID],
-              attempt.attempt.executionID == build.request.executionID,
-              attempt.attempt.stepID == build.input.stepID else {
+              attempt.attempt.executionID == build.request.executionID else {
             throw MiraError(.conflict, "The tool request differs from its admitted execution.")
         }
         let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
@@ -317,9 +316,7 @@ actor AgentToolExecutor {
               evidence.text == build.request.userText,
               evidence.sessionAuthorizationEpoch == build.request.authorizationEpoch,
               build.request.sessionID == state.id,
-              build.input.executionID == build.request.executionID,
-              build.input.messages.last(where: { $0.role == .user })?.text == evidence.text,
-              build.input.instructions == plan.instructions else {
+              build.instructions == plan.instructions else {
             throw MiraError(.conflict, "The tool context differs from the admitted user message.")
         }
         try await checkEligibility(build.request.executionID, epoch: evidence.sessionAuthorizationEpoch)
@@ -370,14 +367,16 @@ actor AgentToolExecutor {
     }
 
     private func resolve(_ invocation: SessionInvocation, status: ToolResultStatus, bytes: Data? = nil,
-                         receipt: AgentBusinessReceiptReference? = nil, purged: Bool = false, known: Bool = true) async throws {
+                         error: MiraError? = nil,
+                         receipt: AgentBusinessReceiptReference? = nil, known: Bool = true) async throws {
         try await waitForSettlement(invocation.id)
         let result = await runtime.commit(id: environment.uuid()) { command in
-            let reference: SessionPayloadReference?
-            if let bytes { reference = try await command.stageBytes(bytes, kind: .toolResult, retentionGroup: UUID()) }
+            let reference: SessionContent?
+            if let bytes { reference = try await command.stageBytes(bytes, kind: .toolResult) }
             else { reference = nil }
             var facts: [SessionFact] = [.toolResolved(.init(invocationID: invocation.id, status: status, result: reference,
-                businessReceipt: receipt, resultWasPurged: purged, effectIsKnown: known))]
+                businessReceipt: receipt, effectIsKnown: known,
+                error: error))]
             if let executionID = command.state.attempts[invocation.attemptID]?.attempt.executionID,
                command.state.executions[executionID]?.phase == .waitingForTools {
                 let remaining = command.state.invocations.values.filter { value in
@@ -401,7 +400,7 @@ actor AgentToolExecutor {
     }
 
     private func publish(_ receipt: AgentBusinessReceipt, invocation: SessionInvocation) async throws {
-        try await resolve(invocation, status: .succeeded, bytes: receipt.result, receipt: receipt.reference, purged: receipt.result == nil)
+        try await resolve(invocation, status: .succeeded, bytes: receipt.result, receipt: receipt.reference)
     }
 
     private func publish(_ outcome: Result<JSONValue, BodyFailure>, invocation: SessionInvocation,
@@ -415,10 +414,10 @@ actor AgentToolExecutor {
                 guard bytes.count <= descriptor.maximumResultBytes else { throw MiraError(.outputLimit, "The tool result exceeds its declared limit.") }
             } catch {
                 // A malformed external result cannot prove whether the external mutation happened.
-                try await resolve(invocation, status: .failed, known: isRead); return
+                try await resolve(invocation, status: .failed, error: .init(.outputLimit, "The tool result is invalid or exceeds its declared limit."), known: isRead); return
             }
             try await resolve(invocation, status: .succeeded, bytes: bytes)
-        case .failure(let failure): try await resolve(invocation, status: failure.status, known: isRead)
+        case .failure(let failure): try await resolve(invocation, status: failure.status, error: failure.error, known: isRead)
         }
     }
 
@@ -440,7 +439,7 @@ actor AgentToolExecutor {
         try Self.eligible(await runtime.snapshot(), executionID: executionID, epoch: epoch)
     }
     private static func eligible(_ state: SessionState, executionID: ExecutionID, epoch: UInt64? = nil) throws {
-        guard state.activeExecutionID == executionID, !state.excludedExecutionIDs.contains(executionID),
+        guard state.activeExecutionID == executionID, !state.supersededExecutionIDs.contains(executionID),
               let execution = state.executions[executionID], execution.completion == nil,
               [.waitingForTools, .waitingForUser].contains(execution.phase),
               epoch.map({ $0 == state.authorizationEpoch }) ?? true else {
@@ -461,6 +460,13 @@ actor AgentToolExecutor {
     private enum BodyFailure: Error, Sendable {
         case cancelled, timedOut, failed
         var status: ToolResultStatus { switch self { case .cancelled: .cancelled; case .timedOut: .timedOut; case .failed: .failed } }
+        var error: MiraError {
+            switch self {
+            case .cancelled: .init(.cancelled, "The tool was cancelled.")
+            case .timedOut: .init(.timeout, "The tool timed out.")
+            case .failed: .init(.storage, "The tool failed to produce a result.")
+            }
+        }
     }
     /// Cancellation is cooperative: retain ownership and drain the losing body before returning.
     private func timed<T: Sendable>(milliseconds: Int, operation: @escaping @Sendable () async throws -> T) async -> Result<T, BodyFailure> {

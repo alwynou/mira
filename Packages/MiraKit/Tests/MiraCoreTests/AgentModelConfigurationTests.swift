@@ -5,6 +5,34 @@ import Testing
 
 @Suite("Agent model configuration", .timeLimit(.minutes(1)))
 struct AgentModelConfigurationTests {
+    @Test func frozenRouteKeepsResolvedValuesWithoutCopyingMetadataProvenance() throws {
+        let facts: [AgentModelMetadataFact] = [
+            .init(field: AgentModelMetadataField.contextWindow, value: .number(16_000),
+                  source: .catalog, sourceID: "catalog-provenance-marker", sourceRevision: "catalog-revision",
+                  observedAt: Date(timeIntervalSince1970: 100), invocationID: nil),
+            .init(field: AgentModelMetadataField.contextWindow, value: .number(64_000),
+                  source: .user, sourceID: "settings-provenance-marker", sourceRevision: "settings-revision",
+                  observedAt: Date(timeIntervalSince1970: 200), invocationID: "default"),
+            .init(field: AgentModelMetadataField.capability(AgentModelCapabilityID.toolCalls), value: .bool(true),
+                  source: .catalog, sourceID: "catalog-provenance-marker", sourceRevision: "catalog-revision",
+                  observedAt: Date(timeIntervalSince1970: 100), invocationID: "default")
+        ]
+        let candidate = makeCandidate(facts: facts)
+        let parameters: JSONValue = .object(["temperature": .number(0.2)])
+        let route = try candidate.freeze(configuration: parameters)
+        #expect(route.contextWindow == 64_000)
+        #expect(route.maximumOutputTokens == candidate.preset.maximumOutputTokens)
+        #expect(route.capabilities.callsTools)
+        #expect(route.configuration == parameters)
+        let bytes = try SessionCodec.encode(route)
+        let json = try SessionCodec.decode(JSONValue.self, from: bytes)
+        #expect(json["metadataEvidence"] == nil)
+        #expect(!String(decoding: bytes, as: UTF8.self).contains("provenance-marker"))
+        #expect(try SessionCodec.decode(AgentModelRoute.self, from: bytes) == route)
+        let savedModel = try SessionCodec.decode(AgentConfiguredModel.self, from: SessionCodec.encode(candidate.model))
+        #expect(savedModel.facts == facts)
+    }
+
     @Test func schemaDefaultsAndValuesAreValidatedAgainstTheSameRevision() throws {
         let schema = makeSchema(id: "config.test", revision: 1)
         try schema.validate()
@@ -277,7 +305,7 @@ struct AgentModelConfigurationTests {
         makeTestDescriptor(adapter: adapter, modelID: modelID)
     }
 
-    private func makeCandidate() -> AgentModelRouteCandidate {
+    private func makeCandidate(facts: [AgentModelMetadataFact] = []) -> AgentModelRouteCandidate {
         let adapter = AgentAdapterIdentity(id: "adapter.test", revision: 1)
         let connection = AgentConfiguredConnection(id: .init(), revision: 3, configurationRevision: 2, name: "Test connection", isEnabled: true, definitionID: nil, endpoints: [.init(id: "primary", configuration: .init(
                 schema: .init(id: "connection.test", revision: 1),
@@ -285,7 +313,7 @@ struct AgentModelConfigurationTests {
         let model = AgentConfiguredModel(id: .init(), revision: 2, authorizationRevision: 1, reference: .init(connectionID: connection.id, modelID: "model.test"), displayName: nil, isEnabled: true, invocations: [AgentModelInvocationSpec(id: "default", revision: 1, adapter: adapter, endpointID: "primary", contextWindow: 32_000, maximumOutputTokens: nil, capabilities: [
                 AgentModelCapabilityID.streamingText: .verified,
                 AgentModelCapabilityID.thinking: .declared,
-            ], configuration: .init(schema: .init(id: "test.invocation", revision: 1), value: .object([:])), parameterSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))], facts: [])
+            ], configuration: .init(schema: .init(id: "test.invocation", revision: 1), value: .object([:])), parameterSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))], facts: facts)
         let preset = AgentRoutePreset(id: .init(), revision: 4, name: "Test route", modelDescriptorID: model.id, invocationID: "default", maximumOutputTokens: 2_048, configuration: .init(
                 schema: .init(id: "route.test", revision: 1),
                 value: .object(["temperature": .number(0.2)])))

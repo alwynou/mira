@@ -26,7 +26,7 @@
 
 ## 领域文档
 
-- [正文发布与启动恢复](architecture/AGENT_PAYLOAD_RECOVERY.md)：定义先持久标记再写正文、已提交批次的清理结果、启动定向恢复、实际读取校验及全量隐私／归档边界。
+- [规范会话日志](architecture/AGENT_SESSION_LOG.md)：定义 DSH v3 事件、inline 内容、请求证据、process-local 流、结算和物理 commit 帧。
 
 - [独立记忆提取状态与用量](architecture/AGENT_EXTRACTION_QUERIES.md)：定义原始回合限定、分页、全部尝试记账、冻结费用与正文清理后的读取边界。
 
@@ -40,7 +40,7 @@
 - [macOS 资料库与工作组组装](architecture/MAC_LIBRARY_COMPOSITION.md)：定义新宿主的库／工作组所有权、受限本地恢复、维护／导出／关闭排空及平台通知隔离；原生展示层已直接接入，完整交互验收仍待完成。
 - [通用领域模型、本地存储与恢复](architecture/DOMAIN_AND_STORAGE.md)：定义 ID、时间、修订、Typed JSON、Blob、事务、数据约束、LocalJob、备份与恢复；不定义版本排期。
 - [库级授权与持久维护记录](architecture/AGENT_LIBRARY_MAINTENANCE.md)：定义独立库身份、维护意图与代次原子推进、工具业务提交检查，维护协调器、库作用域处理器、事务接纳校验及尚待完成的知识清理和备份屏障。
-- [会话隐私维护](architecture/AGENT_SESSION_PRIVACY.md)：定义跨会话依赖闭包、删除前持久计划、可见历史保留、物理正文验证及已接通的记忆遗忘处理器。
+- [会话读取与查询投影](architecture/AGENT_SESSION_READS.md)：定义固定日志前缀、历史来源读取、恢复和查询投影边界。
 - [模型配置与路线选择](architecture/AGENT_MODEL_CONFIGURATION.md)：定义开放设置描述、共享业务配置、作用域选择、冻结路线和当前配置复核。
 - [macOS 凭据设置与清理](architecture/MAC_CREDENTIAL_SETTINGS.md)：定义工作组凭据所有权、先写引用日志、配置提交与当前引用保护；核心不依赖 Keychain。
 - [模型发现与资料目录](architecture/AGENT_MODEL_DISCOVERY.md)：定义独立发现模块、操作所有权、连接快照复核以及不构成能力验证的建议数据。
@@ -143,7 +143,7 @@ Core 不依赖 Apple UI 与平台实现，不等于 Core 必须使用非 Apple �
 
 ### INV-001：Local Store Is Canonical
 
-会话接纳、执行状态及原始消息先写入本地已确认日志；正文引用可解析到事件字段内的 inline 正文或独立 external 保留存储。领域业务对象写入本地数据库。远程模型、Apple Calendar、Apple Reminders 和未来同步端都不是 Mira 规范事实源。
+会话接纳、执行状态及原始消息先写入本地已确认日志；会话正文是事件字段内的不可变 inline 内容。模型流在结算前只存在于进程内。领域业务对象写入本地数据库。远程模型、Apple Calendar、Apple Reminders 和未来同步端都不是 Mira 规范事实源。
 
 ### INV-002：No Secret in Normal Data
 
@@ -194,11 +194,11 @@ Compact、Memory、Working Memory、Search Index、Graph Projection 和生成 No
 
 ### INV-007：Streaming Delta Is Not a Message
 
-流式 Delta 是传输 / Runtime Event。完成或中断后形成一个规范 Assistant Message；不能把每个 Token 当作 Conversation Message 永久保存。
+流式 Delta 是传输 / Runtime Event。完成或中断结算后形成一个规范 Assistant Message；未结算的进程内流不会作为草稿或 Token 事件永久保存。
 
 ### INV-008：Runtime Events Are Append-only Within an Execution
 
-Execution 内已提交事件不可原地改写。修复通过后续事件和规范对象状态完成。正文通过受保护内容引用保存；用户主动删除或到期清理可以使引用不可读，事件仅保留无正文的状态与清理标记，审计规则不能阻止用户删除。
+Execution 内已提交事件不可原地改写。修复通过后续事件和规范对象状态完成。会话正文直接属于日志事件；业务领域的删除与遗忘规则由各自领域契约负责，不派生第二套会话正文清理协议。
 
 ### INV-009：Tool Call and Result Preserve Identity
 
@@ -214,7 +214,7 @@ Execution 内已提交事件不可原地改写。修复通过后续事件和规�
 
 ### INV-012：Model-visible Means Auditable
 
-本轮真正发送给模型的 Header、Durable History、Turn Context、Tool Schema 和调用配置必须保存在 Request Snapshot 中。在正文保留期内且未被用户删除时可重建；清理后明确显示不可重建状态。
+本轮真正发送给模型的 Header、Durable History、Turn Context、Tool Schema 和调用配置必须有可审计的日志证据：请求记录引用冻结路由、system/user/tool/context 事件并保存输入 watermark。AgentContextBuild 与完整 HTTP body 保持进程内，不声称从日志重建未保存的 wire bytes。
 
 审计不要求把所有本轮 Context 永久喂给后续模型。
 

@@ -22,7 +22,7 @@ flowchart TB
   Model --> Session[会话命令通道与状态归约]
   Tool --> Session
   Finalizer --> Session
-  Session --> Journal[SessionJournal / SessionPayloadStore]
+  Session --> Journal[SessionJournal / inline events]
   Tool --> Business[领域事务与业务回执端口]
   Model --> Adapter[当前代次的模型适配器]
 ```
@@ -143,7 +143,7 @@ flowchart TB
     Drain --> Release[返回结果／错误并释放模型额度]
 ```
 
-图示导出：[草稿检查点 SVG](diagrams/agent-draft-checkpoints.svg) · [PNG](diagrams/agent-draft-checkpoints.png)。
+图示导出：[执行流程 SVG](diagrams/agent-execution-flow.svg) · [PNG](diagrams/agent-execution-flow.png)。
 
 可见输出通过独立的[实时通知契约](AGENT_LIVE_OUTPUT.md)交付，只包含回答与可见思考。执行器为可见写入者和真实模型操作分别登记资源：正常路径保留可见值直到最终草稿／尝试解决记录提交，取消、撤权或流处理失败则先清空可见值，再继续排空生产者。实时快照没有发布成功终态的权力。
 

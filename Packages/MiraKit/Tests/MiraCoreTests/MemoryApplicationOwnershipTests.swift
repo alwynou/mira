@@ -132,19 +132,13 @@ private actor MemoryApplicationFixture {
         let scope = RuntimeScope(kind: .application)
         let sessionID = ConversationID()
         let admissionBatchID = UUID()
-        let body = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: admissionBatchID, retentionGroup: UUID(), kind: .userText,
-            byteCount: 13, digest: String(repeating: "a", count: 64))
+        let body = SessionContent(kind: .userText, bytes: Data("Remember this".utf8))
         let originalExecutionID = ExecutionID()
         let userMessageID = MessageID()
         let admissionEventID = UUID()
         let openBatchID = UUID()
-        let title = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: openBatchID, retentionGroup: UUID(), kind: .title, byteCount: 4,
-            digest: String(repeating: "c", count: 64))
-        let plan = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: admissionBatchID, retentionGroup: UUID(), kind: .executionPlan,
-            byteCount: 4, digest: String(repeating: "d", count: 64))
+        let title = SessionContent(kind: .title, bytes: Data("Title".utf8))
+        let plan = SessionContent(kind: .executionPlan, bytes: Data("Plan".utf8))
         let opened = SessionBatch(
             id: openBatchID, sessionID: sessionID, expectedSequence: 0,
             events: [
@@ -154,7 +148,7 @@ private actor MemoryApplicationFixture {
             ])
         let evidence = SessionEvidenceReference(
             sessionID: sessionID, originalExecutionID: originalExecutionID, userMessageID: userMessageID,
-            admissionEventID: admissionEventID, admissionSequence: 2, body: body)
+            admissionEventID: admissionEventID, admissionSequence: 2)
         let admitted = SessionBatch(
             id: admissionBatchID, sessionID: sessionID, expectedSequence: 1,
             events: [
@@ -169,7 +163,7 @@ private actor MemoryApplicationFixture {
         let payloads = MemoryPayloadReader(values: [body.id: Data("Remember this".utf8)])
         let reader = JournalSessionReader(journal: journal, payloads: payloads)
         let app = MemoryApplication(
-            store: selectedStore, extractionStatusReader: selectedStore, reader: reader, privacyHistory: selectedStore,
+            store: selectedStore, extractionStatusReader: selectedStore, reader: reader,
             access: access, scope: scope, now: now)
         return .init(
             store: selectedStore, application: app, access: access, scope: scope, sessionID: sessionID,
@@ -246,10 +240,7 @@ private actor MemoryMaintenanceStore: AgentLibraryMaintenanceStore {
     }
 }
 
-private actor MemoryTestStore: MemoryStore, MemoryExtractionStatusReader, SessionPrivacyHistoryReader {
-    func retainedHistory(sessionID: ConversationID, operationIDs: Set<UUID>, executionIDs: Set<ExecutionID>) throws -> [SessionPrivacyHistoryRecord] {
-        throw MiraError(.configuration, "The ownership fixture does not provide retained history.")
-    }
+private actor MemoryTestStore: MemoryStore, MemoryExtractionStatusReader {
     func memoryContextNotices(references: [MemoryCitationReference], workspaceID: WorkspaceID?, connectionID: ConnectionID?, at: Date) -> [MemoryContextNotice] { [] }
     let blockingGate: BlockingReadGate?
     private(set) var lastOperationID: UUID?
@@ -413,10 +404,10 @@ private actor EvidenceSessionJournal: SessionJournal {
     func close() async throws {}
 }
 
-private actor MemoryPayloadReader: SessionPayloadReader {
+private actor MemoryPayloadReader: SessionContentReader {
     let values: [UUID: Data]
     init(values: [UUID: Data]) { self.values = values }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         guard let data = values[reference.id] else { throw MiraError(.storage, "Synthetic payload is missing.") }
         return data
     }

@@ -40,7 +40,6 @@ struct AgentToolEvidenceTests {
             #expect(resolved.context.executionID == fixture.retryExecutionID)
             #expect(resolved.context.invocationID == fixture.invocationID)
             #expect(resolved.context.evidence.reference.originalExecutionID == fixture.originalExecutionID)
-            #expect(resolved.context.evidence.reference.body == fixture.userBody)
             #expect(resolved.context.evidence.text == fixture.userText)
             #expect(resolved.context.evidence.admittedAt == fixture.originalAdmissionDate)
             #expect(resolved.context.evidence.timeZoneIdentifier == "Asia/Shanghai")
@@ -54,25 +53,36 @@ struct AgentToolEvidenceTests {
     }
 
     @Test func forgedContextEvidenceIsRejectedBeforeBusinessCommit() async throws {
-        for tamper in [ToolEvidenceFixture.Tamper.preparedUserText, .instructions, .adapter, .step,
-                       .destination, .missingInheritedSource, .extraInheritedSource] {
-            let fixture = try await ToolEvidenceFixture.make(mode: .localWrite, tamper: tamper)
-            try await withFixture(fixture) { fixture in
-                let proof = try #require(await fixture.proof())
-                do {
-                    _ = try await fixture.resolver.resolve(proof, requireEligible: true)
-                    _ = await fixture.business.commit(proof)
-                    Issue.record("A forged tool context reached the business commit boundary")
-                } catch is MiraError {
-                    // The resolver is the required journal gate before a business adapter runs.
+        for tamper in [ToolEvidenceFixture.Tamper.userText, .instructions, .destination] {
+            do {
+                let fixture = try await ToolEvidenceFixture.make(mode: .localWrite, tamper: tamper)
+                try await withFixture(fixture) { fixture in
+                    let proof = try #require(await fixture.proof())
+                    do {
+                        _ = try await fixture.resolver.resolve(proof, requireEligible: true)
+                        _ = await fixture.business.commit(proof)
+                        Issue.record("A forged tool context reached the business commit boundary")
+                    } catch is MiraError {
+                        // The resolver is the required journal gate before a business adapter runs.
+                    } catch {
+                        Issue.record("Unexpected forged-context error: \(error)")
+                    }
+                    #expect(await fixture.business.commitCount == 0)
                 }
-                #expect(await fixture.business.commitCount == 0)
+            } catch {
+                // A forged user text has no canonical message source, so the journal
+                // writer rejects it before a business proof can be published.
+                if case .userText = tamper {
+                    guard let miraError = error as? MiraError, miraError.code == .storage else { throw error }
+                    continue
+                }
+                throw error
             }
         }
     }
 
-    @Test func forgedPreparedUserTextOrInstructionsNeverReachesReadTool() async throws {
-        for tamper in [ToolEvidenceFixture.Tamper.preparedUserText, .instructions, .destination] {
+    @Test func forgedInstructionsNeverReachesReadTool() async throws {
+        for tamper in [ToolEvidenceFixture.Tamper.instructions, .destination] {
             let fixture = try await ToolEvidenceFixture.make(mode: .read, tamper: tamper)
             try await withFixture(fixture) { fixture in
                 do {
@@ -81,6 +91,8 @@ struct AgentToolEvidenceTests {
                     Issue.record("A forged prepared request reached the read tool")
                 } catch is MiraError {
                     // Context validation precedes preparation and execution.
+                } catch {
+                    Issue.record("Unexpected forged read request error: \(error)")
                 }
                 #expect(await fixture.readProbe.prepareCount == 0)
                 #expect(await fixture.readProbe.executeCount == 0)
@@ -146,8 +158,7 @@ private final class DateBox: @unchecked Sendable {
 }
 
 private final class ToolEvidenceFixture: Sendable {
-    enum Tamper { case none, preparedUserText, instructions, adapter, step, destination,
-                       missingInheritedSource, extraInheritedSource }
+    enum Tamper { case none, userText, instructions, destination }
 
     let directory: URL
     let library: FileSessionLibrary
@@ -160,7 +171,7 @@ private final class ToolEvidenceFixture: Sendable {
     let originalExecutionID: ExecutionID
     let retryExecutionID: ExecutionID
     let userMessageID: MessageID
-    let userBody: SessionPayloadReference
+    let userBody: SessionContent
     let attemptID: UUID
     let stepID: UUID
     let invocationID: UUID
@@ -194,7 +205,7 @@ private final class ToolEvidenceFixture: Sendable {
                                                         executionID: originalExecutionID,
                                                         userMessageID: userMessageID, route: originalRoute)
             let extensionResult = await runtime.commit(id: UUID()) { command in
-                let body = try await command.stageBytes(Data("extension".utf8), kind: .module, retentionGroup: UUID())
+                let body = try await command.stageBytes(Data("extension".utf8), kind: .module)
                 return [.extensionRecorded(namespace: "tests.evidence", schemaVersion: 1, required: true, body: body)]
             }
             try requireCommitted(extensionResult)
@@ -217,8 +228,9 @@ private final class ToolEvidenceFixture: Sendable {
             cleanupAccessFixture = accessFixture
             let libraryLease = try await accessFixture.acquire()
             let executor = try AgentToolExecutor(runtime: runtime, payloads: library, libraryLease: libraryLease, catalog: catalog,
-                policy: AllowToolPolicy(), authority: AllowEffectAuthority(value: libraryLease.authorization), business: business,
-                authorizer: ToolFixtureSourceAuthorizer(), approvals: approvals, maximumParallelTools: 1, environment: environment)
+                policy: AllowToolPolicy(),
+                authority: AllowEffectAuthority(value: libraryLease.authorization), business: business, authorizer: ToolFixtureSourceAuthorizer(),
+                approvals: approvals, maximumParallelTools: 1, environment: environment)
             let fixture = ToolEvidenceFixture(directory: directory, library: library, runtime: runtime,
                 executor: executor, approvals: approvals, resolver: resolver, business: business, readProbe: probe,
                 originalExecutionID: originalExecutionID, retryExecutionID: retryExecutionID,
@@ -242,7 +254,7 @@ private final class ToolEvidenceFixture: Sendable {
                  executor: AgentToolExecutor, approvals: RuntimeApprovalService,
                  resolver: JournalAgentEffectResolver, business: EvidenceBusiness,
                  readProbe: EvidenceReadProbe, originalExecutionID: ExecutionID, retryExecutionID: ExecutionID,
-                 userMessageID: MessageID, userBody: SessionPayloadReference, attemptID: UUID, stepID: UUID,
+                 userMessageID: MessageID, userBody: SessionContent, attemptID: UUID, stepID: UUID,
                  invocationID: UUID, userText: String, originalAdmissionDate: Date,
                  retryAdmissionDate: Date, originalRoute: AgentModelRoute, retryRoute: AgentModelRoute,
                  libraryAccessFixture: LibraryAccessFixture) {
@@ -257,47 +269,31 @@ private final class ToolEvidenceFixture: Sendable {
     }
 
     private func seed(mode: FixtureMode, descriptor: AgentToolDescriptor, tamper: Tamper) async throws {
-        let preparedUserText = tamper == .preparedUserText ? "forged prepared text" : userText
+        let requestText = tamper == .userText ? "forged text" : userText
         let instructions = tamper == .instructions ? "forged instructions" : "Retry"
-        let adapter = retryRoute.adapter
-        let inputStep = tamper == .step ? UUID() : stepID
-        let input = AgentModelInput(stepID: inputStep, executionID: retryExecutionID,
-            instructions: instructions, messages: [.init(role: .user, blocks: [.init(id: "text", content: .text(preparedUserText))])],
+        let input = AgentModelInput(stepID: stepID, executionID: retryExecutionID,
+            instructions: instructions, messages: [.init(role: .user, blocks: [.init(id: "text", content: .text(userText))])],
             tools: [descriptor.definition])
-        let prepared = AgentPreparedModelRequest(adapter: adapter, input: input,
+        let prepared = AgentPreparedModelRequest(adapter: retryRoute.adapter, input: input,
                                                  wirePayload: .object([:]), estimatedInputTokens: 1)
         let request = AgentContextRequest(sessionID: runtime.id, executionID: retryExecutionID,
-            workspaceID: Self.workspaceID, userText: preparedUserText, authorizationEpoch: 0, destination: .model(retryRoute))
-        let inherited: AgentSourceReference = .domain(namespace: "tests.context", id: UUID(), revision: 1)
+            workspaceID: Self.workspaceID, userText: requestText, authorizationEpoch: 0, destination: .model(tamper == .destination ? originalRoute : retryRoute))
         let build = AgentContextBuild(request: request, prepared: prepared,
-            inheritedSources: tamper == .missingInheritedSource ? [inherited] : [], evidence: [], omissions: [])
+                                       inheritedSources: [], evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            // Keep the canonical manifest well formed so each case exercises the
-            // semantic authorization boundary, rather than a missing schema key.
-            let header = AgentRequestManifest.Header(instructions: input.instructions,
-                tools: input.tools, allowsToolCalls: input.allowsToolCalls,
-                outputTokenLimit: input.outputTokenLimit,
-                adapter: tamper == .adapter ? .init(id: "synthetic.forged", revision: 1) : adapter)
-            let group = UUID()
-            let headerRef = try await context.stage(header, kind: .requestComponent, retentionGroup: group)
-            let bodyRef = try await context.stage(input.messages[0], kind: .requestComponent, retentionGroup: group)
-            let recordedRequest = AgentContextRequest(sessionID: request.sessionID, executionID: request.executionID,
-                workspaceID: request.workspaceID, userText: request.userText, authorizationEpoch: request.authorizationEpoch,
-                destination: tamper == .destination ? .model(originalRoute) : request.destination)
-            let manifest = AgentRequestManifest(request: recordedRequest, executionID: input.executionID,
-                stepID: input.stepID, header: headerRef, prefixMessageCount: input.prefixMessageCount,
-                estimatedInputTokens: 1, currentUserMessageIndex: 0, inheritedSources: build.inheritedSources,
-                evidence: [], omissions: [], entries: [.init(reference: bodyRef, representation: .message)])
-            let reference = try await context.stage(manifest, kind: .request, retentionGroup: group)
+            let reference = try await context.stage(AgentSessionRequest(build), kind: .request)
             return [.phaseChanged(executionID: retryExecutionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: retryExecutionID, stepID: stepID,
-                        stepIndex: 1, attemptIndex: 1, request: reference, contents: [headerRef, bodyRef]))]
+                        stepIndex: 1, attemptIndex: 1, request: reference))]
         }
         try requireCommitted(started)
         let settled = await runtime.commit(id: UUID()) { context in
-            let output = try await context.stageBytes(Data("tool output".utf8), kind: .modelOutput, retentionGroup: UUID())
-            let call = try await context.stage(CanonicalToolCall(id: "evidence-call", name: descriptor.definition.name,
-                arguments: "{}"), kind: .toolCall, retentionGroup: UUID())
+            let callValue = CanonicalToolCall(id: "evidence-call", name: descriptor.definition.name, arguments: "{}")
+            let output = try await context.stage(AgentModelOutput(
+                blocks: [.init(id: "call", content: .toolCall(callValue))],
+                continuation: nil, usage: .init(), finishReason: .toolCalls
+            ), kind: .modelOutput)
+            let call = try await context.stage(callValue, kind: .toolCall)
             return [.attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
                     .toolProposed(.init(id: invocationID, attemptID: attemptID, modelOrder: 0,
                         toolName: descriptor.definition.name, effect: mode == .read ? .read : .localWrite, call: call)),
@@ -307,11 +303,10 @@ private final class ToolEvidenceFixture: Sendable {
         guard mode == .localWrite else { return }
         let auth = AgentLibraryAuthorization(libraryID: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!, epoch: 0)
         let proposal = AgentToolProposal(descriptor: descriptor, effect: .localWrite, businessNamespace: "tests",
-            callDigest: try #require((await runtime.snapshot()).invocations[invocationID]?.invocation.call.digest),
-            inheritedSources: tamper == .extraInheritedSource ? [inherited] : [],
+            callDigest: try #require((await runtime.snapshot()).invocations[invocationID]?.invocation.call.digest), inheritedSources: [],
             plan: .init(input: .object([:]), sources: [], targets: []))
         let intent = await runtime.commit(id: UUID()) { context in
-            let reference = try await context.stage(proposal, kind: .effectIntent, retentionGroup: UUID())
+            let reference = try await context.stage(proposal, kind: .effectIntent)
             return [.toolPrepared(.init(invocationID: invocationID, authorization: auth, proposal: reference)),
                     .toolDispatched(invocationID: invocationID, authorizationEpoch: 0)]
         }
@@ -337,13 +332,13 @@ private final class ToolEvidenceFixture: Sendable {
     private static let workspaceID = WorkspaceID()
 
     private static func admitOriginal(runtime: SessionRuntime, userText: String, executionID: ExecutionID,
-                                      userMessageID: MessageID, route: AgentModelRoute) async throws -> SessionPayloadReference {
+                                      userMessageID: MessageID, route: AgentModelRoute) async throws -> SessionContent {
         let result = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Evidence".utf8), kind: .title, retentionGroup: UUID())
-            let body = try await context.stageBytes(Data(userText.utf8), kind: .userText, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Evidence".utf8), kind: .title)
+            let body = try await context.stageBytes(Data(userText.utf8), kind: .userText)
             let plan = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1,
                 driverID: "mira.default", driverRevision: 1, instructions: "Answer", limits: .init(),
-                priority: .foreground, route: route), kind: .executionPlan, retentionGroup: UUID())
+                priority: .foreground, route: route), kind: .executionPlan)
             return [.opened(.init(workspaceID: Self.workspaceID, title: title)),
                     .admitted(.init(executionID: executionID, userMessageID: userMessageID, userBody: body,
                         plan: plan, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "Asia/Shanghai"))]
@@ -362,7 +357,7 @@ private final class ToolEvidenceFixture: Sendable {
         let result = await runtime.commit(id: UUID()) { context in
             let plan = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 2,
                 driverID: "mira.default", driverRevision: 1, instructions: "Retry", limits: .init(),
-                priority: .foreground, route: route), kind: .executionPlan, retentionGroup: UUID())
+                priority: .foreground, route: route), kind: .executionPlan)
             return [.admitted(.init(executionID: retryExecutionID, userMessageID: userMessageID,
                 retryOfExecutionID: executionID, userBody: nil, plan: plan, hasModelRoute: true,
                 authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
@@ -373,7 +368,7 @@ private final class ToolEvidenceFixture: Sendable {
     private static func route(adapter: String) -> AgentModelRoute {
         .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
             modelDescriptorID: ModelDescriptorID(), modelRevision: 1,
-            modelAuthorizationRevision: 1, adapter: .init(id: adapter, revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "fixture", credential: nil,
+            modelAuthorizationRevision: 1, adapter: .init(id: adapter, revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "fixture", credential: nil,
             contextWindow: 4_096, maximumOutputTokens: 512,
             capabilities: .init(streamsText: true, callsTools: true, producesThinking: true),
             configuration: .object([:]))

@@ -6,49 +6,27 @@ public struct KnowledgePrivacyHandler: AgentLibraryMaintenanceHandler {
     private let action: KnowledgePrivacyAction
     private let knowledge: any KnowledgePrivacyStore
     private let blobs: any KnowledgeBlobMaintenance
-    private let sessions: SessionPrivacyMaintenance
-    private let plans: any SessionPrivacyPlanStore
-    private let business: any AgentBusinessPrivacyStore
-    private let projections: SessionPrivacyProjections
 
     public init(
         action: KnowledgePrivacyAction, knowledge: any KnowledgePrivacyStore,
-        blobs: any KnowledgeBlobMaintenance, sessions: SessionPrivacyMaintenance,
-        plans: any SessionPrivacyPlanStore, business: any AgentBusinessPrivacyStore,
-        projections: SessionPrivacyProjections
+        blobs: any KnowledgeBlobMaintenance
     ) {
         self.action = action
         self.knowledge = knowledge
         self.blobs = blobs
-        self.sessions = sessions
-        self.plans = plans
-        self.business = business
-        self.projections = projections
     }
     public func apply(_ operation: AgentLibraryMaintenanceOperation) async throws {
         let scope = try await knowledge.prepareKnowledgePrivacy(operation: operation)
         guard scope.action == action else { throw Self.invalid }
-        let plan = try await sessions.prepare(
-            operation: operation, roots: scope.roots(for: operation),
-            retention: action.retention, reason: action.reason)
-        try await business.purgeSessionResults(plan: plan)
         try await knowledge.applyKnowledgePrivacy(scope, operation: operation)
-        try await sessions.apply(operation: operation)
         _ = try await blobs.collectKnowledgeBlobs(operation: operation)
-        try await projections.rebuild(plan: plan)
     }
     public func verify(_ operation: AgentLibraryMaintenanceOperation) async throws {
         let scope = try await knowledge.prepareKnowledgePrivacy(operation: operation)
-        guard scope.action == action,
-            let plan = try await plans.load(operation: operation), plan.operation == operation,
-            Set(plan.roots) == Set(try scope.roots(for: operation)),
-            plan.retention == action.retention, plan.reason == action.reason
+        guard scope.action == action
         else { throw Self.invalid }
         try await knowledge.verifyKnowledgePrivacy(scope, operation: operation)
-        try await business.verifySessionResultsPurged(plan: plan)
-        try await sessions.verify(operation: operation)
         try await blobs.verifyKnowledgeBlobs(operation: operation)
-        try await projections.verify(plan: plan)
     }
     private static var invalid: MiraError {
         .init(.storage, "The knowledge privacy plan is unavailable or inconsistent.")

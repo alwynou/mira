@@ -34,7 +34,7 @@ enum SQLiteArchiveValidation {
             for (index, column) in columns.enumerated() {
                 if let length = metadata["archive_length_\(index)"] as Int? {
                     let bound = maximumBytes[column.name] ?? 131_072
-                    guard bound > 0, bound <= SessionPrivacyPlan.maximumBytes, (0...bound).contains(length) else {
+                    guard bound > 0, bound <= SessionFormatLimits.maximumBatchBytes, (0...bound).contains(length) else {
                         throw LibraryArchiveIO.invalid
                     }
                 }

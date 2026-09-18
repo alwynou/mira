@@ -20,12 +20,15 @@ struct AgentModelRetryIntegrationTests {
             try #require(attempts.count == 2)
             #expect(inputs[0] == inputs[1])
             #expect(attempts[0].attempt.request == attempts[1].attempt.request)
-            var builds: [AgentRequestRecord] = []
+            var requests: [AgentSessionRequest] = []
             for attempt in attempts {
-                builds.append(try await AgentRequestRecord.read(attempt.attempt.request, payloads: fixture.library))
+                requests.append(try SessionCodec.decode(AgentSessionRequest.self,
+                    from: await fixture.library.read(attempt.attempt.request)))
             }
-            #expect(builds[0] == builds[1])
-            #expect(builds[0].input == inputs[0])
+            #expect(requests[0] == requests[1])
+            #expect(requests[0].instructions == inputs[0].instructions)
+            #expect(requests[0].tools == inputs[0].tools)
+            #expect(requests[0].contextMessages == inputs[0].messages.filter { $0.role == .context })
             #expect(attempts.map { $0.attempt.stepIndex } == [1, 1])
             #expect(attempts.map { $0.attempt.attemptIndex } == [1, 2])
             #expect(attempts[0].attempt.id != attempts[1].attempt.id)
@@ -149,7 +152,6 @@ struct AgentModelRetryIntegrationTests {
             #expect(await fixture.probe.dispatchCount == 2)
             let thinking = try #require(completion.visibleThinking)
             #expect(String(data: try await fixture.library.read(thinking), encoding: .utf8) == "private")
-            #expect(completion.replay != nil)
         }
     }
 
@@ -518,14 +520,14 @@ private final class RetryFixture: Sendable {
             cleanupSnapshot = nil
             let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
                 modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "retry.synthetic", revision: 1),
-                invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "synthetic", credential: nil, contextWindow: 4_096, maximumOutputTokens: 128,
+                invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "synthetic", credential: nil, contextWindow: 4_096, maximumOutputTokens: 128,
                 capabilities: .init(streamsText: true, callsTools: includeTool, producesThinking: true), configuration: .object([:]))
             let plan = AgentExecutionPlan(runtimeID: runtimeID, catalogGeneration: catalog.generation, driverID: "mira.default",
                 driverRevision: 1, instructions: "Answer.", limits: limits, priority: .foreground, route: route)
             let admission = await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Retry test".utf8), kind: .title, retentionGroup: UUID())
-                let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-                let planReference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Retry test".utf8), kind: .title)
+                let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+                let planReference = try await context.stage(plan, kind: .executionPlan)
                 return [.opened(.init(workspaceID: nil, title: title)),
                     .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: user,
                         plan: planReference, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]

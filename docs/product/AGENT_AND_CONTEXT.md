@@ -239,7 +239,7 @@ Turn-scoped Context
 - 临时搜索结果；
 - 本轮用户输入。
 
-Turn-scoped Context 保存在 Request Snapshot（请求快照）中以便审计，但下一轮不默认继续注入。
+Turn-scoped Context 通过请求证据中的 `request/context` 与来源引用审计，但下一轮不默认继续注入；完整 HTTP body 不持久化。
 
 <a id="s14-02"></a>
 

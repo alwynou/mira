@@ -225,7 +225,6 @@ struct MemoryExtractionValidatorTests {
     @Test func invalidSourcesFailClosed() throws {
         let text = "I prefer compact interfaces"
         let validItem = item(content: text, quote: text, kind: "preference")
-        assertError({ _ = try validate(item: validItem, source: source(text, bodyKind: .module)) }, code: .invalidInput, message: "The session evidence reference is invalid.")
         assertError({ _ = try validate(item: validItem, source: source(text, admissionSequence: 0)) }, code: .invalidInput, message: "The session evidence reference is invalid.")
         assertError({ _ = try validate(item: validItem, source: source(" ")) }, code: .invalidInput, message: "The memory extraction evidence is invalid or exceeds its limit.")
         #expect(try validate(item: validItem, source: source(text)).count == 1)
@@ -242,18 +241,14 @@ struct MemoryExtractionValidatorTests {
 private func source(
     _ text: String,
     workspaceID: WorkspaceID? = nil,
-    bodyKind: SessionPayloadKind = .userText,
     admissionSequence: Int64 = 1
 ) -> SessionUserEvidence {
     let sessionID = ConversationID()
     let executionID = ExecutionID()
     let batchID = UUID()
-    let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
-                                       retentionGroup: UUID(), kind: bodyKind,
-                                       byteCount: text.utf8.count, digest: String(repeating: "0", count: 64))
     let reference = SessionEvidenceReference(sessionID: sessionID, originalExecutionID: executionID,
                                              userMessageID: MessageID(), admissionEventID: UUID(),
-                                             admissionSequence: admissionSequence, body: body)
+                                             admissionSequence: admissionSequence)
     return .init(reference: reference, workspaceID: workspaceID,
                  admittedAt: Date(timeIntervalSince1970: 1_000), timeZoneIdentifier: "UTC", text: text,
                  observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID),

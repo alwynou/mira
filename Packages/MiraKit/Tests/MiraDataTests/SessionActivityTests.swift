@@ -8,9 +8,7 @@ import Testing
 struct SessionActivityTests {
     @Test func mapsToolLifecycleStates() {
         let sessionID = ConversationID()
-        let call = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: UUID(), retentionGroup: UUID(),
-            kind: .toolCall, byteCount: 2, digest: String(repeating: "0", count: 64))
+        let call = SessionContent(id: UUID(), kind: .toolCall, bytes: Data("{}".utf8))
         let invocation = SessionInvocation(
             id: UUID(), attemptID: UUID(), modelOrder: 0, toolName: "fixture.tool",
             effect: .read, call: call)
@@ -71,71 +69,6 @@ struct SessionActivityTests {
         }
     }
 
-    @Test func invalidatedExecutionReturnsNoContent() async throws {
-        try await withTaskWorkflow(outputs: try taskReplies(taskArguments(quote: "Question"))) { fixture in
-            let address = try await fixture.run("Question")
-            let runtime = try await SessionRuntime.open(id: address.sessionID, journal: fixture.library, payloads: fixture.library)
-            let state = await runtime.snapshot()
-            let groups = state.privacyGroups(for: [address.executionID], retention: .purgeGeneratedHistory)
-            try taskRequireCommitted(await runtime.commit(id: UUID()) { _ in
-                [.invalidated(.init(operationID: UUID(), executionIDs: [address.executionID],
-                                     retentionGroups: groups, authorizationEpoch: 1, reason: .forgotten))]
-            })
-            try await fixture.library.purge(sessionID: address.sessionID, retentionGroups: groups)
-            await runtime.close()
-            try await withActivity(fixture) { query in
-                let values = try await query.executionActivities(
-                    sessionID: address.sessionID, executionIDs: [address.executionID])
-                #expect(values[address.executionID]?.isEmpty == true)
-            }
-        }
-    }
-
-    @Test func retainedDraftKeepsOrderedPartialBlocksAndStableIDs() async throws {
-        let call = CanonicalToolCall(id: "pending", name: "task.change", arguments: "{\"operation\":\"create\"}")
-        try await withTaskWorkflow(outputs: [[
-            .blockStarted(.init(id: "thought", content: .thinking("Plan"))),
-            .blockStarted(.init(id: "answer", content: .text("Partial"))),
-            .blockStarted(.init(id: "tool", content: .toolCall(call))),
-            .blockFinished(id: "thought"), .blockFinished(id: "answer"),
-            .blockFinished(id: "tool"), .finished(.toolCalls)
-        ]], thinkingEnabled: true) { fixture in
-            await fixture.model.holdStream(number: 1, afterEvents: 4)
-            let sessionID = ConversationID(), executionID = ExecutionID()
-            let command = AgentSubmitCommand(id: UUID(), sessionID: sessionID, executionID: executionID,
-                input: .message(id: MessageID(), text: "Question", timeZoneIdentifier: "Asia/Shanghai"),
-                options: .init(instructions: "Use the available task tools.", route: fixture.route),
-                opening: .init(title: "Synthetic task workflow", workspaceID: nil))
-            try taskRequireCommitted(await fixture.runtime.submit(command))
-            let address = AgentExecutionAddress(sessionID: sessionID, executionID: executionID)
-            do {
-                try await taskEventually { await fixture.model.streamHeld }
-                try await taskEventually {
-                    let state = try await fixture.runtime.sessionSnapshot(id: sessionID)
-                    return try await fixture.library.activeDraft(sessionID: sessionID) != nil
-                }
-                try await withActivity(fixture) { query in
-                    let first = try await query.executionActivities(sessionID: address.sessionID, executionIDs: [address.executionID])
-                    let second = try await query.executionActivities(sessionID: address.sessionID, executionIDs: [address.executionID])
-                    let firstIDs = first[address.executionID]?.flatMap(\.blocks).map(\.id)
-                    #expect(firstIDs == second[address.executionID]?.flatMap(\.blocks).map(\.id))
-                    #expect(firstIDs == ["thought", "answer", "tool"])
-                    let blocks = try #require(first[address.executionID]?.first?.blocks)
-                    #expect(blocks[0].content == .thinking(.available("Plan")))
-                    #expect(blocks[1].content == .text(.available("Partial")))
-                    guard case .tool(let pending) = blocks[2].content else { Issue.record("Missing pending tool"); return }
-                    #expect(pending.arguments == .available(call.arguments))
-                    #expect(pending.status == .queued && pending.result == .absent)
-                }
-            } catch {
-                await fixture.model.releaseStream()
-                throw error
-            }
-            await fixture.model.releaseStream()
-            try taskRequireCommitted(await fixture.runtime.waitForExecution(id: address.executionID, sessionID: address.sessionID))
-        }
-    }
-
     @Test func byteBudgetReturnsAbsentWithoutReadingOversizedPreview() async throws {
         try await withTaskWorkflow(outputs: try taskReplies(taskArguments(quote: "Question"))) { fixture in
             let address = try await fixture.run("Question")
@@ -157,7 +90,7 @@ struct SessionActivityTests {
 
     private func withActivity(
         _ fixture: TaskWorkflowFixture,
-        reader: (any SessionPayloadReader)? = nil,
+        reader: (any SessionContentReader)? = nil,
         maximumPageBytes: Int = 64 * 1_024 * 1_024,
         _ body: (SessionQueryService) async throws -> Void
     ) async throws {
@@ -178,13 +111,13 @@ struct SessionActivityTests {
     }
 }
 
-private actor ActivityPayloadProbe: SessionPayloadReader {
-    let base: any SessionPayloadReader
-    private(set) var references: [SessionPayloadReference] = []
+private actor ActivityPayloadProbe: SessionContentReader {
+    let base: any SessionContentReader
+    private(set) var references: [SessionContent] = []
 
-    init(base: any SessionPayloadReader) { self.base = base }
+    init(base: any SessionContentReader) { self.base = base }
 
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         references.append(reference)
         return try await base.read(reference)
     }
