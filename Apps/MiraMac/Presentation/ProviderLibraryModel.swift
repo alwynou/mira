@@ -71,6 +71,21 @@ final class ProviderLibraryModel {
         connections.first { $0.id == selectedConnectionID }
     }
 
+    /// Resolves a catalog card to its saved connection after a catalog-only
+    /// editor commits. This keeps the card identity stable while the saved
+    /// connection replaces the catalog placeholder in the directory.
+    func configuredConnection(forCatalogProviderID providerID: String) -> AgentConfiguredConnection? {
+        guard let provider = catalog.directoryProviders.first(where: { $0.id == providerID }) else { return nil }
+        return connections.first { connection in
+            if connection.definitionID == provider.id || connection.definitionID == provider.directoryID {
+                return true
+            }
+            let directoryProvider = catalog.matchingProvider(for: connection)
+                ?? catalog.directoryProviders.first { $0.name == connection.name }
+            return directoryProvider?.directoryID == provider.directoryID
+        }
+    }
+
     var providerModels: [AgentConfiguredModel] {
         models.filter { $0.connectionID == selectedConnectionID }
     }
@@ -148,7 +163,7 @@ final class ProviderLibraryModel {
     func refresh(ifMissing savedConnection: AgentConfiguredConnection? = nil) async {
         if let savedConnection,
             connections.contains(where: {
-                $0.id == savedConnection.id && $0.revision >= savedConnection.revision
+                $0.id == savedConnection.id && $0 == savedConnection
             })
         {
             return

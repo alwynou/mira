@@ -11,8 +11,7 @@ struct ProviderLibraryModelTests {
         try await withDirectory { directory in
             let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
             let container = AppContainer(launch: launch) { launch in
-                try await MacLibrary.open(
-                    directory: launch.directory, notifications: CompositionNotifications(),
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
             }
             await container.start()
@@ -35,6 +34,128 @@ struct ProviderLibraryModelTests {
                 #expect(model.models.contains { $0.modelID == catalog.id })
                 #expect(model.presets.contains { $0.modelDescriptorID == model.models.first { $0.modelID == catalog.id }?.id })
                 #expect(model.newCatalogModels.allSatisfy { $0.id != catalog.id })
+                #expect(await container.close().isSettled)
+            } catch {
+                _ = await container.close()
+                throw error
+            }
+        }
+    }
+
+    @Test func catalogSelectionResolvesToItsSavedConnectionAfterAnotherProviderIsActive() async throws {
+        try await withDirectory { directory in
+            let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
+            let container = AppContainer(launch: launch) { launch in
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
+                    credentials: CompositionCredentials(), modules: { _ in [] })
+            }
+            await container.start()
+            do {
+                let group = try #require(container.workgroup)
+                let openAI = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "openai" })
+                let anthropic = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "anthropic" })
+                let first = try openAI.makeConnection(credential: nil)
+                let second = try anthropic.makeConnection(credential: nil)
+                _ = try await group.credentialSettings.saveConnection(
+                    id: first.id, name: first.name, isEnabled: true, definitionID: first.definitionID,
+                    endpoints: first.endpoints, discovery: first.discovery, defaultInvocation: first.defaultInvocation,
+                    previous: nil, credentialEndpointID: first.endpoints[0].id, credential: .keep)
+                let savedSecond = try await group.credentialSettings.saveConnection(
+                    id: second.id, name: second.name, isEnabled: true, definitionID: second.definitionID,
+                    endpoints: second.endpoints, discovery: second.discovery, defaultInvocation: second.defaultInvocation,
+                    previous: nil, credentialEndpointID: second.endpoints[0].id, credential: .keep).connection
+                let model = ProviderLibraryModel(container: container)
+                await model.refresh()
+                #expect(model.configuredConnection(forCatalogProviderID: "anthropic")?.id == savedSecond.id)
+                #expect(model.configuredConnection(forCatalogProviderID: "anthropic")?.id != first.id)
+                #expect(await container.close().isSettled)
+            } catch {
+                _ = await container.close()
+                throw error
+            }
+        }
+    }
+
+    @Test func savedCredentialKeepsProviderActiveWhileModelTogglePublishesImmediately() async throws {
+        try await withDirectory { directory in
+            let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
+            let container = AppContainer(launch: launch) { launch in
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
+                    credentials: CompositionCredentials(), modules: { _ in [] })
+            }
+            await container.start()
+            do {
+                let group = try #require(container.workgroup)
+                let provider = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "openai" })
+                let template = try provider.makeConnection(credential: nil)
+                let connection = try await group.credentialSettings.saveConnection(
+                    id: template.id, name: template.name, isEnabled: true,
+                    definitionID: template.definitionID, endpoints: template.endpoints,
+                    discovery: template.discovery, defaultInvocation: template.defaultInvocation,
+                    previous: nil, credentialEndpointID: template.endpoints[0].id,
+                    credential: .replace("synthetic-provider-key")).connection
+                let model = ProviderLibraryModel(container: container)
+                await model.refresh()
+                model.selectedConnectionID = connection.id
+                let catalog = try #require(model.newCatalogModels.first)
+                await model.addCatalogModel(catalog, connection: connection)
+                let configured = try #require(model.providerModels.first { $0.modelID == catalog.id })
+                #expect(configured.isEnabled)
+                await model.setModelEnabled(false, model: configured)
+                let disabled = try #require(model.providerModels.first { $0.id == configured.id })
+                #expect(!disabled.isEnabled)
+                await model.setModelEnabled(true, model: disabled)
+                #expect(model.providerModels.first { $0.id == configured.id }?.isEnabled == true)
+                #expect(model.selectedConnectionID == connection.id)
+                #expect(await container.close().isSettled)
+            } catch {
+                _ = await container.close()
+                throw error
+            }
+        }
+    }
+
+    @Test func connectionEditorSaveCallbackRefreshesTheProviderBeforeEnablingModels() async throws {
+        try await withDirectory { directory in
+            let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
+            let container = AppContainer(launch: launch) { launch in
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
+                    credentials: CompositionCredentials(), modules: { _ in [] })
+            }
+            await container.start()
+            do {
+                let library = try #require(container.library)
+                let group = try #require(container.workgroup)
+                let provider = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "deepseek" })
+                let model = ProviderLibraryModel(container: container)
+                await model.refresh()
+                let settings = ProviderConnectionSettingsModel(
+                    existing: nil, template: provider, library: library, isDemo: false)
+                settings.secret = "synthetic-provider-key"
+                let refreshAfterSave: @MainActor (AgentConfiguredConnection) async -> Void = { updated in
+                    await model.refresh(ifMissing: updated)
+                }
+                settings.save(onSaved: refreshAfterSave)
+                await settings.waitForAction()
+                let saved = try #require(model.configuredConnection(forCatalogProviderID: provider.id))
+                #expect(saved.isEnabled == false)
+                #expect(!settings.isWorking)
+
+                settings.setEnabled(true, onSaved: refreshAfterSave)
+                await settings.waitForAction()
+                let enabled = try #require(model.connections.first { $0.id == saved.id })
+                #expect(enabled.isEnabled)
+                #expect(!model.isWorking)
+
+                model.selectedConnectionID = enabled.id
+                let catalogModel = try #require(model.newCatalogModels.first)
+                await model.addCatalogModel(catalogModel, connection: enabled)
+                let configured = try #require(model.providerModels.first { $0.modelID == catalogModel.id })
+                await model.setModelEnabled(false, model: configured)
+                let disabled = try #require(model.providerModels.first { $0.id == configured.id })
+                await model.setModelEnabled(true, model: disabled)
+                #expect(model.providerModels.first { $0.id == configured.id }?.isEnabled == true)
+                #expect(try await group.modelSettings.connection(id: enabled.id)?.isEnabled == true)
                 #expect(await container.close().isSettled)
             } catch {
                 _ = await container.close()
@@ -110,8 +231,7 @@ struct ProviderLibraryModelTests {
         try await withDirectory { directory in
             let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
             let container = AppContainer(launch: launch) { launch in
-                try await MacLibrary.open(
-                    directory: launch.directory, notifications: CompositionNotifications(),
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
             }
             await container.start()
@@ -185,8 +305,7 @@ struct ProviderLibraryModelTests {
     ) -> AppContainer {
         let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
         return AppContainer(launch: launch) { launch in
-            let library = try await MacLibrary.open(
-                directory: launch.directory, notifications: CompositionNotifications(),
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
                 credentials: CompositionCredentials(), modules: modules)
             guard seedDemo else { return library }
             do {

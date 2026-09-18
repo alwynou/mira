@@ -80,6 +80,12 @@ struct ProviderConfigurationView: View {
         }) {
             selectedProviderContent
         }
+        // Catalog and saved-provider rows can have the same model IDs, but
+        // their controls have different bindings and disabled state. Replace
+        // the owning scroll/lazy subtree when the persisted connection
+        // replaces the catalog placeholder; a row-level identity is too late
+        // for LazyVStack's realized native controls.
+        .id(selectedProviderDestination)
         .accessibilityIdentifier("settings.providers.page")
     }
 
@@ -92,8 +98,10 @@ struct ProviderConfigurationView: View {
 
     private var providerChoices: [ProviderChoice] {
         let known = model.catalog.directoryProviders.flatMap { provider in
-            let connections = listedConnections.filter {
-                directoryProvider(for: $0)?.directoryID == provider.directoryID
+            let connections = listedConnections.filter { connection in
+                connection.definitionID == provider.id || connection.definitionID == provider.directoryID
+                    || directoryProvider(for: connection)?.directoryID == provider.directoryID
+                    || model.configuredConnection(forCatalogProviderID: provider.id)?.id == connection.id
             }
             if connections.isEmpty {
                 return [
@@ -194,8 +202,9 @@ struct ProviderConfigurationView: View {
     private var inactiveConnections: [AgentConfiguredConnection] { listedConnections.filter { !$0.isEnabled } }
 
     private var unconfiguredProviders: [CatalogProvider] {
-        let configuredIDs = Set(listedConnections.compactMap { directoryProvider(for: $0)?.directoryID })
-        return model.catalog.directoryProviders.filter { !configuredIDs.contains($0.directoryID) }
+        model.catalog.directoryProviders.filter {
+            model.configuredConnection(forCatalogProviderID: $0.id) == nil
+        }
     }
 
     private var selectedProviderDestination: SettingsDestination? {
@@ -203,10 +212,19 @@ struct ProviderConfigurationView: View {
         switch destination {
         case .provider(let id) where listedConnections.contains(where: { $0.id == id }):
             return destination
-        case .catalogProvider(let id) where unconfiguredProviders.contains(where: { $0.id == id }):
-            return destination
-        case .catalogProvider("custom"):
-            return destination
+        case .catalogProvider(let id):
+            // A catalog card can remain in the input destination for one
+            // render after its connection is persisted. Resolve it before
+            // consulting `unconfiguredProviders`; otherwise the stale card
+            // renders its disabled catalog model rows even though the saved
+            // connection is active.
+            if let connection = model.configuredConnection(forCatalogProviderID: id) {
+                return .provider(connection.id)
+            }
+            if unconfiguredProviders.contains(where: { $0.id == id }) { return destination }
+            if id == "custom" { return destination }
+            if let first = activeConnections.first ?? inactiveConnections.first { return .provider(first.id) }
+            return unconfiguredProviders.first.map { .catalogProvider($0.id) }
         default:
             if let first = activeConnections.first ?? inactiveConnections.first { return .provider(first.id) }
             return unconfiguredProviders.first.map { .catalogProvider($0.id) }
@@ -253,7 +271,6 @@ struct ProviderConfigurationView: View {
 
     @ViewBuilder private var connectionFields: some View {
         if let connectionEditor, editorDestination == selectedProviderDestination {
-            let editingDestination = editorDestination
             ProviderConnectionEditor(
                 settings: connectionEditor,
                 isUnavailable: model.isWorking || model.container.isDemo,
@@ -262,8 +279,15 @@ struct ProviderConfigurationView: View {
                     model.cancelProbe()
                 }
             ) { updated in
+                // A newly saved catalog provider is removed from
+                // `unconfiguredProviders` as soon as the library refreshes.
                 await model.refresh(ifMissing: updated)
-                if editorDestination == editingDestination { navigate(.provider(updated.id)) }
+                // Normalize the parent destination once the connection is
+                // visible. The selection check preserves a provider the user
+                // selected while the save was in flight.
+                if selectedProviderDestination == .provider(updated.id) {
+                    navigate(.provider(updated.id))
+                }
             }
             .id(editorDestination)
             #if DEBUG
