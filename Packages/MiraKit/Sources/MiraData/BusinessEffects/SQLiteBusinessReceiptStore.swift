@@ -16,7 +16,7 @@ public final class SQLiteBusinessReceiptStore: AgentBusinessReceipts, @unchecked
 
     public init(
         database: DatabaseQueue, libraryID: UUID, journal: any SessionJournal,
-        payloads: any SessionPayloadReader, extensionSchemas: [String: Set<Int>] = [:]
+        payloads: any SessionContentReader, extensionSchemas: [String: Set<Int>] = [:]
     ) throws {
         self.database = database
         self.libraryID = libraryID
@@ -28,7 +28,7 @@ public final class SQLiteBusinessReceiptStore: AgentBusinessReceipts, @unchecked
                 try SQLiteDomainDatabase.requireDurability(db)
                 try SQLiteLibraryAuthority.validateInitialized(in: db, libraryID: libraryID)
                 guard try Int.fetchOne(db, sql: "SELECT count(*) FROM business_effects_metadata") == 1,
-                    try Int.fetchOne(db, sql: "SELECT format_version FROM business_effects_metadata WHERE id = 1") == 1
+                    try Int.fetchOne(db, sql: "SELECT format_version FROM business_effects_metadata WHERE id = 1") == 2
                 else { throw MiraError(.unsupported, "The business receipt schema is unsupported.") }
                 let owned = Set(SQLiteBusinessEffects.archiveTableNames)
                 guard try SQLiteArchiveSchemaObject.read(in: db).filter({ owned.contains($0.table) }) == schema else {

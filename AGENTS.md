@@ -14,10 +14,11 @@
 - macOS 15+, Swift 6 strict concurrency. SwiftUI content with Observation and an AppKit window shell; UI state belongs to `@MainActor` presentation models.
 - `MiraCore` imports Foundation only. It owns domain values, use cases, runtime, and ports. `MiraData` and `MiraProviders` implement those ports; `MiraMac` composes adapters and owns platform services.
 - Views never query GRDB or send provider requests. Long-running executions belong to the application runtime, not a view task.
-- Persist a user message and queued execution atomically. Enforce one active execution per session through journal reduction, serialized admission and the library writer lock; SQLite projections are never admission authority. Preserve recoverable drafts and terminal-state uniqueness.
+- Persist a user message and queued execution atomically. Enforce one active execution per session through journal reduction, serialized admission and the library writer lock; SQLite projections are never admission authority. Preserve committed output and terminal-state uniqueness. Model streams are process-local until attempt settlement; losing unsettled output on a hard crash is accepted, following DSH.
+- Session journals follow `docs/architecture/AGENT_SESSION_LOG.md`: readable inline content, DSH shared fields, required Mira execution facts and atomic physical frames. Do not reintroduce session body sidecars, erasure plans, compatibility decoders or duplicate full-history request logs.
 - API keys live in Keychain. Persist only credential references and versions. No raw request bodies, responses, keys, or personal content in ordinary logs/errors.
 - Provider requests use frozen routes, explicit context limits, no cross-origin credential redirects, and no implicit fallback. Test providers never enter production automatically.
-- Thinking is a first-class output. Preserve provider continuation data through streams, drafts, tool calls, persistence and privacy cleanup; never force thinking off to hide an incomplete adapter. Follow `docs/architecture/THINKING.md` for provider-specific replay boundaries.
+- Thinking is a first-class output. Preserve provider continuation data through live streams, tool calls and settled output; never force thinking off to hide an incomplete adapter. Follow `docs/architecture/THINKING.md` for provider-specific replay boundaries.
 - Build only the current milestone. Do not add speculative packages, empty feature screens, shell tools, sync, or a backend.
 
 ## Design system
@@ -38,7 +39,7 @@
 - App: `xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build`.
 - Regenerate project after file/target changes: `xcodegen generate`; keep `project.yml` and the generated project consistent.
 - Use isolated temporary databases and synthetic transport fixtures. CI must not require credentials or call paid model endpoints.
-- Verify failure boundaries (atomicity, interrupted streams, cancellation, recovery, privacy), not just happy paths. Report exact evidence and remaining gaps; compiling for macOS 15 is not a macOS 15 runtime test.
+- Verify failure boundaries (atomicity, interrupted streams, cancellation, recovery, business authorization), not just happy paths. Report exact evidence and remaining gaps; compiling for macOS 15 is not a macOS 15 runtime test.
 
 ## Language and localization
 

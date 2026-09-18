@@ -1,11 +1,9 @@
 import Foundation
 
-/// A payload may be absent, deliberately purged, or available and decoded.
-/// Purged content is never read from the payload store.
+/// A payload may be absent, deliberately purged by a business result policy, or available and decoded.
 public enum SessionAuditContent<Value: Sendable & Equatable>: Sendable, Equatable {
     case available(Value)
     case absent
-    case purged
 }
 
 public struct SessionAuditInvocation: Sendable, Equatable, Identifiable {
@@ -30,13 +28,13 @@ public struct SessionAuditAttempt: Sendable, Equatable, Identifiable {
     public let sequence: Int64
     public let startedAt: Date
     public let resolution: SessionAttemptResolution?
-    public let request: SessionAuditContent<AgentContextBuild>
+    public let request: SessionAuditContent<AgentSessionRequest>
     public let output: SessionAuditContent<AgentModelOutput>
     public let failure: SessionAuditContent<AgentModelAttemptFailureRecord>
     public let invocations: [SessionAuditInvocation]
 
     public init(attempt: SessionAttempt, sequence: Int64, startedAt: Date,
-                resolution: SessionAttemptResolution?, request: SessionAuditContent<AgentContextBuild>,
+                resolution: SessionAttemptResolution?, request: SessionAuditContent<AgentSessionRequest>,
                 output: SessionAuditContent<AgentModelOutput>,
                 failure: SessionAuditContent<AgentModelAttemptFailureRecord>,
                 invocations: [SessionAuditInvocation]) {
@@ -89,13 +87,13 @@ struct SessionAuditReader: Sendable {
     /// Keep the decoded request once so page assembly does not repeatedly read or
     /// decode the same retained payload.
     private final class PagePayloadCache {
-        var requests: [UUID: AgentContextBuild] = [:]
+        var requests: [UUID: AgentSessionRequest] = [:]
     }
 
     static func read(
         snapshot: SessionJournalSnapshot, sessionID: ConversationID, executionID: ExecutionID,
         beforeSequence: Int64?, limit: Int, maximumPageBytes: Int,
-        payloads: any SessionPayloadReader
+        payloads: any SessionContentReader
     ) async throws -> SessionExecutionAuditPage {
         try Task.checkCancellation()
         guard snapshot.state.id == sessionID, beforeSequence.map({ $0 > 0 }) ?? true,
@@ -119,9 +117,8 @@ struct SessionAuditReader: Sendable {
         let hasMore = eligible.count > selected.count
 
         // Reserve the complete selected page from metadata before touching any payload bytes.
-        // A repeated reference is counted once; a revoked retention group is returned as
-        // purged and contributes no physical bytes.
-        var referenced: [(SessionPayloadReference, SessionPayloadKind)] = [(executionState.admission.plan, .executionPlan)]
+        // A repeated reference is counted once.
+        var referenced: [(SessionContent, SessionContentKind)] = [(executionState.admission.plan, .executionPlan)]
         if let error = executionState.completion?.error { referenced.append((error, .error)) }
         for value in selected {
             referenced.append((value.attempt.request, .request))
@@ -134,7 +131,7 @@ struct SessionAuditReader: Sendable {
                       invocation.invocation.attemptID == value.attempt.id else { throw invalidPage }
                 referenced.append((invocation.invocation.call, .toolCall))
                 if let proposal = invocation.intent?.intent.proposal { referenced.append((proposal, .effectIntent)) }
-                if let result = invocation.resolution?.result, invocation.resolution?.resultWasPurged != true {
+                if let result = invocation.resolution?.result {
                     referenced.append((result, .toolResult))
                 }
             }
@@ -144,7 +141,6 @@ struct SessionAuditReader: Sendable {
         for (reference, expected) in referenced {
             try reference.validate()
             guard reference.kind == expected, snapshot.state.references[reference.id] == reference else { throw invalidPage }
-            guard !snapshot.state.invalidatedRetentionGroups.contains(reference.retentionGroup) else { continue }
             guard reservedIDs.insert(reference.id).inserted else { continue }
             guard reference.byteCount <= maximumPageBytes - reservedBytes else { throw pageTooLarge }
             reservedBytes += reference.byteCount
@@ -153,8 +149,7 @@ struct SessionAuditReader: Sendable {
         let summary = SessionExecutionSummary(
             sessionID: sessionID, admission: executionState.admission,
             sequence: executionState.admissionSequence, admittedAt: executionState.admittedAt,
-            phase: executionState.phase, completion: executionState.completion,
-            isExcludedFromContext: snapshot.state.excludedExecutionIDs.contains(executionID))
+            phase: executionState.phase, completion: executionState.completion)
 
         let plan = try await content(
             executionState.admission.plan, expected: .executionPlan, state: snapshot.state,
@@ -201,7 +196,7 @@ struct SessionAuditReader: Sendable {
 
     private static func readAttempt(
         _ value: SessionAttemptState, execution: SessionExecutionState, state: SessionState,
-        payloads: any SessionPayloadReader, maximumPageBytes: Int, route: AgentModelRoute?,
+        payloads: any SessionContentReader, maximumPageBytes: Int, route: AgentModelRoute?,
         cache: PagePayloadCache
     ) async throws -> SessionAuditAttempt {
         let attempt = value.attempt
@@ -209,13 +204,13 @@ struct SessionAuditReader: Sendable {
               value.invocationIDs.count <= maximumInvocations,
               Set(value.invocationIDs).count == value.invocationIDs.count else { throw invalidPage }
 
-        let request: SessionAuditContent<AgentContextBuild>
+        let request: SessionAuditContent<AgentSessionRequest>
         if let cached = cache.requests[attempt.request.id] {
             request = .available(cached)
         } else {
             let decoded = try await content(attempt.request, expected: .request, state: state,
                                             payloads: payloads, maximumPageBytes: maximumPageBytes) {
-                try SessionCodec.decode(AgentContextBuild.self, from: $0)
+                try SessionCodec.decode(AgentSessionRequest.self, from: $0)
             }
             if case .available(let build) = decoded { cache.requests[attempt.request.id] = build }
             request = decoded
@@ -228,12 +223,8 @@ struct SessionAuditReader: Sendable {
             effectiveRoute = requestRoute
             guard build.request.sessionID == state.id,
                   build.request.executionID == attempt.executionID,
-                  build.request.authorizationEpoch == execution.admission.authorizationEpoch,
-                  build.prepared.input.executionID == attempt.executionID,
-                  build.prepared.input.stepID == attempt.stepID,
-                  build.prepared.adapter == requestRoute.adapter else { throw invalidPage }
-            do { try build.prepared.validate(for: requestRoute) } catch { throw invalidPage }
-            for source in build.sources { try source.validate() }
+                  build.request.authorizationEpoch == execution.admission.authorizationEpoch else { throw invalidPage }
+            do { try build.validate(for: requestRoute) } catch { throw invalidPage }
         } else {
             effectiveRoute = route
         }
@@ -300,9 +291,7 @@ struct SessionAuditReader: Sendable {
                 }
             } else { proposal = .absent }
             let result: SessionAuditContent<JSONValue>
-            if let resolution = invocationState.resolution, resolution.resultWasPurged {
-                result = .purged
-            } else if let reference = invocationState.resolution?.result {
+            if let reference = invocationState.resolution?.result {
                 result = try await content(reference, expected: .toolResult, state: state,
                                            payloads: payloads, maximumPageBytes: maximumPageBytes) {
                     try SessionCodec.decode(JSONValue.self, from: $0)
@@ -320,13 +309,12 @@ struct SessionAuditReader: Sendable {
     }
 
     private static func content<Value: Sendable & Equatable>(
-        _ reference: SessionPayloadReference, expected: SessionPayloadKind, state: SessionState,
-        payloads: any SessionPayloadReader, maximumPageBytes: Int,
+        _ reference: SessionContent, expected: SessionContentKind, state: SessionState,
+        payloads: any SessionContentReader, maximumPageBytes: Int,
         decode: (Data) throws -> Value
     ) async throws -> SessionAuditContent<Value> {
         try reference.validate()
         guard reference.kind == expected, state.references[reference.id] == reference else { throw invalidPage }
-        if state.invalidatedRetentionGroups.contains(reference.retentionGroup) { return .purged }
         guard reference.byteCount <= maximumPageBytes else { throw pageTooLarge }
         try Task.checkCancellation()
         let bytes = try await payloads.read(reference)

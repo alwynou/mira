@@ -13,10 +13,8 @@ struct SessionReadMeasurements {
             defer { try? FileManager.default.removeItem(at: root) }
             let writer = try FileSessionLibrary(directory: root)
             let id = ConversationID(), firstID = UUID()
-            let title = try await writer.stage(Data("Synthetic benchmark".utf8), sessionID: id, batchID: firstID,
-                                               retentionGroup: UUID(), kind: .title)
-            let body = try await writer.stage(Data("Synthetic module".utf8), sessionID: id, batchID: firstID,
-                                              retentionGroup: UUID(), kind: .module)
+            let title = try await writer.stage(Data("Synthetic benchmark".utf8), sessionID: id, batchID: firstID, kind: .title)
+            let body = try await writer.stage(Data("Synthetic module".utf8), sessionID: id, batchID: firstID, kind: .module)
             let first = SessionBatch(id: firstID, sessionID: id, expectedSequence: 0, events: [
                 .init(sequence: 1, occurredAt: Date(timeIntervalSince1970: 1), fact: .opened(.init(workspaceID: nil, title: title))),
                 .init(sequence: 2, occurredAt: Date(timeIntervalSince1970: 1), fact: .extensionRecorded(namespace: "bench.sample", schemaVersion: 1, required: false, body: body))

@@ -58,7 +58,17 @@ struct AgentHTTPApplicationTests {
             #expect(completion.status == .failed)
             let error = try SessionCodec.decode(MiraError.self, from: await fixture.library.read(try #require(completion.error)))
             #expect(error.code == .interrupted)
-            #expect(completion.answer == nil && completion.replay == nil)
+            #expect(completion.answer == nil)
+            let attemptID = try #require(state.executions[command.executionID]?.attemptIDs.last)
+            let attempt = try #require(state.attempts[attemptID])
+            let outputReference = try #require(attempt.resolution?.output)
+            let output = try SessionCodec.decode(AgentModelOutput.self, from: await fixture.library.read(outputReference))
+            #expect(output.thinkingText == "partial")
+            #expect(output.finishReason == .outputLimit)
+            #expect(output.continuation?.adapter.id == "mira.http.chat-completions")
+            #expect(output.continuation?.format == "openai.content")
+            #expect(output.continuation?.isComplete == false)
+            #expect(attempt.resolution?.stream.isEmpty == false)
             let thinkingReference = try #require(completion.visibleThinking)
             #expect(try await fixture.library.read(thinkingReference) == Data("partial".utf8))
             #expect(fixture.transport.requestCount == 1)
@@ -106,8 +116,8 @@ struct AgentHTTPApplicationTests {
     }
 
     @Test(arguments: [false, true])
-    func retryWaitsForPhysicalCleanupAndRecoversWithoutRedispatch(reopen: Bool) async throws {
-        let fault = RetryDeletionFault()
+    func retryAdmissionFencesAndRecoversWithoutRedispatch(reopen: Bool) async throws {
+        let fault = RetryJournalFault()
         let partial = Data("""
         data: {"choices":[{"delta":{"reasoning_content":"old thinking"}}]}
 
@@ -128,12 +138,6 @@ struct AgentHTTPApplicationTests {
             let oldThinking = try #require(completion.visibleThinking)
             #expect(try await fixture.library.read(oldAnswer) == Data("old partial answer".utf8))
             #expect(try await fixture.library.read(oldThinking) == Data("old thinking".utf8))
-            let oldPaths = [oldAnswer, oldThinking].map { reference in
-                fixture.directory.appendingPathComponent("payloads")
-                    .appendingPathComponent(reference.sessionID.rawValue.uuidString)
-                    .appendingPathComponent(reference.batchID.uuidString)
-                    .appendingPathComponent(reference.id.uuidString + ".bin").path
-            }
             let retry = AgentSubmitCommand(id: UUID(), sessionID: original.sessionID, executionID: ExecutionID(),
                 input: .retry(executionID: original.executionID), options: original.options)
             fault.setArmed(true)
@@ -143,10 +147,11 @@ struct AgentHTTPApplicationTests {
             }
             #expect(batchID == retry.id)
             #expect(fixture.transport.requestCount == 1)
-            #expect(oldPaths.allSatisfy { FileManager.default.fileExists(atPath: $0) })
             let queued = try await fixture.application.sessionSnapshot(id: original.sessionID)
-            #expect(queued.executions[retry.executionID]?.phase == .queued)
-            #expect(queued.invalidatedRetentionGroups.contains(oldAnswer.retentionGroup))
+            // An uncertain append is not reflected in the authoritative state
+            // until reconciliation; exposing its tentative queued execution
+            // would let admission appear durable before the journal outcome is known.
+            #expect(queued.executions[retry.executionID] == nil)
             #expect(await fixture.application.submit(retry) == pending)
 
             if reopen {
@@ -176,7 +181,8 @@ struct AgentHTTPApplicationTests {
                 try await fixture.reopen()
                 #expect(fixture.transport.requestCount == 2)
             }
-            #expect(oldPaths.allSatisfy { !FileManager.default.fileExists(atPath: $0) })
+            #expect(try await fixture.library.read(oldAnswer) == Data("old partial answer".utf8))
+            #expect(try await fixture.library.read(oldThinking) == Data("old thinking".utf8))
             #expect(try await fixture.library.read(try #require(source.admission.userBody)) == Data("Question".utf8))
             #expect(try await fixture.library.read(source.admission.plan).isEmpty == false)
             await fixture.close()
@@ -239,13 +245,13 @@ struct AgentHTTPApplicationTests {
     }
 }
 
-private final class RetryDeletionFault: @unchecked Sendable {
+private final class RetryJournalFault: @unchecked Sendable {
     private let lock = NSLock()
     private var armed = false
     func setArmed(_ value: Bool) { lock.withLock { armed = value } }
     func check(_ stage: SessionStorageFaultStage) throws {
-        if stage == .beforePayloadDelete, lock.withLock({ armed }) {
-            throw MiraError(.storage, "Fixture retry deletion failed.")
+        if stage == .afterJournalWrite, lock.withLock({ armed }) {
+            throw MiraError(.storage, "Fixture retry journal write became uncertain.")
         }
     }
 }

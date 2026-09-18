@@ -3,7 +3,9 @@ import GRDB
 import MiraCore
 
 extension SQLiteMemoryStore {
-    static let archiveSchemaDefinitions: [(String, String)] = [
+    static var archiveSchemaDefinitions: [(String, String)] { canonicalSchemaDefinitions + vectorSchemaDefinitions }
+
+    private static let canonicalSchemaDefinitions: [(String, String)] = [
         ("memory_schema", "CREATE TABLE memory_schema(id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL CHECK(version=1))"),
         ("memory_records", "CREATE TABLE memory_records(id TEXT PRIMARY KEY NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), scope TEXT NOT NULL, workspace_id TEXT REFERENCES business_workspaces(id), state TEXT NOT NULL CHECK(state IN ('active','candidate','archived','rejected','removed')), superseded_by TEXT REFERENCES memory_records(id), deleted_at REAL, forgotten_at REAL, draft_json BLOB CHECK(length(draft_json)<=131072), json BLOB NOT NULL CHECK(length(json)<=131072))"),
         ("memory_records_scope", "CREATE INDEX memory_records_scope ON memory_records(scope, state, id)"),
@@ -25,11 +27,23 @@ extension SQLiteMemoryStore {
 
     static func initialize(in db: Database) throws {
         let new = try !db.tableExists("memory_schema")
-        try SQLiteDomainDatabase.initialize(archiveSchemaDefinitions, metadata: "memory_schema", in: db)
+        try SQLiteDomainDatabase.initialize(canonicalSchemaDefinitions, metadata: "memory_schema", in: db)
         if new {
             let policy = MemoryCapturePolicy()
             try db.execute(sql: "INSERT INTO memory_policy(id, revision, json) VALUES (1, ?, ?)", arguments: [policy.revision, try encode(policy)])
         }
         _ = try currentCapturePolicy(in: db)
+        // The disposable vector projection has no canonical-format migration.
+        // Missing projections are rebuilt from current memories. Partial or unknown schemas fail closed.
+        let present = try vectorSchemaDefinitions.filter { try db.tableExists($0.0) }
+        guard present.isEmpty || present.count == vectorSchemaDefinitions.count else { throw SQLiteDomainDatabase.invalidSchema }
+        if present.isEmpty {
+            for (_, sql) in vectorSchemaDefinitions { try db.execute(sql: sql) }
+        }
+        for (name, sql) in vectorSchemaDefinitions {
+            guard try String.fetchOne(db, sql: "SELECT sql FROM sqlite_master WHERE name = ?", arguments: [name]) == sql else {
+                throw SQLiteDomainDatabase.invalidSchema
+            }
+        }
     }
 }

@@ -27,6 +27,7 @@ public struct AgentModelCapabilities: Codable, Sendable, Equatable {
 }
 
 /// Adapter-owned configuration is frozen data. It never includes a credential value.
+/// Metadata provenance stays in model settings; routes retain resolved execution values.
 public struct AgentModelRoute: Codable, Sendable, Equatable {
     public let id: RouteID
     public let revision: Int
@@ -39,7 +40,6 @@ public struct AgentModelRoute: Codable, Sendable, Equatable {
     public let invocationID: String
     public let invocationRevision: Int
     public let endpointID: String
-    public let metadataEvidence: [AgentModelMetadataFact]
     public let modelID: String
     public let credential: AgentCredentialReference?
     public let contextWindow: Int
@@ -51,7 +51,6 @@ public struct AgentModelRoute: Codable, Sendable, Equatable {
     public init(id: RouteID, revision: Int, connectionID: ConnectionID, connectionRevision: Int,
                 modelDescriptorID: ModelDescriptorID, modelRevision: Int, modelAuthorizationRevision: Int, adapter: AgentAdapterIdentity,
                 invocationID: String, invocationRevision: Int, endpointID: String,
-                metadataEvidence: [AgentModelMetadataFact],
                 modelID: String, credential: AgentCredentialReference?, contextWindow: Int,
                 maximumOutputTokens: Int, capabilities: AgentModelCapabilities, configuration: JSONValue, maximumInputTokens: Int? = nil) {
         self.id = id; self.revision = revision; self.connectionID = connectionID
@@ -63,15 +62,14 @@ public struct AgentModelRoute: Codable, Sendable, Equatable {
         self.configuration = configuration
         self.maximumInputTokens = maximumInputTokens
         self.invocationID = invocationID; self.invocationRevision = invocationRevision
-        self.endpointID = endpointID; self.metadataEvidence = metadataEvidence
+        self.endpointID = endpointID
     }
 
     public func validate() throws {
         try adapter.validate()
-        for fact in metadataEvidence { try fact.validate() }
         guard revision > 0, connectionRevision > 0, modelRevision > 0, modelAuthorizationRevision > 0, modelAuthorizationRevision <= modelRevision, invocationRevision > 0,
               SessionState.validIdentifier(invocationID, maximumBytes: 128),
-              SessionState.validIdentifier(endpointID, maximumBytes: 128), metadataEvidence.count <= 256,
+              SessionState.validIdentifier(endpointID, maximumBytes: 128),
               !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, modelID.utf8.count <= 512,
               (1...10_000_000).contains(contextWindow), maximumOutputTokens > 0,
               maximumInputTokens.map({ (1...10_000_000).contains($0) }) ?? true,
@@ -127,14 +125,14 @@ public struct AgentModelBlock: Codable, Sendable, Equatable {
         }
         switch content {
         case .text(let value), .thinking(let value):
-            guard value.utf8.count <= SessionFormatLimits.maximumPayloadBytes else {
+            guard value.utf8.count <= SessionFormatLimits.maximumContentBytes else {
                 throw MiraError(.outputLimit, "The model block exceeds its text limit.")
             }
         case .toolCall(let call):
             try Self.validate(call)
         case .toolResult(let callID, let text):
             guard !callID.isEmpty, callID.utf8.count <= 256,
-                  text.utf8.count <= SessionFormatLimits.maximumPayloadBytes else {
+                  text.utf8.count <= SessionFormatLimits.maximumContentBytes else {
                 throw MiraError(.malformedStream, "The model tool result is invalid.")
             }
         }
@@ -240,7 +238,7 @@ public struct AgentModelInput: Codable, Sendable, Equatable {
         var usedIDs: Set<String> = []
         for message in messages {
             try message.validate(for: route.adapter, replay: true)
-            guard try SessionCodec.encode(message).count <= SessionFormatLimits.maximumPayloadBytes else {
+            guard try SessionCodec.encode(message).count <= SessionFormatLimits.maximumContentBytes else {
                 throw MiraError(.contextLimit, "The model input exceeds its supported bounds.")
             }
             if !pending.isEmpty {
@@ -283,7 +281,7 @@ public struct AgentPreparedModelRequest: Codable, Sendable, Equatable {
         try input.validate(for: route)
         guard adapter == route.adapter, estimatedInputTokens >= 0,
               estimatedInputTokens <= min(route.contextWindow - route.maximumOutputTokens, route.maximumInputTokens ?? Int.max),
-              try SessionCodec.encode(self).count <= SessionFormatLimits.maximumPayloadBytes else {
+              try SessionCodec.encode(self).count <= SessionFormatLimits.maximumContentBytes else {
             throw MiraError(.contextLimit, "The prepared model request exceeds the frozen route budget.")
         }
     }

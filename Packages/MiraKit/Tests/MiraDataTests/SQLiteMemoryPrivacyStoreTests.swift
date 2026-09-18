@@ -218,13 +218,10 @@ private struct MemoryPrivacyFixture: Sendable {
         let executionID = ExecutionID()
         let batchID = UUID()
         let text = "A shared journal source"
-        let digest = SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
-        let body = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .userText,
-            byteCount: text.utf8.count, digest: digest)
+        let body = SessionContent(id: UUID(), kind: .userText, bytes: Data(text.utf8))
         let reference = SessionEvidenceReference(
             sessionID: sessionID, originalExecutionID: executionID, userMessageID: MessageID(),
-            admissionEventID: UUID(), admissionSequence: 1, body: body)
+            admissionEventID: UUID(), admissionSequence: 1)
         return .init(
             reference: reference, workspaceID: nil, admittedAt: date,
             timeZoneIdentifier: "UTC", text: text,

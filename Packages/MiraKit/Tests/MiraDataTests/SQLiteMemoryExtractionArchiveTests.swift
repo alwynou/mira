@@ -151,17 +151,12 @@ struct SQLiteMemoryExtractionArchiveTests {
                                 updatedAt: forged.updatedAt, error: forged.error,
                                 memoryIDs: forged.memoryIDs, candidateMemoryIDs: forged.candidateMemoryIDs)
                         } else if mutation == "source" {
-                            let body = forged.origin.source.body
                             let forgedReference = SessionEvidenceReference(
                                 sessionID: forged.origin.source.sessionID,
                                 originalExecutionID: forged.origin.source.originalExecutionID,
-                                userMessageID: forged.origin.source.userMessageID,
+                                userMessageID: MessageID(),
                                 admissionEventID: forged.origin.source.admissionEventID,
-                                admissionSequence: forged.origin.source.admissionSequence,
-                                body: .init(
-                                    id: body.id, sessionID: body.sessionID, batchID: body.batchID,
-                                    retentionGroup: body.retentionGroup, kind: body.kind,
-                                    byteCount: body.byteCount, digest: String(repeating: "0", count: 64)))
+                                admissionSequence: forged.origin.source.admissionSequence)
                             forged = MemoryExtractionJob(
                                 id: forged.id,
                                 origin: .init(

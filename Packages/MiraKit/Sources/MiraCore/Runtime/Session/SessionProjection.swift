@@ -4,8 +4,7 @@ import Foundation
 public struct SessionSummary: Sendable, Equatable, Identifiable {
     public let id: ConversationID
     public let workspaceID: WorkspaceID?
-    public let title: SessionPayloadReference
-    public let titleInvalidated: Bool
+    public let title: SessionContent
     public let revision: Int
     public let isArchived: Bool
     public let createdAt: Date
@@ -14,10 +13,10 @@ public struct SessionSummary: Sendable, Equatable, Identifiable {
     public let latestExecutionID: ExecutionID?
     public let head: SessionJournalHead
 
-    public init(id: ConversationID, workspaceID: WorkspaceID?, title: SessionPayloadReference,
-                titleInvalidated: Bool, revision: Int, isArchived: Bool, createdAt: Date, updatedAt: Date,
+    public init(id: ConversationID, workspaceID: WorkspaceID?, title: SessionContent,
+                revision: Int, isArchived: Bool, createdAt: Date, updatedAt: Date,
                 activeExecutionID: ExecutionID?, latestExecutionID: ExecutionID?, head: SessionJournalHead) {
-        self.id = id; self.workspaceID = workspaceID; self.title = title; self.titleInvalidated = titleInvalidated
+        self.id = id; self.workspaceID = workspaceID; self.title = title
         self.revision = revision; self.isArchived = isArchived; self.createdAt = createdAt; self.updatedAt = updatedAt
         self.activeExecutionID = activeExecutionID; self.latestExecutionID = latestExecutionID; self.head = head
     }
@@ -43,19 +42,13 @@ public struct SessionMessageSummary: Sendable, Equatable, Identifiable {
     public let role: SessionMessageRole
     public let sequence: Int64
     public let occurredAt: Date
-    public let body: SessionPayloadReference?
-    public let thinking: SessionPayloadReference?
-    public let bodyInvalidated: Bool
-    public let thinkingInvalidated: Bool
-    public let isExcludedFromContext: Bool
+    public let body: SessionContent?
+    public let thinking: SessionContent?
 
     public init(id: MessageID, sessionID: ConversationID, executionID: ExecutionID, role: SessionMessageRole,
-                sequence: Int64, occurredAt: Date, body: SessionPayloadReference?, thinking: SessionPayloadReference?,
-                bodyInvalidated: Bool, thinkingInvalidated: Bool, isExcludedFromContext: Bool) {
+                sequence: Int64, occurredAt: Date, body: SessionContent?, thinking: SessionContent?) {
         self.id = id; self.sessionID = sessionID; self.executionID = executionID; self.role = role
         self.sequence = sequence; self.occurredAt = occurredAt; self.body = body; self.thinking = thinking
-        self.bodyInvalidated = bodyInvalidated; self.thinkingInvalidated = thinkingInvalidated
-        self.isExcludedFromContext = isExcludedFromContext
     }
 }
 
@@ -67,20 +60,18 @@ public struct SessionExecutionSummary: Sendable, Equatable, Identifiable {
     public let admittedAt: Date
     public let phase: ExecutionPhase
     public let completion: SessionCompletion?
-    public let isExcludedFromContext: Bool
 
     public init(sessionID: ConversationID, admission: SessionAdmission, sequence: Int64, admittedAt: Date,
-                phase: ExecutionPhase, completion: SessionCompletion?, isExcludedFromContext: Bool) {
+                phase: ExecutionPhase, completion: SessionCompletion?) {
         self.sessionID = sessionID; self.admission = admission; self.sequence = sequence; self.admittedAt = admittedAt
-        self.phase = phase; self.completion = completion; self.isExcludedFromContext = isExcludedFromContext
+        self.phase = phase; self.completion = completion
     }
 }
 
 /// Metadata captured in one projection read transaction. Execution summaries include
 /// every execution referenced by the page, the latest admitted execution, and the active execution, if any.
-/// A retry may leave multiple assistant payload rows for one user turn; those
-/// executions retain distinct audit identities while a host groups visible rows
-/// by their shared `admission.userMessageID` answer slot.
+/// A retry replaces the prior assistant row for one user turn in the disposable
+/// projection; executions retain distinct audit identities in the journal.
 public struct SessionProjectionMessagePage: Sendable, Equatable {
     public let session: SessionSummary?
     public let messages: [SessionMessageSummary]

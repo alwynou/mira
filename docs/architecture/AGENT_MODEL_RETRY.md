@@ -6,7 +6,7 @@
 
 ## 身份、请求与失败记录
 
-一个步骤只有一个 `stepID` 和一份 `AgentContextBuild`。上下文、来源、工具 schema、完整消息／思考续接、准备后的 wire 请求及路线均已冻结。每次实际尝试使用独立 `attemptID`，同一步骤的 `attemptIndex` 从 1 递增；重试引用第一次尝试的同一个持久请求引用，不重新运行贡献器，也不重新执行已经完成的工具。
+一个步骤只有一个 `stepID` 和一份进程内 `AgentContextBuild`。上下文、来源、工具 schema、完整消息／思考续接、准备后的 wire 请求及路线均已冻结。每次实际尝试使用独立 `attemptID`，同一步骤的 `attemptIndex` 从 1 递增；重试复用进程内已准备请求，并引用第一次尝试的同一个持久 `AgentSessionRequest` 证据，不重新运行贡献器，也不重新执行已经完成的工具。
 
 失败操作先关闭并排空生产者，保存必要的部分草稿，再提交 `attemptResolved(.failed)`。它的错误正文保存 `AgentModelAttemptFailureRecord`，包含安全诊断、显式重试建议，以及是否接收过任何模型事件。有效用量随失败记录保留。只有确认该批次提交后，执行器才向内核返回重试资格；返回之前已经释放模型调度额度。
 

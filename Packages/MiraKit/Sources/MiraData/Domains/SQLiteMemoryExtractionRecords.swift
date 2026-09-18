@@ -254,8 +254,6 @@ extension SQLiteMemoryExtractionStore {
         try MemoryExtractionRequestBuilder.validate(source: source)
         guard source.reference == job.origin.source, source.workspaceID == job.workspaceID,
             source.observedHead.cursor.sequence >= job.origin.completionHead.cursor.sequence,
-            SHA256.hash(data: Data(source.text.utf8)).map({ String(format: "%02x", $0) }).joined()
-                == source.reference.body.digest,
             try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(source.reference), in: db)
         else { throw unauthorized }
         if let workspaceID = source.workspaceID { _ = try SQLiteWorkspaceStore.read(workspaceID, in: db) }

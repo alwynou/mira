@@ -275,8 +275,7 @@ struct AppContainerTests {
     }
 
     private static func openLibrary(_ launch: MacLibraryLaunchConfiguration) async throws -> MacLibrary {
-        try await MacLibrary.open(
-            directory: launch.directory, notifications: CompositionNotifications(),
+        try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
             credentials: CompositionCredentials(), modules: { _ in [] })
     }
 }

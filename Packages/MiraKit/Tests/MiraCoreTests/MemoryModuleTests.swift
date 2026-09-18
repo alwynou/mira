@@ -28,7 +28,7 @@ struct MemoryModuleTests {
         let authorities = RuntimeRegistry<any AgentDomainSourceAuthority>()
         let store = ModuleMemoryStore()
         let scope = RuntimeScope(kind: .application)
-        let module = MemoryModule(registry: tools, store: store, capturePolicy: store, sourceAuthorities: authorities)
+        let module = MemoryModule(registry: tools, store: store, sourceAuthorities: authorities)
         try await module.activate(in: scope)
 
         let toolSnapshot = try await tools.freeze()

@@ -56,7 +56,7 @@ struct SessionQueryServiceTests {
         }
     }
 
-    @Test func failedTurnRetryPurgesOldBodiesAndReopensWithLatestAnswer() async throws {
+    @Test func failedTurnRetryReplacesOldBodyAndReopensWithLatestAnswer() async throws {
         let partialEvents: [AgentModelStreamEvent] = [
             .blockStarted(.init(id: "text", content: .text("Partial answer"))),
             .blockStarted(.init(id: "thinking", content: .thinking("Partial reasoning"))),
@@ -79,14 +79,10 @@ struct SessionQueryServiceTests {
                 try await query.synchronizeLibrary()
                 let page = try await query.messagePage(sessionID: original.sessionID)
                 let assistants = page.messages.filter { $0.summary.role == .assistant }
-                #expect(assistants.count == 2)
+                #expect(assistants.count == 1)
                 let latest = try #require(assistants.first)
-                let previous = try #require(assistants.last)
                 #expect(latest.summary.executionID == retryID)
                 #expect(latest.body == .available("Recovered answer"))
-                #expect(previous.summary.executionID == original.executionID)
-                #expect(previous.body == .purged)
-                #expect(previous.thinking == .purged)
                 let user = try #require(page.messages.first { $0.summary.role == .user })
                 #expect(user.body == .available("Question"))
                 #expect(Set(page.executions.map(\.id)) == Set([original.executionID, retryID]))
@@ -96,22 +92,21 @@ struct SessionQueryServiceTests {
                     sessionID: original.sessionID, executionID: retryID)
                 #expect(originalAudit.execution.completion?.status == .failed)
                 #expect(retryAudit.execution.completion?.status == .completed)
-                #expect(originalAudit.plan != .purged)
-                #expect(originalAudit.attempts.first?.request == .purged)
-                #expect(originalAudit.attempts.first?.failure == .purged)
+                #expect(originalAudit.plan != .absent)
+                #expect(originalAudit.attempts.first?.request != .absent)
+                #expect(originalAudit.attempts.first?.failure != .absent)
             }
 
             // A new query service and projection represent projection/query reopen;
-            // both execution rows remain auditable while the latest body is
-            // the only answer selected by presentation.
+            // both execution rows remain auditable while the latest body is the
+            // only assistant row retained by the disposable projection.
             try await withQuery(f) { query, _ in
                 let reopened = try await query.messagePage(sessionID: original.sessionID)
                 let assistants = reopened.messages.filter { $0.summary.role == .assistant }
-                #expect(assistants.count == 2)
+                #expect(assistants.count == 1)
                 let assistant = try #require(assistants.first)
                 #expect(assistant.summary.executionID == retryID)
                 #expect(assistant.body == .available("Recovered answer"))
-                #expect(assistants.last?.body == .purged)
                 #expect(reopened.messages.first { $0.summary.role == .user }?.body == .available("Question"))
                 #expect(Set(reopened.executions.map(\.id)) == Set([original.executionID, retryID]))
             }
@@ -143,7 +138,7 @@ struct SessionQueryServiceTests {
                 #expect(older.messages.map(\.body) == [.available("First answer"), .available("First question")])
                 #expect(older.executions.map(\.id) == [second.executionID, first.executionID])
                 #expect(!older.hasMore)
-                #expect(try await query.persistedDraft(sessionID: first.sessionID) == nil)
+                #expect(try await query.settledOutput(sessionID: first.sessionID) == nil)
                 #expect(await f.model.inputs.count == 3)
             }
         }
@@ -181,40 +176,6 @@ struct SessionQueryServiceTests {
                 await reader.setFailure(nil)
                 let page = try await query.messagePage(sessionID: address.sessionID)
                 #expect(page.messages.first?.body == .available("Answer"))
-            }
-        }
-    }
-
-    @Test func purgedContentIsDistinctFromAbsentThinkingAndRetainedExcludedAnswer() async throws {
-        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Retained answer"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
-            let address = try await f.run("Removed question")
-            #expect(await f.runtime.shutdown().isSettled)
-            let runtime = try await SessionRuntime.open(id: address.sessionID, journal: f.library, payloads: f.library)
-            do {
-                let state = await runtime.snapshot()
-                let groups = Set(state.references.values.filter { $0.kind != .visibleAnswer }.map(\.retentionGroup))
-                try queryCommitted(
-                    await runtime.commit(id: UUID()) { _ in
-                        [
-                            .invalidated(
-                                .init(
-                                    operationID: UUID(), executionIDs: [address.executionID],
-                                    retentionGroups: groups, authorizationEpoch: 1, reason: .forgotten))
-                        ]
-                    })
-                try await f.library.purge(sessionID: address.sessionID, retentionGroups: groups)
-                let reader = QueryPayloadProbe(base: f.library)
-                try await withQuery(f, reader: reader) { query, _ in
-                    let page = try await query.messagePage(sessionID: address.sessionID)
-                    #expect(page.session?.title == .purged)
-                    #expect(page.messages.map(\.body) == [.available("Retained answer"), .purged])
-                    #expect(page.messages.allSatisfy { $0.thinking == .absent && $0.summary.isExcludedFromContext })
-                    #expect(await reader.references.map(\.kind) == [.visibleAnswer])
-                }
-                await runtime.close()
-            } catch {
-                await runtime.close()
-                throw error
             }
         }
     }
@@ -295,94 +256,6 @@ struct SessionQueryServiceTests {
         }
     }
 
-    @Test func persistedDraftReadsOnlyVisibleComponentsAtTheCapturedPrefix() async throws {
-        try await withTaskWorkflow { f in
-            let sessionID = ConversationID()
-            let executionID = ExecutionID()
-            let attemptID = UUID()
-            let runtime = try await SessionRuntime.open(id: sessionID, journal: f.library, payloads: f.library)
-            do {
-                try queryCommitted(
-                    await runtime.commit(id: UUID()) { context in
-                        let title = try await context.stageBytes(
-                            Data("Draft".utf8), kind: .title, retentionGroup: UUID())
-                        let user = try await context.stageBytes(
-                            Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-                        let plan = try await context.stage(
-                            AgentExecutionPlan(
-                                runtimeID: UUID(), catalogGeneration: 1,
-                                driverID: "mira.default", driverRevision: 1, instructions: "", limits: .init(),
-                                priority: .foreground,
-                                route: f.route), kind: .executionPlan, retentionGroup: UUID())
-                        let input = AgentModelInput(
-                            stepID: UUID(), executionID: executionID, instructions: "",
-                            messages: [.init(role: .user, blocks: [.init(id: "text", content: .text("Question"))])], tools: [])
-                        let build = AgentContextBuild(
-                            request: .init(
-                                sessionID: sessionID, executionID: executionID,
-                                workspaceID: nil, userText: "Question", authorizationEpoch: 0,
-                                destination: .model(f.route)),
-                            prepared: .init(
-                                adapter: f.route.adapter, input: input, wirePayload: .object([:]),
-                                estimatedInputTokens: 1),
-                            inheritedSources: [], evidence: [], omissions: [])
-                        let request = try await context.stage(build, kind: .request, retentionGroup: UUID())
-                        var facts: [SessionFact] = [
-                            .opened(.init(workspaceID: nil, title: title)),
-                            .admitted(
-                                .init(
-                                    executionID: executionID, userMessageID: .init(), userBody: user, plan: plan,
-                                    hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC")),
-                            .phaseChanged(executionID: executionID, phase: .preparing),
-                            .attemptStarted(
-                                .init(
-                                    id: attemptID, executionID: executionID, stepID: input.stepID,
-                                    stepIndex: 1, attemptIndex: 1, request: request)),
-                        ]
-                        for (part, text) in [
-                            (SessionDraftPart.answer, "Visible answer"), (.thinking, "Visible thinking"),
-                            (.transcript, "Private provider continuation"),
-                        ] {
-                            let bytes = Data(text.utf8)
-                            let ref = try await context.stageBytes(bytes, kind: .draft, retentionGroup: UUID())
-                            facts.append(
-                                .draftCheckpoint(
-                                    .init(
-                                        executionID: executionID, attemptID: attemptID, part: part,
-                                        baseSequence: nil, prefixByteCount: 0, suffixByteCount: 0, replacement: ref,
-                                        resultByteCount: bytes.count)))
-                        }
-                        return facts
-                    })
-                let state = await runtime.snapshot()
-                let reader = QueryPayloadProbe(base: f.library)
-                try await withQuery(f, reader: reader) { query, _ in
-                    let draft = try #require(try await query.persistedDraft(sessionID: sessionID))
-                    #expect(draft.executionID == executionID)
-                    #expect(draft.head.cursor.sequence == state.sequence)
-                    #expect(draft.answer == "Visible answer" && draft.thinking == "Visible thinking")
-                    let expected = Set(
-                        [SessionDraftPart.answer, .thinking].compactMap {
-                            state.executions[executionID]?.drafts[$0]?.checkpoint.replacement
-                        })
-                    #expect(Set(await reader.references) == expected)
-                    #expect(await f.model.inputs.isEmpty)
-                }
-                let budgetReader = QueryPayloadProbe(base: f.library)
-                try await withQuery(f, reader: budgetReader, maximumPageBytes: 1) { query, _ in
-                    await #expect(throws: MiraError(.outputLimit, "The session query page exceeds its content limit."))
-                    {
-                        try await query.persistedDraft(sessionID: sessionID)
-                    }
-                    #expect(await budgetReader.references.isEmpty)
-                }
-                await runtime.close()
-            } catch {
-                await runtime.close()
-                throw error
-            }
-        }
-    }
 }
 
 private final class MissingLatestProjection: SessionProjectionStore, @unchecked Sendable {
@@ -412,7 +285,7 @@ private final class MissingLatestProjection: SessionProjectionStore, @unchecked 
         guard let session = page.session else { return page }
         let missingLatest = SessionSummary(
             id: session.id, workspaceID: session.workspaceID, title: session.title,
-            titleInvalidated: session.titleInvalidated, revision: session.revision,
+            revision: session.revision,
             isArchived: session.isArchived, createdAt: session.createdAt, updatedAt: session.updatedAt,
             activeExecutionID: session.activeExecutionID, latestExecutionID: nil, head: session.head)
         return .init(session: missingLatest, messages: page.messages, executions: page.executions, hasMore: page.hasMore)
@@ -426,7 +299,7 @@ private final class MissingLatestProjection: SessionProjectionStore, @unchecked 
 }
 
 private func withQuery(
-    _ fixture: TaskWorkflowFixture, reader: (any SessionPayloadReader)? = nil,
+    _ fixture: TaskWorkflowFixture, reader: (any SessionContentReader)? = nil,
     maximumPageBytes: Int = 64 * 1_024 * 1_024,
     _ body: (SessionQueryService, SQLiteSessionProjection) async throws -> Void
 ) async throws {
@@ -450,15 +323,15 @@ private func withQuery(
     try await projection.close()
 }
 
-private actor QueryPayloadProbe: SessionPayloadReader {
+private actor QueryPayloadProbe: SessionContentReader {
     enum Failure { case missing, invalidText }
-    let base: any SessionPayloadReader
+    let base: any SessionContentReader
     private var failure: Failure?
     private var hold = false
     private var continuation: CheckedContinuation<Void, Never>?
-    private(set) var references: [SessionPayloadReference] = []
+    private(set) var references: [SessionContent] = []
     private(set) var isHeld = false
-    init(base: any SessionPayloadReader) { self.base = base }
+    init(base: any SessionContentReader) { self.base = base }
     func setFailure(_ failure: Failure?) { self.failure = failure }
     func holdNextRead() { hold = true }
     func release() {
@@ -466,7 +339,7 @@ private actor QueryPayloadProbe: SessionPayloadReader {
         continuation = nil
         isHeld = false
     }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         references.append(reference)
         // Read real bytes before suspending so revocation must discard already obtained plaintext.
         let bytes = try await base.read(reference)

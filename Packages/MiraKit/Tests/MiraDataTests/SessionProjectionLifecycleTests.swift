@@ -176,7 +176,7 @@ struct SessionProjectionLifecycleTests {
                 try await projection.apply(fixture.initialBatch)
                 let batchID = UUID()
                 let title = try await fixture.library.stage(Data("Broken".utf8), sessionID: fixture.sessionID,
-                                                            batchID: batchID, retentionGroup: UUID(), kind: .title)
+                                                            batchID: batchID, kind: .title)
                 let broken = SessionBatch(id: batchID, sessionID: fixture.sessionID,
                     expectedSequence: fixture.initialHead.cursor.sequence, events: [
                         .init(sequence: fixture.initialHead.cursor.sequence + 1, occurredAt: Date(),
@@ -206,7 +206,7 @@ private final class ProjectionFixture: @unchecked Sendable {
     let projectionPath: URL
     let initialBatch: SessionBatch
     let initialHead: SessionJournalHead
-    let initialTitle: SessionPayloadReference
+    let initialTitle: SessionContent
 
     static func make() async throws -> ProjectionFixture {
         let directory = try temporaryProjectionDirectory()
@@ -217,7 +217,7 @@ private final class ProjectionFixture: @unchecked Sendable {
             let sessionID = ConversationID()
             let batchID = UUID()
             let title = try await library.stage(Data("Initial".utf8), sessionID: sessionID, batchID: batchID,
-                                                retentionGroup: UUID(), kind: .title)
+                                                kind: .title)
             let batch = SessionBatch(id: batchID, sessionID: sessionID, expectedSequence: 0,
                 events: [.init(sequence: 1, occurredAt: Date(), fact: .opened(.init(workspaceID: nil, title: title)))])
             guard await library.append(batch) == .committed(batch.cursor) else {
@@ -238,7 +238,7 @@ private final class ProjectionFixture: @unchecked Sendable {
         let head = try await library.head(sessionID: sessionID)
         let batchID = UUID()
         let reference = try await library.stage(Data(title.utf8), sessionID: sessionID, batchID: batchID,
-                                                retentionGroup: UUID(), kind: .title)
+                                                kind: .title)
         let batch = SessionBatch(id: batchID, sessionID: sessionID, expectedSequence: head.cursor.sequence,
             events: [.init(sequence: head.cursor.sequence + 1, occurredAt: Date(),
                             fact: .renamed(title: reference, revision: 2))])
@@ -252,9 +252,12 @@ private final class ProjectionFixture: @unchecked Sendable {
         let head = try await library.head(sessionID: sessionID)
         let batchID = UUID()
         let body = try await library.stage(Data("Question".utf8), sessionID: sessionID, batchID: batchID,
-                                           retentionGroup: UUID(), kind: .userText)
-        let plan = try await library.stage(Data("Plan".utf8), sessionID: sessionID, batchID: batchID,
-                                           retentionGroup: UUID(), kind: .executionPlan)
+                                           kind: .userText)
+        let plan = try await library.stage(
+            SessionCodec.encode(AgentExecutionPlan(
+                runtimeID: UUID(), catalogGeneration: 0, driverID: "fixture", driverRevision: 1,
+                instructions: "", limits: .init(), priority: .foreground, route: nil)),
+            sessionID: sessionID, batchID: batchID, kind: .executionPlan)
         let batch = SessionBatch(id: batchID, sessionID: sessionID, expectedSequence: head.cursor.sequence,
             events: [.init(sequence: head.cursor.sequence + 1, occurredAt: Date(),
                             fact: .admitted(.init(executionID: ExecutionID(), userMessageID: MessageID(), userBody: body,
@@ -272,7 +275,7 @@ private final class ProjectionFixture: @unchecked Sendable {
     }
 
     private init(directory: URL, library: FileSessionLibrary, sessionID: ConversationID, projectionPath: URL,
-                 initialBatch: SessionBatch, initialHead: SessionJournalHead, initialTitle: SessionPayloadReference) {
+                 initialBatch: SessionBatch, initialHead: SessionJournalHead, initialTitle: SessionContent) {
         self.directory = directory; self.library = library; self.sessionID = sessionID; self.projectionPath = projectionPath
         self.initialBatch = initialBatch; self.initialHead = initialHead; self.initialTitle = initialTitle
     }

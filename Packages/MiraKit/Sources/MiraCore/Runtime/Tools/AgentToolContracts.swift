@@ -29,6 +29,8 @@ public struct AgentToolDescriptor: Codable, Sendable, Equatable {
 /// Preparation may resolve concrete revisions, but never performs a mutation.
 public struct AgentToolPlan: Codable, Sendable, Equatable {
     public let input: JSONValue
+    /// Sources selected by this tool. Inherited model context remains on the
+    /// committed request and is authorized separately by the execution runtime.
     public let sources: [AgentSourceReference]
     public let targets: [AgentSourceReference]
     public init(input: JSONValue, sources: [AgentSourceReference], targets: [AgentSourceReference]) {
@@ -150,10 +152,10 @@ public struct AgentEffectProof: Codable, Sendable, Equatable {
     public let intentBatchID: UUID
     public let intentSequence: Int64
     public let authorization: AgentLibraryAuthorization
-    public let proposal: SessionPayloadReference
+    public let proposal: SessionContent
     public init(sessionID: ConversationID, executionID: ExecutionID, invocationID: UUID,
                 intentBatchID: UUID, intentSequence: Int64, authorization: AgentLibraryAuthorization,
-                proposal: SessionPayloadReference) {
+                proposal: SessionContent) {
         self.sessionID = sessionID; self.executionID = executionID; self.invocationID = invocationID
         self.intentBatchID = intentBatchID; self.intentSequence = intentSequence
         self.authorization = authorization; self.proposal = proposal
@@ -179,9 +181,9 @@ public struct AgentBusinessReceiptReference: Codable, Sendable, Equatable {
 
 public struct AgentBusinessReceipt: Codable, Sendable, Equatable {
     public let reference: AgentBusinessReceiptReference
-    /// Canonical encoded JSON result. Nil means privacy maintenance removed the body, not the committed fact.
-    public let result: Data?
-    public init(reference: AgentBusinessReceiptReference, result: Data?) { self.reference = reference; self.result = result }
+    /// Canonical encoded JSON result owned by the committed business operation.
+    public let result: Data
+    public init(reference: AgentBusinessReceiptReference, result: Data) { self.reference = reference; self.result = result }
 }
 
 public enum AgentBusinessCommitOutcome: Sendable, Equatable {

@@ -51,8 +51,7 @@ final class ProviderConnectionSettingsHostTests: XCTestCase {
             .appendingPathComponent("mira-settings-(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let credentials = SettingsTestCredentials()
-        let library = try await MacLibrary.open(
-            directory: directory, notifications: SettingsTestNotifications(), credentials: credentials, modules: { _ in [] })
+        let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: SettingsTestNotifications(), credentials: credentials, modules: { _ in [] })
         do {
             let value = try await body(library, credentials)
             _ = await library.close()

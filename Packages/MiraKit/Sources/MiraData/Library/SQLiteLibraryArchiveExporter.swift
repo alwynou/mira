@@ -62,7 +62,7 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
                     }
                     let attachments = try Self.inspectDatabase(db, snapshot: snapshot, modules: self.modules)
                     let fileCount =
-                        1 + snapshot.sessions.count + snapshot.sessions.reduce(0, { $0 + $1.payloads.count })
+                        1 + snapshot.sessions.count
                         + attachments.count
                     guard fileCount <= LibraryArchiveLimits.maximumFiles else { throw LibraryArchiveIO.invalid }
                     try Self.checkCaptureSize(
@@ -90,23 +90,22 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
                     }
                     let sqlURL = stage.stage.appendingPathComponent("Business.sqlite")
                     try Self.snapshot(db, to: sqlURL)
+                    // Strip derived indexes only from the isolated export snapshot.
+                    let exportDatabase = try DatabaseQueue(path: sqlURL.path)
+                    do {
+                        try exportDatabase.write { exported in
+                            for module in self.modules { try module.prepareExport(exported) }
+                        }
+                        try exportDatabase.writeWithoutTransaction { try $0.execute(sql: "VACUUM") }
+                        try exportDatabase.close()
+                    } catch {
+                        try? exportDatabase.close()
+                        throw error
+                    }
                     try self.fault(.afterDatabaseSnapshot)
                     try append(Self.inspectFile(sqlURL, path: "Business.sqlite"))
                     try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions"))
                     try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions/sessions"))
-                    try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions/payloads"))
-                    // Full-path order: payloads precede sessions. Only one session's
-                    // reference ordering is materialized; the catalog buffers one chunk.
-                    for session in snapshot.sessions {
-                        for reference in session.payloads.keys.sorted(by: { Self.payloadPath($0) < Self.payloadPath($1) }) {
-                            guard let source = session.payloads[reference] else { throw LibraryArchiveIO.invalid }
-                            let file = try Self.copy(source, path: Self.payloadPath(reference), to: stage.stage, limit: reference.byteCount)
-                            guard file.byteCount == reference.byteCount, file.digest == reference.digest else {
-                                throw LibraryArchiveIO.invalid
-                            }
-                            try append(file)
-                        }
-                    }
                     for session in snapshot.sessions {
                         try append(Self.copy(session.journalURL, path: Self.journalPath(session.id), to: stage.stage,
                                              limit: LibraryArchiveLimits.maximumFileBytes))
@@ -311,7 +310,6 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
         var total = pages * size
         for session in snapshot.sessions {
             total += try LibraryArchiveIO.byteCount(session.journalURL, limit: LibraryArchiveLimits.maximumFileBytes)
-            total += session.payloads.keys.reduce(Int64(0), { $0 + Int64($1.byteCount) })
             guard total <= LibraryArchiveLimits.maximumTotalBytes else { throw LibraryArchiveIO.invalid }
         }
         for attachment in attachments {
@@ -341,9 +339,6 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
 
     static func journalPath(_ id: ConversationID) -> String {
         "Sessions/sessions/\(id.rawValue.uuidString).jsonl"
-    }
-    static func payloadPath(_ reference: SessionPayloadReference) -> String {
-        "Sessions/payloads/\(reference.sessionID.rawValue.uuidString)/\(reference.batchID.uuidString)/\(reference.id.uuidString).bin"
     }
     private static func safe(_ error: any Error) -> MiraError {
         if error is CancellationError { return .init(.cancelled, "The library archive operation was cancelled.") }

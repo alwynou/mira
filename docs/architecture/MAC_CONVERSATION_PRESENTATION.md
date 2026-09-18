@@ -28,7 +28,7 @@ flowchart TB
     Settings --> Runtime
 ```
 
-页面中的字符串是已经交付给宿主的副本。库进入维护、关闭或发生工作组更替时，窗口立即撤销绑定，取消读取与订阅，清空消息、持久草稿、实时文本、思考展开缓存和测量缓存。旧任务携带绑定及页面观察身份，迟到的结果不能安装到新工作组。取消后的实际读取任务由展示层拥有并排空；排空不阻塞库状态通知的继续处理。
+页面中的字符串是已经交付给宿主的副本。库进入维护、关闭或发生工作组更替时，窗口立即撤销绑定，取消读取与订阅，清空消息、已结算输出、实时文本、思考展开缓存和测量缓存。旧任务携带绑定及页面观察身份，迟到的结果不能安装到新工作组。取消后的实际读取任务由展示层拥有并排空；排空不阻塞库状态通知的继续处理。
 
 窗口观察结束不会调用运行时取消或关闭资料库。关闭资料库仍由应用容器负责。只有用户的停止操作调用 `application.cancel(sessionID:)`。
 
@@ -51,9 +51,9 @@ sequenceDiagram
         Page->>Page: 接受会话身份；仅清除仍等于原输入的草稿
         App->>App: 独立运行模型与工具
         App-->>Page: 累计可见回答／思考
-        App->>Journal: 持久草稿和唯一终态
+        App->>Journal: 已结算输出和唯一终态
         App-->>Page: 持久状态唤醒
-        Page->>Query: messagePage / persistedDraft
+        Page->>Query: messagePage / settledOutput
         Query-->>Page: 消息与执行摘要
     else 提交待核对
         App-->>Page: indeterminate
@@ -78,7 +78,7 @@ sequenceDiagram
 - 最新执行即使没有产生助手正文，也必须出现在查询页的执行摘要中。失败重试不能因缺少助手消息而消失，页面据此保留正确的失败状态和再次重试目标。
 - 助手回答行的展示身份属于原始用户消息的回合：重试接纳使用同一个 `userMessageID`，因此运行中、成功、失败和重新打开页面时都复用同一个回答行。查询页和执行审计保留必要的执行、尝试和终态元数据，旧生成正文已经删除；页面只选择该问题最新执行的可见正文或无输出终态占位。分页外尚未加载的真实正文不显示为空回答。分页合并按消息身份去重，独立用户消息拥有独立回答行。
 - 实时缓冲包含可见字符串、当前输出阶段、待完成工具调用摘要与尝试身份。它在接收时检查会话、日志序号和内存修订；拒绝倒退、跨会话和关闭后的数据。已接受的空值立即取消待发布内容，`clear()` 是显式重新绑定边界。
-- 草稿与结算回答使用同一个用户回合回答行身份；行内仍保留当前可见内容所属的 `executionID`。成功尝试的持久交接标记允许页面保留最新已交付正文，直到对应游标的草稿或终态查询原位接替，避免先清空再恢复。普通撤销仍立即清空。只有正文、思考、角色或清理状态变化才使 Markdown 内容缓存失效；完成状态本身不重建正文，末尾文字已有的淡入自然结束。被清理的正文显示清理状态，不能回退到缓存中的回答或私人思考数据。
+- 草稿与结算回答使用同一个用户回合回答行身份；行内仍保留当前可见内容所属的 `executionID`。成功尝试的持久交接标记允许页面保留最新已交付正文，直到对应游标的已结算输出或终态查询原位接替，避免先清空再恢复。普通撤销仍立即清空。只有正文、思考、角色或清理状态变化才使 Markdown 内容缓存失效；完成状态本身不重建正文，末尾文字已有的淡入自然结束。被清理的正文显示清理状态，不能回退到缓存中的回答或私人思考数据。
 - macOS 26 的会话标题属于 detail pane 的本地坐标，侧栏展开时标题栏 safe-area bar 的 leading inset 为 16 pt；侧栏收起时仅额外避让原生窗口按钮。右侧 inset 仍按原生 toolbar 控件测量，检查器显示和窄窗口保持 pane 内的左对齐，原生窗口按钮和 toolbar 行为保持不变。
 - 助手行不使用 Mira 头像作为重复身份标记。行首状态行显示当前阶段及最新可见摘要：实时阶段从 `thinking` 切换到 `answering`，工具调用显示工具名和有界参数摘要；状态行可展开查看可见 thinking 与工具活动。历史活动只使用已持久化的可展示字段。
 - 取消或中断没有完成正文时，保留已产生的可见回答／thinking 作为同一回答行的未完成内容，供用户继续或重试；不回放未完成的工具调用，不把 opaque、签名或不可读的续接数据渲染为正文。完成、取消和中断的状态由终态摘要区分。
@@ -111,7 +111,7 @@ An assistant turn retains ordered `SessionActivityStep` values keyed by model-at
 
 Running turns show reasoning, intermediate text and tool rows chronologically, without a duplicate turn-level process header. Each reasoning/tool block has its own disclosure; reasoning uses the latest line while thinking and the first line after that block settles. Reasoning summaries disappear while their full text is expanded. Generic tool rows retain their inline summary when expanded and expose one Input/Output card with a divider, selectable monospaced content, and independently scrollable sections capped at 150 pt. Disclosure arrows follow the label and appear on hover or keyboard focus. Overflow uses a trailing arrow over a transparent-to-canvas gradient without shifting text. Disclosures use native-proportion SF Symbols `chevron.right` when collapsed and `chevron.down` when expanded. Tool triggers use `wrench.fill`, with `xmark.circle.fill` for failure and a shared failure tint on the failed trigger text and leading symbol; the disclosure chevron remains neutral. JSON input/output removes only whitespace outside strings for display, preserving number and escape spellings; each JSON section is a single horizontally scrollable line. Non-JSON sections retain their line breaks and vertical scrolling. Wheel routing follows the overflowing axis so vertical transcript scrolling remains available over a single-line JSON section. Stored content is unchanged. Once the turn settles, the process collapses into a count summary, including reasoning from the final model round. Only trailing answer text from the last non-tool step remains outside the process. Opening the process restores the ordered rows. Block disclosure state belongs to the page reading state and is cleared at the library/page content boundary.
 
-Native block views and prepared Markdown are reused by attempt/block identity and actual content. Completing a turn does not remount its final answer. Hidden process views release their rendered content; purged fields do not reuse old prepared content. A failed optional activity read can report its storage error while still displaying the available ordinary message snapshot; authorization and cancellation failures remain binding boundaries.
+Native block views and prepared Markdown are reused by attempt/block identity and actual content. Completing a turn does not remount its final answer. Hidden process views release their rendered content. A failed optional activity read can report its storage error while still displaying the available ordinary message snapshot; authorization and cancellation failures remain binding boundaries.
 
 
 ## Model picker and new-conversation defaults

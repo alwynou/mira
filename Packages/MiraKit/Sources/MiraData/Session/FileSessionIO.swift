@@ -23,21 +23,53 @@ enum FileSessionIO {
     }
     static func failure() -> MiraError { .init(.storage, "The session library could not validate or persist its data.") }
     static func digest(_ data: Data) -> String { DigestEncoding.hexadecimal(SHA256.hash(data: data)) }
-    static func envelope(_ bytes: Data) -> Data {
-        Data("{\"checksum\":\"".utf8) + Data(digest(bytes).utf8) + Data("\",\"batch\":".utf8) + bytes + Data([125])
+    /// Commit metadata is outside the DSH semantic event sequence. The digest
+    /// covers every preceding line in this physical transaction, including LF.
+    struct Commit: Codable {
+        let type: String
+        let version: Int
+        let batchId: UUID
+        let expectedSequence: Int64
+        let sequence: Int64
+        let firstSeq: Int
+        let nextSeq: Int
+        let recordCount: Int
+        let checksum: String
     }
-    static func decodeLine(_ data: Data) throws -> SessionBatch {
-        let prefix = Data("{\"checksum\":\"".utf8), marker = Data("\",\"batch\":".utf8)
-        let bodyStart = prefix.count + 64 + marker.count
-        guard data.count > bodyStart, data.count <= SessionFormatLimits.maximumBatchBytes + 256,
-              data.starts(with: prefix), data.last == 125,
-              data.subdata(in: (prefix.count + 64)..<bodyStart) == marker else { throw failure() }
-        let bytes = data.subdata(in: bodyStart..<(data.count - 1))
+
+    static func frame(_ batch: SessionBatch, previous: SessionLogState) throws
+        -> (bytes: Data, state: SessionLogState) {
+        let encoded = try SessionLogCodec.encode(batch, previous: previous)
+        var body = Data()
+        for record in encoded.records {
+            body.append(try SessionCodec.encode(record)); body.append(10)
+            guard body.count <= SessionFormatLimits.maximumBatchBytes else { throw failure() }
+        }
+        let commit = Commit(type: "mira/commit", version: 1, batchId: batch.id,
+            expectedSequence: batch.expectedSequence, sequence: batch.cursor.sequence,
+            firstSeq: previous.nextSeq, nextSeq: encoded.state.nextSeq,
+            recordCount: encoded.records.count, checksum: digest(body))
+        body.append(try SessionCodec.encode(commit))
+        guard body.count <= SessionFormatLimits.maximumBatchBytes else { throw failure() }
+        return (body, encoded.state)
+    }
+
+    static func decodeFrame(_ bytes: Data, sessionID: ConversationID, previous: SessionLogState) throws
+        -> (batch: SessionBatch, state: SessionLogState) {
         guard bytes.count <= SessionFormatLimits.maximumBatchBytes,
-              data.subdata(in: prefix.count..<(prefix.count + 64)) == Data(digest(bytes).utf8) else { throw failure() }
-        let batch = try SessionCodec.decode(SessionBatch.self, from: bytes)
-        try batch.validate()
-        return batch
+              let delimiter = bytes.lastIndex(of: 10) else { throw failure() }
+        let body = Data(bytes[...delimiter])
+        let commit = try SessionCodec.decode(Commit.self, from: Data(bytes[bytes.index(after: delimiter)...]))
+        let lines = body.split(separator: 10, omittingEmptySubsequences: false).dropLast()
+        guard commit.type == "mira/commit", commit.version == 1,
+              commit.expectedSequence == previous.nextInternalSequence,
+              commit.firstSeq == previous.nextSeq, commit.nextSeq > commit.firstSeq,
+              commit.recordCount == lines.count, digest(body) == commit.checksum else { throw failure() }
+        let records = try lines.map { try SessionCodec.decode(SessionLogRecord.self, from: Data($0)) }
+        let decoded = try SessionLogCodec.decode(records, batchID: commit.batchId, sessionID: sessionID, previous: previous)
+        guard decoded.batch.cursor.sequence == commit.sequence, decoded.state.nextSeq == commit.nextSeq else { throw failure() }
+        try decoded.batch.validate()
+        return decoded
     }
 
     static func checkDirectory(_ url: URL, allowMissing: Bool = false) throws {
@@ -92,7 +124,7 @@ enum FileSessionIO {
         try requireRegular(fd)
         var info = stat()
         guard fstat(fd, &info) == 0, info.st_size == expectedCount,
-              (0...SessionFormatLimits.maximumPayloadBytes).contains(expectedCount) else { throw failure() }
+              (0...SessionFormatLimits.maximumContentBytes).contains(expectedCount) else { throw failure() }
         var data = Data(count: expectedCount)
         try data.withUnsafeMutableBytes { bytes in
             var offset = 0
@@ -116,64 +148,89 @@ enum FileSessionIO {
     /// The allocation bound applies to a record, never the total journal length.
     static func scan(_ url: URL, sessionID: ConversationID) throws -> [SessionBatch] {
         var result: [SessionBatch] = []
-        try scanRecords(url, sessionID: sessionID) { batch, _, _ in result.append(batch) }
+        try scanRecords(url, sessionID: sessionID) { batch, _, _, _ in result.append(batch) }
         return result
     }
 
-    /// Recovery decodes one record at a time; the caller retains only its required metadata.
+    /// Only complete checksummed transactions are published. A tail without a
+    /// commit is discarded on recovery; a malformed committed frame is rejected.
     static func scanRecords(_ url: URL, sessionID: ConversationID,
-                            consume: (SessionBatch, Int64, Data) throws -> Void) throws {
-        let fd = Darwin.open(url.path, O_RDWR | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
-        if fd < 0 && errno == ENOENT { return }
+                            consume: (SessionBatch, Int64, Data, SessionLogState) throws -> Void) throws {
+        try scanFrames(url, sessionID: sessionID, repair: true, maximumRecords: Int.max, consume: consume)
+    }
+
+    private static func scanFrames(_ url: URL, sessionID: ConversationID, repair: Bool,
+                                   maximumRecords: Int,
+                                   consume: (SessionBatch, Int64, Data, SessionLogState) throws -> Void) throws {
+        let fd = Darwin.open(url.path, (repair ? O_RDWR : O_RDONLY) | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
+        if fd < 0 && errno == ENOENT && repair { return }
         guard fd >= 0 else { throw failure() }; defer { Darwin.close(fd) }
         try requireRegular(fd)
-        var sequence: Int64 = 0, identities: Set<UUID> = []
-        var record = Data(), validOffset: Int64 = 0
+        var before = stat(); guard fstat(fd, &before) == 0 else { throw failure() }
+        guard repair || (0...Int64(LibraryArchiveLimits.maximumFileBytes)).contains(before.st_size) else { throw failure() }
+        var state = SessionLogState.initial
+        var identities: Set<UUID> = []
+        var line = Data(), frame = Data(), validOffset: Int64 = 0, count = 0
         var chunk = [UInt8](repeating: 0, count: 64 * 1024)
-        func accept(_ bytes: Data) throws {
-            let batch = try decodeLine(bytes)
-            guard batch.sessionID == sessionID, batch.expectedSequence == sequence,
-                  identities.insert(batch.id).inserted else { throw failure() }
-            try consume(batch, validOffset, bytes)
-            sequence = batch.cursor.sequence
-        }
-        func appendSegment(_ bytes: ArraySlice<UInt8>) throws {
-            guard record.count <= SessionFormatLimits.maximumBatchBytes + 256 - bytes.count else { throw failure() }
-            record.append(contentsOf: bytes)
+        func acceptLine(_ bytes: Data) throws -> Bool {
+            guard !bytes.isEmpty, frame.count <= SessionFormatLimits.maximumBatchBytes - bytes.count else { throw failure() }
+            // Decode just the discriminator while buffering. Full type checking
+            // happens at the commit boundary, so incomplete transactions never leak.
+            let object = try JSONSerialization.jsonObject(with: bytes) as? [String: Any]
+            guard let type = object?["type"] as? String else { throw failure() }
+            frame.append(bytes)
+            if type == "mira/commit" {
+                guard count < maximumRecords else { throw failure() }
+                let decoded = try decodeFrame(frame, sessionID: sessionID, previous: state)
+                guard identities.insert(decoded.batch.id).inserted else { throw failure() }
+                try consume(decoded.batch, validOffset, frame, decoded.state)
+                state = decoded.state; count += 1
+                validOffset += Int64(frame.count + 1); frame.removeAll(keepingCapacity: true)
+                return true
+            }
+            frame.append(10)
+            return false
         }
         while true {
-            let count = Darwin.read(fd, &chunk, chunk.count)
-            if count < 0 && errno == EINTR { continue }
-            guard count >= 0 else { throw failure() }
-            if count == 0 { break }
+            let size = Darwin.read(fd, &chunk, chunk.count)
+            if size < 0 && errno == EINTR { continue }
+            guard size >= 0 else { throw failure() }
+            if size == 0 { break }
             var start = 0
-            for index in 0..<count where chunk[index] == 10 {
-                try appendSegment(chunk[start..<index])
-                try accept(record)
-                validOffset += Int64(record.count + 1)
-                record.removeAll(keepingCapacity: true); start = index + 1
+            for index in 0..<size where chunk[index] == 10 {
+                guard line.count <= SessionFormatLimits.maximumBatchBytes - (index - start) else { throw failure() }
+                line.append(contentsOf: chunk[start..<index])
+                _ = try acceptLine(line)
+                line.removeAll(keepingCapacity: true); start = index + 1
             }
-            try appendSegment(chunk[start..<count])
+            guard line.count <= SessionFormatLimits.maximumBatchBytes - (size - start) else { throw failure() }
+            line.append(contentsOf: chunk[start..<size])
         }
-        if !record.isEmpty {
-            if (try? decodeLine(record)) != nil {
-                // Preserve a complete checksummed envelope if only the final delimiter was interrupted.
-                try accept(record)
+        if !line.isEmpty || !frame.isEmpty {
+            guard repair else { throw failure() }
+            // A complete commit with only its delimiter missing is durable input.
+            if !line.isEmpty,
+               let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
+               object["type"] as? String == "mira/commit" {
+                guard try acceptLine(line) else { throw failure() }
                 guard lseek(fd, 0, SEEK_END) >= 0 else { throw failure() }
                 try write(Data([10]), fd: fd)
             } else {
-                // A complete but corrupt JSON envelope must never be silently truncated.
-                guard (try? JSONSerialization.jsonObject(with: record)) == nil else { throw failure() }
                 guard ftruncate(fd, off_t(validOffset)) == 0 else { throw failure() }
             }
             try sync(fd)
         }
+        if !repair {
+            var after = stat(), pathAfter = stat()
+            guard fstat(fd, &after) == 0, lstat(url.path, &pathAfter) == 0,
+                  validOffset == before.st_size, sameFile(before, after), sameFile(before, pathAfter) else { throw failure() }
+        }
     }
 
-    /// Reads exactly one indexed record and validates bytes again at the point of use.
+    /// Reads one physical transaction and verifies its authenticated index digest.
     static func readRecord(_ url: URL, sessionID: ConversationID,
-                           record: FileSessionIndex.Record) throws -> SessionBatch {
-        guard record.offset >= 0, (1...(SessionFormatLimits.maximumBatchBytes + 257)).contains(record.byteCount),
+                           record: FileSessionIndex.Record, state: SessionLogState) throws -> SessionBatch {
+        guard record.offset >= 0, (1...(SessionFormatLimits.maximumBatchBytes + 1)).contains(record.byteCount),
               record.offset <= Int64.max - Int64(record.byteCount) else { throw failure() }
         let fd = Darwin.open(url.path, O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
         guard fd >= 0 else { throw failure() }; defer { Darwin.close(fd) }
@@ -186,8 +243,7 @@ enum FileSessionIO {
             while total < record.byteCount {
                 let count = pread(fd, buffer.baseAddress!.advanced(by: total), record.byteCount - total, record.offset + Int64(total))
                 if count < 0 && errno == EINTR { continue }
-                guard count > 0 else { throw failure() }
-                total += count
+                guard count > 0 else { throw failure() }; total += count
             }
         }
         var after = stat(), pathAfter = stat()
@@ -195,60 +251,25 @@ enum FileSessionIO {
               sameFile(before, after), sameFile(before, pathAfter), bytes.last == 10 else { throw failure() }
         bytes.removeLast()
         guard digest(bytes) == record.digest else { throw failure() }
-        let batch = try decodeLine(bytes)
-        guard batch.sessionID == sessionID, batch.id == record.id,
-              batch.expectedSequence == record.expectedSequence, batch.cursor.sequence == record.sequence else { throw failure() }
+        let previous = try state.forBatch(nextSeq: record.firstSeq, nextInternalSequence: record.expectedSequence)
+        let decoded = try decodeFrame(bytes, sessionID: sessionID, previous: previous)
+        let batch = decoded.batch
+        guard batch.id == record.id, batch.expectedSequence == record.expectedSequence,
+              batch.cursor.sequence == record.sequence else { throw failure() }
         return batch
     }
 
-    /// Strict read-only journal scan for archive validation. Unlike recovery
-    /// scanning, this never truncates or appends a delimiter to the source.
     static func scanStrict(_ url: URL, sessionID: ConversationID, maximumRecords: Int) throws -> [SessionBatch] {
         guard maximumRecords > 0 else { throw failure() }
-        let fd = Darwin.open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
-        guard fd >= 0 else { throw failure() }; defer { Darwin.close(fd) }
-        try requireRegular(fd)
-        var before = stat(); guard fstat(fd, &before) == 0 else { throw failure() }
-        var result: [SessionBatch] = [], identities: Set<UUID> = [], record = Data()
-        var chunk = [UInt8](repeating: 0, count: 64 * 1024)
-        let perRecord = SessionFormatLimits.maximumBatchBytes + 256
-        guard maximumRecords <= Int.max / max(1, perRecord) else { throw failure() }
-        let maximumTotal = min(maximumRecords * perRecord, LibraryArchiveLimits.maximumFileBytes)
-        guard before.st_size >= 0, before.st_size <= maximumTotal else { throw failure() }
-        var totalBytes = 0
-        func consume(_ bytes: Data) throws {
-            guard !bytes.isEmpty, result.count < maximumRecords else { throw failure() }
-            let batch = try decodeLine(bytes)
-            guard batch.sessionID == sessionID,
-                  batch.expectedSequence == (result.last?.cursor.sequence ?? 0),
-                  identities.insert(batch.id).inserted else { throw failure() }
+        var result: [SessionBatch] = []
+        try scanFrames(url, sessionID: sessionID, repair: false, maximumRecords: maximumRecords) { batch, _, _, _ in
             result.append(batch)
         }
-        while true {
-            let count = Darwin.read(fd, &chunk, chunk.count)
-            if count < 0 && errno == EINTR { continue }
-            guard count >= 0 else { throw failure() }
-            if count == 0 { break }
-            guard totalBytes <= maximumTotal - count else { throw failure() }
-            totalBytes += count
-            var start = 0
-            for index in 0..<count where chunk[index] == 10 {
-                record.append(contentsOf: chunk[start..<index])
-                guard record.count <= SessionFormatLimits.maximumBatchBytes + 256 else { throw failure() }
-                try consume(record); record.removeAll(keepingCapacity: true); start = index + 1
-            }
-            record.append(contentsOf: chunk[start..<count])
-            guard record.count <= SessionFormatLimits.maximumBatchBytes + 256 else { throw failure() }
-        }
-        guard record.isEmpty else { throw failure() }
-        var after = stat(), pathAfter = stat()
-        guard fstat(fd, &after) == 0, lstat(url.path, &pathAfter) == 0,
-              totalBytes == before.st_size, sameFile(before, after), sameFile(before, pathAfter) else { throw failure() }
         return result
     }
 
     static func validateFile(_ url: URL, expectedCount: Int, expectedDigest: String) throws {
-        guard (0...SessionFormatLimits.maximumPayloadBytes).contains(expectedCount) else { throw failure() }
+        guard (0...SessionFormatLimits.maximumContentBytes).contains(expectedCount) else { throw failure() }
         let result = try BackupFileIO.inspect(url, limit: expectedCount)
         guard result.byteCount == expectedCount, result.digest == expectedDigest else { throw failure() }
     }

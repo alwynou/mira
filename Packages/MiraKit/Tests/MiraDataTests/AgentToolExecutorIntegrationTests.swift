@@ -19,7 +19,15 @@ struct AgentToolExecutorIntegrationTests {
             let state = await fixture.runtime.snapshot()
             let intent = try #require(state.invocations[fixture.invocationID]?.intent)
             let proposal = try SessionCodec.decode(AgentToolProposal.self, from: await fixture.library.read(intent.intent.proposal))
-            #expect(proposal.plan.sources.contains(fixture.source))
+            #expect(proposal.plan.sources.isEmpty)
+            let attempt = try #require(state.attempts[fixture.attemptID])
+            let request = try SessionCodec.decode(AgentSessionRequest.self,
+                from: await fixture.library.read(attempt.attempt.request))
+            #expect(request.sources.contains(fixture.source))
+            let execution = try #require(state.executions[fixture.executionID])
+            let sources = try await JournalAgentHistoryReader(payloads: fixture.library)
+                .readExecutionSources(execution: execution, state: state)
+            #expect(sources.contains(fixture.source))
 
             await #expect(throws: MiraError.self) {
                 _ = try await fixture.executor.execute(attemptID: fixture.attemptID, executionID: fixture.executionID)
@@ -58,28 +66,6 @@ struct AgentToolExecutorIntegrationTests {
         }
     }
 
-    @Test func approvalFollowedByBusinessEpochRevocationDeniesBeforeHandler() async throws {
-        let fixture = try await ToolExecutorFixture.make(kind: .localWrite, policy: .requireApproval)
-        try await withToolExecutorFixture(fixture) { fixture in
-            let approvalStream = await fixture.approvals.snapshots()
-            let execution = Task {
-                try await fixture.executor.execute(attemptID: fixture.attemptID, executionID: fixture.executionID)
-            }
-            var request: RuntimeApprovalRequest?
-            for await requests in approvalStream {
-                if let first = requests.first { request = first; break }
-            }
-            let requestValue = try #require(request)
-            try await fixture.performResultMaintenance()
-            try await fixture.approvals.resolve(id: requestValue.id, proposalHash: requestValue.proposalHash,
-                authorizationEpoch: requestValue.authorizationEpoch, decision: .approved)
-            let resolutions = try await execution.value
-            #expect(resolutions.first?.status == .denied)
-            #expect(try fixture.count() == 0)
-            #expect(await fixture.runtime.snapshot().invocations[fixture.invocationID]?.dispatchedAt == nil)
-        }
-    }
-
     @Test func externalFailurePublishesUnknownEffectWithoutSuccess() async throws {
         let fixture = try await ToolExecutorFixture.make(kind: .externalWrite)
         try await withToolExecutorFixture(fixture) { fixture in
@@ -107,22 +93,6 @@ struct AgentToolExecutorIntegrationTests {
             #expect(resolutions.map(\.invocationID) == fixture.invocationIDs)
             #expect(resolutions.allSatisfy { $0.status == .succeeded })
             #expect(await fixture.gate.maximumActive == 2)
-        }
-    }
-
-    @Test func epochRevocationDuringReadSuppressesItsResult() async throws {
-        let fixture = try await ParallelToolFixture.make()
-        try await withParallelFixture(fixture) { fixture in
-            let task = Task { try await fixture.executor.execute(attemptID: fixture.attemptID, executionID: fixture.executionID) }
-            await fixture.gate.waitUntilEntered(["tests.a", "tests.b"])
-            try await fixture.performResultMaintenance()
-            await fixture.gate.release("tests.a")
-            await fixture.gate.release("tests.b")
-            // An out-of-band authority change cannot grant a fresh epoch to this old execution lease.
-            await fixture.gate.release("tests.ordered")
-            let resolutions = try await task.value
-            #expect(resolutions.prefix(2).allSatisfy { $0.status == .interrupted && $0.result == nil && $0.effectIsKnown })
-            #expect(resolutions.last?.status == .denied)
         }
     }
 
@@ -442,7 +412,8 @@ private final class ToolExecutorFixture: Sendable {
             cleanupAccessFixture = accessFixture
             let libraryLease = try await accessFixture.acquire()
             let executor = try AgentToolExecutor(runtime: openedRuntime, payloads: library, libraryLease: libraryLease, catalog: catalog,
-                policy: FixturePolicy(decision: policy), authority: madeBusiness, business: madeBusiness,
+                policy: FixturePolicy(decision: policy), authorizer: ToolFixtureSourceAuthorizer(),
+                authority: madeBusiness, business: madeBusiness,
                 approvals: approvals, maximumParallelTools: 2)
             let fixture = ToolExecutorFixture(directory: directory, databasePath: databasePath, library: library, database: database,
                 business: madeBusiness, authority: authority, runtime: openedRuntime, executor: executor, approvals: approvals, probe: probe, source: source,
@@ -475,13 +446,13 @@ private final class ToolExecutorFixture: Sendable {
                       inheritedSources: Bool) async throws {
         let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
             modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1),
-            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
+            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
             capabilities: .init(streamsText: true, callsTools: true, producesThinking: true), configuration: .object([:]))
         let userID = MessageID()
         let admission = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan)
             return [.opened(.init(workspaceID: nil, title: title)), .admitted(.init(executionID: executionID,
                 userMessageID: userID, userBody: user, plan: routeRef, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
         }
@@ -494,16 +465,16 @@ private final class ToolExecutorFixture: Sendable {
         let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1)
         let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: sources, evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestRef = try await context.stage(AgentSessionRequest(build), kind: .request)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
                         attemptIndex: 1, request: requestRef))]
         }
         try requireCommitted(started)
         let finished = await runtime.commit(id: UUID()) { context in
-            let output = try await context.stageBytes(Data("model output".utf8), kind: .modelOutput, retentionGroup: UUID())
             let call = CanonicalToolCall(id: "call-1", name: invocationName, arguments: callArguments)
-            let callRef = try await context.stage(call, kind: .toolCall, retentionGroup: UUID())
+            let output = try await context.stageBytes(try syntheticModelOutput(calls: [call]), kind: .modelOutput)
+            let callRef = try await context.stage(call, kind: .toolCall)
             return [.attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
                     .toolProposed(.init(id: invocationID, attemptID: attemptID, modelOrder: 0,
                         toolName: invocationName, effect: effect, call: callRef)),
@@ -526,15 +497,6 @@ private final class ToolExecutorFixture: Sendable {
             guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'synthetic_counter')") == true else { return 0 }
             return try Int.fetchOne(db, sql: "SELECT count FROM synthetic_counter WHERE id = 1") ?? 0
         }
-    }
-
-    func performResultMaintenance(receiptIDs: Set<UUID> = []) async throws {
-        let previous = try await authority.authorization()
-        let request = AgentLibraryMaintenanceRequest(id: UUID(), namespace: "tests.invalidate", revision: 1,
-            scope: .library, requestedAt: Date())
-        let operation = try await authority.begin(request, expected: previous)
-        try await business.purgeResults(receiptIDs: receiptIDs, maintenance: operation)
-        _ = try await authority.complete(operation, at: Date())
     }
 
     func shutdown() async {
@@ -653,7 +615,8 @@ private final class ParallelToolFixture: Sendable {
             cleanupAccessFixture = accessFixture
             let libraryLease = try await accessFixture.acquire()
             let executor = try AgentToolExecutor(runtime: openedRuntime, payloads: library, libraryLease: libraryLease, catalog: catalog,
-                policy: FixturePolicy(decision: .allow), authority: madeBusiness, business: madeBusiness,
+                policy: FixturePolicy(decision: .allow), authorizer: ToolFixtureSourceAuthorizer(),
+                authority: madeBusiness, business: madeBusiness,
                 approvals: approvals, maximumParallelTools: 2)
             let fixture = ParallelToolFixture(directory: directory, library: library, database: database, business: madeBusiness, authority: authority, runtime: openedRuntime,
                 executor: executor, gate: gate, libraryAccessFixture: accessFixture, sessionID: sessionID, executionID: ExecutionID(), attemptID: UUID(),
@@ -678,21 +641,12 @@ private final class ParallelToolFixture: Sendable {
         self.attemptID = attemptID; self.invocationIDs = invocationIDs
     }
 
-    func performResultMaintenance(receiptIDs: Set<UUID> = []) async throws {
-        let previous = try await authority.authorization()
-        let request = AgentLibraryMaintenanceRequest(id: UUID(), namespace: "tests.invalidate", revision: 1,
-            scope: .library, requestedAt: Date())
-        let operation = try await authority.begin(request, expected: previous)
-        try await business.purgeResults(receiptIDs: receiptIDs, maintenance: operation)
-        _ = try await authority.complete(operation, at: Date())
-    }
-
     private func seed(catalog: AgentToolCatalog, names: [String]) async throws {
         let route = syntheticRoute()
         let admission = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan)
             return [.opened(.init(workspaceID: nil, title: title)), .admitted(.init(executionID: executionID,
                 userMessageID: MessageID(), userBody: user, plan: routeRef, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
         }
@@ -705,18 +659,20 @@ private final class ParallelToolFixture: Sendable {
             prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
             inheritedSources: [], evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestRef = try await context.stage(AgentSessionRequest(build), kind: .request)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
                         attemptIndex: 1, request: requestRef))]
         }
         try requireCommitted(started)
         let finished = await runtime.commit(id: UUID()) { context in
-            let output = try await context.stageBytes(Data("output".utf8), kind: .modelOutput, retentionGroup: UUID())
+            let output = try await context.stageBytes(try syntheticModelOutput(calls: names.enumerated().map {
+                CanonicalToolCall(id: "call-\($0.offset)", name: $0.element, arguments: "{}")
+            }), kind: .modelOutput)
             var facts: [SessionFact] = [.attemptResolved(.init(attemptID: attemptID, status: .completed, output: output))]
             for (order, name) in names.enumerated() {
                 let call = try await context.stage(CanonicalToolCall(id: "call-\(order)", name: name, arguments: "{}"),
-                    kind: .toolCall, retentionGroup: UUID())
+                    kind: .toolCall)
                 facts.append(.toolProposed(.init(id: invocationIDs[order], attemptID: attemptID, modelOrder: order,
                     toolName: name, effect: .read, call: call)))
             }
@@ -805,7 +761,8 @@ private final class CancellationToolFixture: Sendable {
             cleanupAccessFixture = accessFixture
             let libraryLease = try await accessFixture.acquire()
             let executor = try AgentToolExecutor(runtime: openedRuntime, payloads: library, libraryLease: libraryLease, catalog: catalog,
-                policy: FixturePolicy(decision: .allow), authority: madeBusiness, business: madeBusiness,
+                policy: FixturePolicy(decision: .allow), authorizer: ToolFixtureSourceAuthorizer(),
+                authority: madeBusiness, business: madeBusiness,
                 approvals: approvals, maximumParallelTools: 1, environment: environment)
             let fixture = CancellationToolFixture(directory: directory, library: library, database: database, business: madeBusiness, authority: authority, runtime: openedRuntime,
                 executor: executor, gate: gate, libraryAccessFixture: accessFixture, attemptID: UUID(), executionID: ExecutionID(), invocationID: UUID())
@@ -830,9 +787,9 @@ private final class CancellationToolFixture: Sendable {
     private func seed(catalog: AgentToolCatalog, name: String) async throws {
         let route = syntheticRoute()
         let admission = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan)
             return [.opened(.init(workspaceID: nil, title: title)), .admitted(.init(executionID: executionID,
                 userMessageID: MessageID(), userBody: user, plan: routeRef, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
         }
@@ -844,15 +801,15 @@ private final class CancellationToolFixture: Sendable {
             prepared: .init(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1),
             inheritedSources: [], evidence: [], omissions: [])
         let started = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestRef = try await context.stage(AgentSessionRequest(build), kind: .request)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
                         attemptIndex: 1, request: requestRef))]
         }
         try requireCommitted(started)
         let finished = await runtime.commit(id: UUID()) { context in
-            let output = try await context.stageBytes(Data("output".utf8), kind: .modelOutput, retentionGroup: UUID())
-            let call = try await context.stage(CanonicalToolCall(id: "call-1", name: name, arguments: "{}"), kind: .toolCall, retentionGroup: UUID())
+            let call = try await context.stage(CanonicalToolCall(id: "call-1", name: name, arguments: "{}"), kind: .toolCall)
+            let output = try await context.stageBytes(try syntheticModelOutput(calls: [CanonicalToolCall(id: "call-1", name: name, arguments: "{}")] ), kind: .modelOutput)
             return [.attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
                     .toolProposed(.init(id: invocationID, attemptID: attemptID, modelOrder: 0,
                         toolName: name, effect: .externalWrite, call: call)),
@@ -870,8 +827,16 @@ private final class CancellationToolFixture: Sendable {
 private func syntheticRoute() -> AgentModelRoute {
     .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
         modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1),
-        invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
+        invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
         capabilities: .init(streamsText: true, callsTools: true, producesThinking: true), configuration: .object([:]))
+}
+
+private func syntheticModelOutput(calls: [CanonicalToolCall]) throws -> Data {
+    let blocks = calls.enumerated().map { offset, call in
+        AgentModelBlock(id: "tool-\(offset)", content: .toolCall(call))
+    }
+    return try SessionCodec.encode(AgentModelOutput(blocks: blocks, continuation: nil,
+        usage: TokenUsage(), finishReason: .toolCalls))
 }
 
 private func executorDescriptor(name: String, mode: ToolExecutionMode) -> AgentToolDescriptor {
@@ -916,4 +881,8 @@ private func toolBusinessDatabase(path: String) throws -> DatabaseQueue {
     configuration.foreignKeysEnabled = true
     configuration.prepareDatabase { try $0.execute(sql: "PRAGMA synchronous = FULL") }
     return try DatabaseQueue(path: path, configuration: configuration)
+}
+
+struct ToolFixtureSourceAuthorizer: AgentSourceAuthorizer {
+    func validate(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {}
 }

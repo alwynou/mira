@@ -164,7 +164,7 @@ private actor KnowledgeApplicationFixture {
         let scope = RuntimeScope(kind: .application)
         let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
             modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "knowledge.fixture", revision: 1),
-            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "knowledge", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
+            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "knowledge", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
             capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:]))
         let journal = KnowledgeEmptyJournal()
         let reader = JournalSessionReader(journal: journal, payloads: journal)
@@ -263,7 +263,7 @@ private actor KnowledgeReadGate {
     func release() { released = true; releaseWaiters.forEach { $0.resume() }; releaseWaiters.removeAll() }
 }
 
-private actor KnowledgeEmptyJournal: SessionJournal, SessionPayloadReader {
+private actor KnowledgeEmptyJournal: SessionJournal, SessionContentReader {
     func append(_ batch: SessionBatch) async -> SessionAppendOutcome { .notCommitted(MiraError(.unsupported, "Synthetic journal is read-only.")) }
     func reconcile(_ batch: SessionBatch) async -> SessionAppendOutcome { .notCommitted(MiraError(.unsupported, "Synthetic journal is read-only.")) }
     func batch(id: UUID, sessionID: ConversationID) async throws -> SessionBatch? { nil }
@@ -272,5 +272,5 @@ private actor KnowledgeEmptyJournal: SessionJournal, SessionPayloadReader {
     func sessions(after: ConversationID?, limit: Int) async throws -> [ConversationID] { [] }
     func flush() async throws {}
     func close() async throws {}
-    func read(_ reference: SessionPayloadReference) async throws -> Data { throw MiraError(.storage, "Synthetic payload is missing.") }
+    func read(_ reference: SessionContent) async throws -> Data { throw MiraError(.storage, "Synthetic payload is missing.") }
 }

@@ -147,8 +147,7 @@ private func withRoutingLibrary(
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("mira-purpose-routing-\(UUID().uuidString)", isDirectory: true)
     defer { try? FileManager.default.removeItem(at: directory) }
-    let library = try await MacLibrary.open(
-        directory: directory, notifications: CompositionNotifications(),
+    let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
         credentials: CompositionCredentials(), modules: { [RoutingModule(registry: $0)] })
     do {
         let group = try await library.workloads()

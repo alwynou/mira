@@ -11,7 +11,7 @@
         func extractionStatusUsesBusinessCommitsAndRebindsAfterLibraryExport() async throws {
             try await withDirectory { directory in
                 let credentials = CompositionCredentials()
-                let library = try await MacLibrary.open(directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: credentials, modules: { [MacDemoModule(registry: $0)] })
                 let reader = MacSessionReadModel<MemoryExtractionStatusPage>()
                 var observer: Task<Void, Never>?
@@ -74,8 +74,7 @@
         @Test
         func cancellationDrainsOwnedReadAndDoesNotLeaveLateValue() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
                 let probe = ControlledCitationRead()
@@ -112,8 +111,7 @@
         @Test
         func replacementRejectsLateReadFromRetiredGeneration() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
                 let probe = ControlledCitationRead()
@@ -158,8 +156,7 @@
         @Test
         func supersededNonCooperativeReadRerunsAfterTheCurrentReadDrains() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
                 let probe = ControlledCitationRead()
@@ -201,8 +198,7 @@
         @Test
         func endingOldObservationCannotClearTheNewBinding() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
                 let probe = ControlledCitationRead()
@@ -246,8 +242,7 @@
         @Test
         func dirtyReadNeverReappearsWhileReplacementReadWaits() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
                 let gate = RepeatedCitationReadGate()
@@ -297,8 +292,7 @@
         @Test
         func businessChangeClearsAndReloadsCitation() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 let sessionID = ConversationID()
                 let probe = ControlledCitationRead()

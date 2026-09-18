@@ -165,6 +165,7 @@ extension SQLiteMemoryStore {
             try db.execute(sql: "UPDATE memory_records SET revision = ?, scope = ?, workspace_id = ?, state = ?, superseded_by = ?, deleted_at = ?, forgotten_at = ?, draft_json = ?, json = ? WHERE id = ?", arguments: arguments)
             guard db.changesCount == 1 else { throw corrupt }
         }
+        try invalidateVector(memory, in: db)
         let revision = MemoryRevision(memoryID: memory.id, revision: memory.revision, draft: memory.draft, changedAt: memory.updatedAt, bodyPurgedAt: memory.forgottenAt)
         try db.execute(sql: "INSERT INTO memory_revisions(memory_id, revision, json) VALUES (?, ?, ?)", arguments: [key(memory.id), memory.revision, try encode(revision)])
         try db.execute(sql: "DELETE FROM memory_search WHERE memory_id = ?", arguments: [key(memory.id)])

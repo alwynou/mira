@@ -1,5 +1,10 @@
 import Foundation
 
+/// At most two current communication preferences, subject to normal recall authorization.
+public protocol MemoryProfileStore: Sendable {
+    func memoryProfile(request: AgentContextRequest, at: Date) async throws -> [Memory]
+}
+
 /// Business-domain reads only. Callers own a library lease; session queries are never SQL joins.
 public protocol MemoryReadStore: Sendable {
     func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) async throws -> MemorySearchResult

@@ -112,8 +112,7 @@ private struct ApprovalFixture {
             })
         try state.apply(batch)
     }
-    private func reference(batch: UUID, kind: SessionPayloadKind) -> SessionPayloadReference {
-        .init(id: UUID(), sessionID: state.id, batchID: batch, retentionGroup: UUID(), kind: kind,
-            byteCount: 1, digest: String(repeating: "0", count: 64))
+    private func reference(batch: UUID, kind: SessionContentKind) -> SessionContent {
+        .init(id: UUID(), kind: kind, bytes: Data(kind.rawValue.utf8))
     }
 }

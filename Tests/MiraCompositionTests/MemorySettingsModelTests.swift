@@ -187,8 +187,7 @@
             defer { try? FileManager.default.removeItem(at: directory) }
             let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
             let container = AppContainer(launch: launch) { launch in
-                let library = try await MacLibrary.open(
-                    directory: launch.directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { [MacDemoModule(registry: $0)] })
                 do {
                     try await MacDemoModule.seed(in: library.workloads())

@@ -43,7 +43,7 @@ struct ConversationPageStateTests {
         #expect(!page.hasMoreMessages)
     }
 
-    @Test func releaseContentClearsQueryDraftAndLiveCachesButRetainsWindowIntent() async {
+    @Test func releaseContentClearsSettledOutputAndLiveCachesButRetainsWindowIntent() async {
         let session = ConversationID()
         let page = ConversationPageState(conversationID: session)
         let executionID = ExecutionID()
@@ -55,9 +55,7 @@ struct ConversationPageStateTests {
             snapshot(
                 session: session, messages: [message(session: session, sequence: 1, role: .user, text: "pending")],
                 executions: [execution(session: session, sequence: 1)], hasMore: true))
-        page.persistedDraft = .init(
-            head: .init(cursor: .init(sessionID: session, sequence: 1), batchID: UUID()), executionID: executionID,
-            answer: "draft", thinking: "thinking")
+        page.settledOutput = .init(answer: "settled", thinking: "thinking")
         page.pendingAdmission = admission
         page.activities[executionID] = [.init(id: UUID(), stepIndex: 0, blocks: [
             .init(id: "call", content: .tool(.init(id: UUID(), toolName: "knowledge.search", status: .running,
@@ -90,7 +88,7 @@ struct ConversationPageStateTests {
         #expect(page.session == nil)
         #expect(page.messages.isEmpty)
         #expect(page.executions.isEmpty)
-        #expect(page.persistedDraft == nil)
+        #expect(page.settledOutput == nil)
         #expect(page.pendingSaveIDs.isEmpty)
         #expect(page.cancellationRequested.isEmpty)
         #expect(page.streamBuffer.observation == nil)
@@ -156,14 +154,6 @@ struct ConversationPageStateTests {
         page.apply(snapshot(session: session, messages: [user], executions: [cancelled], hasMore: false))
         #expect(page.transcriptItems.allSatisfy { $0.text != "live answer" })
 
-        page.cancellationRequested.remove(executionID)
-        let purged = message(
-            session: session, sequence: 2, role: .assistant, text: "ignored", executionID: executionID, body: .purged)
-        page.apply(snapshot(session: session, messages: [user, purged], executions: [completed], hasMore: false))
-        let purgedItem = page.transcriptItems.last
-        #expect(purgedItem?.id == live?.id)
-        #expect(purgedItem?.isBodyPurged == true)
-        #expect(purgedItem?.text != "live answer")
     }
 
     @Test func latestFailedRetryRemainsActionableWithoutTheOriginalUserOnTheLoadedPage() {
@@ -283,8 +273,7 @@ struct ConversationPageStateTests {
             retryOfExecutionID: originalID,
             completion: .init(executionID: retryID, status: .completed))
         let oldAnswer = message(
-            session: session, sequence: 2, role: .assistant, text: "purged attempt", executionID: originalID,
-            body: .purged)
+            session: session, sequence: 2, role: .assistant, text: "old attempt", executionID: originalID)
         let latestAnswer = message(
             session: session, sequence: 4, role: .assistant, text: "latest attempt", executionID: retryID)
         let user = message(
@@ -342,7 +331,7 @@ struct ConversationPageStateTests {
     ) -> SessionQueryMessagePage {
         let title = reference(session: session, kind: .title)
         let summary = SessionSummary(
-            id: session, workspaceID: nil, title: title, titleInvalidated: false, revision: 1,
+            id: session, workspaceID: nil, title: title, revision: 1,
             isArchived: false, createdAt: Date(timeIntervalSince1970: 1), updatedAt: Date(timeIntervalSince1970: 2),
             activeExecutionID: executions.last(where: { $0.completion == nil })?.id,
             latestExecutionID: executions.max(by: { $0.sequence < $1.sequence })?.id,
@@ -361,10 +350,10 @@ struct ConversationPageStateTests {
         executionID: ExecutionID = .init(), id: MessageID = .init(), body: SessionTextContent? = nil
     ) -> SessionQueryMessage {
         let body = body ?? .available(text)
-        let bodyReference: SessionPayloadReference? = {
+        let bodyReference: SessionContent? = {
             switch body {
             case .absent: return nil
-            case .available(_), .purged:
+            case .available(_):
                 return reference(session: session, kind: role == .assistant ? .visibleAnswer : .userText)
             }
         }()
@@ -372,8 +361,7 @@ struct ConversationPageStateTests {
             summary: .init(
                 id: id, sessionID: session, executionID: executionID, role: role,
                 sequence: sequence, occurredAt: Date(timeIntervalSince1970: Double(sequence)), body: bodyReference,
-                thinking: nil,
-                bodyInvalidated: body == .purged, thinkingInvalidated: false, isExcludedFromContext: false),
+                thinking: nil),
             body: body, thinking: .absent)
     }
 
@@ -391,12 +379,11 @@ struct ConversationPageStateTests {
         return .init(
             sessionID: session, admission: admission, sequence: sequence,
             admittedAt: Date(timeIntervalSince1970: Double(sequence)), phase: .waitingForModel,
-            completion: completion, isExcludedFromContext: false)
+            completion: completion)
     }
 
-    private func reference(session: ConversationID, kind: SessionPayloadKind) -> SessionPayloadReference {
+    private func reference(session: ConversationID, kind: SessionContentKind) -> SessionContent {
         .init(
-            id: UUID(), sessionID: session, batchID: UUID(), retentionGroup: UUID(), kind: kind,
-            byteCount: 1, digest: String(repeating: "0", count: 64))
+            id: UUID(), kind: kind, bytes: Data([0]))
     }
 }

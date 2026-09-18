@@ -31,7 +31,12 @@ extension SQLiteMemoryStore {
                     let policy = try currentCapturePolicy(in: db)
                     guard policy.mode == .manualOnly, policy.enabledAt == nil else { throw LibraryArchiveIO.invalid }
                 }
-            )
+            ),
+            prepareExport: { db in
+                try db.execute(sql: "DELETE FROM memory_embeddings")
+                try db.execute(sql: "DELETE FROM memory_embedding_jobs")
+                try db.execute(sql: "DELETE FROM memory_embedding_state")
+            }
         ) { db, snapshot in
             try validateArchive(db: db, snapshot: snapshot)
             return []
@@ -165,8 +170,7 @@ extension SQLiteMemoryStore {
         guard user.reference == reference else { throw LibraryArchiveIO.invalid }
         guard let sourceHash else { return }
         guard sourceHash.utf8.count == 64,
-            sourceHash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }),
-            reference.body.digest == sourceHash
+            sourceHash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) })
         else { throw LibraryArchiveIO.invalid }
     }
 

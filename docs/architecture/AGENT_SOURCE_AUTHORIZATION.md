@@ -2,7 +2,7 @@
 
 <!-- Simplified Chinese documentation is explicitly requested by the user on 2026-09-12. -->
 
-当前代码已实现平台无关的来源授权组合，并在任务领域与真实新运行时中验证。Memory／Knowledge 和原生宿主仍待直接接入；本契约不代表完整隐私清理已经完成。相关边界见[会话读取](AGENT_SESSION_READS.md)、[执行内核](AGENT_EXECUTION_KERNEL.md)和[库维护](AGENT_LIBRARY_MAINTENANCE.md)。
+当前代码已实现平台无关的来源授权组合，并在任务领域与真实新运行时中验证。Memory／Knowledge 和原生宿主仍待直接接入。相关边界见[会话读取](AGENT_SESSION_READS.md)、[执行内核](AGENT_EXECUTION_KERNEL.md)和[库维护](AGENT_LIBRARY_MAINTENANCE.md)。
 
 ## 架构与职责
 
@@ -18,14 +18,16 @@
 
 | 来源 | 当前事实的权威 | 检查内容 |
 |---|---|---|
-| `sessionExecution(sessionID, executionID)` | `JournalSessionReader` 与权威 JSONL | 已完成的合格执行、原始用户证据、隐藏重放、工作区、排除状态和失效保留组 |
+| `sessionExecution(sessionID, executionID)` | `JournalSessionReader` 与权威日志 | 已完成的合格执行、原始用户证据、隐藏重放、工作区和执行内容 |
 | `domain(namespace, id, revision)` | 该命名空间的 `AgentDomainSourceAuthority` | 当前对象版本、作用范围及领域自己的发送规则 |
 
 会话来源不能通过 SQL 会话投影授权；业务 SQLite 仍是当前业务对象和策略的事实源。模型请求记录其实际继承与贡献来源，完整历史交换的传递依赖继续进入后续请求。查询缓存不会成为第二份权限事实。
 
 `JournalAgentSourceAuthorizer` 只解释这两类身份。领域名通过注册表分派，内核没有任务、记忆、知识或平台分支。模块可以提供新的领域授权器，并由 macOS 或未来其他宿主装配同一个共享模块。本次没有实现 iOS、动态二进制加载或插件市场。
 
-会话执行来源可以是成功且可重放的执行，也可以是已通过正文保留与隐私检查的取消／中断执行。后者没有 replay 引用，但仍解析原始用户证据并检查工作区、排除执行和可见正文保留组；来源授权不能因为缺少成功 replay 就拒绝一个合法的 incomplete continuation。
+Session execution sources may identify a successful replayable execution or a cancelled/interrupted execution with retained visible content. Both derive evidence from committed requests, attempts and tool proposals; neither depends on an aggregate replay reference. Interrupted history retains complete model/tool rounds through the target adapter's replay rules and adds the visible partial transcript with an explicit incomplete notice.
+
+An unauthorized historical domain dependency omits its entire exchange from a fresh request. Before omitting it, the reader separately revalidates session execution provenance; that denial remains a hard failure. Storage/configuration failures also propagate. This does not relax dispatch or terminal-settlement authorization for the current execution.
 
 ## 作用域与单次检查
 
@@ -47,7 +49,9 @@
 
 工具执行器从持久请求构造完整上下文，核对冻结目的地与原始用户证据。读取工具自己的 prepare／execute 和业务事务校验仍负责其新选择的来源。任务列表只声明实际返回的任务版本，执行前重新检查；任务变更由共享业务事务核对当前路线、工作区、原始证据和目标版本。来源授权器不替代业务写权限或原子回执。
 
-终态结算对成功回合，以及任何将发布非空回答或思考的失败、取消、恢复回合，重新读取实际尝试的持久上下文，核对目的地、执行与工作区，取全部来源的去重并集再次授权。成功重放的来源还必须与持久请求一致。明确撤销时结算为无正文、无思考、无重放的中断状态；仍获授权的取消或恢复草稿可以保留。没有模型尝试的本地文本遵守本地驱动器的独立限制。
+Request provenance and tool-owned sources have separate owners. The executor authorizes `AgentSessionRequest.sources` before business authorization, after approval, after durable dispatch and before successful read/external-result publication. `AgentToolPlan.sources` retains only preparation-selected sources for domain validation. Both sets remain part of continuation, history and terminal authorization; inherited session or unrelated domain sources are never inserted into another domain's operation plan.
+
+Terminal settlement rereads every committed attempt's request and validated tool proposal, checks destination/execution/workspace identity, and authorizes the deduplicated union of their sources. This applies to successful turns and any failed, cancelled or recovered turn retaining visible output, continuation or stream records. Definite revocation settles as interrupted without publishing new output. Cold recovery without committed content needs no content authorization; previously committed output still requires validation before terminal presentation. Local deterministic text with no model attempt follows the separate local-driver restrictions.
 
 只有明确 `unauthorized` 才能转换为上述撤销终态。存储读取失败保留原结算意图，后续只重试原结算，不重新运行模型、工具或驱动器。已提交但确认丢失的结算依旧按原批次核对。
 
@@ -63,4 +67,4 @@
 
 当前自动化证据见[重建验证记录](../engineering/AGENT_CORE_VERIFICATION.md)。模型和系统通知仍用合成适配器，用户工具策略也使用明确的测试实现；这不是凭据或真实模型验收。
 
-来源检查只是操作关口，并非跨日志、SQL 与外部系统的原子事务。库维护必须先持久化维护操作并推进代次、拒绝新工作、等待旧读取与实际生产者排空，才能执行领域清理和验证。完整传递依赖删除、历史正文清理、Memory／Knowledge 权威及工具、备份与原生宿主切换仍未完成；不能把本次终态抑制当成完整遗忘流程。
+来源检查只是操作关口，并非跨日志、SQL 与外部系统的原子事务。业务维护必须通过业务授权和领域处理器完成记录清理与验证；来源授权不会替代业务事务、备份或原生宿主切换。

@@ -14,14 +14,14 @@ struct JournalAgentHistoryReaderTests {
         ])
     }
 
-    @Test func includesOnlyCompletedReplayExchange() async throws {
+    @Test func includesOnlyCompletedCommittedExchange() async throws {
         let fixture = try await Fixture.make()
         let history = try await fixture.reader.read(state: fixture.state, request: fixture.request,
             route: fixture.route, adapter: fixture.adapter, authorizer: fixture.authorizer)
         #expect(history.exchanges.count == 2)
         #expect(history.context.messages.map(\.role) == [.user, .assistant, .user, .assistant])
         #expect(history.context.messages.map(\.text) == ["Earlier question", "Earlier answer", "Second question", "Second answer"])
-        #expect(history.context.messages.map(\.text).allSatisfy { !$0.contains("No replay") && !$0.contains("Failed") && !$0.contains("Excluded") })
+        #expect(history.context.messages.map(\.text).allSatisfy { !$0.contains("Failed") })
         #expect(history.exchanges.map { $0.messages.first?.text } == ["Earlier question", "Second question"])
     }
 
@@ -62,13 +62,12 @@ struct JournalAgentHistoryReaderTests {
         #expect(!build.prepared.input.messages.contains { $0.text == "Partial answer" })
     }
 
-    @Test func interruptedPartialAnswerDoesNotPromoteSuccessOrBypassPrivacy() async throws {
-        let fixture = try await Fixture.make(includePartialAnswer: true, interruptPartial: true,
-                                             invalidatePartial: true)
+    @Test func interruptedPartialAnswerRemainsIncompleteHistory() async throws {
+        let fixture = try await Fixture.make(includePartialAnswer: true, interruptPartial: true)
         let history = try await fixture.reader.read(state: fixture.state, request: fixture.request,
             route: fixture.route, adapter: fixture.adapter, authorizer: fixture.authorizer)
-        #expect(history.context.messages.allSatisfy { $0.text != "Partial answer" })
-        #expect(history.exchanges.allSatisfy { !$0.isIncomplete })
+        #expect(history.context.messages.contains { $0.text == "Partial answer" })
+        #expect(history.exchanges.contains { $0.isIncomplete })
     }
 
     @Test func adapterOmitDropsWholeExchangeAndVisibleAnswerIsNotFallback() async throws {
@@ -138,10 +137,10 @@ struct JournalAgentHistoryReaderTests {
     }
 
     @Test func smallMessageBudgetRetainsWholeExchangesOnly() async throws {
-        let fixture = try await Fixture.make(includeToolExchange: true)
+        let fixture = try await Fixture.make()
         let history = try await fixture.reader.read(state: fixture.state, request: fixture.request,
             route: fixture.route, adapter: fixture.adapter, authorizer: fixture.authorizer, maximumMessages: 2)
-        #expect(history.context.messages.map(\.text) == ["Earlier question", "Earlier answer"])
+        #expect(history.context.messages.map(\.text) == ["Second question", "Second answer"])
         #expect(history.context.messages.allSatisfy { $0.role != .tool && $0.toolCalls.isEmpty })
     }
 
@@ -170,15 +169,16 @@ struct JournalAgentHistoryReaderTests {
     }
 }
 
-private actor MemoryPayloads: SessionPayloadStore {
+private actor MemoryPayloads: SessionContentStore {
     var values: [UUID: Data] = [:]
-    func put(_ reference: SessionPayloadReference, _ data: Data) { values[reference.id] = data }
-    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference { fatalError() }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func put(_ reference: SessionContent, _ data: Data) { values[reference.id] = data }
+    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, kind: SessionContentKind) async throws -> SessionContent {
+        let reference = SessionContent(kind: kind, bytes: data); values[reference.id] = data; return reference
+    }
+    func read(_ reference: SessionContent) async throws -> Data {
         guard let value = values[reference.id] else { throw MiraError(.notFound, "Missing payload.") }
         return value
     }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws {}
 }
 
 private struct FixtureAdapter: AgentModelAdapter {
@@ -234,14 +234,14 @@ private struct Fixture {
 
     static func make(adapter: FixtureAdapter = .init(mode: .passthrough),
                      authorizer: any AgentSourceAuthorizer = AllowingAuthorizer(),
-                     includeToolExchange: Bool = false, includeLocalAnswer: Bool = false,
+                     includeLocalAnswer: Bool = false,
                      includeSourceBudgetBoundary: Bool = false, includePartialAnswer: Bool = false,
-                     interruptPartial: Bool = false, invalidatePartial: Bool = false,
+                     interruptPartial: Bool = false,
                      partialAnswer: Bool = true) async throws -> Fixture {
         let payloads = MemoryPayloads()
         let sessionID = ConversationID()
         let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
-            modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: adapter.identity, invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "history",
+            modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: adapter.identity, invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "history",
             credential: nil, contextWindow: 4096, maximumOutputTokens: 512,
             capabilities: .init(streamsText: true, callsTools: false, producesThinking: true), configuration: .object([:]))
         var state = SessionState(id: sessionID)
@@ -251,21 +251,27 @@ private struct Fixture {
         try apply(&state, sessionID, titleBatch, [.opened(.init(workspaceID: nil, title: title))])
 
         func addCompleted(_ executionID: ExecutionID, question: String, answer: String,
-                          includeReplay: Bool, sources: [AgentSourceReference] = [],
-                          replayMessages: [AgentModelMessage]? = nil, local: Bool = false) async throws -> Set<UUID> {
+                          sources: [AgentSourceReference] = [], local: Bool = false) async throws {
             let admissionBatch = UUID(), attemptBatch = UUID(), outputBatch = UUID(), finishBatch = UUID()
             let body = ref(sessionID, .userText, admissionBatch), routeRef = ref(sessionID, .executionPlan, admissionBatch)
             let requestRef = ref(sessionID, .request, attemptBatch), outputRef = ref(sessionID, .modelOutput, outputBatch)
             let answerRef = ref(sessionID, .visibleAnswer, finishBatch)
             await payloads.put(body, Data(question.utf8)); await payloads.put(routeRef, try SessionCodec.encode(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: local ? nil : route)))
-            await payloads.put(requestRef, Data("request".utf8)); await payloads.put(outputRef, Data("output".utf8))
+            let request = AgentContextRequest(sessionID: sessionID, executionID: executionID, workspaceID: nil,
+                userText: question, authorizationEpoch: state.authorizationEpoch, destination: .model(route))
+            let input = AgentModelInput(stepID: UUID(), executionID: executionID, instructions: "Answer.",
+                messages: [.init(role: .user, blocks: [.init(id: "user", content: .text(question))])], tools: [])
+            let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input,
+                wirePayload: .object([:]), estimatedInputTokens: 1)
+            await payloads.put(requestRef, try SessionCodec.encode(AgentSessionRequest(
+                request: request, instructions: input.instructions, tools: input.tools,
+                contextMessages: input.messages.filter { $0.role == .context },
+                estimatedInputTokens: prepared.estimatedInputTokens,
+                inheritedSources: sources, evidence: [], omissions: [])))
+            await payloads.put(outputRef, try SessionCodec.encode(AgentModelOutput(
+                blocks: [.init(id: "text", content: .text(answer))], continuation: nil,
+                usage: .init(), finishReason: .stop)))
             await payloads.put(answerRef, Data(answer.utf8))
-            let replayRef: SessionPayloadReference?
-            if includeReplay {
-                let replay = AgentReplayRecord(messages: replayMessages ?? [.init(role: .assistant, blocks: [.init(id: "text", content: .text(answer))])], sources: sources)
-                let reference = ref(sessionID, .replay, finishBatch)
-                await payloads.put(reference, try SessionCodec.encode(replay)); replayRef = reference
-            } else { replayRef = nil }
             try apply(&state, sessionID, admissionBatch, [.admitted(.init(executionID: executionID, userMessageID: MessageID(),
                 userBody: body, plan: routeRef, hasModelRoute: !local, authorizationEpoch: state.authorizationEpoch, timeZoneIdentifier: "UTC"))])
             let attemptID = UUID()
@@ -276,8 +282,7 @@ private struct Fixture {
             }
             try apply(&state, sessionID, finishBatch, [.phaseChanged(executionID: executionID, phase: .settling),
                 .finished(.init(executionID: executionID, status: .completed, assistantMessageID: MessageID(),
-                    answer: answerRef, replay: replayRef))])
-            return Set([body, routeRef, requestRef, outputRef, answerRef, replayRef].compactMap { $0?.retentionGroup })
+                    answer: answerRef))])
         }
 
         func addFailed(_ executionID: ExecutionID) async throws {
@@ -297,39 +302,27 @@ private struct Fixture {
 
         let sharedSource = AgentSourceReference.domain(namespace: "fixture", id: UUID(), revision: 1)
         let firstOnlySource = AgentSourceReference.domain(namespace: "fixture", id: UUID(), revision: 1)
-        let firstID = ExecutionID(), secondID = ExecutionID(), noReplayID = ExecutionID(), failedID = ExecutionID(), excludedID = ExecutionID(), currentID = ExecutionID()
-        _ = try await addCompleted(firstID, question: "Earlier question", answer: "Earlier answer", includeReplay: true,
+        let firstID = ExecutionID(), secondID = ExecutionID(), failedID = ExecutionID(), currentID = ExecutionID()
+        try await addCompleted(firstID, question: "Earlier question", answer: "Earlier answer",
             sources: [firstOnlySource, sharedSource])
         let secondSources: [AgentSourceReference] = includeSourceBudgetBoundary
             ? (0..<8_192).map { _ in .domain(namespace: "budget", id: UUID(), revision: 1) }
             : [sharedSource, .sessionExecution(sessionID: sessionID, executionID: firstID)]
-        let toolCall = CanonicalToolCall(id: "history-call", name: "lookup", arguments: "{}")
-        _ = try await addCompleted(secondID, question: "Second question", answer: "Second answer", includeReplay: true,
-            sources: secondSources, replayMessages: includeToolExchange ? [
-                .init(role: .assistant, blocks: [.init(id: "text", content: .text("Second answer")), .init(id: "tool-0", content: .toolCall(toolCall))]),
-                .init(role: .tool, blocks: [.init(id: "result-\(toolCall.id)", content: .toolResult(callID: toolCall.id, text: "Tool result"))]),
-                .init(role: .assistant, blocks: [.init(id: "text", content: .text("Second answer"))])
-            ] : nil)
-        _ = try await addCompleted(noReplayID, question: "No replay question", answer: "No replay answer", includeReplay: false)
+        try await addCompleted(secondID, question: "Second question", answer: "Second answer", sources: secondSources)
         try await addFailed(failedID)
-        let excludedGroups = try await addCompleted(excludedID, question: "Excluded question", answer: "Excluded answer", includeReplay: true,
-            sources: [AgentSourceReference.domain(namespace: "fixture", id: UUID(), revision: 1)])
-        try apply(&state, sessionID, UUID(), [.invalidated(.init(operationID: UUID(), executionIDs: [excludedID],
-            retentionGroups: excludedGroups, authorizationEpoch: state.authorizationEpoch + 1, reason: .forgotten))])
         if includePartialAnswer {
             let id = ExecutionID(), admissionBatch = UUID(), attemptBatch = UUID(), finishBatch = UUID()
             let body = ref(sessionID, .userText, admissionBatch), routeRef = ref(sessionID, .executionPlan, admissionBatch)
             let requestRef = ref(sessionID, .request, attemptBatch)
-            let answerRef: SessionPayloadReference? = partialAnswer ? ref(sessionID, .visibleAnswer, finishBatch) : nil
-            let thinkingRef: SessionPayloadReference? = partialAnswer ? nil : ref(sessionID, .visibleThinking, finishBatch)
+            let answerRef: SessionContent? = partialAnswer ? ref(sessionID, .visibleAnswer, finishBatch) : nil
+            let thinkingRef: SessionContent? = partialAnswer ? nil : ref(sessionID, .visibleThinking, finishBatch)
             await payloads.put(body, Data("Partial question".utf8))
             await payloads.put(routeRef, try SessionCodec.encode(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0,
                 driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route)))
-            let requestBuild = AgentContextBuild(request: .init(sessionID: sessionID, executionID: id, workspaceID: nil,
+            let requestBuild = AgentSessionRequest(request: .init(sessionID: sessionID, executionID: id, workspaceID: nil,
                 userText: "Partial question", authorizationEpoch: state.authorizationEpoch, destination: .model(route)),
-                prepared: .init(adapter: route.adapter, input: .init(stepID: UUID(), executionID: id, instructions: "Answer.",
-                    messages: [.init(role: .user, blocks: [.init(id: "user", content: .text("Partial question"))])], tools: []),
-                    wirePayload: .object([:]), estimatedInputTokens: 1), inheritedSources: [], evidence: [], omissions: [])
+                instructions: "Answer.", tools: [], contextMessages: [], estimatedInputTokens: 1,
+                inheritedSources: [], evidence: [], omissions: [])
             await payloads.put(requestRef, try SessionCodec.encode(requestBuild))
             if let answerRef { await payloads.put(answerRef, Data("Partial answer".utf8)) }
             if let thinkingRef { await payloads.put(thinkingRef, Data("Partial thought".utf8)) }
@@ -344,20 +337,12 @@ private struct Fixture {
                 .finished(.init(executionID: id, status: answerStatus,
                     assistantMessageID: answerRef == nil ? MessageID() : MessageID(), answer: answerRef,
                     visibleThinking: thinkingRef))])
-            if invalidatePartial {
-                try apply(&state, sessionID, UUID(), [.invalidated(.init(operationID: UUID(), executionIDs: [id],
-                    retentionGroups: Set([body.retentionGroup, routeRef.retentionGroup, requestRef.retentionGroup]
-                        + (answerRef.map { [$0.retentionGroup] } ?? [])
-                        + (thinkingRef.map { [$0.retentionGroup] } ?? [])),
-                    authorizationEpoch: state.authorizationEpoch + 1, reason: .forgotten))])
-            }
         }
         let localExecutionID: ExecutionID?
         if includeLocalAnswer {
             let id = ExecutionID()
             localExecutionID = id
-            _ = try await addCompleted(id, question: "Local question", answer: "Local answer",
-                                      includeReplay: true, local: true)
+            try await addCompleted(id, question: "Local question", answer: "Local answer", local: true)
         } else {
             localExecutionID = nil
         }
@@ -374,9 +359,8 @@ private struct Fixture {
     }
 }
 
-private func ref(_ session: ConversationID, _ kind: SessionPayloadKind, _ batchID: UUID) -> SessionPayloadReference {
-    .init(id: UUID(), sessionID: session, batchID: batchID, retentionGroup: UUID(), kind: kind,
-          byteCount: 1, digest: String(repeating: "0", count: 64))
+private func ref(_ session: ConversationID, _ kind: SessionContentKind, _ batchID: UUID) -> SessionContent {
+    .init(id: UUID(), kind: kind, bytes: Data(kind.rawValue.utf8))
 }
 
 private func apply(_ state: inout SessionState, _ session: ConversationID, _ batchID: UUID, _ facts: [SessionFact]) throws {

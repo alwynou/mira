@@ -7,20 +7,15 @@ import Testing
 
 @Suite("File session archives", .timeLimit(.minutes(1)))
 struct FileSessionArchiveTests {
-    @Test func emptyArchiveRejectsUnexpectedRootAndPayloadEntries() throws {
+    @Test func emptyArchiveRejectsUnexpectedRootEntries() throws {
         let root = try directory()
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(
             at: root.appendingPathComponent("sessions"), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(
-            at: root.appendingPathComponent("payloads"), withIntermediateDirectories: true)
         #expect(try FileSessionArchive.inspect(directory: root).sessions.isEmpty)
         try Data().write(to: root.appendingPathComponent("extra"))
         #expect(throws: MiraError.self) { try FileSessionArchive.inspect(directory: root) }
         try FileManager.default.removeItem(at: root.appendingPathComponent("extra"))
-        try FileManager.default.createDirectory(
-            at: root.appendingPathComponent("payloads/orphan"), withIntermediateDirectories: true)
-        #expect(throws: MiraError.self) { try FileSessionArchive.inspect(directory: root) }
     }
 
     @Test func archiveRejectsFIFOBeforeReadingIt() throws {
@@ -28,69 +23,21 @@ struct FileSessionArchiveTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let sessions = root.appendingPathComponent("sessions")
         try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(
-            at: root.appendingPathComponent("payloads"), withIntermediateDirectories: true)
         #expect(mkfifo(sessions.appendingPathComponent("\(UUID().uuidString).jsonl").path, 0o600) == 0)
         #expect(throws: MiraError.self) { try FileSessionArchive.inspect(directory: root) }
     }
 
-    @Test func snapshotIncludesOnlyCommittedLiveBodiesAndRejectsMissingOrChangedBytes() async throws {
+    @Test func snapshotIncludesOnlyCommittedJournalBatches() async throws {
         let fixture = try await Fixture.make()
         do {
             _ = try await fixture.library.stage(
                 Data("unpublished".utf8), sessionID: fixture.id,
-                batchID: UUID(), retentionGroup: UUID(), kind: .module)
-            let files = try await fixture.library.withSnapshot { snapshot in
-                #expect(try snapshot.readBatches(sessionID: fixture.id).map(\.id) == [fixture.batch.id])
-                return try #require(snapshot.sessions.first).payloads
+                batchID: UUID(), kind: .module)
+            let committedIDs = try await fixture.library.withSnapshot { snapshot in
+                try snapshot.readBatches(sessionID: fixture.id).map(\.id)
             }
-            #expect(files.count == 1)
-            let body = try #require(files[fixture.title])
-            try Data("wrong".utf8).write(to: body)
-            await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
-            try FileManager.default.removeItem(at: body)
-            await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
-        } catch {
-            await fixture.close()
-            throw error
-        }
-        await fixture.close()
-    }
-
-    @Test func invalidationExplainsMissingBodyButRemnantBlocksCapture() async throws {
-        let fixture = try await Fixture.make()
-        do {
-            let body = try await fixture.library.withSnapshot {
-                try #require($0.sessions.first?.payloads[fixture.title])
-            }
-            let invalidate = SessionBatch(
-                id: UUID(), sessionID: fixture.id, expectedSequence: 1,
-                events: [
-                    .init(
-                        sequence: 2, occurredAt: Date(),
-                        fact: .invalidated(
-                            .init(
-                                operationID: UUID(), executionIDs: [],
-                                retentionGroups: [fixture.title.retentionGroup], authorizationEpoch: 1,
-                                reason: .forgotten)))
-                ])
-            #expect(await fixture.library.append(invalidate) == .committed(invalidate.cursor))
-            await #expect(throws: MiraError.self) { _ = try await fixture.library.withSnapshot { $0.sessions.count } }
-            try await fixture.library.purge(sessionID: fixture.id, retentionGroups: [fixture.title.retentionGroup])
-            #expect(!FileManager.default.fileExists(atPath: body.path))
-            let archive = fixture.root.appendingPathComponent("captured")
-            try FileManager.default.createDirectory(
-                at: archive.appendingPathComponent("sessions"), withIntermediateDirectories: true)
-            try FileManager.default.createDirectory(
-                at: archive.appendingPathComponent("payloads"), withIntermediateDirectories: true)
-            try await fixture.library.withSnapshot { snapshot in
-                let session = try #require(snapshot.sessions.first)
-                #expect(session.payloads.isEmpty)
-                try FileManager.default.copyItem(
-                    at: session.journalURL,
-                    to: archive.appendingPathComponent("sessions/\(fixture.id.rawValue.uuidString).jsonl"))
-            }
-            #expect(try FileSessionArchive.inspect(directory: archive).sessions.first?.head.cursor.sequence == 2)
+            #expect(committedIDs == [fixture.batch.id])
+            #expect(try await fixture.library.read(fixture.title) == Data("Archive title".utf8))
         } catch {
             await fixture.close()
             throw error
@@ -125,9 +72,12 @@ struct FileSessionArchiveTests {
         let library = try FileSessionLibrary(directory: root) { stage in
             if stage == .afterJournalSync { throw MiraError(.storage, "Synthetic uncertainty.") }
         }
+        let sessionID = ConversationID(), batchID = UUID()
+        let title = try await library.stage(
+            Data("Session title".utf8), sessionID: sessionID, batchID: batchID, kind: .title)
         let batch = SessionBatch(
-            id: UUID(), sessionID: ConversationID(), expectedSequence: 0,
-            events: [.init(sequence: 1, occurredAt: Date(), fact: .archived(revision: 1))])
+            id: batchID, sessionID: sessionID, expectedSequence: 0,
+            events: [.init(sequence: 1, occurredAt: Date(), fact: .opened(.init(workspaceID: nil, title: title)))])
         if case .indeterminate = await library.append(batch) {} else { Issue.record("Expected uncertainty.") }
         await #expect(throws: MiraError.self) { _ = try await library.withSnapshot { $0.sessions.count } }
         try await library.close()
@@ -183,15 +133,14 @@ struct FileSessionArchiveTests {
 }
 
 private struct Fixture: Sendable {
-    let root: URL, library: FileSessionLibrary, id: ConversationID, batch: SessionBatch, title: SessionPayloadReference
+    let root: URL, library: FileSessionLibrary, id: ConversationID, batch: SessionBatch, title: SessionContent
     static func make() async throws -> Self {
         let root = try directory()
         let id = ConversationID()
         let batchID = UUID()
         let library = try FileSessionLibrary(directory: root.appendingPathComponent("live"))
         let title = try await library.stage(
-            Data("Archive title".utf8), sessionID: id, batchID: batchID,
-            retentionGroup: UUID(), kind: .title)
+            Data("Archive title".utf8), sessionID: id, batchID: batchID, kind: .title)
         let batch = SessionBatch(
             id: batchID, sessionID: id, expectedSequence: 0,
             events: [

@@ -26,11 +26,11 @@
 
 ## 领域文档
 
-- [正文发布与启动恢复](architecture/AGENT_PAYLOAD_RECOVERY.md)：定义先持久标记再写正文、已提交批次的清理结果、启动定向恢复、实际读取校验及全量隐私／归档边界。
+- [Canonical session log](architecture/AGENT_SESSION_LOG.md): DSH-aligned events, inline content, derived history, process-local streams, physical commits and restart recovery.
 
 - [独立记忆提取状态与用量](architecture/AGENT_EXTRACTION_QUERIES.md)：定义原始回合限定、分页、全部尝试记账、冻结费用与正文清理后的读取边界。
 
-- [历史回复的记忆状态](architecture/AGENT_MEMORY_HISTORY.md)：定义日志来源、当前生命周期、保留隐私历史与无正文提示的边界。
+- [历史回复的记忆状态](architecture/AGENT_MEMORY_HISTORY.md)：定义日志来源、当前生命周期、当前领域状态与历史证据的边界。
 
 - [业务提交通知](architecture/AGENT_BUSINESS_CHANGES.md)：定义无正文的提交唤醒、回滚抑制、库级观察器所有权与宿主重读边界。
 
@@ -40,7 +40,6 @@
 - [macOS 资料库与工作组组装](architecture/MAC_LIBRARY_COMPOSITION.md)：定义新宿主的库／工作组所有权、受限本地恢复、维护／导出／关闭排空及平台通知隔离；原生展示层已直接接入，完整交互验收仍待完成。
 - [通用领域模型、本地存储与恢复](architecture/DOMAIN_AND_STORAGE.md)：定义 ID、时间、修订、Typed JSON、Blob、事务、数据约束、LocalJob、备份与恢复；不定义版本排期。
 - [库级授权与持久维护记录](architecture/AGENT_LIBRARY_MAINTENANCE.md)：定义独立库身份、维护意图与代次原子推进、工具业务提交检查，维护协调器、库作用域处理器、事务接纳校验及尚待完成的知识清理和备份屏障。
-- [会话隐私维护](architecture/AGENT_SESSION_PRIVACY.md)：定义跨会话依赖闭包、删除前持久计划、可见历史保留、物理正文验证及已接通的记忆遗忘处理器。
 - [模型配置与路线选择](architecture/AGENT_MODEL_CONFIGURATION.md)：定义开放设置描述、共享业务配置、作用域选择、冻结路线和当前配置复核。
 - [macOS 凭据设置与清理](architecture/MAC_CREDENTIAL_SETTINGS.md)：定义工作组凭据所有权、先写引用日志、配置提交与当前引用保护；核心不依赖 Keychain。
 - [模型发现与资料目录](architecture/AGENT_MODEL_DISCOVERY.md)：定义独立发现模块、操作所有权、连接快照复核以及不构成能力验证的建议数据。

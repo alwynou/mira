@@ -26,13 +26,14 @@ actor AgentModelExecutor {
     private let runtime: SessionRuntime
     private let libraryLease: AgentLibraryAccessLease
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let scheduler: RuntimeScheduler
     private let environment: RuntimeEnvironment
     private var running = false
+    private var activeAttempts: [UUID: AgentRecoveredAttempt] = [:]
 
     init(
-        runtime: SessionRuntime, journal: any SessionJournal, payloads: any SessionPayloadReader,
+        runtime: SessionRuntime, journal: any SessionJournal, payloads: any SessionContentReader,
         libraryLease: AgentLibraryAccessLease, scheduler: RuntimeScheduler, environment: RuntimeEnvironment = .init()
     ) {
         self.runtime = runtime
@@ -100,8 +101,8 @@ actor AgentModelExecutor {
                 AgentModelAttemptFailureRecord.self, from: await payloads.read(failureReference))
             try record.failure.validate()
             guard !record.receivedStreamEvents, record.failure.retryAdvice != nil,
-                try SessionCodec.decode(AgentContextBuild.self, from: await payloads.read(previous.attempt.request))
-                    == build
+                try SessionCodec.decode(AgentSessionRequest.self, from: await payloads.read(previous.attempt.request))
+                    == AgentSessionRequest(build)
             else {
                 throw Self.invalidRetry
             }
@@ -109,11 +110,7 @@ actor AgentModelExecutor {
         } else {
             retryingAttempt = nil
         }
-        let drafts = try await SessionDraftReader(journal: journal, payloads: payloads).read(
-            state: state, executionID: request.executionID)
-        guard let thinkingPrefix = String(data: drafts[.thinking, default: Data()], encoding: .utf8) else {
-            throw MiraError(.storage, "The model thinking draft contains invalid text encoding.")
-        }
+        let thinkingPrefix = try await settledThinkingPrefix(state: state, executionID: request.executionID)
         let lease = try await scheduler.acquire(executionID: request.executionID, priority: priority)
         do {
             let result = try await withThrowingTaskGroup(of: AgentModelStepResult.self) { group in
@@ -125,7 +122,7 @@ actor AgentModelExecutor {
                     try await self.performModel(
                         stepIndex: stepIndex, attemptID: attemptID, stepID: stepID,
                         build: build, request: request, route: route, adapter: adapter, toolEffects: toolEffects,
-                        authorizer: authorizer, drafts: drafts, thinkingPrefix: thinkingPrefix,
+                        authorizer: authorizer, thinkingPrefix: thinkingPrefix,
                         retryingAttempt: retryingAttempt)
                 }
                 do {
@@ -151,24 +148,23 @@ actor AgentModelExecutor {
         stepIndex: Int, attemptID: UUID, stepID: UUID, build: AgentContextBuild,
         request: AgentContextRequest, route: AgentModelRoute,
         adapter: any AgentModelAdapter, toolEffects: [String: SessionEffectKind],
-        authorizer: any AgentSourceAuthorizer, drafts: [SessionDraftPart: Data],
+        authorizer: any AgentSourceAuthorizer,
         thinkingPrefix: String, retryingAttempt: SessionAttempt?
     ) async throws -> AgentModelStepResult {
-        var drafts = drafts
         try await validateDispatch(request, sources: build.sources, authorizer: authorizer)
         let start = await runtime.commit(id: attemptID) { context in
             try Self.validateActive(context.state, request: request)
             guard context.state.attempts[attemptID] == nil else {
                 throw MiraError(.conflict, "This model attempt has already been admitted.")
             }
-            let payload: SessionPayloadReference
+            let payload: SessionContent
             if let retryingAttempt {
                 guard context.state.executions[request.executionID]?.attemptIDs.last == retryingAttempt.id,
                     context.state.attempts[retryingAttempt.id]?.resolution?.status == .failed
                 else { throw Self.invalidRetry }
                 payload = retryingAttempt.request
             } else {
-                payload = try await context.stage(build, kind: .request, retentionGroup: UUID())
+                payload = try await context.stage(AgentSessionRequest(build), kind: .request)
             }
             var facts: [SessionFact] = []
             if context.state.executions[request.executionID]?.phase != .preparing {
@@ -192,13 +188,12 @@ actor AgentModelExecutor {
             try await runtime.beginOutput(
                 ownerID: ownerID, executionID: request.executionID,
                 attemptID: attemptID, authorizationEpoch: request.authorizationEpoch, lease: libraryLease)
+            activeAttempts[attemptID] = .init(output: nil, stream: [])
             // Preparation, scheduler waits and disk I/O may all outlive a policy change.
             try await validateDispatch(request, sources: build.sources, authorizer: authorizer)
             var accumulator = try AgentModelAccumulator(route: route)
-            var lastTextSize = 0
-            var lastThinkingSize = 0
+            var recorder = AgentSessionStreamRecorder()
             var receivedStreamEvents = false
-            var dirty = false
             var visibleDirty = false
             var publishedVisible = false
             let channel = AgentModelStreamChannel()
@@ -224,21 +219,6 @@ actor AgentModelExecutor {
                     group.addTask { [environment] in
                         do {
                             while true {
-                                try await environment.clock.sleep(for: .milliseconds(250))
-                                try Task.checkCancellation()
-                                guard await channel.checkpoint() else { return }
-                            }
-                        } catch {
-                            let failure: any Error =
-                                Task.isCancelled || error is CancellationError
-                                ? CancellationError()
-                                : MiraError(.interrupted, "The model draft checkpoint timer failed.")
-                            await channel.finish(error: failure)
-                        }
-                    }
-                    group.addTask { [environment] in
-                        do {
-                            while true {
                                 try await environment.clock.sleep(for: .milliseconds(100))
                                 try Task.checkCancellation()
                                 guard await channel.output() else { return }
@@ -255,14 +235,14 @@ actor AgentModelExecutor {
                         while let input = try await channel.next() {
                             try Task.checkCancellation()
                             try await validateEligibility(request)
-                            let timerFired: Bool
                             var outputTick = false
                             var finishing = false
                             switch input {
                             case .event(let event):
                                 receivedStreamEvents = true
                                 try accumulator.consume(event)
-                                dirty = true
+                                try recorder.consume(event, blocks: accumulator.blocks, at: environment.now())
+                                activeAttempts[attemptID] = Self.recoveredAttempt(accumulator, stream: recorder.records)
                                 switch event {
                                 case .blockStarted, .blockDelta, .blockFinished: visibleDirty = true
                                 case .finished:
@@ -270,10 +250,7 @@ actor AgentModelExecutor {
                                     visibleDirty = true
                                 default: break
                                 }
-                                timerFired = false
-                            case .checkpoint: timerFired = true
                             case .output:
-                                timerFired = false
                                 outputTick = true
                             }
                             if visibleDirty && (!publishedVisible || outputTick || finishing) {
@@ -286,18 +263,6 @@ actor AgentModelExecutor {
                                     publishedVisible = true
                                 }
                                 visibleDirty = false
-                            }
-                            let textSize = accumulator.text.utf8.count
-                            let thinkingSize = accumulator.thinkingText.utf8.count
-                            let changedBytes = abs(textSize - lastTextSize) + abs(thinkingSize - lastThinkingSize)
-                            if dirty && (timerFired || changedBytes >= 4_096) {
-                                let candidate = try Self.draftBytes(accumulator, thinkingPrefix: thinkingPrefix)
-                                try await checkpoint(
-                                    candidate, previous: drafts, request: request, attemptID: attemptID)
-                                drafts = candidate
-                                dirty = false
-                                lastTextSize = textSize
-                                lastThinkingSize = thinkingSize
                             }
                         }
                         group.cancelAll()
@@ -314,23 +279,21 @@ actor AgentModelExecutor {
                 await owned.release()
                 try Task.checkCancellation()
                 let output = try accumulator.finish()
-                let candidate = try Self.draftBytes(accumulator, thinkingPrefix: thinkingPrefix)
-                try await checkpoint(candidate, previous: drafts, request: request, attemptID: attemptID)
-                drafts = candidate
                 // The resolved model output and every tool identity enter the journal together.
                 let resolutionID = environment.uuid()
+                let stream = recorder.records
                 let invocationIDs = output.toolCalls.map { _ in environment.uuid() }
                 let resolution = await runtime.commit(id: resolutionID) { context in
                     try Self.validateActive(context.state, request: request)
-                    let outputRef = try await context.stage(output, kind: .modelOutput, retentionGroup: UUID())
+                    let outputRef = try await context.stage(output, kind: .modelOutput)
                     var facts: [SessionFact] = [
                         .attemptResolved(
                             .init(
                                 attemptID: attemptID, status: .completed,
-                                output: outputRef, usage: output.usage))
+                                output: outputRef, usage: output.usage, stream: stream))
                     ]
                     for (order, call) in output.toolCalls.enumerated() {
-                        let callRef = try await context.stage(call, kind: .toolCall, retentionGroup: UUID())
+                        let callRef = try await context.stage(call, kind: .toolCall)
                         facts.append(
                             .toolProposed(
                                 .init(
@@ -344,6 +307,7 @@ actor AgentModelExecutor {
                     return facts
                 }
                 try AgentDurabilityFailure.requireCommitted(resolution)
+                activeAttempts.removeValue(forKey: attemptID)
                 let committed = await runtime.snapshot()
                 let invocations = try invocationIDs.map { id in
                     guard let invocation = committed.invocations[id]?.invocation else {
@@ -359,25 +323,35 @@ actor AgentModelExecutor {
                 if error is AgentDurabilityFailure { throw error }
                 let failure = (error as? AgentModelFailure) ?? .init(error: MiraError.safe(error))
                 try failure.validate()
+                recorder.fail(failure.error, at: environment.now())
+                activeAttempts[attemptID] = Self.recoveredAttempt(accumulator, stream: recorder.records)
                 if !Task.isCancelled, !(error is CancellationError), failure.error.code != .cancelled {
                     let current = await runtime.snapshot()
                     if current.attempts[attemptID]?.resolution == nil,
                         (try? Self.validateActive(current, request: request)) != nil
                     {
-                        let candidate = try Self.draftBytes(accumulator, thinkingPrefix: thinkingPrefix)
-                        try await checkpoint(candidate, previous: drafts, request: request, attemptID: attemptID)
                         let record = AgentModelAttemptFailureRecord(
                             failure: failure, receivedStreamEvents: receivedStreamEvents)
                         let usage = accumulator.usage
+                        let stream = recorder.records
+                        let partial = Self.partialOutput(accumulator)
                         let resolution = await runtime.commit(id: environment.uuid()) { context in
                             try Self.validateActive(context.state, request: request)
-                            let reference = try await context.stage(record, kind: .error, retentionGroup: UUID())
+                            let reference = try await context.stage(record, kind: .error)
+                            let outputReference: SessionContent?
+                            if let partial {
+                                outputReference = try await context.stage(partial, kind: .modelOutput)
+                            } else {
+                                outputReference = nil
+                            }
                             return [
                                 .attemptResolved(
-                                    .init(attemptID: attemptID, status: .failed, error: reference, usage: usage))
+                                    .init(attemptID: attemptID, status: .failed, output: outputReference,
+                                         error: reference, usage: usage, stream: stream))
                             ]
                         }
                         try AgentDurabilityFailure.requireCommitted(resolution)
+                        activeAttempts.removeValue(forKey: attemptID)
                         if !receivedStreamEvents, failure.retryAdvice != nil {
                             throw AgentModelAttemptFailure(
                                 attemptID: attemptID, failure: failure, receivedStreamEvents: false)
@@ -414,7 +388,7 @@ actor AgentModelExecutor {
         guard state.id == request.sessionID, state.activeExecutionID == request.executionID,
             state.header?.workspaceID == request.workspaceID,
             state.authorizationEpoch == request.authorizationEpoch,
-            !state.excludedExecutionIDs.contains(request.executionID),
+            !state.supersededExecutionIDs.contains(request.executionID),
             let execution = state.executions[request.executionID], execution.completion == nil,
             execution.phase != .cancelling, execution.phase != .settling
         else {
@@ -426,63 +400,43 @@ actor AgentModelExecutor {
         .init(.conflict, "The model retry does not match an eligible failed attempt.")
     }
 
-    private struct DraftTranscript: Codable, Sendable {
-        let blocks: [AgentModelBlock]
-        let continuation: AgentModelContinuation?
-        let usage: TokenUsage
-    }
-
-    private static func draftBytes(_ accumulator: AgentModelAccumulator, thinkingPrefix: String) throws
-        -> [SessionDraftPart: Data]
-    {
-        let thinking = try visibleThinking(accumulator, prefix: thinkingPrefix)
-        return [
-            .answer: Data(accumulator.text.utf8), .thinking: Data(thinking.utf8),
-            .transcript: try SessionCodec.encode(
-                DraftTranscript(
-                    blocks: accumulator.blocks, continuation: accumulator.continuation, usage: accumulator.usage)),
-        ]
-    }
-
     private static func visibleThinking(_ accumulator: AgentModelAccumulator, prefix: String) throws -> String {
         let thinking = prefix + accumulator.thinkingText
-        guard thinking.utf8.count <= SessionFormatLimits.maximumPayloadBytes else {
-            throw MiraError(.outputLimit, "The execution thinking draft exceeds its storage limit.")
+        guard thinking.utf8.count <= SessionFormatLimits.maximumContentBytes else {
+            throw MiraError(.outputLimit, "The execution thinking output exceeds its storage limit.")
         }
         return thinking
     }
 
-    private func checkpoint(
-        _ candidate: [SessionDraftPart: Data], previous: [SessionDraftPart: Data],
-        request: AgentContextRequest, attemptID: UUID
-    ) async throws {
-        let changed = [SessionDraftPart.answer, .thinking, .transcript].filter {
-            candidate[$0, default: Data()] != previous[$0, default: Data()]
+    private static func partialOutput(_ accumulator: AgentModelAccumulator) -> AgentModelOutput? {
+        guard !accumulator.blocks.isEmpty || accumulator.continuation != nil else { return nil }
+        return .init(blocks: accumulator.blocks, continuation: accumulator.continuation,
+                     usage: accumulator.usage, finishReason: .outputLimit)
+    }
+
+    private static func recoveredAttempt(_ accumulator: AgentModelAccumulator,
+                                         stream: [SessionMessageStreamRecord]) -> AgentRecoveredAttempt {
+        .init(output: partialOutput(accumulator), stream: stream)
+    }
+
+    func interruptedAttempts() async -> [UUID: AgentRecoveredAttempt] {
+        let state = await runtime.snapshot()
+        return activeAttempts.filter { id, _ in
+            guard let attempt = state.attempts[id] else { return false }
+            return attempt.resolution == nil
         }
-        guard !changed.isEmpty else { return }
-        let result = await runtime.commit(id: environment.uuid()) { context in
-            try Self.validateActive(context.state, request: request)
-            var facts: [SessionFact] = []
-            for part in changed {
-                let old = context.state.executions[request.executionID]?.drafts[part]
-                guard old?.checkpoint.resultByteCount ?? 0 == previous[part, default: Data()].count else {
-                    throw MiraError(.conflict, "The model draft checkpoint base has changed.")
-                }
-                let patch = try SessionDraftPatch(
-                    previous: previous[part, default: Data()], current: candidate[part, default: Data()])
-                let replacement = try await context.stageBytes(
-                    patch.replacement, kind: .draft,
-                    retentionGroup: old?.checkpoint.replacement.retentionGroup ?? UUID())
-                facts.append(
-                    .draftCheckpoint(
-                        .init(
-                            executionID: request.executionID, attemptID: attemptID,
-                            part: part, baseSequence: old?.sequence, prefixByteCount: patch.prefixByteCount,
-                            suffixByteCount: patch.suffixByteCount, replacement: replacement,
-                            resultByteCount: patch.resultByteCount)))
-            }
-            return facts
+    }
+
+    private func settledThinkingPrefix(state: SessionState, executionID: ExecutionID) async throws -> String {
+        guard let execution = state.executions[executionID] else {
+            throw MiraError(.notFound, "The model execution is unavailable.")
         }
-        try AgentDurabilityFailure.requireCommitted(result)
+        let settled = try await SessionSettledOutput.read(
+            execution: execution, attempts: state.attempts, payloads: payloads)
+        let prefix = settled.thinking ?? ""
+        guard prefix.utf8.count <= SessionFormatLimits.maximumContentBytes else {
+            throw MiraError(.outputLimit, "The execution thinking output exceeds its storage limit.")
+        }
+        return prefix
     }
 }

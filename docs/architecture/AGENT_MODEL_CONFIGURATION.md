@@ -57,9 +57,11 @@ flowchart TB
 
 模型 `authorizationRevision` 在启用状态变化、删除旧调用规格或替换其适配器／端点时递增。只增加规格、修改显示信息、资料或未来参数不撤销当前执行。删除后再添加同名规格不能恢复已经撤销的授权。
 
-`AgentModelRoute` 冻结模型配置实例、调用规格、适配器、端点、连接／模型授权修订、凭据引用、解析后的能力与限制、资料依据、参数和价格。执行中资料更新影响下一次冻结；当前工具循环继续使用原快照。派发和提交复核当前授权身份、启用状态、规格存在性、凭据和库代次；不重新计算参数覆盖当前请求。
+`AgentModelRoute` 冻结模型配置实例、调用规格、适配器、端点、连接／模型授权修订、凭据引用、解析后的能力与限制及参数。执行中资料更新影响下一次冻结；当前工具循环继续使用原快照。派发和提交复核当前授权身份、启用状态、规格存在性、凭据和库代次；不重新计算参数覆盖当前请求。
 
 模型池规范预设的 RouteID 对应模型配置 UUID。`savePoolModel` 将模型和该预设在一个事务内保存，关系或任一 CAS 失败时整体回滚。其他模块可创建独立预设。
+
+Model metadata provenance stays in `AgentConfiguredModel.facts` and the configuration/cache store. `AgentModelRoute` contains only resolved execution values and identities; it does not copy field sources, source revisions or observation timestamps into session journals. Metadata precedence is still applied before freezing the route.
 
 ## 字段事实
 
@@ -81,7 +83,7 @@ flowchart TD
     Exact --> Validate[解析字段事实、规格与参数]
     Defaults --> Validate
     Validate -->|缺限制、身份失效或不支持| Error[明确失败；不换模型或协议]
-    Validate --> Freeze[冻结路线与资料依据]
+    Validate --> Freeze[冻结路线与生效参数]
     Freeze --> Admit[日志原子批次：可选选择变化、用户消息、执行接纳]
     Admit --> Loop[上下文、模型流、工具循环]
     Loop --> Check[每次派发复核授权与来源]

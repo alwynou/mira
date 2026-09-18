@@ -9,6 +9,6 @@ flowchart TB
     Session --> Latest[最新快照：每个订阅缓冲一项]
     Latest --> Host[平台展示层]
     Consumer --> Draft[草稿补丁：含私人续接与工具状态]
-    Draft --> Journal[规范日志与独立正文]
+    Draft --> Journal[规范日志与有界内联内容]
     Journal --> Query[带租约的持久查询与恢复]
     Query --> Host

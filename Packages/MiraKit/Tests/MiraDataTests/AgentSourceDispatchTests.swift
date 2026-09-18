@@ -43,7 +43,6 @@ struct AgentSourceDispatchTests {
                 let completion = try #require(state.executions[address.executionID]?.completion)
                 #expect(completion.answer == nil)
                 #expect(completion.visibleThinking == nil)
-                #expect(completion.replay == nil)
                 #expect(await f.model.inputs.count == 1)
             } catch { await f.model.releaseStream(); _ = await run.result; throw error }
         }
@@ -63,28 +62,28 @@ struct AgentSourceDispatchTests {
                 let address = try await run.value
                 let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
                 let completion = try #require(state.executions[address.executionID]?.completion)
-                #expect(completion.answer == nil && completion.visibleThinking == nil && completion.replay == nil)
+                #expect(completion.answer == nil && completion.visibleThinking == nil)
                 #expect(state.attempts.values.first?.resolution?.status == .failed)
             } catch { await f.model.releaseStream(); _ = await run.result; throw error }
         }
     }
 
     @Test(arguments: [false, true])
-    func cancellationPublishesOnlyStillAuthorizedDrafts(revoked: Bool) async throws {
-        let partial = String(repeating: "Partial draft. ", count: 400)
+    func cancellationPublishesOnlyStillAuthorizedOutput(revoked: Bool) async throws {
+        let partial = String(repeating: "Partial output. ", count: 400)
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text(partial))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
             let workspace = Workspace(id: .init(), name: "Cancelled stream workspace")
             try await saveWorkspace(workspace, in: f)
             await f.model.holdStream(number: 1, afterEvents: 1)
             let sessionID = ConversationID()
-            let run = Task { try await f.run("Cancel after a durable draft", sessionID: sessionID,
+            let run = Task { try await f.run("Cancel during streaming", sessionID: sessionID,
                 workspaceID: workspace.id, expectedStatus: revoked ? .interrupted : .cancelled) }
             do {
                 try await taskEventually { await f.model.streamHeld }
                 try await taskEventually {
                     let state = try await f.runtime.sessionSnapshot(id: sessionID)
                     guard let id = state.activeExecutionID else { return false }
-                    return state.executions[id]?.drafts[.answer] != nil
+                    return state.attempts.values.contains { $0.attempt.executionID == id && $0.resolution == nil }
                 }
                 if revoked { try await revoke("workspace", workspace: workspace, in: f) }
                 await f.runtime.cancel(sessionID: sessionID)
@@ -92,7 +91,6 @@ struct AgentSourceDispatchTests {
                 let address = try await run.value
                 let state = try await f.runtime.sessionSnapshot(id: sessionID)
                 let completion = try #require(state.executions[address.executionID]?.completion)
-                #expect(completion.replay == nil)
                 if revoked {
                     #expect(completion.answer == nil && completion.visibleThinking == nil)
                 } else {
@@ -119,10 +117,10 @@ struct AgentSourceDispatchTests {
                 let address = try await run.value
                 let state = try await f.runtime.sessionSnapshot(id: sessionID)
                 let completion = try #require(state.executions[address.executionID]?.completion)
-                #expect(completion.answer == nil && completion.replay == nil && completion.visibleThinking == nil)
+                #expect(completion.answer == nil && completion.visibleThinking == nil)
                 let attemptID = try #require(state.executions[address.executionID]?.attemptIDs.last)
                 let reference = try #require(state.attempts[attemptID]?.attempt.request)
-                let build = try SessionCodec.decode(AgentContextBuild.self, from: await f.library.read(reference))
+                let build = try SessionCodec.decode(AgentSessionRequest.self, from: await f.library.read(reference))
                 #expect(build.request.destination == .model(f.route))
                 #expect(build.sources.contains(.domain(namespace: "tasks", id: task.id.rawValue, revision: task.revision)))
                 await f.model.append([[.blockStarted(.init(id: "text", content: .text("Fresh answer"))), .blockFinished(id: "text"), .finished(.stop)]])

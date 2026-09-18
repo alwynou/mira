@@ -39,8 +39,6 @@ struct SQLiteDomainLibraryArchiveTests {
 
             let extraction = try SQLiteMemoryExtractionStore(
                 database: fixture.database, libraryID: fixture.authority.libraryID)
-            let privacy = try SQLiteSessionPrivacyPlanStore(
-                database: fixture.database, libraryID: fixture.authority.libraryID)
             let consumerIdentity = AgentSessionConsumerIdentity(id: "archive.domain.consumer", revision: 1)
             let consumer = try SQLiteSessionConsumer(
                 database: fixture.database, identity: consumerIdentity, handler: ArchiveDomainNoopHandler())
@@ -57,7 +55,6 @@ struct SQLiteDomainLibraryArchiveTests {
                 await memory.close()
                 await knowledge.close()
                 await extraction.close()
-                await privacy.close()
                 await consumer.close()
 
                 let modules: [SQLiteArchiveModule] = [
@@ -69,7 +66,6 @@ struct SQLiteDomainLibraryArchiveTests {
                     try SQLiteTaskStore.archiveModule(),
                     try SQLiteBusinessEffects.archiveModule(),
                     try SQLiteSessionConsumer.archiveModule(),
-                    try SQLiteSessionPrivacyPlanStore.archiveModule(),
                 ]
                 let exporter = try SQLiteLibraryArchiveExporter(
                     database: fixture.database, sessions: fixture.library,
@@ -102,7 +98,6 @@ struct SQLiteDomainLibraryArchiveTests {
                 await exporter.close()
             } catch {
                 await consumer.close()
-                await privacy.close()
                 await extraction.close()
                 throw error
             }

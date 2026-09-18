@@ -35,7 +35,8 @@ struct AgentContextTests {
         #expect(build.inheritedSources == [source])
         #expect(build.sources == [source])
         #expect(await authorizer.calls == 2)
-        let decoded = try SessionCodec.decode(AgentContextBuild.self, from: SessionCodec.encode(build))
+        let request = AgentSessionRequest(build)
+        let decoded = try SessionCodec.decode(AgentSessionRequest.self, from: SessionCodec.encode(request))
         #expect(decoded.request == build.request)
         #expect(decoded.sources == [source])
     }
@@ -193,6 +194,35 @@ struct AgentContextTests {
         #expect(!build.prepared.input.messages.contains { $0.text.contains("history-0-") || $0.text.contains("history-1-") })
     }
 
+    @Test func frozenContextDoesNotRecollectContributorsAcrossToolSteps() async throws {
+        let route = makeRoute()
+        let contextRequest = request(route: route)
+        let contributor = CountingContributor(id: "memory", items: [
+            .init(id: "item", text: "stable evidence", sources: [])
+        ])
+        let first = try await assembler().build(
+            request: contextRequest, stepID: UUID(), instructions: "Instructions",
+            history: .init(exchanges: []), currentTrace: .init(messages: [], sources: []),
+            tools: [], route: route, adapter: TestContextAdapter(),
+            contributors: [contributor], authorizer: TestAuthorizer())
+        let frozen = AgentFrozenContext(
+            message: first.prepared.input.messages.first(where: { $0.role == .context }),
+            evidence: first.evidence, omissions: first.omissions,
+            sources: first.evidence.flatMap(\.sources))
+        let second = try await assembler().build(
+            request: contextRequest, stepID: UUID(), instructions: "Instructions",
+            history: .init(exchanges: []),
+            currentTrace: .init(messages: [.init(role: .assistant,
+                blocks: [.init(id: "answer", content: .text("first step"))])], sources: []),
+            tools: [], route: route, adapter: TestContextAdapter(),
+            contributors: [contributor], authorizer: TestAuthorizer(), frozenContext: frozen)
+
+        #expect(await contributor.calls == 1)
+        #expect(second.prepared.input.messages.first(where: { $0.role == .context }) ==
+                first.prepared.input.messages.first(where: { $0.role == .context }))
+        #expect(second.prepared.input.messages.last?.text == "first step")
+    }
+
     @Test func initialSourceUnionPrunesHistoryButNeverCurrentTrace() async throws {
         let route = makeRoute()
         let contextRequest = request(route: route)
@@ -293,7 +323,7 @@ struct AgentContextTests {
               userText: "Current user text", authorizationEpoch: 1, destination: .model(route))
     }
     private func makeRoute(contextWindow: Int = 8_192, maximumOutputTokens: Int = 1_024) -> AgentModelRoute {
-        .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "family.context", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "model", credential: nil, contextWindow: contextWindow, maximumOutputTokens: maximumOutputTokens, capabilities: .init(streamsText: true, callsTools: false, producesThinking: false), configuration: .object([:]))
+        .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "family.context", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "model", credential: nil, contextWindow: contextWindow, maximumOutputTokens: maximumOutputTokens, capabilities: .init(streamsText: true, callsTools: false, producesThinking: false), configuration: .object([:]))
     }
 }
 

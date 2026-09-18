@@ -23,7 +23,7 @@
 flowchart TD
   A[已持久化的模型输出与工具调用] --> B[匹配本轮固定目录并校验参数]
   B -->|无效或不存在| X[持久化派发前结果]
-  B --> C[准备具体计划并合并上下文传递来源]
+  B --> C[准备工具计划并独立复核请求来源]
   C --> D[取得业务库身份和授权代次]
   D --> E[保存提案正文及 toolPrepared 事实]
   E --> F{宿主与工具模块策略共同决定}
@@ -49,17 +49,23 @@ flowchart TD
 
 `AgentToolPlan` 保存规范化输入、来源修订和目标修订。提案再固定工具定义、输出约束、副作用类型、命名空间及原调用正文摘要。`toolPrepared` 把提案引用与库级授权身份写入日志；`AgentEffectProof` 同时指向该事实的批次、序号、会话、执行和调用。业务层必须检查这些身份一致，不能接受仅凭调用 ID 自述的“已授权”。
 
-`AgentToolContext` 只携带执行／调用身份、完整 `SessionUserEvidence` 和本次接纳的 `AgentModelRoute`。原始证据包括会话、首次执行、消息、接纳事件／序号、正文引用与摘要、首次接纳时间／时区、工作空间、所观察到的日志 head 和会话授权代次。工具不再只拿到一组无法独立定位原始事实的标量。
+`AgentToolPlan.sources` contains only the sources selected by that tool's preparation. Inherited conversation and retrieval provenance remains on the invocation's committed `AgentSessionRequest`; it must not be merged into the domain plan or silently ignored by a domain validator. The invocation-to-attempt relationship binds the request evidence to the effect proof, so the proposal does not duplicate request sources. History, continuation and terminal settlement collect the union from both records.
 
-`SessionRuntime.userEvidence` 使用运行时自己的日志、正文存储和必需扩展修订表，经过同一个权威读取器解析证据。工具执行器核对证据与保存的请求正文、工作空间和授权代次一致；准备后的语义请求还必须匹配执行、步骤、系统指令、最后用户消息及本次冻结路线的适配器和能力。被调用的工具必须包含在保存的请求定义中。业务凭证解析器执行相同的证据／路线核对，再交给事务校验器。
+The executor independently revalidates the committed request sources through `AgentSourceAuthorizer` before obtaining business authorization, after approval, after durable dispatch and before publishing a successful read or external-tool result. Cancellation and library eligibility are checked before and after each asynchronous source check. Domain validators continue to enforce their exact tool sources, target revisions and business permissions.
+
+Request provenance does not grant business write permission. Any source required for an operation's correctness must be declared by its preparation in `plan.sources` and checked by its domain transaction, together with `plan.targets`. Asynchronous request-source checks do not replace the library maintenance epoch/fence or claim an atomic transaction with session history.
+
+`AgentToolContext` 只携带执行／调用身份、完整 `SessionUserEvidence` 和本次接纳的 `AgentModelRoute`。原始证据包括会话、首次执行、消息、接纳事件／序号、内联内容与摘要、首次接纳时间／时区、工作空间和所观察到的日志 head。工具不再只拿到一组无法独立定位原始事实的标量。
+
+`SessionRuntime.userEvidence` 使用运行时自己的日志和必需扩展修订表，经过同一个权威读取器解析证据。工具执行器核对证据与保存的请求内容、工作空间和执行 epoch 一致；准备后的语义请求还必须匹配执行、步骤、系统指令、最后用户消息及本次冻结路线的适配器和能力。被调用的工具必须包含在保存的请求定义中。业务凭证解析器执行相同的证据／路线核对，再交给事务校验器。
 
 重试可以接纳新的执行计划及路线，但证据仍指向用户消息的首次接纳；工具语义中的“今天”不会变成重试时刻。上下文传递来源包括模型请求继承的全部来源及工具准备时新增的来源，以[领域对象／会话执行两种类型](AGENT_SESSION_READS.md#历史执行来源)表达。任何工具或领域模块保存出处时应使用完整证据引用，不能只保存消息 ID 后再查询会话投影。
 
-这些字段证明所执行请求的出处，不构成永久授权。业务校验器仍须在提交事务内检查当前工作空间／路线限制、来源及目标修订、抑制记录和业务授权代次。日志读取与 SQL 提交不共享事务；跨存储隐私撤销必须先通过业务写入关口推进代次／设置执行禁止标记，再修改日志和清理正文。该完整维护顺序仍属于 P4，不能把本增量的证据核对称为已完成的遗忘协议。
+这些字段证明所执行请求的出处，不构成永久授权。业务校验器仍须在提交事务内检查当前工作空间／路线限制、来源及目标修订、业务授权代次和当前维护状态。日志读取与 SQL 提交不共享事务；业务维护仍必须通过业务写入关口完成授权检查和结果验证，工具证据核对不替代该事务边界。
 
 ```mermaid
 flowchart TD
-  J[会话权威日志与正文] --> E[首次接纳的完整用户证据]
+  J[会话权威日志与内联内容] --> E[首次接纳的完整用户证据]
   J --> P[本次执行的冻结计划与路线]
   J --> R[保存的模型请求与工具意图]
   E --> V[核对消息正文、工作空间、授权代次]
@@ -130,13 +136,13 @@ flowchart LR
 | 日志提交结果不确定 | 先核对原批次，不能用新的错误批次覆盖它 |
 | 外部写入结果未知 | 保留明确未知状态，重启不重新调用工具正文 |
 
-业务回执保存库身份、代次、调用 ID、提案摘要和结果摘要。正文存放在共享业务操作记录，回执不复制正文。清除操作正文后，关联回执仍证明原写入发生过，返回 `result == nil`；会话以 `resultWasPurged` 明确记录这一状态。清除正文不会让操作重新执行。
+业务回执保存库身份、代次、调用 ID、提案摘要和结果摘要。业务结果内容存放在共享业务操作记录，回执不复制内容；内容不可用时仍保留回执事实和业务效果资格，不把它解释为未发生，也不让操作重新执行。
 
-库身份与授权代次现由独立的 `SQLiteLibraryAuthority` 持有。维护开始时原子保存 pending 操作并推进代次，业务提交在同一 SQL 事务检查当前状态；`purgeResults` 必须引用准确的当前维护操作，只清除正文。原 `invalidateResults` 接口已删除，全部测试组合直接更新。完整契约和图示见[库级授权与持久维护记录](AGENT_LIBRARY_MAINTENANCE.md)。跨会话来源撤销、正文读取租约、领域清理、备份屏障及完整隐私维护仍待 P4。
+库身份与授权代次现由独立的 `SQLiteLibraryAuthority` 持有。维护开始时原子保存 pending 操作并推进代次，业务提交在同一 SQL 事务检查当前状态；业务维护处理器负责按领域规则清理或验证结果内容。原 `invalidateResults` 接口已删除，全部测试组合直接更新。完整契约和图示见[库级授权与持久维护记录](AGENT_LIBRARY_MAINTENANCE.md)。
 
 ## 历史重放
 
-`JournalAgentHistoryReader` 从会话快照选择已完成、未排除且仍有有效重放正文的完整交换，不以可见回答作为重放后备。每个用户消息只选最新合格执行，当前用户消息不会重复进入历史。来源先校验，再调用适配器的重放规则；适配器可以删除思考或续接内容，不能替换用户可见文字、工具身份，或注入新的思考正文。
+`JournalAgentHistoryReader` 从会话快照选择已完成且仍有有效重放内容的完整交换，不以可见回答作为重放后备。每个用户消息只选最新合格执行，当前用户消息不会重复进入历史。来源先校验，再调用适配器的重放规则；适配器可以省略思考或续接内容，不能替换用户可见文字、工具身份，或注入新的思考内容。
 
 读取器优先保留较新的完整交换，再按时间顺序返回；最多保留 254 条历史消息及 6 MiB 的消息与来源编码，给当前输入预留空间。模型上下文窗口和当前回合工具轨迹仍须由后续驱动器组装处理；这里的字节上限不是 token 预算验收。
 
@@ -145,3 +151,7 @@ flowchart LR
 ## 库访问与维护
 
 工具执行必须显式接收当前执行的库访问租约，提案授权与租约的库身份、代次必须一致。正文与期限通过同一关口原子接纳，撤销后排空实际任务，不能在当前执行中换用新代次。恢复直接使用不具备派发依赖的 `AgentToolRecovery`。详见[访问与结算边界](AGENT_LIBRARY_MAINTENANCE.md)。
+
+## Canonical outcome records
+
+Every resolved invocation emits a `tool/result` within the calling step, linked to the exact `tool/call` event sequence. Outcomes without returned content retain a null payload and a structured failure reason. The same observation envelope is used by current-step and historical model inputs; it cannot become an unrelated plugin message. Result bytes bound to business receipts remain unchanged.

@@ -3,7 +3,7 @@ import Foundation
 /// Finite journal replay and source verification, independent of the index technology.
 enum SessionSearchReader {
     static func synchronize(
-        journal: any SessionJournal, payloads: any SessionPayloadReader,
+        journal: any SessionJournal, payloads: any SessionContentReader,
         index: any SessionSearchIndex, schemas: [String: Set<Int>],
         lease: AgentLibraryAccessLease
     ) async throws {
@@ -30,7 +30,7 @@ enum SessionSearchReader {
 
     private static func synchronize(
         sessionID: ConversationID, journal: any SessionJournal,
-        payloads: any SessionPayloadReader, index: any SessionSearchIndex,
+        payloads: any SessionContentReader, index: any SessionSearchIndex,
         schemas: [String: Set<Int>], lease: AgentLibraryAccessLease
     ) async throws {
         let target = try await lease.read { try await journal.head(sessionID: sessionID) }
@@ -47,8 +47,6 @@ enum SessionSearchReader {
             try await JournalSessionReader(journal: journal, payloads: payloads, extensionSchemas: schemas)
                 .snapshot(through: target)
         }
-        // A rebuild must never try to resurrect bodies purged by a later source event.
-        let invalidated = snapshot.state.invalidatedRetentionGroups
         while checkpoint.cursor.sequence < target.cursor.sequence {
             try Task.checkCancellation()
             let after = checkpoint.cursor.sequence
@@ -64,7 +62,7 @@ enum SessionSearchReader {
                     batch.cursor.sequence <= target.cursor.sequence,
                     batch.cursor.sequence != target.cursor.sequence || batch.id == target.batchID
                 else { throw invalid }
-                let locations = locations(in: batch).filter { !invalidated.contains($0.reference.retentionGroup) }
+                let locations = locations(in: batch)
                 var bytes = 0
                 for location in locations { try reserve(location, total: &bytes, maximum: 64 * 1_024 * 1_024) }
                 var documents: [SessionSearchDocument] = []
@@ -84,7 +82,7 @@ enum SessionSearchReader {
 
     static func resolve(
         _ page: SessionSearchIndexPage, selection: SessionSearchSelection, limit: Int,
-        journal: any SessionJournal, payloads: any SessionPayloadReader, schemas: [String: Set<Int>],
+        journal: any SessionJournal, payloads: any SessionContentReader, schemas: [String: Set<Int>],
         lease: AgentLibraryAccessLease, maximumPageBytes: Int
     ) async throws -> SessionSearchPage {
         guard page.matches.count <= limit, (0...20_000).contains(page.scannedCandidates),
@@ -109,13 +107,12 @@ enum SessionSearchReader {
             for location in groups[sessionID, default: []] {
                 guard location.sequence <= state.sequence,
                     state.references[location.reference.id] == location.reference,
-                    !state.invalidatedRetentionGroups.contains(location.reference.retentionGroup),
                     location.part != .title || state.title == location.reference,
                     selection.since.map({ location.occurredAt >= $0 }) ?? true,
                     selection.until.map({ location.occurredAt < $0 }) ?? true
                 else { continue }
                 let batch = try await lease.read {
-                    try await journal.batch(id: location.reference.batchID, sessionID: sessionID)
+                    try await journal.read(sessionID: sessionID, after: location.sequence - 1, limit: 1).first
                 }
                 guard let batch, batch.cursor.sequence <= snapshot.head.cursor.sequence else { throw invalid }
                 try batch.validate()
@@ -140,7 +137,7 @@ enum SessionSearchReader {
         var result: [SessionSearchLocation] = []
         for event in batch.events {
             func append(
-                _ reference: SessionPayloadReference?, part: SessionSearchPart,
+                _ reference: SessionContent?, part: SessionSearchPart,
                 messageID: MessageID? = nil, executionID: ExecutionID? = nil
             ) {
                 guard let reference else { return }
@@ -198,7 +195,7 @@ enum SessionSearchReader {
     }
 
     private static func text(
-        _ reference: SessionPayloadReference, payloads: any SessionPayloadReader,
+        _ reference: SessionContent, payloads: any SessionContentReader,
         lease: AgentLibraryAccessLease
     ) async throws -> String {
         try Task.checkCancellation()

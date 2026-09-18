@@ -13,7 +13,7 @@ public struct SQLiteMemoryExtractionConsumer: SQLiteSessionConsumerHandler {
     private let now: @Sendable () -> Date
 
     public init(
-        journal: any SessionJournal, payloads: any SessionPayloadReader,
+        journal: any SessionJournal, payloads: any SessionContentReader,
         access: AgentLibraryAccess, scope: RuntimeScope,
         extensionSchemas: [String: Set<Int>] = [:], now: @escaping @Sendable () -> Date = { Date() }
     ) {

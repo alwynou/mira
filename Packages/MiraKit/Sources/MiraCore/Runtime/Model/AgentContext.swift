@@ -100,7 +100,22 @@ public struct AgentContextHistory: Codable, Sendable, Equatable {
     }
 }
 
-public struct AgentContextBuild: Codable, Sendable, Equatable {
+/// The ordinary contributor result captured for the first request in a turn.
+/// Tool continuation may add committed tool provenance, but it must not recollect
+/// this same-turn context and observe a different contributor snapshot.
+public struct AgentFrozenContext: Sendable, Equatable {
+    public let message: AgentModelMessage?
+    public let evidence: [AgentContextEvidence]
+    public let omissions: [AgentContextOmission]
+    public let sources: [AgentSourceReference]
+    public init(message: AgentModelMessage?, evidence: [AgentContextEvidence],
+                omissions: [AgentContextOmission], sources: [AgentSourceReference]) {
+        self.message = message; self.evidence = evidence; self.omissions = omissions; self.sources = sources
+    }
+}
+
+/// Process-local preparation result. Persist only `AgentSessionRequest` evidence.
+public struct AgentContextBuild: Sendable, Equatable {
     public let request: AgentContextRequest
     public let prepared: AgentPreparedModelRequest
     public let inheritedSources: [AgentSourceReference]
@@ -132,7 +147,8 @@ public struct AgentContextAssembler: Sendable {
     public func build(request: AgentContextRequest, stepID: UUID, instructions: String,
                       history: AgentSessionHistory, currentTrace: AgentContextHistory, tools: [ToolDefinition],
                       route: AgentModelRoute, adapter: any AgentModelAdapter,
-                      contributors: [any AgentContextContributor], authorizer: any AgentSourceAuthorizer) async throws -> AgentContextBuild {
+                      contributors: [any AgentContextContributor], authorizer: any AgentSourceAuthorizer,
+                      frozenContext: AgentFrozenContext? = nil) async throws -> AgentContextBuild {
         try Task.checkCancellation()
         try route.validate()
         guard history.exchanges.count <= 254, contributors.count <= 128 else {
@@ -157,16 +173,30 @@ public struct AgentContextAssembler: Sendable {
         }
         var entries: [Entry] = []
         var omissions: [AgentContextOmission] = []
-        var inherited = AgentContextBuild.orderedSources(historyContext.sources + currentTrace.sources)
+        var inherited = AgentContextBuild.orderedSources(historyContext.sources + currentTrace.sources + (frozenContext?.sources ?? []))
         while inherited.count > 8_192 {
             try Task.checkCancellation()
             guard !history.isEmpty else { throw MiraError(.contextLimit, "The model input exceeds its supported bounds.") }
             history = history.removingOldestExchange()
             historyContext = history.context
-            inherited = AgentContextBuild.orderedSources(historyContext.sources + currentTrace.sources)
+            inherited = AgentContextBuild.orderedSources(historyContext.sources + currentTrace.sources + (frozenContext?.sources ?? []))
         }
         for source in inherited { try source.validate() }
         if !inherited.isEmpty { try await authorizer.validate(inherited, for: request) }
+        if let frozenContext {
+            guard frozenContext.message.map({ $0.role == .context && $0.blocks.count == 1 }) ?? true,
+                  frozenContext.evidence.count <= 128,
+                  frozenContext.omissions.count <= 128,
+                  frozenContext.sources.count <= 8_192 else {
+                throw MiraError(.configuration, "The frozen context snapshot is invalid.")
+            }
+            for source in frozenContext.sources { try source.validate() }
+            return try await fit(request: request, stepID: stepID, instructions: instructions,
+                history: historyContext, currentTrace: currentTrace, tools: tools,
+                route: route, adapter: adapter, authorizer: authorizer,
+                inherited: inherited, contextMessage: frozenContext.message,
+                fixedEvidence: frozenContext.evidence, entries: [], omissions: frozenContext.omissions)
+        }
         for contributor in contributors.sorted(by: { $0.id < $1.id }) {
             try Task.checkCancellation()
             guard SessionState.validIdentifier(contributor.id, maximumBytes: 128) else {
@@ -212,7 +242,8 @@ public struct AgentContextAssembler: Sendable {
                 return try await fit(request: request, stepID: stepID, instructions: instructions,
                     history: historyContext, currentTrace: currentTrace, tools: tools,
                     route: route, adapter: adapter, authorizer: authorizer,
-                    inherited: inherited, entries: entries, omissions: omissions)
+                    inherited: inherited, contextMessage: nil, fixedEvidence: nil,
+                    entries: entries, omissions: omissions)
             } catch let error as MiraError where error.code == .contextLimit && !history.isEmpty {
                 try Task.checkCancellation()
                 history = history.removingOldestExchange()
@@ -226,14 +257,17 @@ public struct AgentContextAssembler: Sendable {
     private func fit(request: AgentContextRequest, stepID: UUID, instructions: String,
                      history: AgentContextHistory, currentTrace: AgentContextHistory, tools: [ToolDefinition],
                      route: AgentModelRoute, adapter: any AgentModelAdapter, authorizer: any AgentSourceAuthorizer,
-                     inherited: [AgentSourceReference], entries: [Entry], omissions: [AgentContextOmission]) async throws -> AgentContextBuild {
+                     inherited: [AgentSourceReference], contextMessage: AgentModelMessage?,
+                     fixedEvidence: [AgentContextEvidence]?, entries: [Entry], omissions: [AgentContextOmission]) async throws -> AgentContextBuild {
         // Transient pruning is local to one history candidate; only the accepted omissions are persisted.
         var entries = entries
         var omissions = omissions
         while true {
             try Task.checkCancellation()
             var messages = history.messages
-            if !entries.isEmpty {
+            if let contextMessage {
+                messages.append(contextMessage)
+            } else if !entries.isEmpty {
                 let bytes = try SessionCodec.encode(entries.map {
                     DataRecord(contributor: $0.contributorID, id: $0.item.id, text: $0.item.text, sources: $0.item.sources)
                 })
@@ -254,7 +288,7 @@ public struct AgentContextAssembler: Sendable {
                     throw MiraError(.malformedStream, "The model adapter changed the prepared semantic input.")
                 }
                 try prepared.validate(for: route)
-                let evidence = entries.map { AgentContextEvidence(contributorID: $0.contributorID, itemID: $0.item.id, sources: $0.item.sources) }
+                let evidence = fixedEvidence ?? entries.map { AgentContextEvidence(contributorID: $0.contributorID, itemID: $0.item.id, sources: $0.item.sources) }
                 let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: inherited,
                     evidence: evidence, omissions: omissions)
                 guard build.sources.count <= 8_192 else {

@@ -96,7 +96,7 @@ public actor SQLiteLibraryRestorer {
         let stage = try LibraryArchiveIO.createStage(for: destination)
         var published = false
         defer { if !published { try? FileManager.default.removeItem(at: stage.stage) } }
-        for path in ["Sessions", "Sessions/sessions", "Sessions/payloads"] {
+        for path in ["Sessions", "Sessions/sessions"] {
             try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent(path))
         }
         try LibraryArchiveFileCatalog.forEachFile(in: archive, manifest: manifest) { file in
@@ -207,7 +207,7 @@ public actor SQLiteLibraryRestorer {
             try FileManager.default.removeItem(at: directory.appendingPathComponent("Sessions/.lock"))
             // Source validation is deliberately independent of every disposable cache.
             // These paths were created only by the drained writer in this private stage.
-            for name in ["indexes", "checkpoints", ".cache-authentication", "pending-payloads"] {
+            for name in ["indexes", "checkpoints", ".cache-authentication"] {
                 try FileManager.default.removeItem(at: directory.appendingPathComponent("Sessions/" + name))
             }
             return heads
@@ -249,7 +249,7 @@ public actor SQLiteLibraryRestorer {
             return try SQLiteLibraryArchiveExporter.inspectDatabase(db, snapshot: snapshot, modules: modules)
         }
         let attachmentsByPath = Dictionary(uniqueKeysWithValues: attachments.map { ($0.path, $0) })
-        let expectedSessionFiles = snapshot.sessions.reduce(0) { $0 + 1 + $1.payloads.count }
+        let expectedSessionFiles = snapshot.sessions.count
         var sessionFiles = 0, attachmentFiles = 0
         var sawBusiness = false, sawProjection = false
         var total: Int64 = 0

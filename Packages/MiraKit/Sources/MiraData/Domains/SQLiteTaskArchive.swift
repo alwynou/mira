@@ -110,9 +110,7 @@ extension SQLiteTaskStore {
     ) throws {
         try evidence.validate()
         let user = try journal.validate(evidence.source, workspaceID: workspaceID)
-        guard user.admittedAt == evidence.sentAt, user.timeZoneIdentifier == evidence.timeZoneID,
-            SHA256.hash(data: Data(evidence.quote.utf8)).map({ String(format: "%02x", $0) }).joined()
-                == evidence.source.body.digest
+        guard user.admittedAt == evidence.sentAt, user.timeZoneIdentifier == evidence.timeZoneID
         else {
             throw LibraryArchiveIO.invalid
         }

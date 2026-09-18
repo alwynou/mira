@@ -59,7 +59,7 @@ final class NativeTranscriptRow: ListRowView {
                    reduceMotion: Bool, measurement: Bool, auxiliary: AnyView,
                    expandedBlocks: Set<String> = [],
                    remember: @escaping (SessionQueryMessage) -> Void) {
-        if self.item?.id != item.id || item.isBodyPurged {
+        if self.item?.id != item.id {
             answer.prepareForReuse()
             thinking.prepareForReuse()
             clearProcess()
@@ -67,7 +67,7 @@ final class NativeTranscriptRow: ListRowView {
         self.item = item
         self.expanded = expanded
         self.measurement = measurement
-        let assistant = item.role == .assistant && !item.isBodyPurged
+        let assistant = item.role == .assistant
         assistantRow = assistant
         let ordered = assistant && !item.steps.isEmpty
         let hasThinking = assistant && !ordered && !item.thinking.isEmpty
@@ -135,10 +135,7 @@ final class NativeTranscriptRow: ListRowView {
         }
 
         header.isHidden = assistant
-        if item.isBodyPurged {
-            headerContent = AnyView(Label("Message content cleared", systemImage: "eye.slash")
-                .font(.callout).foregroundStyle(.secondary).environment(\.locale, locale))
-        } else if assistant {
+        if assistant {
             headerContent = AnyView(EmptyView())
         } else {
             headerContent = AnyView(MessageRow(role: item.role, text: item.text, status: item.status)
@@ -351,7 +348,6 @@ private final class NativeProcessBlockView: NSView {
     private func display(_ value: SessionTextContent, locale: Locale) -> String {
         switch value {
         case .available(let text): return text
-        case .purged: return L10n.string("Message content cleared", locale: locale)
         case .absent: return L10n.string("Content unavailable", locale: locale)
         }
     }

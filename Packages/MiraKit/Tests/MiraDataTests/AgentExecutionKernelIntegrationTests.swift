@@ -5,6 +5,53 @@ import Testing
 
 @Suite("Agent execution kernel integration")
 struct AgentExecutionKernelIntegrationTests {
+    @Test func streamedFiveTurnLogPreservesOrderDenialRecoveryAndIncrementalGrowth() async throws {
+        let fixture = try await KernelFixture.make(outputs: [.streamedComplete, .streamedComplete, .streamedComplete,
+            .streamedComplete, .streamedRead, .streamedComplete])
+        try await withKernelFixture(fixture) { fixture in
+            for turn in 0..<5 {
+                let executionID = turn == 0 ? fixture.executionID : try await fixture.admitNext()
+                let kernel = try await fixture.kernel(executionID: executionID, policy: DenyFixturePolicy())
+                let outcome = await kernel.run()
+                guard case .committed = outcome else { Issue.record("Streaming execution did not settle: \(outcome)"); return }
+                #expect((await fixture.runtime.snapshot()).executions[executionID]?.completion?.status == .completed)
+                _ = await kernel.shutdown()
+            }
+            let state = await fixture.runtime.snapshot()
+            #expect(await fixture.modelProbe.dispatchCount == 6)
+            #expect(await fixture.toolProbe.executeCount == 0)
+            let resolution = try #require(state.invocations.values.first?.resolution)
+            #expect(resolution.status == .denied)
+            #expect(resolution.error?.code == .unauthorized)
+            let source = fixture.directory.appendingPathComponent("sessions/\(fixture.sessionID.rawValue.uuidString).jsonl")
+            let bytes = try Data(contentsOf: source)
+            let records = try bytes.split(separator: 10).map { try SessionCodec.decode(JSONValue.self, from: Data($0)) }
+            #expect(records.filter { $0["type"] == .string("system/message") }.count == 1)
+            #expect(records.filter { $0["type"] == .string("user/message") }.count == 5)
+            #expect(records.filter { $0["type"] == .string("tool/result") }.count == 1)
+            #expect(records.filter { $0["type"] == .string("assistant/message") }.count == 6)
+            let completions = records.filter { $0["type"] == .string("mira/turn-finished") }
+            #expect(completions.allSatisfy { $0["data"]?["visibleThinking"]?["value"]?["text"] == nil })
+            if let path = ProcessInfo.processInfo.environment["MIRA_STREAMING_SESSION_SAMPLE"], !path.isEmpty {
+                try bytes.write(to: URL(fileURLWithPath: path), options: .atomic)
+                let metrics: JSONValue = .object(["journalBytes": .number(Double(bytes.count))])
+                try SessionCodec.encode(metrics).write(to: URL(fileURLWithPath: path + ".metrics.json"), options: .atomic)
+            }
+            let requestContents = state.attempts.values.map(\.attempt.request)
+            var originalRequests: [Data] = []
+            for content in requestContents { originalRequests.append(try await fixture.library.read(content)) }
+            await fixture.runtime.close(); try await fixture.library.close()
+            let reopenedLibrary = try FileSessionLibrary(directory: fixture.directory)
+            do {
+                let reopened = try await SessionRuntime.open(id: fixture.sessionID, journal: reopenedLibrary, payloads: reopenedLibrary)
+                #expect(await reopened.snapshot() == state)
+                for (content, original) in zip(requestContents, originalRequests) {
+                    #expect(try await reopenedLibrary.read(content) == original)
+                }
+                await reopened.close(); try await reopenedLibrary.close()
+            } catch { try? await reopenedLibrary.close(); throw error }
+        }
+    }
     @Test func admittedPlanCannotRunInAnotherApplicationRuntime() async throws {
         let fixture = try await KernelFixture.make(outputs: [.complete])
         try await withKernelFixture(fixture) { fixture in
@@ -45,7 +92,7 @@ struct AgentExecutionKernelIntegrationTests {
             let kernel = try await fixture.kernel()
             guard case .committed = await kernel.run() else { Issue.record("Truncated output did not settle"); return }
             let completion = try #require((await fixture.runtime.snapshot()).executions[fixture.executionID]?.completion)
-            #expect(completion.status == .failed && completion.replay == nil)
+            #expect(completion.status == .failed)
             #expect(try await fixture.library.read(#require(completion.answer)) == Data("partial".utf8))
             let error = try SessionCodec.decode(MiraError.self, from: await fixture.library.read(#require(completion.error)))
             #expect(error.code == .outputLimit)
@@ -62,6 +109,11 @@ struct AgentExecutionKernelIntegrationTests {
             let state = await fixture.runtime.snapshot()
             #expect(state.executions[fixture.executionID]?.completion?.status == .completed)
             #expect(await fixture.toolProbe.executeCount == 1)
+            if let path = ProcessInfo.processInfo.environment["MIRA_RUNTIME_SESSION_SAMPLE"], !path.isEmpty {
+                let source = fixture.directory.appendingPathComponent("sessions")
+                    .appendingPathComponent("\(fixture.sessionID.rawValue.uuidString).jsonl")
+                try Data(contentsOf: source).write(to: URL(fileURLWithPath: path), options: .atomic)
+            }
 
             _ = await kernel.shutdown()
             await fixture.runtime.close()
@@ -114,7 +166,6 @@ struct AgentExecutionKernelIntegrationTests {
             #expect(await fixture.modelProbe.dispatchCount == 0)
             let state = await fixture.runtime.snapshot()
             #expect(state.executions[fixture.executionID]?.attemptIDs.isEmpty == true)
-            #expect(completion.replay != nil)
             _ = await kernel.shutdown()
             await fixture.runtime.close(); try await fixture.library.close()
             let reopenedLibrary = try FileSessionLibrary(directory: fixture.directory)
@@ -216,22 +267,15 @@ struct AgentExecutionKernelIntegrationTests {
             _ = await third.shutdown()
 
             let state = await fixture.runtime.snapshot()
-            let secondReplay = try #require(state.executions[secondID]?.completion?.replay)
-            let secondRecord = try await fixture.library.read(secondReplay)
-            let secondValue = try SessionCodec.decode(AgentReplayRecord.self, from: secondRecord)
-            #expect(secondValue.sources == [firstSource])
             let secondSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: secondID)
-            let thirdReplay = try #require(state.executions[thirdID]?.completion?.replay)
-            let thirdValue = try SessionCodec.decode(AgentReplayRecord.self, from: try await fixture.library.read(thirdReplay))
-            #expect(Set(thirdValue.sources) == Set([firstSource, secondSource]))
             let thirdExecution = try #require(state.executions[thirdID])
             #expect(thirdExecution.completion?.status == .completed)
             #expect(thirdExecution.attemptIDs.count == 1)
             let attemptID = try #require(thirdExecution.attemptIDs.first)
             let attempt = try #require(state.attempts[attemptID])
-            let request = try SessionCodec.decode(AgentContextBuild.self, from: await fixture.library.read(attempt.attempt.request))
+            let request = try SessionCodec.decode(AgentSessionRequest.self, from: await fixture.library.read(attempt.attempt.request))
             #expect(Set(request.inheritedSources) == Set([firstSource, secondSource]))
-            #expect(request.sources == thirdValue.sources)
+            #expect(Set(request.sources) == Set([firstSource, secondSource]))
             #expect(request.request.executionID == thirdID)
             #expect(await fixture.modelProbe.dispatchCount == 3)
 
@@ -242,13 +286,7 @@ struct AgentExecutionKernelIntegrationTests {
                 let reopened = try await SessionRuntime.open(id: fixture.sessionID, journal: reopenedLibrary, payloads: reopenedLibrary)
                 reopenedRuntime = reopened
                 let reopenedState = await reopened.snapshot()
-                let reopenedSecond = try #require(reopenedState.executions[secondID]?.completion?.replay)
-                let reopenedThird = try #require(reopenedState.executions[thirdID]?.completion?.replay)
-                let secondAfter = try SessionCodec.decode(AgentReplayRecord.self, from: try await reopenedLibrary.read(reopenedSecond))
-                let thirdAfter = try SessionCodec.decode(AgentReplayRecord.self, from: try await reopenedLibrary.read(reopenedThird))
-                #expect(secondAfter.sources == [firstSource])
-                #expect(Set(thirdAfter.sources) == Set([firstSource, secondSource]))
-                let requestAfter = try SessionCodec.decode(AgentContextBuild.self, from: await reopenedLibrary.read(attempt.attempt.request))
+                let requestAfter = try SessionCodec.decode(AgentSessionRequest.self, from: await reopenedLibrary.read(attempt.attempt.request))
                 #expect(requestAfter == request)
                 await reopened.close(); try await reopenedLibrary.close()
             } catch { await reopenedRuntime?.close(); try? await reopenedLibrary.close(); throw error }
@@ -273,13 +311,13 @@ struct AgentExecutionKernelIntegrationTests {
             let thirdState = await fixture.runtime.snapshot()
             let thirdAttemptID = try #require(thirdState.executions[thirdID]?.attemptIDs.last)
             let thirdAttempt = try #require(thirdState.attempts[thirdAttemptID])
-            let thirdBuild = try SessionCodec.decode(AgentContextBuild.self, from: await fixture.library.read(thirdAttempt.attempt.request))
+            let thirdBuild = try SessionCodec.decode(AgentSessionRequest.self, from: await fixture.library.read(thirdAttempt.attempt.request))
             let firstSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: fixture.executionID)
             let secondSource = AgentSourceReference.sessionExecution(sessionID: fixture.sessionID, executionID: secondID)
             #expect(Set(thirdBuild.inheritedSources) == Set([firstSource, secondSource]))
             #expect(thirdBuild.omissions.isEmpty)
-            #expect(thirdBuild.prepared.input.messages.contains { $0.role == .context && $0.text.contains("contribution-3") })
-            #expect(thirdBuild.prepared.input.messages.count == 4)
+            #expect(thirdBuild.contextMessages.contains { $0.role == .context && $0.text.contains("contribution-3") })
+            #expect(thirdBuild.contextMessages.count == 1)
             #expect(thirdBuild.evidence.map(\.itemID) == ["item-3"])
             #expect(thirdState.executions.values.filter { $0.completion?.status == .completed }.count == 3)
             _ = await third.shutdown()
@@ -298,7 +336,7 @@ private func withKernelFixture<T>(_ fixture: KernelFixture, _ body: (KernelFixtu
     }
 }
 
-private enum SyntheticOutput: Sendable { case read, complete, truncated }
+private enum SyntheticOutput: Sendable { case read, complete, truncated, streamedComplete, streamedRead }
 private enum JournalFault: Sendable { case none, indeterminateTerminal, notCommittedTerminal }
 
 private actor FaultJournal: SessionJournal {
@@ -330,6 +368,16 @@ private actor FaultJournal: SessionJournal {
     func sessions(after: ConversationID?, limit: Int) async throws -> [ConversationID] { try await base.sessions(after: after, limit: limit) }
     func flush() async throws { try await base.flush() }
     func close() async throws { try await base.close() }
+
+    func readAll(sessionID: ConversationID) async throws -> [SessionBatch] {
+        var batches: [SessionBatch] = []
+        var cursor: Int64 = 0
+        while true {
+            let page = try await read(sessionID: sessionID, after: cursor, limit: SessionFormatLimits.maximumReadBatches)
+            guard let last = page.last else { return batches }
+            batches.append(contentsOf: page); cursor = last.cursor.sequence
+        }
+    }
 }
 
 private actor ModelProbe {
@@ -357,7 +405,29 @@ private struct KernelModel: AgentModelAdapter {
         let (stream, continuation) = AsyncThrowingStream<AgentModelStreamEvent, any Error>.makeStream()
         let producer = Task {
                 do {
-                    switch try await probe.next() {
+                    let output = try await probe.next()
+                    switch output {
+                    case .streamedComplete, .streamedRead:
+                        let number = await probe.dispatchCount
+                        continuation.yield(.blockStarted(.init(id: "thinking", content: .thinking(""))))
+                        continuation.yield(.blockDelta(id: "thinking", text: "Synthetic reasoning \(number). "))
+                        try await Task.sleep(for: .milliseconds(300))
+                        for index in 0..<24 {
+                            continuation.yield(.blockDelta(id: "thinking", text: "Part \(index). " + String(repeating: "r", count: 512)))
+                        }
+                        continuation.yield(.blockFinished(id: "thinking"))
+                        if case .streamedRead = output {
+                            continuation.yield(.blockStarted(.init(id: "tool", content: .toolCall(.init(id: "stream-read", name: "tests.read", arguments: "{}")))))
+                            continuation.yield(.blockFinished(id: "tool"))
+                            continuation.yield(.finished(.toolCalls))
+                        } else {
+                            continuation.yield(.blockStarted(.init(id: "answer", content: .text(""))))
+                            for index in 0..<12 {
+                                continuation.yield(.blockDelta(id: "answer", text: "Answer \(number)/\(index). " + String(repeating: "a", count: 512)))
+                            }
+                            continuation.yield(.blockFinished(id: "answer"))
+                            continuation.yield(.finished(.stop))
+                        }
                     case .read:
                         continuation.yield(.blockStarted(.init(id: "tool-0", content: .toolCall(.init(id: "read-1", name: "tests.read", arguments: "{}")))))
                         continuation.yield(.blockFinished(id: "tool-0"))
@@ -486,6 +556,11 @@ private struct AllowPolicy: AgentToolPolicy {
     func validate(_ proposal: AgentToolProposal, context: AgentToolContext) async throws {}
 }
 
+private struct DenyFixturePolicy: AgentToolPolicy {
+    func evaluate(_ proposal: AgentToolProposal, context: AgentToolContext) async throws -> AgentToolPolicyDecision { .deny }
+    func validate(_ proposal: AgentToolProposal, context: AgentToolContext) async throws {}
+}
+
 private struct AllowAuthority: AgentEffectAuthority {
     let value: AgentLibraryAuthorization
     func authorization(for proposal: AgentToolProposal, context: AgentToolContext) async throws -> AgentLibraryAuthorization { value }
@@ -556,11 +631,11 @@ private final class KernelFixture: Sendable {
         let catalog = try AgentRuntimeCatalog(snapshot: snapshot)
         cleanupCatalog = catalog
         cleanupSnapshot = nil
-        let plan = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: catalog.generation, driverID: driverID, driverRevision: 1, instructions: "Answer.", limits: limits, priority: .foreground, route: hasModelRoute ? AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "synthetic", credential: nil, contextWindow: 4096, maximumOutputTokens: 128, capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:])) : nil)
+        let plan = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: catalog.generation, driverID: driverID, driverRevision: 1, instructions: "Answer.", limits: limits, priority: .foreground, route: hasModelRoute ? AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "synthetic", credential: nil, contextWindow: 4096, maximumOutputTokens: 128, capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:])) : nil)
         let admission = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-            let planRef = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+            let planRef = try await context.stage(plan, kind: .executionPlan)
             return [.opened(.init(workspaceID: nil, title: title)), .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: user, plan: planRef, hasModelRoute: hasModelRoute, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
         }
         guard case .committed = admission else { throw MiraError(.storage, "Kernel fixture admission failed.") }
@@ -583,12 +658,12 @@ private final class KernelFixture: Sendable {
         self.directory = directory; self.library = library; self.journal = journal; self.runtime = runtime; self.sessionID = sessionID; self.executionID = executionID; self.modelProbe = modelProbe; self.toolProbe = toolProbe; self.driverProbe = driverProbe; self.budgetProbe = budgetProbe; self.catalog = catalog; self.scope = scope; self.kernelHolder = kernelHolder; self.scopeProbe = scopeProbe; self.libraryAccessFixture = libraryAccessFixture
     }
 
-    func kernel(executionID: ExecutionID? = nil, runtimeID: UUID? = nil) async throws -> AgentExecutionKernel {
+    func kernel(executionID: ExecutionID? = nil, runtimeID: UUID? = nil, policy: any AgentToolPolicy = AllowPolicy()) async throws -> AgentExecutionKernel {
         let id = executionID ?? self.executionID
         let state = await runtime.snapshot()
         let plan = try await AgentExecutionPlan.read(for: state.executions[id]!.admission, from: library)
         let libraryLease = try await libraryAccessFixture.acquire()
-        let kernel = try await AgentExecutionKernel(runtime: runtime, journal: journal, payloads: library, libraryLease: libraryLease, executionID: id, runtimeID: runtimeID ?? plan.runtimeID, catalog: catalog, policy: AllowPolicy(), authority: AllowAuthority(value: libraryLease.authorization), business: NoopBusiness(), authorizer: AllowAuthorizer(), approvals: RuntimeApprovalService(), scheduler: scheduler)
+        let kernel = try await AgentExecutionKernel(runtime: runtime, journal: journal, payloads: library, libraryLease: libraryLease, executionID: id, runtimeID: runtimeID ?? plan.runtimeID, catalog: catalog, policy: policy, authority: AllowAuthority(value: libraryLease.authorization), business: NoopBusiness(), authorizer: AllowAuthorizer(), approvals: RuntimeApprovalService(), scheduler: scheduler)
         await kernelHolder.store(kernel)
         return kernel
     }
@@ -596,10 +671,10 @@ private final class KernelFixture: Sendable {
     func admitNext() async throws -> ExecutionID {
         let executionID = ExecutionID()
         let command = await runtime.commit(id: UUID()) { context in
-            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
+            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
             let state = context.state
             let plan = try await AgentExecutionPlan.read(for: state.executions[self.executionID]!.admission, from: library)
-            let planRef = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+            let planRef = try await context.stage(plan, kind: .executionPlan)
             return [.admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: user, plan: planRef, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
         }
         guard case .committed = command else { throw MiraError(.storage, "Kernel fixture admission failed.") }

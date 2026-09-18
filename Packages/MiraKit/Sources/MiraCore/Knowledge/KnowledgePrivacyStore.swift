@@ -3,10 +3,6 @@ import Foundation
 public enum KnowledgePrivacyAction: String, Codable, Sendable {
     case revokeRemoteUse, deleteSource
     public var namespace: String { self == .revokeRemoteUse ? "knowledge.revoke" : "knowledge.delete" }
-    public var retention: SessionPrivacyRetention {
-        self == .revokeRemoteUse ? .preserveVisibleHistory : .purgeGeneratedHistory
-    }
-    public var reason: SessionInvalidationReason { self == .revokeRemoteUse ? .permissionRevoked : .sourceDeleted }
 }
 
 /// Identities survive source deletion; no title, heading, quote or document body is copied here.

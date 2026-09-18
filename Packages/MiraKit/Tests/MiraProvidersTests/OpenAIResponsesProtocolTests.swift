@@ -382,7 +382,7 @@ struct OpenAIResponsesProtocolTests {
         return AgentModelRoute(id: RouteID(), revision: 1, connectionID: connectionID, connectionRevision: 1,
                                modelDescriptorID: descriptorID, modelRevision: 1, modelAuthorizationRevision: 1,
                                adapter: HTTPAdapterIdentity.responses, invocationID: "responses", invocationRevision: invocationRevision,
-                               endpointID: "primary", metadataEvidence: [], modelID: "gpt-5",
+                               endpointID: "primary", modelID: "gpt-5",
                                credential: .init(reference: "fixture", version: 1), contextWindow: 16_384,
                                maximumOutputTokens: 2_048, capabilities: .init(streamsText: true, callsTools: true, producesThinking: true),
                                configuration: try configuration.jsonValue())

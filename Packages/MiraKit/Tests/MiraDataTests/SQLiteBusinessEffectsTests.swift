@@ -13,9 +13,9 @@ private func sharedBusinessDatabase(path: String) throws -> DatabaseQueue {
 
 private func syntheticContext(sessionID: ConversationID, executionID: ExecutionID, invocationID: UUID, text: String) -> AgentToolContext {
     let batchID = UUID()
-    let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .userText, byteCount: text.utf8.count, digest: String(repeating: "0", count: 64))
-    let evidence = SessionUserEvidence(reference: .init(sessionID: sessionID, originalExecutionID: executionID, userMessageID: MessageID(), admissionEventID: UUID(), admissionSequence: 1, body: body), workspaceID: nil, admittedAt: Date(timeIntervalSince1970: 1), timeZoneIdentifier: "UTC", text: text, observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID), sessionAuthorizationEpoch: 0)
-    let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "synthetic", credential: nil, contextWindow: 4096, maximumOutputTokens: 128, capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:]))
+    let body = SessionContent(id: UUID(), kind: .userText, bytes: Data(text.utf8))
+    let evidence = SessionUserEvidence(reference: .init(sessionID: sessionID, originalExecutionID: executionID, userMessageID: MessageID(), admissionEventID: UUID(), admissionSequence: 1), workspaceID: nil, admittedAt: Date(timeIntervalSince1970: 1), timeZoneIdentifier: "UTC", text: text, observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID), sessionAuthorizationEpoch: 0)
+    let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "synthetic", credential: nil, contextWindow: 4096, maximumOutputTokens: 128, capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:]))
     return .init(executionID: executionID, invocationID: invocationID, evidence: evidence, route: route)
 }
 
@@ -31,8 +31,7 @@ struct SQLiteBusinessEffectsTests {
                 }
                 try await fixture.store.close()
                 let batchID = UUID()
-                let title = SessionPayloadReference(id: UUID(), sessionID: fixture.sessionID, batchID: batchID,
-                    retentionGroup: UUID(), kind: .title, byteCount: 1, digest: String(repeating: "a", count: 64))
+                let title = SessionContent(id: UUID(), kind: .title, bytes: Data("t".utf8))
                 let batch = SessionBatch(id: batchID, sessionID: fixture.sessionID, expectedSequence: 0,
                     events: [.init(id: UUID(), sequence: 1, occurredAt: Date(timeIntervalSince1970: 1),
                                    fact: .opened(.init(workspaceID: nil, title: title)))])
@@ -206,19 +205,6 @@ struct SQLiteBusinessEffectsTests {
         }
     }
 
-    @Test func staleEpochAndFenceDenyWithoutApplying() async throws {
-        try await withFixture { f in
-            let old = f.proof
-            try await f.performResultMaintenance()
-            if case .committed = await f.store.commit(old) { Issue.record("Stale epoch committed") }
-            let fenced = try await f.nextProof()
-            try await f.store.fenceExecution(sessionID: fenced.sessionID, executionID: fenced.executionID)
-            if case .committed = await f.store.commit(fenced) { Issue.record("Fenced execution committed") }
-            let count = try f.count()
-            #expect(count == 0)
-        }
-    }
-
     @Test func postCommitFailureIsIndeterminateAndReceiptRecovers() async throws {
         try await withFixture(afterCommitHook: { throw HookFailure.failed }) { f in
             guard case .indeterminate = await f.store.commit(f.proof) else { Issue.record("Expected uncertainty"); return }
@@ -226,66 +212,6 @@ struct SQLiteBusinessEffectsTests {
             #expect(receipt.result != nil)
             let count = try f.count()
             #expect(count == 1)
-        }
-    }
-
-    @Test func purgePreservesReceiptIdentityAndReopen() async throws {
-        try await withFixture { f in
-            guard case let .committed(receipt) = await f.store.commit(f.proof) else { Issue.record("Commit failed"); return }
-            let secondProof = try await f.nextProof()
-            guard case let .committed(secondReceipt) = await f.store.commit(secondProof) else { Issue.record("Deduplicated commit failed"); return }
-            let count = try f.count()
-            #expect(count == 1)
-            try await f.performResultMaintenance(receiptIDs: [receipt.reference.id])
-            guard case let .committed(purged) = await f.store.receipt(for: f.proof) else { Issue.record("Receipt missing"); return }
-            #expect(purged.result == nil)
-            guard case let .committed(purgedSecond) = await f.store.receipt(for: secondProof) else { Issue.record("Second receipt missing"); return }
-            #expect(purgedSecond.reference == secondReceipt.reference)
-            #expect(purgedSecond.result == nil)
-            let publications = try await f.store.unpublished(after: nil, limit: 10)
-            #expect(publications.allSatisfy { $0.receipt.result == nil })
-            let thirdProof = try await f.nextProof()
-            guard case let .committed(thirdReceipt) = await f.store.commit(thirdProof) else { Issue.record("Purged operation was not replayed as a known fact"); return }
-            #expect(thirdReceipt.result == nil)
-            let countAfter = try f.count()
-            #expect(countAfter == 1)
-            try await f.store.close()
-            await f.authority.close()
-            try f.database.close()
-            try await withOpenedStore(path: f.path, resolver: f.resolver, handler: f.handler) { reopened in
-                guard case let .committed(reopenedReceipt) = await reopened.receipt(for: f.proof) else { Issue.record("Reopened receipt missing"); return }
-                #expect(reopenedReceipt.reference == purged.reference)
-                let publications = try await reopened.unpublished(after: nil, limit: 10)
-                #expect(publications.count == 3)
-            }
-        }
-    }
-
-    @Test func purgeRejectsUnknownOrCompletedMaintenanceWithoutChangingReceipt() async throws {
-        try await withFixture { f in
-            guard case let .committed(receipt) = await f.store.commit(f.proof) else {
-                Issue.record("Commit failed")
-                return
-            }
-            let previous = try await f.authority.authorization()
-            let request = AgentLibraryMaintenanceRequest(id: UUID(), namespace: "tests.invalidate", revision: 1,
-                scope: .library, requestedAt: Date())
-            let operation = try await f.authority.begin(request, expected: previous)
-            let forged = AgentLibraryMaintenanceOperation(request: .init(id: UUID(), namespace: "tests.invalidate", revision: 1,
-                scope: .library, requestedAt: Date()), previousAuthorization: operation.previousAuthorization,
-                authorization: operation.authorization, completedAt: nil)
-            await #expect(throws: MiraError.self) {
-                try await f.store.purgeResults(receiptIDs: [receipt.reference.id], maintenance: forged)
-            }
-            _ = try await f.authority.complete(operation, at: Date())
-            await #expect(throws: MiraError.self) {
-                try await f.store.purgeResults(receiptIDs: [receipt.reference.id], maintenance: operation)
-            }
-            guard case let .committed(unchanged) = await f.store.receipt(for: f.proof) else {
-                Issue.record("Receipt disappeared after rejected maintenance")
-                return
-            }
-            #expect(unchanged.result == receipt.result)
         }
     }
 
@@ -496,23 +422,14 @@ private struct Fixture {
         return .init(sessionID: sessionID, executionID: executionID, invocationID: invocation, intentBatchID: batchID, intentSequence: 2, authorization: try await authority.authorization(), proposal: Self.reference(sessionID, batchID: batchID))
     }
 
-    func performResultMaintenance(receiptIDs: Set<UUID> = []) async throws {
-        let previous = try await authority.authorization()
-        let request = AgentLibraryMaintenanceRequest(id: UUID(), namespace: "tests.invalidate", revision: 1,
-            scope: .library, requestedAt: Date())
-        let operation = try await authority.begin(request, expected: previous)
-        try await store.purgeResults(receiptIDs: receiptIDs, maintenance: operation)
-        _ = try await authority.complete(operation, at: Date())
-    }
-
     func count() throws -> Int {
         return try database.read {
             guard try Bool.fetchOne($0, sql: "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'synthetic_counter')") == true else { return 0 }
             return try Int.fetchOne($0, sql: "SELECT count FROM synthetic_counter WHERE id = 1") ?? 0
         }
     }
-    private static func reference(_ sessionID: ConversationID, batchID: UUID) -> SessionPayloadReference {
-        .init(id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .effectIntent, byteCount: 1, digest: String(repeating: "0", count: 64))
+    private static func reference(_ sessionID: ConversationID, batchID: UUID) -> SessionContent {
+        .init(id: UUID(), kind: .effectIntent, bytes: Data("effect".utf8))
     }
     private static func proposal() -> AgentToolProposal {
         let output: JSONValue = .object(["type": .string("object"), "properties": .object(["ok": .object(["type": .string("boolean")])]), "required": .array([.string("ok")]), "additionalProperties": .bool(false)])

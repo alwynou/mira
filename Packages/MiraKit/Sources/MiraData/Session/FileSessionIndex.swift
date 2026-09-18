@@ -6,6 +6,7 @@ import MiraCore
 final class FileSessionIndex {
     struct Record: Codable, Sendable, Equatable {
         let id: UUID
+        let firstSeq: Int
         let expectedSequence: Int64
         let sequence: Int64
         let offset: Int64
@@ -13,7 +14,8 @@ final class FileSessionIndex {
         let digest: String
         let prefixDigest: String
 
-        init(batch: SessionBatch, offset: Int64, line: Data, previousDigest: String) {
+        init(batch: SessionBatch, offset: Int64, line: Data, previousDigest: String, firstSeq: Int) {
+            self.firstSeq = firstSeq
             id = batch.id; expectedSequence = batch.expectedSequence; sequence = batch.cursor.sequence
             self.offset = offset; byteCount = line.count + 1; digest = FileSessionIO.digest(line)
             prefixDigest = FileSessionIO.digest(Data((previousDigest + digest).utf8))
@@ -26,15 +28,15 @@ final class FileSessionIndex {
         let journalByteCount: Int
         let journalDigest: String
         let records: [Record]
-        let references: [SessionPayloadReference]
-        let invalidated: Set<UUID>
+        let references: [SessionContent]
+        let logState: SessionLogState
     }
 
-    static let initialDigest = FileSessionIO.digest(Data("MIRA-SESSION-PREFIX-2".utf8))
+    static let initialDigest = FileSessionIO.digest(Data("MIRA-SESSION-PREFIX-3".utf8))
     let sessionID: ConversationID
+    var logState: SessionLogState = .initial
     var records: [Record] = []
-    var references: [SessionPayloadReference] = []
-    var invalidated: Set<UUID> = []
+    var references: [SessionContent] = []
     var savedRecordCount = 0
     var sourceIdentity: FileSessionIO.Identity?
     var byteCount: Int64 { records.last.map { $0.offset + Int64($0.byteCount) } ?? 0 }
@@ -57,12 +59,11 @@ final class FileSessionIndex {
     /// Unsafe filesystem objects are rejected before the recoverable cache decode.
     static func load(at url: URL, journal: URL, sessionID: ConversationID,
                      authentication: FileSessionCacheAuthentication) throws -> FileSessionIndex? {
-        guard let snapshot = try FileSessionCacheIO.load(Snapshot.self, at: url, format: "MIRA-SESSION-INDEX-2", authentication: authentication),
-              snapshot.version == 2, snapshot.sessionID == sessionID,
+        guard let snapshot = try FileSessionCacheIO.load(Snapshot.self, at: url, format: "MIRA-SESSION-INDEX-3", authentication: authentication),
+              snapshot.version == 3, snapshot.sessionID == sessionID,
               snapshot.journalByteCount >= 0 else { return nil }
         let index = FileSessionIndex(sessionID: sessionID)
-        index.records = snapshot.records; index.references = snapshot.references
-        index.invalidated = snapshot.invalidated
+        index.records = snapshot.records; index.references = snapshot.references; index.logState = snapshot.logState
         guard (try? index.validate()) != nil, index.byteCount == Int64(snapshot.journalByteCount) else { return nil }
         // Stat timestamps alone cannot establish that the source bytes are unchanged.
         let before = try FileSessionIO.identity(journal)
@@ -79,10 +80,10 @@ final class FileSessionIndex {
         guard let sourceIdentity, sourceIdentity == (try FileSessionIO.identity(journal)) else { throw FileSessionIO.failure() }
         let source = try BackupFileIO.inspect(journal, limit: Int.max)
         guard source.byteCount == byteCount, sourceIdentity == (try FileSessionIO.identity(journal)) else { throw FileSessionIO.failure() }
-        let snapshot = Snapshot(version: 2, sessionID: sessionID,
+        let snapshot = Snapshot(version: 3, sessionID: sessionID,
             journalByteCount: source.byteCount, journalDigest: source.digest,
-            records: records, references: references, invalidated: invalidated)
-        if try FileSessionCacheIO.save(snapshot, at: url, format: "MIRA-SESSION-INDEX-2",
+            records: records, references: references, logState: logState)
+        if try FileSessionCacheIO.save(snapshot, at: url, format: "MIRA-SESSION-INDEX-3",
             authentication: authentication,
             beforeWrite: { try fault(.beforeIndexWrite) }, afterWrite: { try fault(.afterIndexWrite) },
             beforePublication: { try fault(.beforeIndexPublication) }, afterPublication: { try fault(.afterIndexPublication) }) {
@@ -104,11 +105,12 @@ final class FileSessionIndex {
             prefix = record.prefixDigest
             end += Int64(record.byteCount); sequence = record.sequence
         }
+        guard logState.nextInternalSequence == sequence,
+              logState.sessionID == sessionID else { throw FileSessionIO.failure() }
         var referenceIDs: Set<UUID> = []
         for reference in references {
             try reference.validate()
-            guard reference.sessionID == sessionID, ids.contains(reference.batchID),
-                  referenceIDs.insert(reference.id).inserted else { throw FileSessionIO.failure() }
+            guard referenceIDs.insert(reference.id).inserted else { throw FileSessionIO.failure() }
         }
     }
 

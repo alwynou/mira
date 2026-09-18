@@ -8,12 +8,11 @@ import Testing
 @Suite("SQLite business archive validation", .timeLimit(.minutes(1)))
 struct SQLiteBusinessArchiveTests {
     @Test(arguments: [false, true])
-    func validatesRealKernelReceiptsWithAcknowledgedOrPurgedResults(purge: Bool) async throws {
+    func validatesRealKernelReceiptsWithOrWithoutPublicationAcknowledgement(unacknowledged: Bool) async throws {
         try await withArchiveWorkflow { fixture in
-            if purge {
+            if unacknowledged {
                 try await fixture.database.write { db in
                     try db.execute(sql: "UPDATE business_receipts SET acknowledged=0, publication_json=NULL")
-                    try db.execute(sql: "UPDATE business_operations SET result_blob=NULL, result_purged=1")
                 }
             }
             try await inspect(fixture)
@@ -44,7 +43,7 @@ struct SQLiteBusinessArchiveTests {
                         arguments: [String(repeating: "0", count: 64)])
                 case "operationDigest":
                     try db.execute(
-                        sql: "UPDATE business_operations SET result_digest=?, result_blob=NULL, result_purged=1",
+                        sql: "UPDATE business_operations SET result_digest=?",
                         arguments: [String(repeating: "0", count: 64)])
                 case "publication":
                     let cursor = SessionCursor(sessionID: ConversationID(), sequence: 1)

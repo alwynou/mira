@@ -2,39 +2,34 @@ import Foundation
 
 /// Operational bounds are checked before allocation and before durable publication.
 public enum SessionFormatLimits {
-    public static let version = 2
-    public static let maximumBatchBytes = 2 * 1_024 * 1_024
+    public static let version = 3
+    public static let maximumBatchBytes = 64 * 1_024 * 1_024
     public static let maximumEventsPerBatch = 256
-    public static let maximumPayloadBytes = 32 * 1_024 * 1_024
+    public static let maximumContentBytes = 32 * 1_024 * 1_024
     public static let maximumReadBatches = 128
 }
 
-public enum SessionPayloadKind: String, Codable, Sendable {
+public enum SessionContentKind: String, Codable, Sendable {
     case title, userText, visibleAnswer, visibleThinking, executionPlan, request, modelOutput
-    case toolCall, effectIntent, toolResult, replay, draft, error, module
+    case toolCall, effectIntent, toolResult, error, module
 }
 
-/// The digest describes bytes, not authorization. Retention groups never deduplicate each other.
-public struct SessionPayloadReference: Codable, Sendable, Equatable, Hashable {
+/// Immutable inline content owned by a committed session event.
+public struct SessionContent: Codable, Sendable, Equatable, Hashable {
     public let id: UUID
-    public let sessionID: ConversationID
-    public let batchID: UUID
-    public let retentionGroup: UUID
-    public let kind: SessionPayloadKind
-    public let byteCount: Int
-    public let digest: String
+    public let kind: SessionContentKind
+    public let bytes: Data
+    public var byteCount: Int { bytes.count }
+    /// Business receipts bind to these exact bytes; the digest is never a second persisted content value.
+    public var digest: String { SessionContentDigest.sha256(bytes) }
 
-    public init(id: UUID, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID,
-                kind: SessionPayloadKind, byteCount: Int, digest: String) {
-        self.id = id; self.sessionID = sessionID; self.batchID = batchID
-        self.retentionGroup = retentionGroup; self.kind = kind
-        self.byteCount = byteCount; self.digest = digest
+    public init(id: UUID = UUID(), kind: SessionContentKind, bytes: Data) {
+        self.id = id; self.kind = kind; self.bytes = bytes
     }
 
     public func validate() throws {
-        guard (0...SessionFormatLimits.maximumPayloadBytes).contains(byteCount), digest.count == 64,
-              digest.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
-            throw MiraError(.storage, "The session payload reference is invalid.")
+        guard bytes.count <= SessionFormatLimits.maximumContentBytes else {
+            throw MiraError(.storage, "The inline session content exceeds its supported bounds.")
         }
     }
 }
@@ -69,7 +64,7 @@ public struct SessionEvent: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// One physical record publishes all events or none. The caller retains it across uncertainty.
+/// One committed physical transaction publishes all events or none. The caller retains it across uncertainty.
 public struct SessionBatch: Codable, Sendable, Equatable, Identifiable {
     public let version: Int
     public let id: UUID
@@ -99,9 +94,6 @@ public struct SessionBatch: Codable, Sendable, Equatable, Identifiable {
             }
             for reference in event.fact.payloadReferences {
                 try reference.validate()
-                guard reference.sessionID == sessionID else {
-                    throw MiraError(.storage, "A session cannot reference another session's private payload.")
-                }
             }
         }
     }
@@ -132,16 +124,14 @@ public protocol SessionJournal: Sendable {
     func close() async throws
 }
 
-public protocol SessionPayloadReader: Sendable {
-    func read(_ reference: SessionPayloadReference) async throws -> Data
+public protocol SessionContentReader: Sendable {
+    func read(_ reference: SessionContent) async throws -> Data
 }
 
-public protocol SessionPayloadStore: SessionPayloadReader {
+public protocol SessionContentStore: SessionContentReader {
     /// Staged bytes remain unreadable until a valid committed batch references them.
     func stage(_ data: Data, sessionID: ConversationID, batchID: UUID,
-               retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference
-    /// Requires committed invalidation facts for the selected groups before physical deletion.
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws
+               kind: SessionContentKind) async throws -> SessionContent
 }
 
 public enum SessionCodec {

@@ -134,8 +134,6 @@ private struct ExecutionAuditSummary: View {
                         LabeledContent("Output tokens", value: count(completion.usage.outputTokens))
                     }
                 }
-            } else if case .purged = audit.plan {
-                Label("Audit content cleared", systemImage: "eye.slash").font(.caption).foregroundStyle(.secondary)
             }
             if let error = audit.error.availableValue {
                 Text(L10n.error(error, locale: locale)).font(.caption).foregroundStyle(.orange)
@@ -178,13 +176,11 @@ private struct ExecutionAttemptView: View {
                 Text(L10n.error(failure.failure.error, locale: locale)).font(.caption).foregroundStyle(.orange)
             }
             if let request = attempt.request.availableValue {
-                DisclosureGroup("Request snapshot") {
-                    RequestSnapshotView(
+                DisclosureGroup("Request context") {
+                    RequestContextView(
                         request: request, library: library, sessionID: sessionID,
                         executionID: executionID, onOpenConversation: onOpenConversation)
                 }
-            } else if case .purged = attempt.request {
-                Label("Audit content cleared", systemImage: "eye.slash").font(.caption).foregroundStyle(.secondary)
             }
             if let output = attempt.output.availableValue {
                 DisclosureGroup("Recorded model output") { AuditJSONView(value: output) }
@@ -204,16 +200,12 @@ private struct ExecutionInvocationView: View {
             if let call = invocation.call.availableValue {
                 Text(L10n.format("Call ID: %@", locale: locale, call.id)).font(.caption2).foregroundStyle(.secondary)
                 Text(verbatim: call.arguments).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-            } else if case .purged = invocation.call {
-                Text("Tool content cleared").font(.caption).foregroundStyle(.secondary)
             }
             if let proposal = invocation.proposal.availableValue {
                 DisclosureGroup("Prepared tool proposal") { AuditJSONView(value: proposal) }
             }
             if let result = invocation.result.availableValue {
                 AuditJSONView(value: result)
-            } else if case .purged = invocation.result {
-                Text("Tool content cleared").font(.caption).foregroundStyle(.secondary)
             }
             if invocation.state.resolution?.effectIsKnown == false {
                 Text("Interrupted · check the result").font(.caption).foregroundStyle(.orange)
@@ -237,38 +229,38 @@ private struct ExecutionInvocationView: View {
     }
 }
 
-private struct RequestSnapshotView: View {
+private struct RequestContextView: View {
     @Environment(\.locale) private var locale
-    let request: AgentContextBuild
+    let request: AgentSessionRequest
     let library: MacLibrary
     let sessionID: ConversationID
     let executionID: ExecutionID
     let onOpenConversation: (ConversationID) -> Void
 
     private struct RecordedMessage: Identifiable {
-        let stepID: UUID
+        let executionID: ExecutionID
         let ordinal: Int
         let message: AgentModelMessage
-        var id: String { "\(stepID.uuidString):\(ordinal)" }
+        var id: String { "\(executionID.rawValue.uuidString):\(ordinal)" }
     }
-    // The ordinal is part of the immutable recorded request, not a live list position.
+    // Context entries are immutable within the recorded execution.
     private var orderedMessages: [RecordedMessage] {
-        request.prepared.input.messages.enumerated().map {
-            .init(stepID: request.prepared.input.stepID, ordinal: $0.offset + 1, message: $0.element)
+        request.contextMessages.enumerated().map {
+            .init(executionID: request.request.executionID, ordinal: $0.offset + 1, message: $0.element)
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("System instructions").font(.caption.weight(.semibold))
-            Text(verbatim: request.prepared.input.instructions)
+            Text(verbatim: request.instructions)
                 .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-            if !request.prepared.input.tools.isEmpty {
-                DisclosureGroup("Tool definitions") { AuditJSONView(value: request.prepared.input.tools) }
+            if !request.tools.isEmpty {
+                DisclosureGroup("Tool definitions") { AuditJSONView(value: request.tools) }
             }
-            Text("Request order").font(.caption.weight(.semibold))
+            Text("Context contributions").font(.caption.weight(.semibold))
             Text(
-                "System instructions are applied first. Message entries below remain in their recorded order. JSON object key order does not represent prompt order."
+                "Conversation history comes from the session journal. The entries below are the context added for this turn."
             )
             .font(.caption2).foregroundStyle(.secondary)
             ForEach(orderedMessages) { entry in
@@ -281,7 +273,7 @@ private struct RequestSnapshotView: View {
                 AuditJSONView(value: entry.message)
             }
             LabeledContent("Conservative input estimate") {
-                Text(request.prepared.estimatedInputTokens, format: .number)
+                Text(request.estimatedInputTokens, format: .number)
             }
             .font(.caption2)
             Text("Estimate is based on UTF-8 and protocol overhead, not the provider's exact token count.")
@@ -306,7 +298,7 @@ private struct RequestSnapshotView: View {
             if !request.omissions.isEmpty {
                 DisclosureGroup("Context omissions") { AuditJSONView(value: request.omissions) }
             }
-            DisclosureGroup("Prepared request JSON") { AuditJSONView(value: request) }
+            DisclosureGroup("Request metadata") { AuditJSONView(value: request) }
         }
     }
 }

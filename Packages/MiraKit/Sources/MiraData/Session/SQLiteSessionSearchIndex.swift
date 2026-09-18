@@ -342,11 +342,11 @@ public final class SQLiteSessionSearchIndex: SessionSearchIndex, @unchecked Send
         let uuid = UUID()
         try db.execute(
             sql:
-                "CREATE TABLE search_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE search_sessions(session_id TEXT PRIMARY KEY,workspace_id TEXT,archived INTEGER NOT NULL DEFAULT 0,head_sequence INTEGER NOT NULL,head_batch_id TEXT NOT NULL); CREATE TABLE search_batches(session_id TEXT NOT NULL,batch_id TEXT NOT NULL,sequence INTEGER NOT NULL,digest TEXT NOT NULL,PRIMARY KEY(session_id,batch_id),UNIQUE(session_id,sequence)); CREATE TABLE search_documents(rowid INTEGER PRIMARY KEY AUTOINCREMENT,session_id TEXT NOT NULL,message_id TEXT,execution_id TEXT,part TEXT NOT NULL,sequence INTEGER NOT NULL,occurred_at REAL NOT NULL,location_json BLOB NOT NULL,normalized_text TEXT NOT NULL,byte_count INTEGER NOT NULL,retention_group TEXT NOT NULL);",
+                "CREATE TABLE search_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE search_sessions(session_id TEXT PRIMARY KEY,workspace_id TEXT,archived INTEGER NOT NULL DEFAULT 0,head_sequence INTEGER NOT NULL,head_batch_id TEXT NOT NULL); CREATE TABLE search_batches(session_id TEXT NOT NULL,batch_id TEXT NOT NULL,sequence INTEGER NOT NULL,digest TEXT NOT NULL,PRIMARY KEY(session_id,batch_id),UNIQUE(session_id,sequence)); CREATE TABLE search_documents(rowid INTEGER PRIMARY KEY AUTOINCREMENT,session_id TEXT NOT NULL,message_id TEXT,execution_id TEXT,part TEXT NOT NULL,sequence INTEGER NOT NULL,occurred_at REAL NOT NULL,location_json BLOB NOT NULL,normalized_text TEXT NOT NULL,byte_count INTEGER NOT NULL);",
             arguments: [])
         try db.execute(
             sql:
-                "CREATE INDEX search_session_scope ON search_sessions(workspace_id,archived); CREATE INDEX search_document_session ON search_documents(session_id,rowid); CREATE INDEX search_document_retention ON search_documents(session_id,retention_group); CREATE INDEX search_document_time ON search_documents(occurred_at)"
+                "CREATE INDEX search_session_scope ON search_sessions(workspace_id,archived); CREATE INDEX search_document_session ON search_documents(session_id,rowid); CREATE INDEX search_document_time ON search_documents(occurred_at)"
         )
         for (name, tokenizer, available) in [
             ("search_word", "unicode61", capabilities.wordIndex),
@@ -397,16 +397,12 @@ public final class SQLiteSessionSearchIndex: SessionSearchIndex, @unchecked Send
                     reference, part: .thinking, messageID: value.assistantMessageID, executionID: value.executionID,
                     event: event, sessionID: sessionID, documents: documents, db: db)
             }
-        case .invalidated(let value):
-            for group in value.retentionGroups { try deleteGroup(group, sessionID: sessionID, db: db) }
-        case .retryCleared(let value):
-            for group in value.retentionGroups { try deleteGroup(group, sessionID: sessionID, db: db) }
         default: break
         }
     }
 
     private static func replaceTitle(
-        _ ref: SessionPayloadReference, event: SessionEvent, sessionID: ConversationID,
+        _ ref: SessionContent, event: SessionEvent, sessionID: ConversationID,
         documents: [UUID: SessionSearchDocument], db: Database
     ) throws {
         try insert(
@@ -414,17 +410,17 @@ public final class SQLiteSessionSearchIndex: SessionSearchIndex, @unchecked Send
             documents: documents, db: db)
     }
     private static func insert(
-        _ ref: SessionPayloadReference, part: SessionSearchPart, messageID: MessageID?, executionID: ExecutionID?,
+        _ ref: SessionContent, part: SessionSearchPart, messageID: MessageID?, executionID: ExecutionID?,
         event: SessionEvent, sessionID: ConversationID, documents: [UUID: SessionSearchDocument], db: Database
     ) throws {
         guard let document = documents[ref.id] else { return }
         try db.execute(
             sql:
-                "INSERT INTO search_documents(session_id,message_id,execution_id,part,sequence,occurred_at,location_json,normalized_text,byte_count,retention_group) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO search_documents(session_id,message_id,execution_id,part,sequence,occurred_at,location_json,normalized_text,byte_count) VALUES (?,?,?,?,?,?,?,?,?)",
             arguments: [
                 id(sessionID), messageID.map(id), executionID.map(id), part.rawValue, event.sequence,
                 event.occurredAt.timeIntervalSinceReferenceDate, try SessionCodec.encode(document.location),
-                SessionSearchText.normalize(document.text), ref.byteCount, ref.retentionGroup.uuidString,
+                SessionSearchText.normalize(document.text), ref.byteCount,
             ])
         let rowid = db.lastInsertedRowID
         if try db.tableExists("search_word") {
@@ -458,12 +454,8 @@ public final class SQLiteSessionSearchIndex: SessionSearchIndex, @unchecked Send
             try db.execute(sql: "DELETE FROM search_documents WHERE rowid=?", arguments: [rowid])
         }
     }
-    private static func deleteGroup(_ group: UUID, sessionID: ConversationID, db: Database) throws {
-        try deleteRows("session_id=? AND retention_group=?", arguments: [id(sessionID), group.uuidString], db: db)
-    }
-
     private static func validateDocuments(_ update: SessionSearchUpdate) throws -> [UUID: SessionSearchDocument] {
-        var allowed: [UUID: (SessionPayloadReference, SessionSearchPart, SessionEvent, UUID?, UUID?)] = [:]
+        var allowed: [UUID: (SessionContent, SessionSearchPart, SessionEvent, UUID?, UUID?)] = [:]
         for event in update.batch.events {
             switch event.fact {
             case .opened(let h): allowed[h.title.id] = (h.title, .title, event, nil, nil)
@@ -494,7 +486,6 @@ public final class SQLiteSessionSearchIndex: SessionSearchIndex, @unchecked Send
                 expected.4 == document.location.executionID?.rawValue
             else { throw invalidData }
             guard seen.insert(document.location.reference.id).inserted,
-                document.location.reference.batchID == update.batch.id,
                 document.location.reference.byteCount == document.text.utf8.count,
                 document.location.reference.digest == FileSessionIO.digest(Data(document.text.utf8))
             else { throw invalidData }
@@ -515,8 +506,7 @@ public final class SQLiteSessionSearchIndex: SessionSearchIndex, @unchecked Send
             location.part.rawValue == row["part"] as String,
             location.sequence == row["sequence"] as Int64,
             location.occurredAt.timeIntervalSinceReferenceDate == row["occurred_at"] as Double,
-            location.reference.byteCount == row["byte_count"] as Int,
-            location.reference.retentionGroup.uuidString == row["retention_group"] as String
+            location.reference.byteCount == row["byte_count"] as Int
         else { throw invalidData }
         return location
     }

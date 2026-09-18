@@ -65,12 +65,12 @@ actor MacLibrary {
     }
 
     static func open(
-        directory: URL, expectedLibraryID: UUID? = nil,
+        embeddings: (any MemoryEmbeddingService)? = nil, directory: URL, expectedLibraryID: UUID? = nil,
         notifications: any LocalNotificationPort, credentials: any MacCredentialStore,
         modules: @escaping ModuleFactory, environment: RuntimeEnvironment = .init()
     ) async throws -> MacLibrary {
         let storage = try await MacLibraryStorage.open(
-            directory: directory, expectedLibraryID: expectedLibraryID, environment: environment)
+            embeddings: embeddings, directory: directory, expectedLibraryID: expectedLibraryID, environment: environment)
         let scope = RuntimeScope(kind: .library(storage.authority.libraryID))
         let registry = RuntimeRegistry<AgentCapability>()
         let domains = RuntimeRegistry<any AgentDomainSourceAuthority>()
@@ -81,7 +81,7 @@ actor MacLibrary {
                 modules: [
                     MacDriverModule(registry: registry),
                     MemoryModule(
-                        registry: registry, store: storage.memories, capturePolicy: storage.memories,
+                        registry: registry, store: storage.memories,
                         sourceAuthorities: domains, now: environment.now),
                     KnowledgeModule(
                         registry: registry, store: storage.knowledge, sourceAuthorities: domains, prefetch: true),
@@ -89,21 +89,12 @@ actor MacLibrary {
                 ] + modules(registry))
             let active = try await host.activate(in: scope)
             activation = active
-            let sessions = SessionPrivacyMaintenance(
-                journal: storage.sessions, payloads: storage.sessions,
-                plans: storage.privacyPlans)
-            let projections = try SessionPrivacyProjections(
-                journal: storage.sessions, payloads: storage.sessions,
-                stores: [storage.projection], searchIndexes: [storage.searchIndex])
-            let memory = MemoryForgetHandler(
-                memories: storage.memories, sessions: sessions,
-                plans: storage.privacyPlans, business: storage.businessPrivacy, projections: projections)
+            let memory = MemoryForgetHandler(memories: storage.memories)
             try await handlers.register(id: memory.identity.namespace, value: memory, scope: scope)
             for action in [KnowledgePrivacyAction.revokeRemoteUse, .deleteSource] {
                 let handler = KnowledgePrivacyHandler(
                     action: action, knowledge: storage.knowledge,
-                    blobs: storage.knowledge, sessions: sessions, plans: storage.privacyPlans,
-                    business: storage.businessPrivacy, projections: projections)
+                    blobs: storage.knowledge)
                 try await handlers.register(id: handler.identity.namespace, value: handler, scope: scope)
             }
             let blobs = KnowledgeBlobCollectionHandler(store: storage.knowledge)

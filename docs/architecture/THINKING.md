@@ -27,9 +27,9 @@ Thinking 是模型输出的一等内容。用户可见的思考文本和协议�
 
 ## 历史与来源
 
-Live presentation carries an explicit `SessionOutputPhase` independently of retained thinking text. The most recently updated visible block selects thinking, answering, or tool-call preparation; finishing that block can return to waiting before the execution settles. Starting an answer therefore stops the thinking indicator even when a provider keeps its earlier thinking block open. These process-local observations do not change provider replay data or durable message bodies.
+Live presentation carries an explicit `SessionOutputPhase` independently of retained thinking text. The most recently updated visible block selects thinking, answering, or tool-call preparation; finishing that block can return to waiting before the execution settles. Starting an answer therefore stops the thinking indicator even when a provider keeps its earlier thinking block open. These process-local observations do not change provider replay data or durable log content.
 
-取消或进程中断的执行可以把仍获来源授权的可见回答正文带入后续回合（包括用户发送“继续”）；即使只中断在 thinking 阶段且没有可见回答，也保留原始用户消息和中性的“前一回复被中断且不完整”提示。该历史交换在核心读取结果中标记为 `isIncomplete`，持久的 assistant 消息正文保持原文。它不是成功 Assistant 输出，也不能携带 thinking、opaque continuation、tool call 或 tool result。读取器仍以执行日志和正文保留组为权威，重开后重新检查正文可用性、执行来源授权和隐私失效；任何撤权或清理都排除该交换。
+取消或进程中断的执行可以把仍获来源授权的可见回答内容带入后续回合（包括用户发送“继续”）；即使只中断在 thinking 阶段且没有可见回答，也保留原始用户消息和中性的“前一回复被中断且不完整”提示。该历史交换在核心读取结果中标记为 `isIncomplete`，日志中的 assistant 内容保持原文。它不是成功 Assistant 输出，也不能携带 thinking、opaque continuation、tool call 或 tool result。读取器仍以执行日志和当前来源授权为权威，重开后重新检查内容可用性；来源不再授权时排除该交换。
 
 同一执行中的工具循环使用完整冻结路线和请求前缀。每次派发仍检查路线授权、记忆与来源政策；失效就停止，不能修改签名前缀继续发送。
 
@@ -37,13 +37,13 @@ Live presentation carries an explicit `SessionOutputPhase` independently of reta
 
 Anthropic 新用户回合会重新构建检索上下文，因此剥离已完成旧回合的 thinking；当前回合原始 signed assistant content 必须保持完整和原顺序，不能从可见文本重建。Responses 使用本地 output items 及准确 function_call_output 配对，隐藏状态不依赖远端保存的 response ID。
 
-不完整和失败回合不成为成功历史。隐私或来源政策失效的历史及其依赖后代不再进入模型上下文；有可见文字不代表续接材料仍可发送。
+不完整和失败回合不成为成功历史。来源政策不再授权的历史及其依赖后代不再进入模型上下文；有可见文字不代表续接材料仍可发送。
 
-## 持久化与隐私
+## 持久化边界
 
-请求、流草稿、输出和终态通过日志正文引用保存。可见正文／thinking 与隐藏重放使用不同保留组；thinking-only 中断可恢复。重启后只核对既有意图和结算，不擅自再次调用模型。
+Request evidence and settled output are persisted as bounded inline journal content. Live thinking, continuation and stream records remain process-local until settlement. Orderly cancellation retains the last consumed prefix, including thinking-only output. Hard process death loses an unresolved prefix; restart only reconciles existing intent and committed results, without model dispatch. Provider-specific replay restrictions still apply to incomplete settled output.
 
-记忆遗忘清除相关请求／输出快照、隐藏工具数据、重放和草稿中的派生材料；已经提交的可见回答和思考可以保留本地展示及无正文的失效标签。知识来源撤销遵循其独立的生成正文清理契约。普通日志与错误不包含模型正文、密钥或隐藏续接。
+Memory 和 Knowledge 维护各自的领域记录与来源；它们不改变会话日志的内容种类。普通日志与错误不包含模型内容、密钥或隐藏续接。
 
 Thinking 不是用户证据，记忆提取只验证最终回答中的严格 JSON，并记录整个调用的用量。显式合成探测保留真实配置和预算，不能通过关闭 thinking 获得虚假的通过结果。
 

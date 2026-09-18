@@ -107,7 +107,7 @@ struct SessionRuntimeTests {
         let result = Task {
             await runtime.commit(id: UUID()) { context in
                 await gate.suspend()
-                let answer = try await context.stageBytes(Data("answer".utf8), kind: .visibleAnswer, retentionGroup: UUID())
+                let answer = try await context.stageBytes(Data("answer".utf8), kind: .visibleAnswer)
                 return [.phaseChanged(executionID: executionID, phase: .settling),
                         .finished(.init(executionID: executionID, status: .completed,
                             assistantMessageID: MessageID(), answer: answer))]
@@ -164,7 +164,7 @@ struct SessionRuntimeTests {
         let stream = await runtime.observations()
         for revision in 2...8 {
             let result = await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("title".utf8), kind: .title, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("title".utf8), kind: .title)
                 return [.renamed(title: title, revision: revision)]
             }
             guard case .committed = result else { Issue.record("Rename failed"); return }
@@ -179,7 +179,7 @@ struct SessionRuntimeTests {
     private func openedRuntime(_ store: RuntimeJournalFixture) async throws -> SessionRuntime {
         let runtime = try await SessionRuntime.open(id: ConversationID(), journal: store, payloads: store)
         let result = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic session".utf8), kind: .title, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic session".utf8), kind: .title)
             return [.opened(.init(workspaceID: nil, title: title))]
         }
         guard case .committed = result else { throw MiraError(.storage, "Fixture initialization failed.") }
@@ -188,8 +188,8 @@ struct SessionRuntimeTests {
 
     private func admit(_ runtime: SessionRuntime, executionID: ExecutionID, commandID: UUID = UUID()) async -> SessionCommitResult {
         await runtime.commit(id: commandID) { context in
-            let user = try await context.stageBytes(Data("Synthetic input".utf8), kind: .userText, retentionGroup: UUID())
-            let route = try await context.stageBytes(Data("Synthetic route".utf8), kind: .executionPlan, retentionGroup: UUID())
+            let user = try await context.stageBytes(Data("Synthetic input".utf8), kind: .userText)
+            let route = try await context.stageBytes(Data("Synthetic route".utf8), kind: .executionPlan)
             return [.admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: user,
                                    plan: route, hasModelRoute: true, authorizationEpoch: context.state.authorizationEpoch, timeZoneIdentifier: "UTC"))]
         }
@@ -217,11 +217,11 @@ private actor PreparationGate {
     func release() { released = true; suspended?.resume(); suspended = nil }
 }
 
-private actor RuntimeJournalFixture: SessionCheckpointJournal, SessionPayloadStore {
+private actor RuntimeJournalFixture: SessionCheckpointJournal, SessionContentStore {
     enum Mode { case normal, commitWithoutAcknowledgement, uncertainBeforePublication }
     private var mode: Mode = .normal
     private var batches: [SessionBatch] = []
-    private var bytes: [SessionPayloadReference: Data] = [:]
+    private var bytes: [SessionContent: Data] = [:]
     private var pauseAppend = false
     private var appendGate = PreparationGate()
     private var pauseCache = false
@@ -267,20 +267,16 @@ private actor RuntimeJournalFixture: SessionCheckpointJournal, SessionPayloadSto
     func sessions(after: ConversationID?, limit: Int) -> [ConversationID] { Array(Set(batches.map(\.sessionID)).prefix(limit)) }
     func flush() {}
     func close() {}
-    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID,
-               kind: SessionPayloadKind) -> SessionPayloadReference {
+    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID,
+               kind: SessionContentKind) async throws -> SessionContent {
         stageCount += 1
-        let reference = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
-            retentionGroup: retentionGroup, kind: kind, byteCount: data.count, digest: String(repeating: "a", count: 64))
+        let reference = SessionContent(id: UUID(), kind: kind, bytes: data)
         bytes[reference] = data; return reference
     }
-    func read(_ reference: SessionPayloadReference) throws -> Data {
+    func read(_ reference: SessionContent) throws -> Data {
         guard let data = bytes[reference], batches.contains(where: { $0.events.contains { $0.fact.payloadReferences.contains(reference) } }) else {
             throw MiraError(.notFound, "Fixture payload is unavailable.")
         }
         return data
-    }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) {
-        bytes = bytes.filter { $0.key.sessionID != sessionID || !retentionGroups.contains($0.key.retentionGroup) }
     }
 }

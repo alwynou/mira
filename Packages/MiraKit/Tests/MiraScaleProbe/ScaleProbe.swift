@@ -72,7 +72,7 @@ struct ScaleProbe {
             var batchID = identifier(3, ordinal * 1_000)
             let title = try await library.stage(
                 Data("Synthetic session \(ordinal)".utf8), sessionID: sessionID,
-                batchID: batchID, retentionGroup: identifier(4, ordinal * 1_000), kind: .title)
+                batchID: batchID, kind: .title)
             try await append(
                 [.opened(.init(workspaceID: nil, title: title))],
                 batchID: batchID, state: &state, library: library)
@@ -82,10 +82,10 @@ struct ScaleProbe {
                 batchID = identifier(6, key)
                 let user = try await library.stage(
                     Data(body(session: ordinal, turn: turn, role: "user").utf8),
-                    sessionID: sessionID, batchID: batchID, retentionGroup: identifier(7, key), kind: .userText)
+                    sessionID: sessionID, batchID: batchID, kind: .userText)
                 let planReference = try await library.stage(
                     SessionCodec.encode(plan), sessionID: sessionID,
-                    batchID: batchID, retentionGroup: identifier(8, key), kind: .executionPlan)
+                    batchID: batchID, kind: .executionPlan)
                 try await append(
                     [
                         .admitted(
@@ -99,19 +99,14 @@ struct ScaleProbe {
                 let text = body(session: ordinal, turn: turn, role: "assistant")
                 let answer = try await library.stage(
                     Data(text.utf8), sessionID: sessionID, batchID: batchID,
-                    retentionGroup: identifier(11, key), kind: .visibleAnswer)
-                let replay = try await library.stage(
-                    SessionCodec.encode(
-                        AgentReplayRecord(
-                            messages: [.init(role: .assistant, blocks: [.init(id: "text", content: .text(text))])], sources: [])), sessionID: sessionID,
-                    batchID: batchID, retentionGroup: identifier(12, key), kind: .replay)
+                    kind: .visibleAnswer)
                 try await append(
                     [
                         .phaseChanged(executionID: executionID, phase: .settling),
                         .finished(
                             .init(
                                 executionID: executionID, status: .completed,
-                                assistantMessageID: MessageID(identifier(13, key)), answer: answer, replay: replay)),
+                                assistantMessageID: MessageID(identifier(13, key)), answer: answer)),
                     ],
                     batchID: batchID, state: &state, library: library)
             }
@@ -164,7 +159,7 @@ struct ScaleProbe {
         let page = try await projection.messagePage(sessionID: id, beforeSequence: nil, limit: 12)
         guard page.messages.count == 12, page.hasMore else { throw failure("The latest page is incomplete.") }
         for (offset, row) in page.messages.enumerated() {
-            guard let reference = row.body, !row.bodyInvalidated,
+            guard let reference = row.body,
                 try await library.read(reference)
                     == Data(
                         body(

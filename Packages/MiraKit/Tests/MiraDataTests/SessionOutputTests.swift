@@ -5,8 +5,8 @@ import Testing
 
 @Suite("Session live output", .timeLimit(.minutes(1)))
 struct SessionOutputTests {
-    @Test(arguments: [false, true])
-    func successfulAttemptHandsOffWithoutRetainingCoreTextAndRevocationClearsMarker(privacy: Bool) async throws {
+    @Test
+    func successfulAttemptHandsOffWithoutRetainingCoreTextAndCancellationClearsMarker() async throws {
         try await withTaskWorkflow { fixture in
             let prepared = try await makeOutputRuntime(fixture)
             let lease = try await fixture.access.acquire(in: fixture.scope)
@@ -19,7 +19,10 @@ struct SessionOutputTests {
                 #expect(await prepared.runtime.publishOutput(ownerID: prepared.ownerID, answer: "Final answer", thinking: ""))
                 _ = await iterator.next()
                 let result = await prepared.runtime.commit(id: UUID()) { context in
-                    let output = try await context.stageBytes(Data("output".utf8), kind: .modelOutput, retentionGroup: UUID())
+                    let output = try await context.stage(AgentModelOutput(
+                        blocks: [.init(id: "text", content: .text("output"))],
+                        continuation: nil, usage: .init(), finishReason: .stop
+                    ), kind: .modelOutput)
                     return [.attemptResolved(.init(attemptID: prepared.attemptID, status: .completed, output: output))]
                 }
                 guard case .committed = result else { throw MiraError(.storage, "Output test settlement failed.") }
@@ -29,19 +32,7 @@ struct SessionOutputTests {
                 await prepared.runtime.releaseOutput(ownerID: prepared.ownerID)
                 var subscriber = try await prepared.runtime.outputObservations().makeAsyncIterator()
                 #expect(await subscriber.next()?.handoffExecutionID == prepared.executionID)
-                if privacy {
-                    let state = await prepared.runtime.snapshot()
-                    let hidden = Set(state.references.values.filter {
-                        [.executionPlan, .request, .modelOutput].contains($0.kind)
-                    }.map(\.retentionGroup))
-                    let result = await prepared.runtime.commit(id: UUID()) { _ in
-                        [.invalidated(.init(operationID: UUID(), executionIDs: [prepared.executionID],
-                            retentionGroups: hidden, authorizationEpoch: state.authorizationEpoch + 1, reason: .forgotten))]
-                    }
-                    guard case .committed = result else { throw MiraError(.storage, "Output test invalidation failed.") }
-                } else {
-                    await prepared.runtime.requestCancellation(executionID: prepared.executionID)
-                }
+                await prepared.runtime.requestCancellation(executionID: prepared.executionID)
                 let revoked = try #require(await iterator.next())
                 #expect(revoked.value == nil && revoked.handoffExecutionID == nil)
                 #expect(revoked.revision > handoff.revision)
@@ -303,7 +294,7 @@ struct SessionOutputTests {
                 #expect(live.value?.answer == "Visible")
                 await journal.armNextAppend()
                 let uncertain = await prepared.runtime.commit(id: UUID()) { context in
-                    let title = try await context.stageBytes(Data("Renamed".utf8), kind: .title, retentionGroup: UUID())
+                    let title = try await context.stageBytes(Data("Renamed".utf8), kind: .title)
                     return [.renamed(title: title, revision: context.state.revision + 1)]
                 }
                 guard case .indeterminate = uncertain else {
@@ -345,24 +336,38 @@ struct SessionOutputTests {
     }
 
     private func makeOutputRuntime(_ fixture: TaskWorkflowFixture,
-                                   journal: (any SessionJournal & SessionPayloadStore)? = nil) async throws -> PreparedOutput {
-        let store: any SessionJournal & SessionPayloadStore = journal ?? fixture.library
+                                   journal: (any SessionJournal & SessionContentStore)? = nil) async throws -> PreparedOutput {
+        let store: any SessionJournal & SessionContentStore = journal ?? fixture.library
         let runtime = try await SessionRuntime.open(id: ConversationID(), journal: store, payloads: store)
         let executionID = ExecutionID(), attemptID = UUID(), stepID = UUID()
         do {
             let admitted = await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Output test".utf8), kind: .title, retentionGroup: UUID())
-                let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Output test".utf8), kind: .title)
+                let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
                 let plan = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1,
                     driverID: "mira.fixture", driverRevision: 1, instructions: "Answer.", limits: .init(),
-                    priority: .foreground, route: fixture.route), kind: .executionPlan, retentionGroup: UUID())
+                    priority: .foreground, route: fixture.route), kind: .executionPlan)
                 return [.opened(.init(workspaceID: nil, title: title)),
                     .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: user,
                         plan: plan, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
             }
             guard case .committed = admitted else { throw MiraError(.storage, "Output test admission failed.") }
             let started = await runtime.commit(id: UUID()) { context in
-                let request = try await context.stageBytes(Data("request".utf8), kind: .request, retentionGroup: UUID())
+                let requestValue = AgentContextRequest(
+                    sessionID: runtime.id, executionID: executionID, workspaceID: nil,
+                    userText: "Question", authorizationEpoch: 0, destination: .model(fixture.route)
+                )
+                let input = AgentModelInput(
+                    stepID: stepID, executionID: executionID, instructions: "Answer.",
+                    messages: [.init(role: .user, blocks: [.init(id: "text", content: .text("Question"))])],
+                    tools: []
+                )
+                let prepared = AgentPreparedModelRequest(
+                    adapter: fixture.route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1
+                )
+                let request = try await context.stage(AgentSessionRequest(AgentContextBuild(
+                    request: requestValue, prepared: prepared, inheritedSources: [], evidence: [], omissions: []
+                )), kind: .request)
                 return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: stepID,
                         stepIndex: 1, attemptIndex: 1, request: request))]
@@ -377,7 +382,7 @@ struct SessionOutputTests {
     }
 }
 
-private actor HiddenCommitJournal: SessionJournal, SessionPayloadStore {
+private actor HiddenCommitJournal: SessionJournal, SessionContentStore {
     private let base: FileSessionLibrary
     private var armed = false
 
@@ -404,13 +409,8 @@ private actor HiddenCommitJournal: SessionJournal, SessionPayloadStore {
     }
     func flush() async throws { try await base.flush() }
     func close() async throws { try await base.close() }
-    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID,
-               retentionGroup: UUID, kind: SessionPayloadKind) async throws -> SessionPayloadReference {
-        try await base.stage(data, sessionID: sessionID, batchID: batchID,
-                             retentionGroup: retentionGroup, kind: kind)
+    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, kind: SessionContentKind) async throws -> SessionContent {
+        try await base.stage(data, sessionID: sessionID, batchID: batchID, kind: kind)
     }
-    func read(_ reference: SessionPayloadReference) async throws -> Data { try await base.read(reference) }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws {
-        try await base.purge(sessionID: sessionID, retentionGroups: retentionGroups)
-    }
+    func read(_ reference: SessionContent) async throws -> Data { try await base.read(reference) }
 }

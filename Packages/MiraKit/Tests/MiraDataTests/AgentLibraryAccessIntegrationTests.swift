@@ -93,7 +93,7 @@ struct AgentLibraryAccessIntegrationTests {
         do {
             let sessionID = ConversationID(), batchID = UUID()
             let reference = try await fixture.library.stage(Data("private fixture".utf8), sessionID: sessionID,
-                batchID: batchID, retentionGroup: UUID(), kind: .module)
+                batchID: batchID, kind: .module)
             let batch = SessionBatch(id: batchID, sessionID: sessionID, expectedSequence: 0,
                 events: [.init(sequence: 1, occurredAt: Date(), fact: .extensionRecorded(
                     namespace: "test.body", schemaVersion: 1, required: false, body: reference))])
@@ -209,13 +209,13 @@ private final class AccessFlag: @unchecked Sendable {
     var value: Bool { lock.withLock { marked } }
     func mark() { lock.withLock { marked = true } }
 }
-private actor HeldFileReader: SessionPayloadReader {
+private actor HeldFileReader: SessionContentReader {
     let store: FileSessionLibrary
     private(set) var entered = false
     private var released = false
     private var waiter: CheckedContinuation<Void, Never>?
     init(store: FileSessionLibrary) { self.store = store }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         let bytes = try await store.read(reference)
         entered = true
         if !released { await withCheckedContinuation { waiter = $0 } }

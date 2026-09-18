@@ -359,7 +359,6 @@ public enum MemoryExtractionRequestBuilder {
         try source.reference.validate()
         try source.observedHead.validate()
         guard !source.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, source.text.utf8.count <= 16_384,
-            source.reference.body.byteCount == source.text.utf8.count,
             source.admittedAt.timeIntervalSince1970.isFinite, TimeZone(identifier: source.timeZoneIdentifier) != nil,
             source.observedHead.cursor.sessionID == source.reference.sessionID,
             source.observedHead.cursor.sequence >= source.reference.admissionSequence

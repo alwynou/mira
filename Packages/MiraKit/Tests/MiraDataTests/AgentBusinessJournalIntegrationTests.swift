@@ -24,10 +24,9 @@ struct AgentBusinessJournalIntegrationTests {
 
             let result = try #require(receipt.result)
             let resolved = await fixture.runtime.commit(id: UUID()) { context in
-                let resultReference = try await context.stageBytes(result, kind: .toolResult, retentionGroup: UUID())
+                let resultReference = try await context.stageBytes(result, kind: .toolResult)
                 return [.toolResolved(.init(invocationID: fixture.invocationID, status: .succeeded,
-                    result: resultReference, businessReceipt: receipt.reference, resultWasPurged: false,
-                    effectIsKnown: true))]
+                    result: resultReference, businessReceipt: receipt.reference, effectIsKnown: true))]
             }
             guard case .committed(let cursor) = resolved else {
                 Issue.record("The durable tool resolution did not commit")
@@ -127,47 +126,6 @@ struct AgentBusinessJournalIntegrationTests {
         }
     }
 
-    @Test func sessionAndBusinessEpochRevocationBlocksValidDispatchedProof() async throws {
-        let sessionRevoked = try await BusinessJournalFixture.make()
-        try await withFixture(sessionRevoked) { fixture in
-            let proof = try await fixture.prepareIntent()
-            let current = await fixture.runtime.snapshot()
-            let invalidation = await fixture.runtime.commit(id: UUID()) { _ in
-                [.invalidated(.init(operationID: UUID(), executionIDs: [], retentionGroups: [],
-                    authorizationEpoch: current.authorizationEpoch + 1, reason: .permissionRevoked))]
-            }
-            try requireCommitted(invalidation, "Session epoch invalidation")
-            guard case .notCommitted = await fixture.business.commit(proof) else {
-                Issue.record("A session epoch-revoked proof reached the business handler")
-                return
-            }
-            #expect(try fixture.count() == 0)
-            guard case .absent = await fixture.business.receipt(for: proof) else {
-                Issue.record("A session epoch-revoked proof unexpectedly has a receipt")
-                return
-            }
-        }
-
-        let businessRevoked = try await BusinessJournalFixture.make()
-        try await withFixture(businessRevoked) { fixture in
-            let proof = try await fixture.prepareIntent()
-            let current = try await fixture.authority.authorization()
-            let request = AgentLibraryMaintenanceRequest(id: UUID(), namespace: "tests.invalidate", revision: 1,
-                scope: .library, requestedAt: Date())
-            let operation = try await fixture.authority.begin(request, expected: current)
-            try await fixture.business.purgeResults(receiptIDs: [], maintenance: operation)
-            _ = try await fixture.authority.complete(operation, at: Date())
-            guard case .notCommitted = await fixture.business.commit(proof) else {
-                Issue.record("A business epoch-revoked proof reached the business handler")
-                return
-            }
-            #expect(try fixture.count() == 0)
-            guard case .absent = await fixture.business.receipt(for: proof) else {
-                Issue.record("A business epoch-revoked proof unexpectedly has a receipt")
-                return
-            }
-        }
-    }
 }
 
 private enum HookFailure: Error { case failed }
@@ -239,7 +197,7 @@ private final class BusinessJournalFixture: Sendable {
             runtime = openedRuntime
             let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
             modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1),
-            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
+            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
             capabilities: .init(streamsText: true, callsTools: true, producesThinking: true), configuration: .object([:]))
             let toolDefinition = ToolDefinition(name: "tests.write", description: "Synthetic write",
             inputSchema: .object(["type": .string("object"), "properties": .object([:]),
@@ -277,7 +235,7 @@ private final class BusinessJournalFixture: Sendable {
         let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input, wirePayload: .object([:]), estimatedInputTokens: 1)
         let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
         let attemptCommit = await runtime.commit(id: UUID()) { context in
-            let requestRef = try await context.stage(build, kind: .request, retentionGroup: UUID())
+            let requestRef = try await context.stage(AgentSessionRequest(build), kind: .request)
             return [.phaseChanged(executionID: executionID, phase: .preparing),
                     .attemptStarted(.init(id: attemptID, executionID: executionID, stepID: attemptID, stepIndex: 1,
                         attemptIndex: 1, request: requestRef))]
@@ -285,8 +243,8 @@ private final class BusinessJournalFixture: Sendable {
         try requireCommitted(attemptCommit, "Attempt start")
 
         let invocation = await runtime.commit(id: UUID()) { context in
-            let output = try await context.stageBytes(Data("model output".utf8), kind: .modelOutput, retentionGroup: UUID())
-            let callRef = try await context.stage(toolCall, kind: .toolCall, retentionGroup: UUID())
+            let callRef = try await context.stage(toolCall, kind: .toolCall)
+            let output = try await context.stageBytes(try businessModelOutput(call: toolCall), kind: .modelOutput)
             return [.attemptResolved(.init(attemptID: attemptID, status: .completed, output: output)),
                     .toolProposed(.init(id: invocationID, attemptID: attemptID, modelOrder: 0,
                         toolName: toolDefinition.name, effect: .localWrite, call: callRef)),
@@ -301,7 +259,7 @@ private final class BusinessJournalFixture: Sendable {
         let proposal = makeProposal(callDigest: proposalDigest)
         let auth = try await authority.authorization()
         let intentCommit = await runtime.commit(id: UUID()) { context in
-            let proposalRef = try await context.stage(proposal, kind: .effectIntent, retentionGroup: UUID())
+            let proposalRef = try await context.stage(proposal, kind: .effectIntent)
             var facts: [SessionFact] = [.toolPrepared(.init(invocationID: invocationID, authorization: auth, proposal: proposalRef))]
             if dispatch { facts.append(.toolDispatched(invocationID: invocationID, authorizationEpoch: 0)) }
             return facts
@@ -314,11 +272,11 @@ private final class BusinessJournalFixture: Sendable {
             proposal: intent.intent.proposal)
     }
 
-    private func admit(userID: MessageID) async throws -> SessionPayloadReference {
+    private func admit(userID: MessageID) async throws -> SessionContent {
         let result = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan)
             return [.opened(.init(workspaceID: nil, title: title)),
                     .admitted(.init(executionID: executionID, userMessageID: userID, userBody: user, plan: routeRef, hasModelRoute: true,
                         authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
@@ -365,4 +323,10 @@ private func businessJournalDatabase(path: String) throws -> DatabaseQueue {
     configuration.foreignKeysEnabled = true
     configuration.prepareDatabase { try $0.execute(sql: "PRAGMA synchronous = FULL") }
     return try DatabaseQueue(path: path, configuration: configuration)
+}
+
+private func businessModelOutput(call: CanonicalToolCall) throws -> Data {
+    try SessionCodec.encode(AgentModelOutput(
+        blocks: [.init(id: "tool-0", content: .toolCall(call))], continuation: nil,
+        usage: TokenUsage(), finishReason: .toolCalls))
 }

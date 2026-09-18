@@ -13,7 +13,7 @@ struct JournalSessionReaderTests {
             let before = try await reader.snapshot(through: head)
 
             let renamed = await fixture.runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Renamed".utf8), kind: .title, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Renamed".utf8), kind: .title)
                 return [.renamed(title: title, revision: 2)]
             }
             try requireCommitted(renamed)
@@ -43,7 +43,7 @@ struct JournalSessionReaderTests {
         }
     }
 
-    @Test("Retry evidence resolves the original admission event, sequence, body and time zone")
+    @Test("Retry evidence resolves the original admission event, sequence and time zone")
     func retryUsesOriginalEvidence() async throws {
         try await withReaderFixture { fixture in
             let retryID = try await fixture.appendRetry()
@@ -56,7 +56,7 @@ struct JournalSessionReaderTests {
             #expect(evidence.reference.userMessageID == fixture.messageID)
             #expect(evidence.reference.admissionEventID == fixture.admissionEventID)
             #expect(evidence.reference.admissionSequence == fixture.admissionSequence)
-            #expect(evidence.reference.body == fixture.userBody)
+            #expect(evidence.text == String(decoding: fixture.userBody.bytes, as: UTF8.self))
         }
     }
 
@@ -74,7 +74,7 @@ struct JournalSessionReaderTests {
             let reader = JournalSessionReader(journal: library, payloads: library)
             #expect(try await reader.userEvidence(sessionID: sessionA, executionID: execution).text == "A")
             #expect(try await reader.userEvidence(sessionID: sessionB, executionID: execution).text == "B")
-            #expect(first.userBody.sessionID != second.userBody.sessionID)
+            #expect(first.admissionEventID != second.admissionEventID)
         }
     }
 
@@ -85,51 +85,22 @@ struct JournalSessionReaderTests {
             let valid = try await reader.userEvidence(sessionID: fixture.sessionID, executionID: fixture.executionID)
             let otherSession = ConversationID()
             let otherExecution = ExecutionID()
-            let otherMessage = MessageID()
-            let body = valid.reference.body
-            let mutatedBodies = [
-                SessionPayloadReference(id: UUID(), sessionID: body.sessionID, batchID: body.batchID,
-                                        retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
-                SessionPayloadReference(id: body.id, sessionID: otherSession, batchID: body.batchID,
-                                        retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
-                SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: UUID(),
-                                        retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
-                SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
-                                        retentionGroup: UUID(), kind: body.kind,
-                                        byteCount: body.byteCount, digest: body.digest),
-                SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
-                                        retentionGroup: body.retentionGroup, kind: .title,
-                                        byteCount: body.byteCount, digest: body.digest),
-                SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
-                                        retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount + 1, digest: body.digest),
-                SessionPayloadReference(id: body.id, sessionID: body.sessionID, batchID: body.batchID,
-                                        retentionGroup: body.retentionGroup, kind: body.kind,
-                                        byteCount: body.byteCount, digest: String(repeating: "f", count: 64))
-            ]
-            let candidates = mutatedBodies.map { body in
-                SessionEvidenceReference(sessionID: valid.reference.sessionID, originalExecutionID: valid.reference.originalExecutionID,
-                    userMessageID: valid.reference.userMessageID, admissionEventID: valid.reference.admissionEventID,
-                    admissionSequence: valid.reference.admissionSequence, body: body)
-            } + [
+            let candidates = [
                 SessionEvidenceReference(sessionID: otherSession, originalExecutionID: valid.reference.originalExecutionID,
                     userMessageID: valid.reference.userMessageID, admissionEventID: valid.reference.admissionEventID,
-                    admissionSequence: valid.reference.admissionSequence, body: body),
+                    admissionSequence: valid.reference.admissionSequence),
                 SessionEvidenceReference(sessionID: valid.reference.sessionID, originalExecutionID: otherExecution,
                     userMessageID: valid.reference.userMessageID, admissionEventID: valid.reference.admissionEventID,
-                    admissionSequence: valid.reference.admissionSequence, body: body),
+                    admissionSequence: valid.reference.admissionSequence),
                 SessionEvidenceReference(sessionID: valid.reference.sessionID, originalExecutionID: valid.reference.originalExecutionID,
-                    userMessageID: otherMessage, admissionEventID: valid.reference.admissionEventID,
-                    admissionSequence: valid.reference.admissionSequence, body: body),
+                    userMessageID: MessageID(), admissionEventID: valid.reference.admissionEventID,
+                    admissionSequence: valid.reference.admissionSequence),
                 SessionEvidenceReference(sessionID: valid.reference.sessionID, originalExecutionID: valid.reference.originalExecutionID,
                     userMessageID: valid.reference.userMessageID, admissionEventID: UUID(),
-                    admissionSequence: valid.reference.admissionSequence, body: body),
+                    admissionSequence: valid.reference.admissionSequence),
                 SessionEvidenceReference(sessionID: valid.reference.sessionID, originalExecutionID: valid.reference.originalExecutionID,
                     userMessageID: valid.reference.userMessageID, admissionEventID: valid.reference.admissionEventID,
-                    admissionSequence: valid.reference.admissionSequence + 1, body: body)
+                    admissionSequence: valid.reference.admissionSequence + 1)
             ]
             for candidate in candidates {
                 await #expect(throws: MiraError.self) { _ = try await reader.userEvidence(candidate) }
@@ -137,46 +108,16 @@ struct JournalSessionReaderTests {
         }
     }
 
-    @Test("Invalidating the origin makes user evidence unavailable")
-    func excludedOriginCannotBeRead() async throws {
-        try await withReaderFixture { fixture in
-            let reader = JournalSessionReader(journal: fixture.library, payloads: fixture.library)
-            let valid = try await reader.userEvidence(sessionID: fixture.sessionID, executionID: fixture.executionID)
-            let invalidation = await fixture.runtime.commit(id: UUID()) { _ in
-                [.invalidated(.init(operationID: UUID(), executionIDs: [fixture.executionID],
-                                     retentionGroups: [fixture.userBody.retentionGroup, fixture.planBody.retentionGroup],
-                                     authorizationEpoch: 1, reason: .forgotten))]
-            }
-            try requireCommitted(invalidation)
-            await #expect(throws: MiraError.self) { _ = try await reader.userEvidence(valid.reference) }
-        }
-    }
-
     @Test("Invalid UTF8 in the authoritative user payload is a storage error")
     func invalidUserPayloadDoesNotBecomeEmptyText() async throws {
-        try await withReaderFixture(userBytes: Data([0xff, 0xfe])) { fixture in
-            let reader = JournalSessionReader(journal: fixture.library, payloads: fixture.library)
+        try await withReaderFixture { fixture in
+            let reader = JournalSessionReader(
+                journal: fixture.library,
+                payloads: InvalidUserContentReader(base: fixture.library, userBodyID: fixture.userBody.id)
+            )
             do {
                 _ = try await reader.userEvidence(sessionID: fixture.sessionID, executionID: fixture.executionID)
                 Issue.record("invalid UTF8 was silently accepted")
-            } catch let error as MiraError {
-                #expect(error.code == .storage)
-            }
-        }
-    }
-
-    @Test("A missing physical user payload is a storage error")
-    func missingUserPayloadIsStorageError() async throws {
-        try await withReaderFixture { fixture in
-            let payloadURL = fixture.directory.appendingPathComponent("payloads", isDirectory: true)
-                .appendingPathComponent(fixture.userBody.sessionID.rawValue.uuidString, isDirectory: true)
-                .appendingPathComponent(fixture.userBody.batchID.uuidString, isDirectory: true)
-                .appendingPathComponent(fixture.userBody.id.uuidString + ".bin")
-            try FileManager.default.removeItem(at: payloadURL)
-            let reader = JournalSessionReader(journal: fixture.library, payloads: fixture.library)
-            do {
-                _ = try await reader.userEvidence(sessionID: fixture.sessionID, executionID: fixture.executionID)
-                Issue.record("missing user payload was silently treated as empty text")
             } catch let error as MiraError {
                 #expect(error.code == .storage)
             }
@@ -188,7 +129,7 @@ struct JournalSessionReaderTests {
         try await withReaderFixture { fixture in
             let extensionBatchID = UUID()
             let body = try await fixture.library.stage(Data("extension".utf8), sessionID: fixture.sessionID,
-                                                        batchID: extensionBatchID, retentionGroup: UUID(), kind: .module)
+                                                        batchID: extensionBatchID, kind: .module)
             let extensionHead = try await fixture.library.head(sessionID: fixture.sessionID)
             let extensionBatch = SessionBatch(id: extensionBatchID, sessionID: fixture.sessionID,
                 expectedSequence: extensionHead.cursor.sequence,
@@ -214,8 +155,7 @@ private final class ReaderFixture: @unchecked Sendable {
     let sessionID: ConversationID
     let executionID: ExecutionID
     let messageID: MessageID
-    let userBody: SessionPayloadReference
-    let planBody: SessionPayloadReference
+    let userBody: SessionContent
     let admissionEventID: UUID
     let admissionSequence: Int64
     let admittedAt: Date
@@ -235,9 +175,13 @@ private final class ReaderFixture: @unchecked Sendable {
             do {
                 let commandID = UUID()
                 let result = await runtime.commit(id: commandID) { context in
-                    let title = try await context.stageBytes(Data("Original".utf8), kind: .title, retentionGroup: UUID())
-                    let user = try await context.stageBytes(userBytes, kind: .userText, retentionGroup: UUID())
-                    let plan = try await context.stageBytes(Data("plan".utf8), kind: .executionPlan, retentionGroup: UUID())
+                    let title = try await context.stageBytes(Data("Original".utf8), kind: .title)
+                    let user = try await context.stageBytes(userBytes, kind: .userText)
+                    let plan = try await context.stage(AgentExecutionPlan(
+                        runtimeID: UUID(), catalogGeneration: 1, driverID: "reader.fixture",
+                        driverRevision: 1, instructions: "Answer.", limits: .init(),
+                        priority: .foreground, route: nil
+                    ), kind: .executionPlan)
                     return [.opened(.init(workspaceID: nil, title: title)),
                             .admitted(.init(executionID: executionID, userMessageID: messageID, userBody: user, plan: plan,
                                             hasModelRoute: false, authorizationEpoch: 0, timeZoneIdentifier: "Asia/Shanghai"))]
@@ -250,7 +194,7 @@ private final class ReaderFixture: @unchecked Sendable {
                     throw MiraError(.storage, "The synthetic admission was not persisted.")
                 }
                 return ReaderFixture(directory: directory, library: library, runtime: runtime, sessionID: sessionID,
-                    executionID: executionID, messageID: messageID, userBody: userBody, planBody: admission.plan,
+                    executionID: executionID, messageID: messageID, userBody: userBody,
                     admissionEventID: last.id, admissionSequence: last.sequence, admittedAt: last.occurredAt)
             } catch {
                 await runtime.close()
@@ -264,11 +208,16 @@ private final class ReaderFixture: @unchecked Sendable {
     }
 
     static func appendInitial(to library: FileSessionLibrary, sessionID: ConversationID, executionID: ExecutionID,
-                              messageID: MessageID, text: String) async throws -> (userBody: SessionPayloadReference, admissionEventID: UUID) {
+                              messageID: MessageID, text: String) async throws -> (userBody: SessionContent, admissionEventID: UUID) {
         let batchID = UUID()
-        let title = try await library.stage(Data("Title".utf8), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .title)
-        let body = try await library.stage(Data(text.utf8), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .userText)
-        let plan = try await library.stage(Data("plan".utf8), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .executionPlan)
+        let title = try await library.stage(Data("Title".utf8), sessionID: sessionID, batchID: batchID, kind: .title)
+        let body = try await library.stage(Data(text.utf8), sessionID: sessionID, batchID: batchID, kind: .userText)
+        let plan = try await library.stage(
+            SessionCodec.encode(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1, driverID: "reader.fixture",
+                               driverRevision: 1, instructions: "Answer.", limits: .init(),
+                               priority: .foreground, route: nil)),
+            sessionID: sessionID, batchID: batchID, kind: .executionPlan
+        )
         let batch = SessionBatch(id: batchID, sessionID: sessionID, expectedSequence: 0, events: [
             .init(sequence: 1, occurredAt: Date(), fact: .opened(.init(workspaceID: nil, title: title))),
             .init(sequence: 2, occurredAt: Date(), fact: .admitted(.init(executionID: executionID, userMessageID: messageID,
@@ -285,7 +234,11 @@ private final class ReaderFixture: @unchecked Sendable {
         try requireCommitted(cancelled)
         let retryID = ExecutionID()
         let result = await runtime.commit(id: UUID()) { context in
-            let plan = try await context.stageBytes(Data("retry-plan".utf8), kind: .executionPlan, retentionGroup: UUID())
+            let plan = try await context.stage(AgentExecutionPlan(
+                runtimeID: UUID(), catalogGeneration: 1, driverID: "reader.fixture",
+                driverRevision: 1, instructions: "Retry.", limits: .init(),
+                priority: .foreground, route: nil
+            ), kind: .executionPlan)
             return [.admitted(.init(executionID: retryID, userMessageID: messageID, retryOfExecutionID: executionID,
                                     userBody: nil, plan: plan, hasModelRoute: false, authorizationEpoch: 0,
                                     timeZoneIdentifier: "UTC"))]
@@ -295,11 +248,10 @@ private final class ReaderFixture: @unchecked Sendable {
     }
 
     private init(directory: URL, library: FileSessionLibrary, runtime: SessionRuntime, sessionID: ConversationID,
-                 executionID: ExecutionID, messageID: MessageID, userBody: SessionPayloadReference,
-                 planBody: SessionPayloadReference,
+                 executionID: ExecutionID, messageID: MessageID, userBody: SessionContent,
                  admissionEventID: UUID, admissionSequence: Int64, admittedAt: Date) {
         self.directory = directory; self.library = library; self.runtime = runtime; self.sessionID = sessionID
-        self.executionID = executionID; self.messageID = messageID; self.userBody = userBody; self.planBody = planBody
+        self.executionID = executionID; self.messageID = messageID; self.userBody = userBody
         self.admissionEventID = admissionEventID; self.admissionSequence = admissionSequence; self.admittedAt = admittedAt
     }
 
@@ -343,6 +295,16 @@ private func withReaderLibrary<T>(_ body: (FileSessionLibrary) async throws -> T
     } catch {
         try? FileManager.default.removeItem(at: directory)
         throw error
+    }
+}
+
+private struct InvalidUserContentReader: SessionContentReader {
+    let base: any SessionContentReader
+    let userBodyID: UUID
+
+    func read(_ reference: SessionContent) async throws -> Data {
+        if reference.id == userBodyID { return Data([0xff, 0xfe]) }
+        return try await base.read(reference)
     }
 }
 

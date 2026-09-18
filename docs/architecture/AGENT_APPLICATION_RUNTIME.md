@@ -2,7 +2,7 @@
 
 <!-- Simplified Chinese documentation is explicitly requested by the user on 2026-09-12. -->
 
-本文定义新核心的应用命令、任务所有权和启动恢复边界。它通过[执行内核](AGENT_EXECUTION_KERNEL.md)与[工具执行器](AGENT_TOOL_EXECUTION.md)运行一个回合，不接入旧 `MiraApplication` 或 SQL 会话权威路径。生产 Provider、领域模块、查询投影、隐私维护、备份与原生宿主已直接接入新核心；完整验收仍按[实施计划](../engineering/AGENT_CORE_IMPLEMENTATION_PLAN.md)推进。
+本文定义新核心的应用命令、任务所有权和启动恢复边界。它通过[执行内核](AGENT_EXECUTION_KERNEL.md)与[工具执行器](AGENT_TOOL_EXECUTION.md)运行一个回合，不接入旧 `MiraApplication` 或 SQL 会话权威路径。生产 Provider、领域模块、查询投影、备份与原生宿主已直接接入新核心；完整验收仍按[实施计划](../engineering/AGENT_CORE_IMPLEMENTATION_PLAN.md)推进。
 
 ## 核心架构
 
@@ -15,7 +15,7 @@ flowchart TB
   Modules --> Registry[类型化能力注册表]
   Registry -->|冻结代次与租约| Catalog[AgentRuntimeCatalog]
   App -->|原子接纳| Session[SessionRuntime\n每会话命令通道]
-  Session --> Journal[SessionJournal / SessionPayloadStore\n日志与独立正文]
+  Session --> Journal[SessionJournal / SessionContentStore\n日志事件与有界内联内容]
   App -->|持有任务| Kernel[AgentExecutionKernel]
   Catalog --> Kernel
   Kernel --> Driver[精确版本的 AgentDriver]
@@ -37,7 +37,7 @@ flowchart TB
 
 ## 持久执行计划
 
-首条消息通过 `AgentSubmitCommand.opening` 提供新会话标题与工作区，在同一批次发布会话创建、用户正文与排队执行；失败不能留下只创建了一半的会话。已有会话的接纳同批发布用户正文引用与 `SessionAdmission`；后者引用一个必需的 `AgentExecutionPlan` 正文。计划包含：
+首条消息通过 `AgentSubmitCommand.opening` 提供新会话标题与工作区，在同一批次发布会话创建、用户内容与排队执行；失败不能留下只创建了一半的会话。已有会话的接纳同批发布用户内容引用与 `SessionAdmission`；后者引用一个必需的 `AgentExecutionPlan` 内容。计划包含：
 
 | 字段 | 契约 |
 |---|---|
@@ -49,7 +49,7 @@ flowchart TB
 | `priority` | 模型资源调度优先级；不意味着本地驱动器占用模型额度 |
 | `route` | 明确冻结的模型路线，或本地执行的空路线 |
 
-`SessionAdmission.hasModelRoute` 是归约所需的结构标记；使用计划前必须检查它与计划正文一致。执行内核只从持久计划读取配置，并核对运行时身份与目录代次，构造调用方不能另传指令或限制覆盖它。计划使用独立的 `executionPlan` 正文种类，已直接移除先前的 `route` 正文格式，没有旧格式解码器。
+`SessionAdmission.hasModelRoute` 是归约所需的结构标记；使用计划前必须检查它与计划内容一致。执行内核只从持久计划读取配置，并核对运行时身份与目录代次，构造调用方不能另传指令或限制覆盖它。计划使用独立的 `executionPlan` 内容种类，已直接移除先前的 `route` 内容格式，没有旧格式解码器。
 
 驱动器和模型都按标识与修订精确查找。同一目录可以注册同一驱动器的不同修订，同一标识与修订的重复项被拒绝；模型适配器每个标识只能注册一个修订。缺少指定版本会在接纳前失败。
 
@@ -78,23 +78,23 @@ flowchart TD
 
 接纳在第一次异步操作之前预留会话；同一命令的并发调用共享原任务，不同命令不能占用该预留。实际活动执行唯一性仍由日志归约器保证，内存字典不能取代持久仲裁。
 
-同一已提交命令被再次提交时，核对原接纳的执行、消息身份、文本、时区和完整选项，再返回原批次游标；不得再次运行驱动器。已清理正文无法重新核对时明确失败，不猜测原请求。执行任务按 `(sessionID, executionID)` 定位，避免跨会话相同执行标识互相取消或覆盖。
+同一已提交命令被再次提交时，核对原接纳的执行、消息身份、文本、时区和完整选项，再返回原批次游标；不得再次运行驱动器。日志内容无法重新核对时明确失败，不猜测原请求。执行任务按 `(sessionID, executionID)` 定位，避免跨会话相同执行标识互相取消或覆盖。
 
 `AgentTurnInput.retry` 复用原用户消息身份、日期和时区；归约器只允许重试最近的、未成功且副作用已知的合格执行。新执行重新冻结计划。同一执行内的[有限模型重试](AGENT_MODEL_RETRY.md)使用独立尝试身份，继续复用该步骤的完整冻结请求；它不重新接纳用户回合。
 
-用户重试表示**重新回答原问题**。应用在同一接纳批次中追加 `admitted` 与 `retryCleared`，后者必须紧跟本批次的新执行接纳。归约器核对原问题、源执行和完整清理集合：该问题之前所有尝试尚未失效的生成正文、思考、续接、请求、草稿、工具正文及错误数据均被退休；原始用户消息、标题和冻结执行计划不在集合中。生成数据为空也记录空清理事实，以保持命令核对一致。
+用户重试表示**重新回答原问题**。应用在同一接纳批次中追加 `admitted` 与 `retrySuperseded`，后者必须紧跟本批次的新执行接纳。归约器核对原问题、源执行和副作用状态；日志保留源执行的完整事实，查询投影在该事实后隐藏源执行的旧 assistant 行，原始用户消息仍保留。生成内容为空时也记录 supersession 事实，以保持命令核对一致。
 
-日志确认后，应用仍持有会话预留和冻结目录，等待正文存储完成实际删除；失败返回 `indeterminate`，禁止模型／工具派发，通过同一命令的 `reconcileAdmission` 继续清理。删除不在日志索引安装的中途执行，避免已落盘的批次与内存索引只安装一半。重开文件库时从持久失效集合补完删除；应用启动也在恢复活动执行前经过清理屏障，恢复只结算中断，不自动重新回答。
+日志确认后，应用仍持有会话预留和冻结目录，等待 supersession 批次提交确认；失败返回 `indeterminate`，禁止模型／工具派发，通过同一命令的 `reconcileAdmission` 继续核对。新的日志批次不会在索引安装中途修改已确认事实，避免已落盘批次与内存索引只安装一半。重开文件库时从日志恢复 retry supersession；应用启动也在恢复活动执行前经过日志一致性屏障，恢复只结算中断，不自动重新回答。
 
-新回答从原问题重新构建上下文，不拼接旧回复。旧执行仅保留必要状态、计量和身份元数据，已清理正文在查询／审计中返回 `.purged`，搜索追赶时移除相应文档。已经提交的任务、记忆等工具业务效果不被撤销；副作用未知的执行仍不允许重试。此操作不使用会递归作废依赖执行的来源隐私撤销流程。
+新回答从原问题重新构建上下文，不拼接旧回复。旧执行保留必要状态、计量和身份元数据；重试通过显式 supersession 选择当前答案。已经提交的任务、记忆等工具业务效果不被撤销；副作用未知的执行仍不允许重试。
 
 ```mermaid
 flowchart LR
-    Retry[重新回答原问题] --> Batch[原子接纳新执行并记录旧数据清理]
-    Batch --> Purge[删除旧正文、思考及续接等数据]
-    Purge -->|失败| Pending[保留命令并等待核对]
-    Pending --> Purge
-    Purge -->|成功| Generate[从原问题重新生成]
+    Retry[重新回答原问题] --> Batch[原子接纳新执行并记录 retry supersession]
+    Batch --> Project[查询投影隐藏旧 assistant 行]
+    Project -->|失败| Pending[保留命令并等待核对]
+    Pending --> Project
+    Project -->|成功| Generate[从原问题重新生成]
     Generate --> Row[在同一回答位置展示]
     Restart[应用重开] --> Recovery[补完删除并结算中断\n不自动调用模型]
 ```
@@ -104,7 +104,7 @@ flowchart LR
 ## 取消、恢复与关闭
 
 - **取消：** 立即登记会话或待确认接纳的取消意图。接纳尚未确认时不运行驱动器；确认后执行内核先检查取消，再决定是否运行。调用方 Task 的取消与显式取消命令分开：已预留的接纳由应用继续完成。
-- **启动：** 读取绑定权威日志前缀的[恢复摘要](AGENT_SESSION_READS.md#应用启动恢复摘要)，为活动会话加载完整状态，核对未终态执行的已有工具结果与业务回执，再以中断终态保存可恢复草稿。恢复协调器没有可执行工具目录，也不调用模型或驱动器。恢复未结算时应用保持 `recovering`，可查询和重试结算，不能接纳新任务。
+- **启动：** 读取绑定权威日志前缀的[恢复摘要](AGENT_SESSION_READS.md#应用启动恢复摘要)，为活动会话加载完整状态，核对未终态执行的已有工具结果与业务回执，再以中断终态保存已提交尝试的可见输出；崩溃前未结算的流式输出允许丢失。恢复协调器没有可执行工具目录，也不调用模型或驱动器。恢复未结算时应用保持 `recovering`，可查询和重试结算，不能接纳新任务。
 - **仅结算重试：** 保留终结器首次构造的意图和命令 ID。重试先解决原批次，不重建模型请求，不重复业务写入。关闭运行时本身不能被当成成功结算。
 - **关闭：** 先停止接纳并登记取消，等待接纳和会话命令，再核对不确定接纳；排空所有执行并尝试原结算。随后关闭会话观察、调度和审批，最后释放模块与应用作用域。不可协作的 Swift 任务须实际退出后才能完成清理，不能声称已被强制终止。
 - **关闭报告：** `AgentApplicationShutdownReport` 列出未核对命令、未结算执行和仍活动／隔离的会话。报告不会因内存所有者被释放而消失；下次打开仍以日志为准恢复。报告不是已经完成一致性备份的证明。
@@ -117,7 +117,7 @@ flowchart LR
 
 `observeSessionOutput` 另行提供[实时可见输出](AGENT_LIVE_OUTPUT.md)：当前尝试的回答／思考累计快照与清空状态。它采用有界合并，不包含私人续接；订阅者退出不取消执行。实时内存修订不能代替日志游标或终态，原生调用方需随工作组更换重新绑定。
 
-`sessionSnapshot`、`observeSession` 与 `readSession` 是当前无 UI 查询入口。面向列表的[读取投影](AGENT_SESSION_READS.md)和可独立组合的[持久消费者](AGENT_SESSION_CONSUMERS.md)已有基础实现；正文访问／维护租约、领域授权及宿主自动唤醒／公平扫描已按各自契约整合，具体边界与未完成验收由对应文档记录。
+`sessionSnapshot`、`observeSession` 与 `readSession` 是当前无 UI 查询入口。面向列表的[读取投影](AGENT_SESSION_READS.md)和可独立组合的[持久消费者](AGENT_SESSION_CONSUMERS.md)已有基础实现；内容读取／维护租约、领域授权及宿主自动唤醒／公平扫描已按各自契约整合，具体边界与未完成验收由对应文档记录。
 
 验收命令、合成故障注入方式和未完成范围见[核心验证记录](../engineering/AGENT_CORE_VERIFICATION.md)。
 

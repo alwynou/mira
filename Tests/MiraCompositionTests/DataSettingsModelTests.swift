@@ -44,8 +44,7 @@ struct DataSettingsModelTests {
                         .text
                         == "Data settings source")
 
-                let restored = try await MacLibrary.open(
-                    directory: destination, notifications: CompositionNotifications(),
+                let restored = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: destination, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
                     #expect(
@@ -104,8 +103,7 @@ struct DataSettingsModelTests {
                 launch: launch,
                 makeRestoration: { MacLibraryRestoration(backend: backend) },
                 opener: { launch in
-                    try await MacLibrary.open(
-                        directory: launch.directory, notifications: CompositionNotifications(),
+                    try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
                         credentials: CompositionCredentials(), modules: { _ in [] })
                 })
             await container.start()
@@ -147,8 +145,7 @@ struct DataSettingsModelTests {
         return AppContainer(
             launch: launch,
             opener: { launch in
-                try await MacLibrary.open(
-                    directory: launch.directory, notifications: CompositionNotifications(),
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
             })
     }

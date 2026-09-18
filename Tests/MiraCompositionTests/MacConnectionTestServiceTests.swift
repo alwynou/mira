@@ -121,7 +121,7 @@ private func withConnectionFixture(
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("mira-connection-test-\(UUID().uuidString)", isDirectory: true)
     defer { try? FileManager.default.removeItem(at: directory) }
-    let storage = try await MacLibraryStorage.open(directory: directory)
+    let storage = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
     let scope = RuntimeScope(kind: .application)
     let registry = RuntimeRegistry<AgentCapability>()
     let credentials = CompositionCredentials()

@@ -8,7 +8,6 @@ public actor MemoryApplication {
     private let extractionBudgetReader: any MemoryExtractionBudgetReader
     private let extractionStatusReader: any MemoryExtractionStatusReader
     private let reader: JournalSessionReader
-    private let privacyHistory: any SessionPrivacyHistoryReader
     private let access: AgentLibraryAccess
     private let scope: RuntimeScope
     private let now: @Sendable () -> Date
@@ -19,7 +18,6 @@ public actor MemoryApplication {
         store: any MemoryStore, capturePolicyStore: any MemoryCapturePolicyStore,
         extractionBudgetReader: any MemoryExtractionBudgetReader,
         extractionStatusReader: any MemoryExtractionStatusReader, reader: JournalSessionReader,
-        privacyHistory: any SessionPrivacyHistoryReader,
         access: AgentLibraryAccess, scope: RuntimeScope,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
@@ -28,7 +26,6 @@ public actor MemoryApplication {
         self.extractionBudgetReader = extractionBudgetReader
         self.extractionStatusReader = extractionStatusReader
         self.reader = reader
-        self.privacyHistory = privacyHistory
         self.access = access
         self.scope = scope
         self.now = now
@@ -165,8 +162,7 @@ public actor MemoryApplication {
         }
     }
 
-    /// Reads only the selected conversation page. Retained privacy provenance explains
-    /// old replies without granting citation access or making them usable model history.
+    /// Reads only the selected conversation page and resolves current domain memory status.
     public func contextNotices(sessionID: ConversationID, executionIDs: Set<ExecutionID>,
                                workspaceID: WorkspaceID?) async throws -> [ExecutionID: [MemoryContextNotice]] {
         guard executionIDs.count <= 128 else {
@@ -178,19 +174,16 @@ public actor MemoryApplication {
                 guard snapshot.state.header?.workspaceID == workspaceID else {
                     throw MiraError(.unauthorized, "The memory history workspace is no longer authorized.")
                 }
-                let contexts = try await self.reader.historyContexts(
-                    in: snapshot, executionIDs: executionIDs, privacyHistory: self.privacyHistory)
                 let timestamp = try await self.timestamp()
                 var result: [ExecutionID: [MemoryContextNotice]] = [:]
                 for id in executionIDs.sorted(by: { $0.rawValue.uuidString < $1.rawValue.uuidString }) {
                     try Task.checkCancellation()
-                    guard let context = contexts[id] else { continue }
-                    var sources = Set(context.sources)
-                    for operation in context.maintenance where operation.namespace == "memory.forget" {
-                        // A local save receipt can depend on the original user statement without
-                        // ever sending the new memory body. Its completed forget target still explains
-                        // why that visible reply was retained and excluded.
-                        if case .sources(let targets) = operation.scope { sources.formUnion(targets) }
+                    let sources: Set<AgentSourceReference>
+                    do {
+                        sources = Set(try await self.reader.recordedContextEvidence(
+                            in: snapshot, executionID: id).sources)
+                    } catch let error as MiraError where error.code == .unauthorized {
+                        continue
                     }
                     let references = sources.compactMap { source -> MemoryCitationReference? in
                         guard case .domain(let namespace, let id, let revision) = source,
@@ -200,7 +193,7 @@ public actor MemoryApplication {
                     guard !references.isEmpty else { continue }
                     let notices = try await self.store.memoryContextNotices(
                         references: references, workspaceID: workspaceID,
-                        connectionID: context.connectionID, at: timestamp)
+                        connectionID: nil, at: timestamp)
                     if !notices.isEmpty { result[id] = notices }
                 }
                 return result

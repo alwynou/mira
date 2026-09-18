@@ -3,6 +3,24 @@ import NaturalLanguage
 import GRDB
 import MiraCore
 
+extension SQLiteMemoryStore: MemoryProfileStore {
+    public func memoryProfile(request: AgentContextRequest, at: Date) async throws -> [Memory] {
+        try await owner.read { db in
+            try Self.validateDestination(request, in: db)
+            let (conditions, arguments) = try Self.eligibility(workspaceID: request.workspaceID, states: [.active], request: request, at: at, in: db)
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT m.* FROM memory_records m WHERE \(conditions.joined(separator: " AND "))
+                AND json_extract(m.draft_json, '$.kind')='preference'
+                AND EXISTS (
+                    SELECT 1 FROM memory_extraction_aspects a WHERE a.memory_id=m.id AND a.memory_revision=m.revision
+                    AND (a.semantic_key LIKE 'communication.%' OR a.semantic_key LIKE 'language.%'))
+                ORDER BY json_extract(m.json, '$.updatedAt') DESC, m.id LIMIT 2
+                """, arguments: arguments)
+            return try rows.map { try Self.recall(try Self.record($0).id, request: request, at: at, in: db) }
+        }
+    }
+}
+
 extension SQLiteMemoryStore {
     static func validateDestination(_ request: AgentContextRequest, in db: Database) throws {
         if let route = request.destination.modelRoute { try SQLiteAgentModelSettings.validateFrozenIdentity(route, in: db) }
@@ -30,29 +48,7 @@ extension SQLiteMemoryStore {
         if let at { try date(at) }
         if let workspaceID { _ = try SQLiteWorkspaceStore.read(workspaceID, in: db) }
         guard !states.isEmpty else { return .init(memories: []) }
-        var conditions = ["m.state IN (\(states.map { _ in "?" }.joined(separator: ",")))", "m.scope IN (?, ?)"]
-        var arguments = StatementArguments(states.sorted { $0.rawValue < $1.rawValue }.map(\.rawValue))
-        arguments += ["global", workspaceID.map { MemoryScope.workspace($0).key } ?? "global"]
-        if let request {
-            conditions += ["m.forgotten_at IS NULL", "m.deleted_at IS NULL", "m.draft_json IS NOT NULL", "m.superseded_by IS NULL"]
-            guard let at else { throw invalid }
-            conditions += ["(json_extract(m.draft_json, '$.validFrom') IS NULL OR json_extract(m.draft_json, '$.validFrom') <= ?)", "(json_extract(m.draft_json, '$.validUntil') IS NULL OR json_extract(m.draft_json, '$.validUntil') > ?)"]
-            arguments += [at.timeIntervalSinceReferenceDate, at.timeIntervalSinceReferenceDate]
-            if let connectionID = request.destination.modelRoute?.connectionID {
-                conditions += ["json_extract(m.draft_json, '$.allowsRemoteUse') = 1", "(json_extract(m.draft_json, '$.allowedConnectionIDs') IS NULL OR EXISTS (SELECT 1 FROM json_each(json_extract(m.draft_json, '$.allowedConnectionIDs')) WHERE lower(json_extract(value, '$.rawValue')) = ?))"]
-                arguments += [key(connectionID)]
-                // Validate current workspace rows before using their IDs in the SQL eligibility filter.
-                let rows = try Row.fetchAll(db, sql: "SELECT id FROM business_workspaces ORDER BY id LIMIT 1025")
-                guard rows.count <= 1024 else { throw corrupt }
-                let permitted = try rows.compactMap { row -> String? in
-                    let id = WorkspaceID(try uuid(row["id"])), workspace = try SQLiteWorkspaceStore.read(id, in: db)
-                    return workspace.allowsRemoteSend && (workspace.allowedConnectionIDs?.contains(connectionID) ?? true) ? key(id) : nil
-                }
-                let blocked = permitted.isEmpty ? "e.source_workspace_id IS NOT NULL" : "e.source_workspace_id IS NOT NULL AND e.source_workspace_id NOT IN (\(permitted.map { _ in "?" }.joined(separator: ",")))"
-                conditions.append("NOT EXISTS (SELECT 1 FROM memory_evidence e WHERE e.memory_id = m.id AND (\(blocked)))")
-                arguments += StatementArguments(permitted)
-            }
-        }
+        var (conditions, arguments) = try eligibility(workspaceID: workspaceID, states: states, request: request, at: at, in: db)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         var from = "memory_records m", rank = "0.0"
         if !trimmed.isEmpty, request != nil {
@@ -98,6 +94,33 @@ extension SQLiteMemoryStore {
         }
         return .init(memories: Array(result.prefix(limit)), isTruncated: result.count > limit || rows.count > 2000)
     }
+    static func eligibility(workspaceID: WorkspaceID?, states: Set<MemoryState>, request: AgentContextRequest?, at: Date?, in db: Database) throws -> ([String], StatementArguments) {
+        var conditions = ["m.state IN (\(states.map { _ in "?" }.joined(separator: ",")))", "m.scope IN (?, ?)"]
+        var arguments = StatementArguments(states.sorted { $0.rawValue < $1.rawValue }.map(\.rawValue))
+        arguments += ["global", workspaceID.map { MemoryScope.workspace($0).key } ?? "global"]
+        if let request {
+            conditions += ["m.forgotten_at IS NULL", "m.deleted_at IS NULL", "m.draft_json IS NOT NULL", "m.superseded_by IS NULL"]
+            guard let at else { throw invalid }
+            conditions += ["(json_extract(m.draft_json, '$.validFrom') IS NULL OR json_extract(m.draft_json, '$.validFrom') <= ?)", "(json_extract(m.draft_json, '$.validUntil') IS NULL OR json_extract(m.draft_json, '$.validUntil') > ?)"]
+            arguments += [at.timeIntervalSinceReferenceDate, at.timeIntervalSinceReferenceDate]
+            if let connectionID = request.destination.modelRoute?.connectionID {
+                conditions += ["json_extract(m.draft_json, '$.allowsRemoteUse') = 1", "(json_extract(m.draft_json, '$.allowedConnectionIDs') IS NULL OR EXISTS (SELECT 1 FROM json_each(json_extract(m.draft_json, '$.allowedConnectionIDs')) WHERE lower(json_extract(value, '$.rawValue')) = ?))"]
+                arguments += [key(connectionID)]
+                // Validate current workspace rows before using their IDs in the SQL eligibility filter.
+                let rows = try Row.fetchAll(db, sql: "SELECT id FROM business_workspaces ORDER BY id LIMIT 1025")
+                guard rows.count <= 1024 else { throw corrupt }
+                let permitted = try rows.compactMap { row -> String? in
+                    let id = WorkspaceID(try uuid(row["id"])), workspace = try SQLiteWorkspaceStore.read(id, in: db)
+                    return workspace.allowsRemoteSend && (workspace.allowedConnectionIDs?.contains(connectionID) ?? true) ? key(id) : nil
+                }
+                let blocked = permitted.isEmpty ? "e.source_workspace_id IS NOT NULL" : "e.source_workspace_id IS NOT NULL AND e.source_workspace_id NOT IN (\(permitted.map { _ in "?" }.joined(separator: ",")))"
+                conditions.append("NOT EXISTS (SELECT 1 FROM memory_evidence e WHERE e.memory_id = m.id AND (\(blocked)))")
+                arguments += StatementArguments(permitted)
+            }
+        }
+        return (conditions, arguments)
+    }
+
     /// Produces terms compatible with the trigram index while treating
     /// punctuation as a separator. CJK runs are emitted as bounded overlapping
     /// three-scalar grams; short CJK words are handled by

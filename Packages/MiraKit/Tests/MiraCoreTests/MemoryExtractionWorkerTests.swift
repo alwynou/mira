@@ -18,7 +18,6 @@ struct MemoryExtractionWorkerTests {
             #expect(input.messages[0].text.contains(claim.source.text))
             #expect(input.messages[0].text.contains("createdAt"))
             #expect(input.messages[0].text.contains("timeZone"))
-            #expect(!input.messages[0].text.contains(claim.source.reference.body.digest))
         }
     }
 
@@ -165,14 +164,13 @@ private struct WorkerFixture: Sendable {
         let runtime = try await SessionRuntime.open(id: sessionID, journal: journal, payloads: journal)
         let routeInfo = WorkerRoute.make()
         let result = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Memory worker".utf8), kind: .title, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Memory worker".utf8), kind: .title)
             let user = try await context.stageBytes(
-                Data("I prefer compact interfaces".utf8), kind: .userText, retentionGroup: UUID())
+                Data("I prefer compact interfaces".utf8), kind: .userText)
             let plan = try await context.stage(
                 AgentExecutionPlan(
                     runtimeID: UUID(), catalogGeneration: 1, driverID: "fixture", driverRevision: 1,
-                    instructions: "Extract.", limits: .init(), priority: .background, route: nil), kind: .executionPlan,
-                retentionGroup: UUID())
+                    instructions: "Extract.", limits: .init(), priority: .background, route: nil), kind: .executionPlan)
             return [
                 .opened(.init(workspaceID: nil, title: title)),
                 .admitted(
@@ -192,9 +190,6 @@ private struct WorkerFixture: Sendable {
         guard case .committed = settled else { throw MiraError(.storage, "Worker session settlement failed.") }
         let reader = JournalSessionReader(journal: journal, payloads: journal)
         let source = try await reader.userEvidence(sessionID: sessionID, executionID: executionID)
-        if !sourceAvailable {
-            try await journal.purge(sessionID: sessionID, retentionGroups: [source.reference.body.retentionGroup])
-        }
         let binding = AgentRouteBinding(
             scope: .global, purpose: AgentModelPurposeID.memoryExtraction, routeID: routeInfo.route.id, revision: 1)
         let selection = AgentModelRouteResolution(route: routeInfo.route, binding: binding)
@@ -578,9 +573,9 @@ private actor WorkerMaintenanceStore: AgentLibraryMaintenanceStore {
     { throw MiraError(.unsupported, "Fixture maintenance unavailable.") }
 }
 
-private actor WorkerJournal: SessionJournal, SessionPayloadStore {
+private actor WorkerJournal: SessionJournal, SessionContentStore {
     private var batches: [SessionBatch] = []
-    private var bytes: [SessionPayloadReference: Data] = [:]
+    private var bytes: [SessionContent: Data] = [:]
     func append(_ batch: SessionBatch) async -> SessionAppendOutcome {
         batches.append(batch)
         return .committed(batch.cursor)
@@ -608,22 +603,17 @@ private actor WorkerJournal: SessionJournal, SessionPayloadStore {
     }
     func flush() async throws {}
     func close() async throws {}
-    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID, kind: SessionPayloadKind)
-        async throws -> SessionPayloadReference
+    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, kind: SessionContentKind)
+        async throws -> SessionContent
     {
-        let ref = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: retentionGroup, kind: kind,
-            byteCount: data.count, digest: String(repeating: "0", count: 64))
+        let ref = SessionContent(id: UUID(), kind: kind, bytes: data)
         bytes[ref] = data
         return ref
     }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         guard let data = bytes[reference],
             batches.contains(where: { $0.events.contains { $0.fact.payloadReferences.contains(reference) } })
         else { throw MiraError(.unauthorized, "Fixture evidence was revoked.") }
         return data
-    }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) async throws {
-        bytes = bytes.filter { $0.key.sessionID != sessionID || !retentionGroups.contains($0.key.retentionGroup) }
     }
 }

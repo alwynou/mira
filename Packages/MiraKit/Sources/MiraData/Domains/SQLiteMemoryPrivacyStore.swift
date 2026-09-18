@@ -139,8 +139,8 @@ extension SQLiteMemoryStore: MemoryPrivacyStore {
 
             guard
                 try Int.fetchOne(
-                    db, sql: "SELECT count(*) FROM memory_search WHERE memory_id = ?",
-                    arguments: [Self.key(target.id)]) == 0,
+                    db, sql: "SELECT (SELECT count(*) FROM memory_search WHERE memory_id = ?) + (SELECT count(*) FROM memory_embeddings WHERE memory_id = ?) + (SELECT count(*) FROM memory_embedding_jobs WHERE memory_id = ?)",
+                    arguments: [Self.key(target.id), Self.key(target.id), Self.key(target.id)]) == 0,
                 try Int.fetchOne(
                     db, sql: "SELECT count(*) FROM memory_assertions WHERE memory_id = ?",
                     arguments: [Self.key(target.id)]) == 0,

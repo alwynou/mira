@@ -28,7 +28,7 @@ struct AgentToolContextChallengeTests {
             #expect(input.messages.contains { $0.role == .context && $0.text.contains("Extension-owned source") })
             #expect(input.tools.map(\.name) == [CounterExtensionTool.name])
             let request = try #require(state.attempts.values.min(by: { $0.sequence < $1.sequence })?.attempt.request)
-            let build = try SessionCodec.decode(AgentContextBuild.self, from: await f.data.library.read(request))
+            let build = try SessionCodec.decode(AgentSessionRequest.self, from: await f.data.library.read(request))
             #expect(
                 build.evidence.contains { $0.contributorID == CounterSource.id && $0.sources == [f.source.reference] })
             #expect(build.sources.contains(f.source.reference))
@@ -92,6 +92,24 @@ struct AgentToolContextChallengeTests {
         }
     }
 
+    @Test func inheritedSourceRevocationWhileAwaitingApprovalPreventsBusinessCommit() async throws {
+        try await withToolContextChallenge { f in
+            let command = f.command()
+            try challengeCommitted(await f.application.submit(command))
+            let approval = try await f.waitForApproval()
+            await f.source.revoke()
+            try await f.resolve(approval, decision: .approved)
+            try challengeCommitted(
+                await f.application.waitForExecution(id: command.executionID, sessionID: command.sessionID))
+            let state = try await f.application.sessionSnapshot(id: command.sessionID)
+            let invocation = try #require(state.invocations.values.first)
+            #expect(invocation.resolution?.status == .denied)
+            #expect(invocation.dispatchedAt == nil)
+            #expect(invocation.resolution?.businessReceipt == nil)
+            #expect(try await f.counter() == 0)
+        }
+    }
+
     @Test func invalidExtensionOutputRollsBackItsDomainWriteAndReceipt() async throws {
         try await withToolContextChallenge(invalidOutput: true) { f in
             let command = f.command()
@@ -136,7 +154,7 @@ struct AgentToolContextChallengeTests {
                 await f.application.waitForExecution(id: command.executionID, sessionID: command.sessionID))
             let state = try await f.application.sessionSnapshot(id: command.sessionID)
             let request = try #require(state.attempts.values.min(by: { $0.sequence < $1.sequence })?.attempt.request)
-            let build = try SessionCodec.decode(AgentContextBuild.self, from: await f.data.library.read(request))
+            let build = try SessionCodec.decode(AgentSessionRequest.self, from: await f.data.library.read(request))
             #expect(build.evidence.isEmpty)
             #expect(build.omissions.contains { $0.contributorID == CounterSource.id && $0.reason == .unauthorized })
             #expect(

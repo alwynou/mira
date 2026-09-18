@@ -4,7 +4,7 @@ import Foundation
 /// before clearing the text index or replacing the library work group.
 public actor SessionSearchService {
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let index: any SessionSearchIndex
     private let access: AgentLibraryAccess
     private let scope: RuntimeScope
@@ -15,7 +15,7 @@ public actor SessionSearchService {
     private var closeTask: Task<Void, Never>?
 
     public init(
-        journal: any SessionJournal, payloads: any SessionPayloadReader,
+        journal: any SessionJournal, payloads: any SessionContentReader,
         index: any SessionSearchIndex, access: AgentLibraryAccess, scope: RuntimeScope,
         maximumPageBytes: Int = 64 * 1_024 * 1_024,
         extensionSchemas: [String: Set<Int>] = [:]

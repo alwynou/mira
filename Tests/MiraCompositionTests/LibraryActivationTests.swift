@@ -207,8 +207,7 @@ struct LibraryActivationTests {
             launch: launch,
             retireNotifications: { namespace in try await retired.retire(namespace) },
             opener: { launch in
-                let library = try await MacLibrary.open(
-                    directory: launch.directory, expectedLibraryID: launch.expectedLibraryID,
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory, expectedLibraryID: launch.expectedLibraryID,
                     notifications: CompositionNotifications(), credentials: CompositionCredentials(),
                     modules: { _ in [] })
                 await opened.record(library)
@@ -222,8 +221,7 @@ struct LibraryActivationTests {
         let archive = root.appendingPathComponent("Archive", isDirectory: true)
         let destination = root.appendingPathComponent("Restored", isDirectory: true)
         let selectionFile = root.appendingPathComponent("Host/selection.json")
-        let sourceLibrary = try await MacLibrary.open(
-            directory: source, notifications: CompositionNotifications(),
+        let sourceLibrary = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: source, notifications: CompositionNotifications(),
             credentials: CompositionCredentials(), modules: { _ in [] })
         let sessionID = ConversationID()
         let libraryID = sourceLibrary.id

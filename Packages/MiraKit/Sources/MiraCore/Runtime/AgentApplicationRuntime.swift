@@ -118,7 +118,7 @@ public actor AgentApplicationRuntime {
     private let journal: any SessionJournal
     private let libraryAccess: AgentLibraryAccess
     private let libraryLease: AgentLibraryAccessLease
-    private let payloads: any SessionPayloadStore
+    private let payloads: any SessionContentStore
     private let registry: RuntimeRegistry<AgentCapability>
     private let scope: RuntimeScope
     private var activation: RuntimeModuleActivation?
@@ -183,7 +183,7 @@ public actor AgentApplicationRuntime {
         let startupRecovery: Bool
     }
 
-    private init(id: UUID, journal: any SessionJournal, payloads: any SessionPayloadStore, libraryAccess: AgentLibraryAccess,
+    private init(id: UUID, journal: any SessionJournal, payloads: any SessionContentStore, libraryAccess: AgentLibraryAccess,
                  registry: RuntimeRegistry<AgentCapability>, scope: RuntimeScope, libraryLease: AgentLibraryAccessLease,
                  policy: any AgentToolPolicy, authority: any AgentEffectAuthority,
                  business: any AgentBusinessEffects, authorizer: any AgentSourceAuthorizer,
@@ -197,7 +197,7 @@ public actor AgentApplicationRuntime {
         self.extensionSchemas = extensionSchemas
     }
 
-    public static func open(journal: any SessionJournal, payloads: any SessionPayloadStore, libraryAccess: AgentLibraryAccess,
+    public static func open(journal: any SessionJournal, payloads: any SessionContentStore, libraryAccess: AgentLibraryAccess,
                             registry: RuntimeRegistry<AgentCapability>, modules: [any RuntimeModule],
                             policy: any AgentToolPolicy, authority: any AgentEffectAuthority,
                             business: any AgentBusinessEffects, authorizer: any AgentSourceAuthorizer,
@@ -448,14 +448,14 @@ public actor AgentApplicationRuntime {
                 case .open(let title, let workspaceID):
                     try Self.validateTitle(title)
                     guard context.state.header == nil else { throw MiraError(.conflict, "The session is already open.") }
-                    let reference = try await context.stageBytes(Data(title.utf8), kind: .title, retentionGroup: UUID())
+                    let reference = try await context.stageBytes(Data(title.utf8), kind: .title)
                     return [.opened(.init(workspaceID: workspaceID, title: reference))]
                 case .setModelSelection(let selection, let expectedRevision):
                     try selection.validate()
                     return [.modelSelectionChanged(selection: selection, expectedRevision: expectedRevision)]
                 case .rename(let title, let revision):
                     try Self.validateTitle(title); try Self.validateRevision(revision, state: context.state)
-                    let reference = try await context.stageBytes(Data(title.utf8), kind: .title, retentionGroup: UUID())
+                    let reference = try await context.stageBytes(Data(title.utf8), kind: .title)
                     return [.renamed(title: reference, revision: revision + 1)]
                 case .archive(let revision):
                     try Self.validateRevision(revision, state: context.state)
@@ -537,10 +537,9 @@ public actor AgentApplicationRuntime {
             try await requireReady()
             let result = await runtime.commit(id: command.id) { context in
                 var facts: [SessionFact] = []
-                var retryCleanupGroups: Set<UUID> = []
                 if let opening = command.opening {
                     guard context.state.header == nil else { throw MiraError(.conflict, "The session is already open.") }
-                    let title = try await context.stageBytes(Data(opening.title.utf8), kind: .title, retentionGroup: UUID())
+                    let title = try await context.stageBytes(Data(opening.title.utf8), kind: .title)
                     facts.append(.opened(.init(workspaceID: opening.workspaceID, title: title)))
                 }
                 if let selectionChange = command.selectionChange {
@@ -551,7 +550,7 @@ public actor AgentApplicationRuntime {
                                                         expectedRevision: selectionChange.expectedRevision))
                 }
                 let messageID: MessageID
-                let body: SessionPayloadReference?
+                let body: SessionContent?
                 let retryID: ExecutionID?
                 let zone: String
                 switch command.input {
@@ -560,14 +559,13 @@ public actor AgentApplicationRuntime {
                         throw MiraError(.invalidInput, "The user message is empty or exceeds its supported bounds.")
                     }
                     messageID = id; retryID = nil; zone = timeZone
-                    body = try await context.stageBytes(Data(text.utf8), kind: .userText, retentionGroup: UUID())
+                    body = try await context.stageBytes(Data(text.utf8), kind: .userText)
                 case .retry(let previousID):
                     guard let previous = context.state.executions[previousID] else {
                         throw MiraError(.notFound, "The previous execution is unavailable.")
                     }
                     messageID = previous.admission.userMessageID; retryID = previousID
                     zone = previous.admission.timeZoneIdentifier; body = nil
-                    retryCleanupGroups = context.state.retryCleanupGroups(forUserMessageID: previous.admission.userMessageID)
                 }
                 let effectiveSelection = command.selectionChange?.selection ?? context.state.modelSelection
                 if case .selected(let selected) = effectiveSelection, let route = plan.route {
@@ -576,7 +574,7 @@ public actor AgentApplicationRuntime {
                         throw MiraError(.conflict, "The execution route does not match the recorded session model selection.")
                     }
                 }
-                let reference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+                let reference = try await context.stage(plan, kind: .executionPlan)
                 let selectionRevision = context.state.modelSelectionRevision + (command.selectionChange == nil ? 0 : 1)
                 guard selectionRevision == command.expectedSelectionRevision + (command.selectionChange == nil ? 0 : 1) else {
                     throw MiraError(.conflict, "The session model selection changed while the message was prepared.")
@@ -586,8 +584,8 @@ public actor AgentApplicationRuntime {
                     authorizationEpoch: context.state.authorizationEpoch, timeZoneIdentifier: zone,
                     modelSelectionRevision: selectionRevision)))
                 if let retryID {
-                    facts.append(.retryCleared(.init(sourceExecutionID: retryID,
-                        retryExecutionID: command.executionID, retentionGroups: retryCleanupGroups)))
+                    facts.append(.retrySuperseded(.init(sourceExecutionID: retryID,
+                        retryExecutionID: command.executionID)))
                 }
                 return facts
             }
@@ -634,7 +632,7 @@ public actor AgentApplicationRuntime {
                   try await payloads.read(reference) == Data(text.utf8) else { throw Self.commandConflict() }
         case .retry(let id):
             guard admission.retryOfExecutionID == id, admission.userBody == nil else { throw Self.commandConflict() }
-            guard case .retryCleared(let cleanup) = batch.events[prefixCount + 1].fact,
+            guard case .retrySuperseded(let cleanup) = batch.events[prefixCount + 1].fact,
                   cleanup.sourceExecutionID == id, cleanup.retryExecutionID == command.executionID else {
                 throw Self.commandConflict()
             }
@@ -664,20 +662,6 @@ public actor AgentApplicationRuntime {
                   await runtime.snapshot().executions[command.executionID] != nil else {
                 await releaseAdmission(command.id)
                 return .notCommitted(.init(.storage, "The reconciled execution admission is unavailable."))
-            }
-            // Admission and retirement are one durable batch. Keep the command
-            // reserved until physical deletion succeeds, before any new dispatch.
-            if case .retry = command.input {
-                do {
-                    guard let batch = try await journal.batch(id: command.id, sessionID: command.sessionID),
-                          case .retryCleared(let cleanup) = batch.events.last?.fact else {
-                        throw Self.commandConflict()
-                    }
-                    try await payloads.purge(sessionID: command.sessionID, retentionGroups: cleanup.retentionGroups)
-                } catch {
-                    admissions[command.id]?.phase = .uncertain; publish()
-                    return .indeterminate(batchID: command.id, error: Self.safe(error))
-                }
             }
             if cancellationIntents.contains(Self.address(command)) || phase == .closing {
                 await runtime.requestCancellation(executionID: command.executionID)
@@ -748,11 +732,6 @@ public actor AgentApplicationRuntime {
                 let runtime = try await session(sessionID)
                 let state = await runtime.snapshot()
                 if let executionID = state.activeExecutionID {
-                    // A crash after retry admission must finish its recorded
-                    // cleanup before recovering the queued execution.
-                    if !state.invalidatedRetentionGroups.isEmpty {
-                        try await payloads.purge(sessionID: sessionID, retentionGroups: state.invalidatedRetentionGroups)
-                    }
                     let address = AgentExecutionAddress(sessionID: sessionID, executionID: executionID)
                     launch(recovery(runtime, executionID: executionID), address: address, startup: true)
                     _ = await executions[address]?.task.value

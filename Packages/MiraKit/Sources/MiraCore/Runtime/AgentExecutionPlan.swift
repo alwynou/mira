@@ -32,7 +32,7 @@ public struct AgentExecutionPlan: Codable, Sendable, Equatable {
     /// Reads the immutable plan admitted for one execution and verifies the
     /// duplicated route bit before any execution work uses it.
     public static func read(for admission: SessionAdmission,
-                            from payloads: any SessionPayloadReader) async throws -> Self {
+                            from payloads: any SessionContentReader) async throws -> Self {
         let plan = try SessionCodec.decode(Self.self, from: await payloads.read(admission.plan))
         try plan.validate()
         guard admission.hasModelRoute == (plan.route != nil) else {

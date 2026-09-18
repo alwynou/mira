@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import MiraCore
 
-@Suite("Durable model operation")
+@Suite("Model operation")
 struct AgentModelExecutorTests {
     @Test func closedSessionCannotBeReportedAsSuccessfulFinalizerCommit() async throws {
         let fixture = try await ModelOperationFixture.make()
@@ -69,6 +69,8 @@ struct AgentModelExecutorTests {
         }
         await fixture.probe.waitUntilDrained()
         #expect(await fixture.probe.count == 1)
+        #expect(await fixture.executor.interruptedAttempts()[fixture.attemptID] != nil)
+        #expect(await fixture.runtime.snapshot().attempts[fixture.attemptID]?.resolution == nil)
         let reclaimed = try await fixture.scheduler.acquire(executionID: fixture.executionID, priority: .foreground)
         await reclaimed.release()
         }
@@ -90,7 +92,7 @@ struct AgentModelExecutorTests {
             #expect(firstState.attempts[fixture.attemptID]?.attempt.stepID == fixture.build.prepared.input.stepID)
             let invocation = try #require(first.invocations.first)
             try AgentDurabilityFailure.requireCommitted(await fixture.runtime.commit(id: UUID()) { context in
-                let result = try await context.stageBytes(Data("Observation".utf8), kind: .toolResult, retentionGroup: UUID())
+                let result = try await context.stageBytes(Data("Observation".utf8), kind: .toolResult)
                 let prepared = try await fixture.prepareIntent(context: context, invocation: invocation, effect: .read)
                 return [prepared, .toolDispatched(invocationID: invocation.id, authorizationEpoch: 0),
                         .toolResolved(.init(invocationID: invocation.id, status: .succeeded, result: result))]
@@ -113,38 +115,16 @@ struct AgentModelExecutorTests {
             let state = await fixture.runtime.snapshot()
             #expect(nextID != nextStepID)
             #expect(state.attempts[nextID]?.attempt.stepID == nextStepID)
-            let drafts = try await SessionDraftReader(journal: fixture.store, payloads: fixture.store).read(state: state, executionID: fixture.executionID)
-            #expect(drafts[.thinking] == Data("First thought. Second thought.".utf8))
-            #expect(drafts[.answer] == Data("Final answer".utf8))
-            let transcript = try SessionCodec.decode(JSONValue.self, from: #require(drafts[.transcript]))
-            #expect(transcript["continuation"]?["payload"] == nextContinuation.payload)
+            let nextResolution = try #require(state.attempts[nextID]?.resolution)
+            let nextOutput = try SessionCodec.decode(AgentModelOutput.self, from: await fixture.store.read(#require(nextResolution.output)))
+            #expect(nextOutput.thinkingText == "Second thought.")
+            #expect(nextOutput.text == "Final answer")
+            #expect(nextOutput.continuation?.payload == nextContinuation.payload)
             let stale = await AgentExecutionFinalizer(runtime: fixture.runtime, authorizer: fixture.authority).finish(
                 .init(executionID: fixture.executionID, expectedAttemptID: fixture.attemptID, status: .completed, answer: "Stale answer"))
             guard case .notCommitted(let error) = stale else { Issue.record("An old attempt finalized newer work"); return }
             #expect(error.code == .conflict)
             #expect(await fixture.runtime.snapshot().executions[fixture.executionID]?.completion == nil)
-        }
-    }
-
-    @Test func finalizerRechecksSourceAuthorityAndRejectsInventedReplaySources() async throws {
-        let fixture = try await ModelOperationFixture.make(events: [.blockStarted(.init(id: "text", content: .text("Answer"))), .blockFinished(id: "text"), .finished(.stop)])
-        try await withModelOperationFixture(fixture) { fixture in
-            let step = try await fixture.execute()
-            let fakeSource = AgentSourceReference.domain(namespace: "synthetic.source", id: UUID(), revision: 1)
-            let invalid = await AgentExecutionFinalizer(runtime: fixture.runtime, authorizer: fixture.authority).finish(
-                .init(executionID: fixture.executionID, expectedAttemptID: fixture.attemptID, status: .completed, answer: "Answer",
-                      replay: .init(messages: [step.output.message], sources: [fakeSource])))
-            guard case .notCommitted(let error) = invalid else { Issue.record("Invented replay evidence was accepted"); return }
-            #expect(error.code == .unauthorized)
-            await fixture.authority.setAction(.denyAlways)
-            let revoked = await AgentExecutionFinalizer(runtime: fixture.runtime, authorizer: fixture.authority).finish(
-                .init(executionID: fixture.executionID, expectedAttemptID: fixture.attemptID, status: .completed, answer: "Answer"))
-            guard case .committed = revoked else { Issue.record("Revocation did not settle the execution"); return }
-            let completion = try #require(await fixture.runtime.snapshot().executions[fixture.executionID]?.completion)
-            #expect(completion.status == .interrupted)
-            #expect(completion.answer == nil && completion.visibleThinking == nil && completion.replay == nil)
-            let denied = try SessionCodec.decode(MiraError.self, from: await fixture.store.read(#require(completion.error)))
-            #expect(denied.code == .unauthorized)
         }
     }
 
@@ -158,6 +138,7 @@ struct AgentModelExecutorTests {
             let result = try await fixture.execute()
             #expect(await fixture.probe.count == 1)
             #expect(await fixture.probe.requestWasDurable)
+            #expect(await fixture.executor.interruptedAttempts().isEmpty)
             #expect(result.invocations.count == 1)
             let state = await fixture.runtime.snapshot()
             #expect(state.executions[fixture.executionID]?.phase == .waitingForTools)
@@ -165,8 +146,6 @@ struct AgentModelExecutorTests {
                 batch.events.contains { if case .attemptResolved = $0.fact { return true }; return false }
             })
             #expect(batch.events.contains { if case .toolProposed = $0.fact { return true }; return false })
-            #expect(result.invocations.first?.call.batchID == batch.id)
-            #expect(state.attempts[result.attemptID]?.resolution?.output?.batchID == batch.id)
             let reopened = try await SessionRuntime.open(id: state.id, journal: fixture.store, payloads: fixture.store)
             #expect(await reopened.snapshot() == state)
             do { _ = try await fixture.execute(); Issue.record("Attempt was dispatched twice") }
@@ -175,16 +154,23 @@ struct AgentModelExecutorTests {
         }
     }
 
-    @Test func interruptedSmallStreamPreservesRecoverableDraft() async throws {
+    @Test func interruptedSmallStreamCommitsPartialOutputAndStreamOnce() async throws {
         let fixture = try await ModelOperationFixture.make(events: [.blockStarted(.init(id: "text", content: .text("Partial answer")))])
         try await withModelOperationFixture(fixture) { fixture in
             do { _ = try await fixture.execute(); Issue.record("Missing finish was accepted") }
             catch let error as MiraError { #expect(error.code == .malformedStream) }
             let state = await fixture.runtime.snapshot()
-            let drafts = try await SessionDraftReader(journal: fixture.store, payloads: fixture.store).read(state: state, executionID: fixture.executionID)
-            #expect(drafts[.answer] == Data("Partial answer".utf8))
             let failed = try #require(state.attempts[fixture.attemptID]?.resolution)
             #expect(failed.status == .failed)
+            let partial = try SessionCodec.decode(AgentModelOutput.self, from: await fixture.store.read(#require(failed.output)))
+            #expect(partial.text == "Partial answer")
+            #expect(!failed.stream.isEmpty)
+            #expect(await fixture.store.allBatches().filter { batch in
+                batch.events.contains { event in
+                    if case .attemptResolved(let value) = event.fact { return value.attemptID == fixture.attemptID }
+                    return false
+                }
+            }.count == 1)
             let record = try SessionCodec.decode(AgentModelAttemptFailureRecord.self,
                 from: await fixture.store.read(#require(failed.error)))
             #expect(record.failure.error.code == .malformedStream)
@@ -197,7 +183,6 @@ struct AgentModelExecutorTests {
             let settled = await fixture.runtime.snapshot()
             #expect(settled.attempts[fixture.attemptID]?.resolution == failed)
             #expect(settled.executions[fixture.executionID]?.completion?.status == .interrupted)
-            #expect(settled.executions[fixture.executionID]?.drafts.isEmpty == true)
         }
     }
 
@@ -340,8 +325,7 @@ struct AgentModelExecutorTests {
             let step = try await fixture.execute()
             await fixture.store.setUncertainty(.terminal)
             let owner = AgentExecutionFinalizer(runtime: fixture.runtime, authorizer: fixture.authority)
-            let intent = AgentFinishIntent(executionID: fixture.executionID, expectedAttemptID: fixture.attemptID, status: .completed, answer: step.output.text,
-                replay: .init(messages: [step.output.message], sources: []))
+            let intent = AgentFinishIntent(executionID: fixture.executionID, expectedAttemptID: fixture.attemptID, status: .completed, answer: step.output.text)
             guard case .indeterminate(let id, _) = await owner.finish(intent) else { Issue.record("Expected terminal uncertainty"); return }
             let batches = await fixture.store.allBatches().count
             guard case .committed = await owner.retry() else { Issue.record("Terminal reconciliation failed"); return }
@@ -352,7 +336,7 @@ struct AgentModelExecutorTests {
             let state = await fixture.runtime.snapshot()
             let completion = try #require(state.executions[fixture.executionID]?.completion)
             #expect(completion.status == .completed)
-            #expect(completion.answer?.retentionGroup != completion.replay?.retentionGroup)
+            #expect(completion.answer?.kind == .visibleAnswer)
             let reopened = try await SessionRuntime.open(id: state.id, journal: fixture.store, payloads: fixture.store)
             #expect(await reopened.snapshot() == state)
         }
@@ -376,7 +360,7 @@ struct AgentModelExecutorTests {
     @Test func admittedRouteMismatchRejectsBeforeAdapterDispatch() async throws {
         let fixture = try await ModelOperationFixture.make(events: [.blockStarted(.init(id: "text", content: .text("Answer"))), .blockFinished(id: "text"), .finished(.stop)])
         try await withModelOperationFixture(fixture) { fixture in
-            let mismatched = AgentModelRoute(id: fixture.route.id, revision: fixture.route.revision, connectionID: fixture.route.connectionID, connectionRevision: fixture.route.connectionRevision, modelDescriptorID: fixture.route.modelDescriptorID, modelRevision: fixture.route.modelRevision, modelAuthorizationRevision: fixture.route.modelAuthorizationRevision, adapter: fixture.route.adapter, invocationID: fixture.route.invocationID, invocationRevision: fixture.route.invocationRevision, endpointID: fixture.route.endpointID, metadataEvidence: fixture.route.metadataEvidence, modelID: "different", credential: fixture.route.credential, contextWindow: fixture.route.contextWindow, maximumOutputTokens: fixture.route.maximumOutputTokens, capabilities: fixture.route.capabilities, configuration: fixture.route.configuration, maximumInputTokens: fixture.route.maximumInputTokens)
+            let mismatched = AgentModelRoute(id: fixture.route.id, revision: fixture.route.revision, connectionID: fixture.route.connectionID, connectionRevision: fixture.route.connectionRevision, modelDescriptorID: fixture.route.modelDescriptorID, modelRevision: fixture.route.modelRevision, modelAuthorizationRevision: fixture.route.modelAuthorizationRevision, adapter: fixture.route.adapter, invocationID: fixture.route.invocationID, invocationRevision: fixture.route.invocationRevision, endpointID: fixture.route.endpointID, modelID: "different", credential: fixture.route.credential, contextWindow: fixture.route.contextWindow, maximumOutputTokens: fixture.route.maximumOutputTokens, capabilities: fixture.route.capabilities, configuration: fixture.route.configuration, maximumInputTokens: fixture.route.maximumInputTokens)
             do { _ = try await fixture.executor.execute(stepIndex: 1, attemptID: fixture.attemptID, build: fixture.build, request: fixture.request, route: mismatched, adapter: fixture.adapter, toolEffects: fixture.tools, authorizer: fixture.authority, priority: .foreground); Issue.record("Route mismatch was accepted") }
             catch let error as MiraError { #expect(error.code == .conflict || error.code == .configuration) }
             #expect(await fixture.probe.count == 0)
@@ -439,12 +423,12 @@ private struct ModelOperationFixture: Sendable {
         let runtime = try await SessionRuntime.open(id: ConversationID(), journal: store, payloads: store)
         let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
             modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1),
-            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
+            invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "fixture", credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
             capabilities: .init(streamsText: true, callsTools: true, producesThinking: true), configuration: .object([:]))
         try AgentDurabilityFailure.requireCommitted(await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer the user.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title)
+            let user = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+            let routeRef = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 0, driverID: "mira.default", driverRevision: 1, instructions: "Answer the user.", limits: .init(), priority: .foreground, route: route), kind: .executionPlan)
             return [.opened(.init(workspaceID: nil, title: title)), .admitted(.init(executionID: executionID,
                 userMessageID: MessageID(), userBody: user, plan: routeRef, hasModelRoute: true, authorizationEpoch: 0,
                 timeZoneIdentifier: "UTC"))]
@@ -487,7 +471,7 @@ private struct ModelOperationFixture: Sendable {
             businessNamespace: effect == .localWrite ? "sample.write" : nil,
             callDigest: String(repeating: "a", count: 64),
             plan: .init(input: .object([:]), sources: [], targets: []))
-        let proposalReference = try await context.stage(proposal, kind: .effectIntent, retentionGroup: UUID())
+        let proposalReference = try await context.stage(proposal, kind: .effectIntent)
         let authorization = AgentLibraryAuthorization(libraryID: runtime.id.rawValue, epoch: 0)
         return .toolPrepared(.init(invocationID: invocation.id, authorization: authorization,
             proposal: proposalReference))
@@ -748,11 +732,11 @@ private actor ModelOperationAuthority: AgentSourceAuthorizer {
     }
 }
 
-private actor ModelOperationStore: SessionJournal, SessionPayloadStore {
+private actor ModelOperationStore: SessionJournal, SessionContentStore {
     enum Uncertainty { case none, start, resolution, terminal }
     var uncertainty: Uncertainty = .none
     private var batches: [SessionBatch] = []
-    private var bytes: [SessionPayloadReference: Data] = [:]
+    private var bytes: [SessionContent: Data] = [:]
     func setUncertainty(_ value: Uncertainty) { uncertainty = value }
     func allBatches() -> [SessionBatch] { batches }
     func append(_ batch: SessionBatch) -> SessionAppendOutcome {
@@ -783,18 +767,14 @@ private actor ModelOperationStore: SessionJournal, SessionPayloadStore {
     func sessions(after: ConversationID?, limit: Int) -> [ConversationID] { Array(Set(batches.map(\.sessionID)).prefix(limit)) }
     func flush() {}
     func close() {}
-    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, retentionGroup: UUID, kind: SessionPayloadKind) -> SessionPayloadReference {
-        let reference = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
-            retentionGroup: retentionGroup, kind: kind, byteCount: data.count, digest: String(repeating: "a", count: 64))
+    func stage(_ data: Data, sessionID: ConversationID, batchID: UUID, kind: SessionContentKind) async throws -> SessionContent {
+        let reference = SessionContent(id: UUID(), kind: kind, bytes: data)
         bytes[reference] = data; return reference
     }
-    func read(_ reference: SessionPayloadReference) throws -> Data {
+    func read(_ reference: SessionContent) throws -> Data {
         guard let data = bytes[reference], batches.contains(where: { $0.events.contains { $0.fact.payloadReferences.contains(reference) } }) else {
             throw MiraError(.notFound, "The synthetic payload is unavailable.")
         }
         return data
-    }
-    func purge(sessionID: ConversationID, retentionGroups: Set<UUID>) {
-        bytes = bytes.filter { $0.key.sessionID != sessionID || !retentionGroups.contains($0.key.retentionGroup) }
     }
 }

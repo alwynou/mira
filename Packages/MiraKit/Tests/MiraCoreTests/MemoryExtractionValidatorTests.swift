@@ -237,18 +237,16 @@ struct MemoryExtractionValidatorTests {
 private func source(
     _ text: String,
     workspaceID: WorkspaceID? = nil,
-    bodyKind: SessionPayloadKind = .userText,
+    bodyKind: SessionContentKind = .userText,
     admissionSequence: Int64 = 1
 ) -> SessionUserEvidence {
     let sessionID = ConversationID()
     let executionID = ExecutionID()
     let batchID = UUID()
-    let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID,
-                                       retentionGroup: UUID(), kind: bodyKind,
-                                       byteCount: text.utf8.count, digest: String(repeating: "0", count: 64))
+    let body = SessionContent(id: UUID(), kind: bodyKind, bytes: Data(text.utf8))
     let reference = SessionEvidenceReference(sessionID: sessionID, originalExecutionID: executionID,
                                              userMessageID: MessageID(), admissionEventID: UUID(),
-                                             admissionSequence: admissionSequence, body: body)
+                                             admissionSequence: admissionSequence)
     return .init(reference: reference, workspaceID: workspaceID,
                  admittedAt: Date(timeIntervalSince1970: 1_000), timeZoneIdentifier: "UTC", text: text,
                  observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID),

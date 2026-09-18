@@ -111,9 +111,8 @@ struct SessionModelSelectionTests {
                         modelConfigurationID: modelConfigurationID))
     }
 
-    private static func reference(sessionID: ConversationID, batchID: UUID, kind: SessionPayloadKind) -> SessionPayloadReference {
-        .init(id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: kind,
-              byteCount: 1, digest: String(repeating: "a", count: 64))
+    private static func reference(sessionID: ConversationID, batchID: UUID, kind: SessionContentKind) -> SessionContent {
+        .init(id: UUID(), kind: kind, bytes: Data(kind.rawValue.utf8))
     }
 
     private static func batch(state: SessionState, id: UUID, facts: [SessionFact]) -> SessionBatch {
@@ -121,9 +120,9 @@ struct SessionModelSelectionTests {
               events: facts.enumerated().map { .init(sequence: state.sequence + Int64($0.offset + 1), occurredAt: Date(timeIntervalSince1970: 1), fact: $0.element) })
     }
 
-    private static func stateAfterOpen(id: ConversationID, title: SessionPayloadReference) -> SessionState {
+    private static func stateAfterOpen(id: ConversationID, title: SessionContent) -> SessionState {
         var state = SessionState(id: id)
-        let opening = Self.batch(state: state, id: title.batchID,
+        let opening = Self.batch(state: state, id: UUID(),
             facts: [.opened(.init(workspaceID: nil, title: title))])
         try! state.apply(opening)
         return state
@@ -158,8 +157,8 @@ private actor InMemorySelectionJournal: SessionJournal {
     func close() async throws {}
 }
 
-extension InMemorySelectionJournal: SessionPayloadReader {
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+extension InMemorySelectionJournal: SessionContentReader {
+    func read(_ reference: SessionContent) async throws -> Data {
         Data(repeating: 97, count: reference.byteCount)
     }
 }

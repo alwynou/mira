@@ -59,12 +59,9 @@ final class EverydayMemoryBaselineTests: XCTestCase {
     private static func syntheticEvidence(text: String, executionID: ExecutionID) -> SessionUserEvidence {
         let sessionID = ConversationID()
         let batchID = UUID()
-        let body = SessionPayloadReference(
-            id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .userText,
-            byteCount: text.utf8.count, digest: String(repeating: "0", count: 64))
         let reference = SessionEvidenceReference(
             sessionID: sessionID, originalExecutionID: executionID, userMessageID: MessageID(),
-            admissionEventID: UUID(), admissionSequence: 1, body: body)
+            admissionEventID: UUID(), admissionSequence: 1)
         return SessionUserEvidence(
             reference: reference, workspaceID: nil, admittedAt: Date(timeIntervalSince1970: 1_000),
             timeZoneIdentifier: "UTC", text: text,

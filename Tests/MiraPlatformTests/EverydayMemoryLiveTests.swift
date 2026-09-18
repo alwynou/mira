@@ -32,8 +32,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         let configuration = try LiveEvaluationConfiguration(environment: environment)
         let counter = RequestAuthorizationCounter()
         let credentials = EvaluationCredentials(secret: configuration.apiKey, counter: counter, limit: 1)
-        let library = try await MacLibrary.open(
-            directory: directory.appendingPathComponent("Library"),
+        let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory.appendingPathComponent("Library"),
             notifications: LiveNoopNotifications(), credentials: credentials,
             modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
         do {
@@ -115,8 +114,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         var approvalTask: Task<Void, Never>?
 
         do {
-            let opened = try await MacLibrary.open(
-                directory: directory, notifications: LiveNoopNotifications(), credentials: credentials,
+            let opened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: LiveNoopNotifications(), credentials: credentials,
                 modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
             library = opened
             let workloads = try await opened.workloads()

@@ -47,7 +47,7 @@ sequenceDiagram
 | `pendingPayloadCleared` | 上述标记已 unlink，但待发布目录尚未同步。新进程保持已提交前缀和正文，孤儿物理删除不被撤销，恢复记录为空；此场景不推导断电耐久性。 |
 | `tornJournalTail` | 在真实库仍持有写锁时，受控写入一个没有换行结束的部分记录，再终止进程。重开只保留完整前缀，截断尾部后归约结果一致。这是明确制造半条物理记录，不是随机命中系统调用内部。 |
 | `admissionPublished` | 用户正文与 queued execution 的接纳批次已提交，应用尚未收到结果。新进程保留一个执行和原始用户消息，记为 interrupted；零模型调用、零业务写入，原命令重试不产生新事实。 |
-| `thinkingDraft` | 实际模型流只输出 6,080 字节思考及未完成 opaque continuation，持久 thinking／transcript 检查点已提交。重开逐字核对草稿与续接数据，再恢复可见思考；没有答案或可重放的助手历史，只有一次模型调用和一个终态。 |
+| `interruptedStream` | A committed earlier attempt survives SIGKILL. The next unresolved attempt has visible thinking and incomplete continuation only in memory; none survives restart. Recovery retains the committed answer, settles one interrupted terminal state, and does not dispatch a model or tool. |
 | `businessCommitted` | `SQLiteBusinessEffects` 的事务已提交，`afterCommitHook` 中终止，尚无会话工具结果。原业务计数为一、回执待发布；`AgentApplicationRuntime` 启动恢复只核对原回执、写入工具终态并确认发布，不再次执行模型或业务处理器。 |
 | `toolResultPublished` | 引用业务回执的真实 `toolResolved` 批次已同步，待发布回执尚未确认。重开保留相同回执身份，清空待发布项；业务和模型计数仍各为一。 |
 | `terminalPublished` | 完整模型／工具往返结束，`finished` 终态批次已提交而尚未向应用返回。重开保持 completed 与原回答；只有两次模型调用、一次业务写入和一个终态，重复接纳原命令不改日志。 |
@@ -58,7 +58,7 @@ sequenceDiagram
 
 ## 待发布正文恢复增量
 
-待发布记录与启动职责见[正文发布与恢复契约](../architecture/AGENT_PAYLOAD_RECOVERY.md)。新的四个场景使用真实 FileSessionLibrary 和原有父进程 SIGSTOP → SIGKILL → 两次独立恢复流程。清单只保存合成身份；正文、head、批次和物理文件从实际存储核对。`verifyNoUnpublished` 直接验证第一次打开已完成恢复，没有先调用 purge 掩盖初始化遗漏。
+待发布记录与启动职责见历史验证记录；当前会话内容边界见[会话日志契约](../architecture/AGENT_SESSION_LOG.md)。新的四个场景使用真实 FileSessionLibrary 和原有父进程 SIGSTOP → SIGKILL → 两次独立恢复流程。清单只保存合成身份；正文、head、批次和物理文件从实际存储核对。`verifyNoUnpublished` 直接验证第一次打开已完成恢复，没有先调用 purge 掩盖初始化遗漏。
 
 本轮完整 `swift test --package-path Packages/MiraKit` 退出 0：972 个注册测试／139 个套件，其中 970 个通过、2 个可选规模基准跳过，7.732 秒（`/tmp/mira-payload-recovery-package.log`）。全部 16 个真实终止场景通过。聚焦过程中仅有一个新增测试把大写合法 UUID 当作非法名称而失败；改为固定小写 UUID 后保留严格规范名称断言，生产实现没有为该夹具放宽规则。
 

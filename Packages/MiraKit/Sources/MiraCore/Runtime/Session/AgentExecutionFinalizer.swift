@@ -1,12 +1,8 @@
 import Foundation
 
-/// Replay is hidden execution data. Visible text has a separate deletion lifetime.
-public struct AgentReplayRecord: Codable, Sendable, Equatable {
-    public let messages: [AgentModelMessage]
-    public let sources: [AgentSourceReference]
-    public init(messages: [AgentModelMessage], sources: [AgentSourceReference]) {
-        self.messages = messages; self.sources = sources
-    }
+struct AgentRecoveredAttempt: Sendable, Equatable {
+    let output: AgentModelOutput?
+    let stream: [SessionMessageStreamRecord]
 }
 
 struct AgentFinishIntent: Sendable, Equatable {
@@ -15,16 +11,18 @@ struct AgentFinishIntent: Sendable, Equatable {
     let status: ExecutionStatus
     let answer: String?
     let visibleThinking: String?
-    let replay: AgentReplayRecord?
     let error: MiraError?
     let usage: TokenUsage
+    let recoveredAttempts: [UUID: AgentRecoveredAttempt]
 
     init(executionID: ExecutionID, expectedAttemptID: UUID?, status: ExecutionStatus, answer: String? = nil,
-         visibleThinking: String? = nil, replay: AgentReplayRecord? = nil,
-         error: MiraError? = nil, usage: TokenUsage = .init()) {
+         visibleThinking: String? = nil,
+         error: MiraError? = nil, usage: TokenUsage = .init(),
+         recoveredAttempts: [UUID: AgentRecoveredAttempt] = [:]) {
         self.executionID = executionID; self.expectedAttemptID = expectedAttemptID
         self.status = status; self.answer = answer
-        self.visibleThinking = visibleThinking; self.replay = replay; self.error = error; self.usage = usage
+        self.visibleThinking = visibleThinking; self.error = error; self.usage = usage
+        self.recoveredAttempts = recoveredAttempts
     }
 }
 
@@ -95,36 +93,25 @@ actor AgentExecutionFinalizer {
               context.state.activeExecutionID == intent.executionID else {
             throw MiraError(.conflict, "The execution cannot enter terminal settlement.")
         }
-        let revoked = context.state.excludedExecutionIDs.contains(intent.executionID)
         let cancelled = cancellationRequested || execution.phase == .cancelling
-        var status: ExecutionStatus = revoked ? .interrupted : (cancelled ? .cancelled : intent.status)
-        var suppressContent = revoked
+        var status: ExecutionStatus = cancelled ? .cancelled : intent.status
+        var suppressContent = false
         var terminalError = intent.error
         let publishesContent = !(intent.answer?.isEmpty ?? true) || !(intent.visibleThinking?.isEmpty ?? true)
-        if !revoked, status == .completed || publishesContent {
-            var sources: [AgentSourceReference] = []
-            var contextRequest: AgentContextRequest?
+        let retainsInterruptedContent = intent.recoveredAttempts.values.contains {
+            $0.output != nil || !$0.stream.isEmpty
+        }
+        if status == .completed || publishesContent || retainsInterruptedContent {
             let plan = try await AgentExecutionPlan.read(for: execution.admission, from: context.payloads)
-            for attemptID in execution.attemptIDs {
-                guard let reference = context.state.attempts[attemptID]?.attempt.request else {
-                    throw MiraError(.storage, "The execution attempt is unavailable during settlement.")
-                }
-                let build = try SessionCodec.decode(AgentContextBuild.self, from: await context.payloads.read(reference))
-                guard build.request.destination.modelRoute == plan.route,
-                      build.request.workspaceID == context.state.header?.workspaceID,
-                      build.request.executionID == intent.executionID, build.request.sessionID == context.state.id else {
-                    throw MiraError(.storage, "The execution request evidence is inconsistent.")
-                }
-                sources += build.sources; contextRequest = build.request
-            }
-            let expectedSources = AgentContextBuild.orderedSources(sources)
-            if let replay = intent.replay {
-                guard AgentContextBuild.orderedSources(replay.sources) == expectedSources else {
-                    throw MiraError(.unauthorized, "The execution replay sources differ from its durable requests.")
-                }
-            }
-            if let contextRequest {
-                do { try await authorizer.validate(expectedSources, for: contextRequest) }
+            let sources = try await JournalAgentHistoryReader(payloads: context.payloads)
+                .readExecutionSources(execution: execution, state: context.state, route: plan.route)
+            // The latest committed request is the authorization context. Read it
+            // directly so source validation keeps the same request identity checks
+            // as the collector; no request payload is inferred from projections.
+            if let attemptID = execution.attemptIDs.last,
+               let reference = context.state.attempts[attemptID]?.attempt.request {
+                let request = try SessionCodec.decode(AgentSessionRequest.self, from: await context.payloads.read(reference))
+                do { try await authorizer.validate(sources, for: request.request) }
                 catch let error as MiraError where error.code == .unauthorized {
                     // Definite revocation is a terminal outcome, not a retryable storage failure.
                     status = .interrupted; suppressContent = true; terminalError = error
@@ -141,7 +128,14 @@ actor AgentExecutionFinalizer {
             }
             if attempt.resolution == nil {
                 guard status != .completed else { throw MiraError(.conflict, "A running model attempt cannot finish successfully.") }
-                facts.append(.attemptResolved(.init(attemptID: attemptID, status: cancelling ? .interrupted : .failed)))
+                let recovered = suppressContent ? nil : intent.recoveredAttempts[attemptID]
+                var outputReference: SessionContent?
+                if let output = recovered?.output {
+                    outputReference = try await context.stage(output, kind: .modelOutput)
+                }
+                facts.append(.attemptResolved(.init(attemptID: attemptID, status: cancelling ? .interrupted : .failed,
+                    output: outputReference, usage: recovered?.output?.usage ?? .init(),
+                    stream: recovered?.stream ?? [])))
             }
             for invocationID in attempt.invocationIDs {
                 guard let invocation = context.state.invocations[invocationID] else {
@@ -153,57 +147,34 @@ actor AgentExecutionFinalizer {
                     if let approval = invocation.approval, approval.approved == nil {
                         facts.append(.toolApprovalResolved(invocationID: invocationID, approved: false))
                     }
-                    facts.append(.toolResolved(.init(invocationID: invocationID, status: .cancelledBeforeDispatch)))
+                    facts.append(.toolResolved(.init(invocationID: invocationID, status: .cancelledBeforeDispatch,
+                        error: MiraError(.cancelled, "The tool was cancelled before dispatch."))))
                 } else if invocation.invocation.effect == .read {
-                    facts.append(.toolResolved(.init(invocationID: invocationID, status: .interrupted)))
+                    facts.append(.toolResolved(.init(invocationID: invocationID, status: .interrupted,
+                        error: MiraError(.interrupted, "The read tool was interrupted before its result was confirmed."))))
                 } else {
                     throw MiraError(.conflict, "A dispatched write requires effect reconciliation before settlement.")
                 }
             }
         }
         try intent.usage.validate(maximumTokens: TokenUsage.maximumAggregateTokens)
-        var answer: SessionPayloadReference?
-        var thinking: SessionPayloadReference?
-        var replay: SessionPayloadReference?
-        var error: SessionPayloadReference?
+        var answer: SessionContent?
+        var thinking: SessionContent?
+        var error: SessionContent?
         if !suppressContent {
             if let value = intent.answer, !value.isEmpty {
-                answer = try await context.stageBytes(Data(value.utf8), kind: .visibleAnswer, retentionGroup: UUID())
+                answer = try await context.stageBytes(Data(value.utf8), kind: .visibleAnswer)
             }
             if let value = intent.visibleThinking, !value.isEmpty {
-                thinking = try await context.stageBytes(Data(value.utf8), kind: .visibleThinking, retentionGroup: UUID())
-            }
-            if status == .completed, let value = intent.replay {
-                guard !value.messages.isEmpty, value.messages.count <= 256,
-                      value.messages.allSatisfy({ $0.role == .assistant || $0.role == .tool }), value.sources.count <= 8_192,
-                      let last = value.messages.last, last.role == .assistant, last.toolCalls.isEmpty,
-                      last.text == intent.answer ?? "" else {
-                    throw MiraError(.invalidInput, "The execution replay record is invalid.")
-                }
-                if execution.attemptIDs.isEmpty {
-                    guard value.messages.count == 1, last.thinkingText.isEmpty, last.toolResults.isEmpty,
-                          last.continuation == nil,
-                          value.sources.isEmpty else {
-                        throw MiraError(.invalidInput, "The local driver replay record is invalid.")
-                    }
-                } else {
-                    let plan = try await AgentExecutionPlan.read(for: execution.admission, from: context.payloads)
-                    guard let route = plan.route else {
-                        throw MiraError(.storage, "The execution model route is unavailable.")
-                    }
-                    try AgentModelInput(stepID: pending.commandID, executionID: intent.executionID,
-                        instructions: "", messages: value.messages, tools: []).validate(for: route)
-                }
-                for source in value.sources { try source.validate() }
-                replay = try await context.stage(value, kind: .replay, retentionGroup: UUID())
+                thinking = try await context.stageBytes(Data(value.utf8), kind: .visibleThinking)
             }
         }
-        if !revoked, let value = terminalError {
-            error = try await context.stage(value, kind: .error, retentionGroup: UUID())
+        if let value = terminalError {
+            error = try await context.stage(value, kind: .error)
         }
         facts.append(.finished(.init(executionID: intent.executionID, status: status,
             assistantMessageID: answer != nil || thinking != nil ? pending.messageID : nil,
-            answer: answer, visibleThinking: thinking, replay: replay, error: error, usage: intent.usage)))
+            answer: answer, visibleThinking: thinking, error: error, usage: intent.usage)))
         return facts
     }
 }

@@ -14,12 +14,12 @@ struct MemoryHistoryWorkflowTests {
             let runtime = try await SessionRuntime.open(id: sessionID, journal: f.library, payloads: f.library)
             defer { Task { await runtime.close() } }
             let admitted = await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Local fixture".utf8), kind: .title, retentionGroup: UUID())
-                let body = try await context.stageBytes(Data("Synthetic local question".utf8), kind: .userText, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Local fixture".utf8), kind: .title)
+                let body = try await context.stageBytes(Data("Synthetic local question".utf8), kind: .userText)
                 let plan = try await context.stage(AgentExecutionPlan(
                     runtimeID: UUID(), catalogGeneration: 0, driverID: "local.fixture", driverRevision: 1,
                     instructions: "Synthetic local reply", limits: .init(), priority: .foreground, route: nil),
-                    kind: .executionPlan, retentionGroup: UUID())
+                    kind: .executionPlan)
                 return [.opened(.init(workspaceID: nil, title: title)),
                         .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: body,
                                        plan: plan, hasModelRoute: false, authorizationEpoch: 0,
@@ -27,26 +27,21 @@ struct MemoryHistoryWorkflowTests {
             }
             try taskRequireCommitted(admitted)
             let completed = await runtime.commit(id: UUID()) { context in
-                let answer = try await context.stageBytes(Data("Synthetic local answer".utf8), kind: .visibleAnswer,
-                                                          retentionGroup: UUID())
-                let replay = try await context.stage(AgentReplayRecord(messages: [
-                    .init(role: .assistant, blocks: [.init(id: "answer", content: .text("Synthetic local answer"))])
-                ], sources: []), kind: .replay, retentionGroup: UUID())
+                let answer = try await context.stageBytes(Data("Synthetic local answer".utf8), kind: .visibleAnswer)
                 return [.phaseChanged(executionID: executionID, phase: .settling),
                         .finished(.init(executionID: executionID, status: .completed,
-                                       assistantMessageID: MessageID(), answer: answer, replay: replay))]
+                                       assistantMessageID: MessageID(), answer: answer))]
             }
             try taskRequireCommitted(completed)
 
             let memory = try #require(f.memory)
             let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
-            let privacy = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
             let app = MemoryApplication(store: memory, capturePolicyStore: memory,
                 extractionBudgetReader: extraction, extractionStatusReader: extraction,
-                reader: .init(journal: f.library, payloads: f.library), privacyHistory: privacy,
+                reader: .init(journal: f.library, payloads: f.library),
                 access: f.access, scope: f.scope)
             defer {
-                Task { await app.close(); await extraction.close(); await privacy.close() }
+                Task { await app.close(); await extraction.close() }
             }
             #expect(try await app.contextNotices(sessionID: sessionID, executionIDs: [executionID], workspaceID: nil).isEmpty)
         }
@@ -70,12 +65,11 @@ struct MemoryHistoryWorkflowTests {
             let address = try await f.run("Which synthetic tea?")
             let unrelated = try await f.run("Answer an unrelated question")
             let failed = try await f.run("Which synthetic tea?", sessionID: address.sessionID, expectedStatus: .failed)
-            let plans = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
             let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
             let reader = JournalSessionReader(journal: f.library, payloads: f.library)
             let app = MemoryApplication(
                 store: store, capturePolicyStore: store, extractionBudgetReader: extraction, extractionStatusReader: extraction,
-                reader: reader, privacyHistory: plans, access: f.access, scope: f.scope,
+                reader: reader, access: f.access, scope: f.scope,
                 now: { TaskWorkflowFixture.now })
             do {
                 #expect(
@@ -98,10 +92,10 @@ struct MemoryHistoryWorkflowTests {
                         sessionID: unrelated.sessionID,
                         executionIDs: [unrelated.executionID], workspaceID: nil
                     ).isEmpty)
-                await #expect(throws: MiraError.self) {
+                #expect(
                     try await app.contextNotices(
                         sessionID: unrelated.sessionID, executionIDs: [address.executionID], workspaceID: nil)
-                }
+                        .isEmpty)
                 await #expect(throws: MiraError.self) {
                     try await app.contextNotices(
                         sessionID: address.sessionID, executionIDs: [address.executionID], workspaceID: .init())
@@ -119,7 +113,7 @@ struct MemoryHistoryWorkflowTests {
                 let broken = MemoryApplication(
                     store: store, capturePolicyStore: store, extractionBudgetReader: extraction, extractionStatusReader: extraction,
                     reader: .init(journal: f.library, payloads: MissingHistoryRequest(base: f.library)),
-                    privacyHistory: plans, access: f.access, scope: f.scope)
+                    access: f.access, scope: f.scope)
                 await #expect(throws: MiraError.self) {
                     try await broken.contextNotices(
                         sessionID: address.sessionID,
@@ -132,19 +126,17 @@ struct MemoryHistoryWorkflowTests {
                 }
             } catch {
                 await app.close()
-                await plans.close()
                 await extraction.close()
                 throw error
             }
-            await plans.close()
             await extraction.close()
         }
     }
 }
 
-private struct MissingHistoryRequest: SessionPayloadReader {
+private struct MissingHistoryRequest: SessionContentReader {
     let base: FileSessionLibrary
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         if reference.kind == .request { throw MiraError(.storage, "Synthetic missing request body.") }
         return try await base.read(reference)
     }

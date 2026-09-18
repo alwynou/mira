@@ -12,7 +12,7 @@ flowchart TB
     Library --> Storage[MacLibraryStorage：物理存储所有者]
     Library --> Group[MacLibraryWorkloads：可替换工作组]
     Library --> Modules[库作用域模块与维护处理器]
-    Storage --> Journal[FileSessionLibrary：日志与独立正文]
+    Storage --> Journal[FileSessionLibrary：规范日志与有界内联内容]
     Storage --> Business[Business.sqlite：领域事实、回执与库授权]
     Storage --> Projection[Projections：可重建的查询元数据]
     Group --> App[AgentApplicationRuntime]
@@ -110,4 +110,4 @@ sequenceDiagram
 
 ## 会话全文检索的工作组所有权
 
-`MacLibraryStorage` 拥有 `Projections/Search.sqlite` 的 `SQLiteSessionSearchIndex`，`MacLibraryWorkloads` 直接公开作用域内的 `SessionSearchService`。工作组关闭先排空查询与索引追赶，再允许物理索引关闭。`SessionPrivacyProjections` 同时登记全文索引，记忆／知识隐私维护清理后验证其为空；新工作组首次搜索从保留日志重建。正文派生缓存不进入归档。能力与执行流程见[搜索契约](SEARCH.md#新核心会话搜索)。本次没有新增搜索界面。
+`MacLibraryStorage` 拥有 `Projections/Search.sqlite` 的 `SQLiteSessionSearchIndex`，`MacLibraryWorkloads` 直接公开作用域内的 `SessionSearchService`。工作组关闭先排空查询与索引追赶，再允许物理索引关闭。全文索引是可删除、可重建的日志派生缓存；新工作组首次搜索从当前日志前缀重建。正文派生缓存不进入归档。能力与执行流程见[搜索契约](SEARCH.md#新核心会话搜索)。本次没有新增搜索界面。

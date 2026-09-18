@@ -2,7 +2,7 @@
 
 <!-- Simplified Chinese documentation is explicitly requested by the user on 2026-09-12. -->
 
-本文描述无 UI 执行内核的当前契约。它组装了[模型与上下文契约](AGENT_CORE_PROPOSAL.md)及[工具与业务回执](AGENT_TOOL_EXECUTION.md)，仍属于核心重建的中间交付。[应用级接纳与任务所有权](AGENT_APPLICATION_RUNTIME.md)已有无 UI 组合；生产领域模块、隐私维护、备份与原生宿主切换继续按[实施计划](../engineering/AGENT_CORE_IMPLEMENTATION_PLAN.md)推进。
+本文描述无 UI 执行内核的当前契约。它组装了[模型与上下文契约](AGENT_CORE_PROPOSAL.md)及[工具与业务回执](AGENT_TOOL_EXECUTION.md)，仍属于核心重建的中间交付。[应用级接纳与任务所有权](AGENT_APPLICATION_RUNTIME.md)已有无 UI 组合；生产领域模块、备份与原生宿主切换继续按[实施计划](../engineering/AGENT_CORE_IMPLEMENTATION_PLAN.md)推进。
 
 ## 所有权与扩展边界
 
@@ -16,13 +16,13 @@ flowchart TB
   Kernel --> Driver[可替换 AgentDriver]
   Driver --> Context[受限 AgentRunContext]
   Context --> Kernel
-  Kernel --> Model[模型执行器\n调度、请求、流与草稿]
+  Kernel --> Model[模型执行器\n调度、请求、流与结算]
   Kernel --> Tool[工具执行器\n审批、授权、意图与回执]
   Kernel --> Finalizer[唯一终态结算所有者]
   Model --> Session[会话命令通道与状态归约]
   Tool --> Session
   Finalizer --> Session
-  Session --> Journal[SessionJournal / SessionPayloadStore]
+  Session --> Journal[SessionJournal\n日志事件与有界内联内容]
   Tool --> Business[领域事务与业务回执端口]
   Model --> Adapter[当前代次的模型适配器]
 ```
@@ -101,7 +101,7 @@ flowchart TD
 
 `modelPreparationTimeoutMilliseconds` 是执行限制的独立必需字段，默认 30,000 ms，合法范围为 1–3,600,000 ms。接纳时随完整计划冻结；不会在读取缺少字段的旧计划时补默认值。它覆盖本回合轨迹重放、权威历史读取、贡献器收集、全部预算重排、纯适配器准备及最后资格校验，成功后才进入模型额度排队与尝试接纳。重试复用已经冻结的请求，不重新启动本步骤准备。
 
-不可变的 `AgentModelPreparation` 在内核 actor 之外执行，避免同步适配器计算占住内核，阻塞取消和期限处理。内核拥有准备任务和计时任务；期限到达先锁定本次执行的失败状态，取消原操作，再等待两个任务退出。计时器异常使用固定 interrupted 诊断。锁定后驱动器即使捕获错误，也不能再调用模型或工具；迟到的准备结果必须丢弃，不生成请求尝试、草稿或模型派发。
+不可变的 `AgentModelPreparation` 在内核 actor 之外执行，避免同步适配器计算占住内核，阻塞取消和期限处理。内核拥有准备任务和计时任务；期限到达先锁定本次执行的失败状态，取消原操作，再等待两个任务退出。计时器异常使用固定 interrupted 诊断。锁定后驱动器即使捕获错误，也不能再调用模型或工具；迟到的准备结果必须丢弃，不生成请求尝试或模型派发。
 
 准备期限与流式模型期限、总执行期限分别计时。准备阶段不占模型额度；取得额度后才启动模型尝试期限，总执行期限仍约束整个回合。超时和取消均遵循协作退出：不可合作的贡献器、同步 `prepare` 或时钟可以延迟物理排空。内核在排空前保留作用域租约，不提前发布终态或清理仍被调用的模块；Swift Task 取消不是强制终止。适配器的长计算应主动检查取消，准备接口仍禁止凭据读取、网络请求和业务副作用。
 
@@ -119,33 +119,11 @@ flowchart TB
 
 图示导出：[模型准备期限 SVG](diagrams/agent-model-preparation.svg) · [PNG](diagrams/agent-model-preparation.png)。
 
-### 草稿定时检查点
+### Process-local model streams
 
-请求持久化并派发模型后，执行器同时拥有事件转发任务、独立的 250 ms 持久草稿计时任务和 100 ms 可见输出计时任务。三者进入同一个有界通道：最多预存一条模型事件，发送方等待消费者接收；每种计时信号分别合并为一个。只有主消费者修改流归约器、草稿基线和检查点状态，计时器本身不能写日志。持久计时信号优先，其次是可见刷新，再处理待接收事件；持续的小事件不会使计时刷新饥饿。
+After request evidence is committed, the executor owns an event forwarding task and a 100 ms live-output timer feeding one bounded channel. Only the consumer mutates the accumulator and stream recorder. Streaming writes no journal batches. Completed and failed attempts commit output, continuation, usage and recorded stream once; tool proposals enter the same settlement batch.
 
-文本与当前步骤思考的字节长度相对上次检查点变化合计达到 4,096，或计时信号到达且存在已消费的新事件时，消费者提交草稿补丁。暂停的流仍能保存小于 4 KiB 的内容；相同长度的思考／续接变化也由计时路径覆盖。没有事件、没有未保存变化时，计时器不创建日志批次。检查点中的 transcript 继续包含完整的思考状态与不透明续接、工具调用和用量，当前步骤的可见思考会接到之前步骤的已保存思考之后。
-
-每次消费均复核当前会话与执行资格，实际提交继续由串行命令通道验证尝试和草稿基线。正常 EOF 与非取消错误会补齐最后的有效草稿；取消、撤权和持久结果不确定时不能绕过关口追加“最后一次”内容，恢复保留最后已确认的检查点。失败的检查点只按原批次核对，不用错误批次覆盖，也不会再次派发模型。计时器自身失败会结束本次操作，并使用固定诊断。
-
-结束、取消或失败会取消三个任务、关闭通道以唤醒挂起的发送／读取，并立即进入模型操作的 `close()`。只有计时任务、转发任务及实际传输都排空后，才能释放模型额度或发布尝试结果。250 ms 是节拍设置，不是慢磁盘、繁忙执行器或正在进行的日志提交下的绝对同步落盘保证；最坏延迟仍需性能测量。
-
-```mermaid
-flowchart TB
-    Events[模型事件：保持顺序] --> Channel[有界通道：一条事件及两种合并信号]
-    Timer[独立 250 ms 节拍] --> Channel
-    Live[独立 100 ms 可见节拍] --> Channel
-    Channel --> Consumer[单一消费者：归约与资格检查]
-    Consumer --> Journal[有变化时串行提交草稿补丁]
-    Consumer --> Output[最新可见快照：复核尝试与库租约]
-    Consumer --> Stop[结束／错误／取消]
-    Stop --> Cancel[取消子任务并关闭通道]
-    Cancel --> Drain[等待计时、转发与模型传输排空]
-    Drain --> Release[返回结果／错误并释放模型额度]
-```
-
-图示导出：[草稿检查点 SVG](diagrams/agent-draft-checkpoints.svg) · [PNG](diagrams/agent-draft-checkpoints.png)。
-
-可见输出通过独立的[实时通知契约](AGENT_LIVE_OUTPUT.md)交付，只包含回答与可见思考。执行器为可见写入者和真实模型操作分别登记资源：正常路径保留可见值直到最终草稿／尝试解决记录提交，取消、撤权或流处理失败则先清空可见值，再继续排空生产者。实时快照没有发布成功终态的权力。
+Orderly cancellation drains the producer before the kernel obtains `interruptedAttempts()` and combines the last consumed prefix with previously settled output. Source authorization and unique terminal settlement still apply. A hard crash loses unresolved output; restart uses committed attempts and business receipts, without dispatching a model or tool. There is no draft timer, patch schema or checkpoint reader. See [live output](AGENT_LIVE_OUTPUT.md) and [session log](AGENT_SESSION_LOG.md).
 
 ## 限制、取消和结算
 
@@ -157,7 +135,7 @@ flowchart TB
 
 取消先在会话运行时登记意图，再取消模型／工具任务并建立业务写入禁止标记。取消完成反馈不等于底层工具已被强制终止；已提交的本地业务回执必须先核对。未知外部写入结果不允许继续模型步骤，也不会在恢复中再次调用原工具。
 
-结算由独立所有者持有稳定命令 ID。存储确认丢失只核对该批次，不重新执行模型或工具；重试成功同样释放原能力目录租约。[来源授权](AGENT_SOURCE_AUTHORIZATION.md)要求上下文明确携带完整冻结目的地。来源在最终检查时明确被撤销，则落为中断终态并阻止正文、思考和隐藏重放发布；该检查也覆盖含可见草稿的失败、取消及恢复终态。可重试的存储读取失败继续保留原结算意图。来源隐私的跨会话传递清理仍由后续 P4 的维护协议完成。
+结算由独立所有者持有稳定命令 ID。存储确认丢失只核对该批次，不重新执行模型或工具；重试成功同样释放原能力目录租约。[来源授权](AGENT_SOURCE_AUTHORIZATION.md)要求上下文明确携带完整冻结目的地。来源在最终检查时明确不再满足授权，或日志内容无法通过身份与完整性校验，则落为中断终态并阻止内容、思考和隐藏重放发布；该检查也覆盖含输出的失败、取消及恢复终态。可重试的存储读取失败继续保留原结算意图。
 
 实际测试命令、范围与尚未验收的部分记录在[验证记录](../engineering/AGENT_CORE_VERIFICATION.md)。
 

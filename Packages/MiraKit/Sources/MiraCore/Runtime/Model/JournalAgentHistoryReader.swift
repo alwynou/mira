@@ -46,10 +46,116 @@ public struct AgentSessionHistory: Sendable, Equatable {
 public struct JournalAgentHistoryReader: Sendable {
     private static let maximumAllowedMessages = 254
     private static let maximumAllowedBytes = 6 * 1_024 * 1_024
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
 
-    public init(payloads: any SessionPayloadReader) {
+    public init(payloads: any SessionContentReader) {
         self.payloads = payloads
+    }
+
+    /// Returns the sources committed by model requests and tool proposals for an
+    /// execution. Tool plans are part of the durable provenance even when their
+    /// result is absent, so callers must authorize this complete set before
+    /// exposing a replay or terminal content.
+    func readExecutionSources(execution: SessionExecutionState, state: SessionState,
+                              route: AgentModelRoute? = nil,
+                              resolvedOnly: Bool = false) async throws -> [AgentSourceReference] {
+        var sources: [AgentSourceReference] = []
+        for attemptID in execution.attemptIDs {
+            guard let attempt = state.attempts[attemptID], attempt.attempt.request.kind == .request else {
+                throw MiraError(.storage, "The committed model request is unavailable.")
+            }
+            if resolvedOnly, attempt.resolution == nil { continue }
+            let request = try await readBuild(attempt.attempt.request, state: state)
+            guard request.request.sessionID == state.id,
+                  request.request.executionID == execution.admission.executionID,
+                  request.request.workspaceID == state.header?.workspaceID,
+                  request.sources.count <= 8_192,
+                  let buildRoute = request.request.destination.modelRoute,
+                  route.map({ $0 == buildRoute }) ?? true else {
+                throw MiraError(.storage, "The committed model request evidence is inconsistent.")
+            }
+            try request.validate(for: buildRoute)
+            sources += request.sources
+            for invocationID in attempt.invocationIDs {
+                guard let invocation = state.invocations[invocationID] else {
+                    throw MiraError(.storage, "The committed tool invocation is unavailable.")
+                }
+                if let reference = invocation.intent?.intent.proposal {
+                    let proposal = try SessionCodec.decode(AgentToolProposal.self,
+                        from: try await payloads.read(reference))
+                    try proposal.validate()
+                    sources += proposal.plan.sources
+                }
+            }
+        }
+        return AgentContextBuild.orderedSources(sources)
+    }
+
+    /// Rebuilds the active execution exchange from committed attempt and tool facts.
+    /// An unsettled suffix is intentionally omitted; the kernel may only prepare a
+    /// next step after the preceding tool exchange has committed completely.
+    public func readCurrentExecution(state: SessionState, request: AgentContextRequest,
+                                     route: AgentModelRoute,
+                                     authorizer: (any AgentSourceAuthorizer)? = nil) async throws -> AgentContextHistory {
+        guard request.destination == .model(route), state.id == request.sessionID,
+              state.authorizationEpoch == request.authorizationEpoch,
+              state.activeExecutionID == request.executionID,
+              state.header?.workspaceID == request.workspaceID,
+              !state.supersededExecutionIDs.contains(request.executionID),
+              let execution = state.executions[request.executionID] else {
+            throw MiraError(.unauthorized, "The current execution history request is stale.")
+        }
+        var messages: [AgentModelMessage] = []
+        var sources: [AgentSourceReference] = []
+        for attemptID in execution.attemptIDs {
+            guard let attempt = state.attempts[attemptID],
+                  let resolution = attempt.resolution,
+                  resolution.status == .completed,
+                  let outputReference = resolution.output,
+                  outputReference.kind == .modelOutput else { break }
+            let output = try SessionCodec.decode(AgentModelOutput.self, from: try await payloads.read(outputReference))
+            try output.validate(for: route, replay: true)
+            messages.append(output.message)
+            let persisted = try await readBuild(attempt.attempt.request, state: state)
+            guard persisted.request == request, persisted.request.destination == .model(route) else {
+                throw MiraError(.storage, "The committed model request does not match the current execution.")
+            }
+            try persisted.validate(for: route)
+            sources += persisted.sources
+
+            guard attempt.invocationIDs.count == output.toolCalls.count else {
+                throw MiraError(.storage, "The committed tool exchange is inconsistent with its model output.")
+            }
+            for invocationID in attempt.invocationIDs.sorted(by: { lhs, rhs in
+                (state.invocations[lhs]?.invocation.modelOrder ?? .max) < (state.invocations[rhs]?.invocation.modelOrder ?? .max)
+            }) {
+                guard let invocation = state.invocations[invocationID],
+                      let resolution = invocation.resolution,
+                      invocation.invocation.modelOrder < output.toolCalls.count,
+                      invocation.invocation.call.kind == .toolCall else {
+                    throw MiraError(.conflict, "The current model step is waiting for committed tool results.")
+                }
+                let recordedCall = try SessionCodec.decode(CanonicalToolCall.self,
+                    from: try await payloads.read(invocation.invocation.call))
+                guard recordedCall == output.toolCalls[invocation.invocation.modelOrder] else {
+                    throw MiraError(.storage, "The committed tool call differs from its model output.")
+                }
+                let call = output.toolCalls[invocation.invocation.modelOrder]
+                if let reference = invocation.intent?.intent.proposal {
+                    let proposal = try SessionCodec.decode(AgentToolProposal.self, from: try await payloads.read(reference))
+                    try proposal.validate()
+                    sources += proposal.plan.sources
+                }
+                let observation = try SessionToolObservation.value(resolution)
+                messages.append(.init(role: .tool, blocks: [.init(
+                    id: "result-\(call.id)",
+                    content: .toolResult(callID: call.id, text: try observation.jsonString())
+                )]))
+            }
+        }
+        let orderedSources = AgentContextBuild.orderedSources(sources)
+        if let authorizer, !orderedSources.isEmpty { try await authorizer.validate(orderedSources, for: request) }
+        return .init(messages: messages, sources: orderedSources)
     }
 
     public func read(state: SessionState, request: AgentContextRequest,
@@ -64,7 +170,7 @@ public struct JournalAgentHistoryReader: Sendable {
         guard request.destination == .model(route), state.id == request.sessionID, state.authorizationEpoch == request.authorizationEpoch,
               state.activeExecutionID == request.executionID,
               state.header?.workspaceID == request.workspaceID,
-              !state.excludedExecutionIDs.contains(request.executionID),
+              !state.supersededExecutionIDs.contains(request.executionID),
               let currentExecution = state.executions[request.executionID],
               let currentIndex = state.executionOrder.firstIndex(of: request.executionID) else {
             throw MiraError(.unauthorized, "The session history request is stale.")
@@ -74,7 +180,7 @@ public struct JournalAgentHistoryReader: Sendable {
         }
         try Task.checkCancellation()
         var latestByUser: [MessageID: Int] = [:]
-        var originalBodies: [MessageID: SessionPayloadReference] = [:]
+        var originalBodies: [MessageID: SessionContent] = [:]
         for index in 0..<currentIndex {
             try Task.checkCancellation()
             let executionID = state.executionOrder[index]
@@ -82,22 +188,16 @@ public struct JournalAgentHistoryReader: Sendable {
                originalBodies[admission.userMessageID] == nil {
                 originalBodies[admission.userMessageID] = body
             }
-            guard !state.excludedExecutionIDs.contains(executionID),
+            guard !state.supersededExecutionIDs.contains(executionID),
                   let execution = state.executions[executionID],
                   execution.admission.userMessageID != currentExecution.admission.userMessageID,
                   let completion = execution.completion else { continue }
-            let hasCompletedReplay = completion.status == .completed && completion.replay != nil
+            let hasCompletedReplay = completion.status == .completed
             let hasPartialAnswer = [.cancelled, .interrupted].contains(completion.status)
             guard hasCompletedReplay || hasPartialAnswer else { continue }
-            if hasCompletedReplay {
-                guard let replayReference = completion.replay,
-                      !state.invalidatedRetentionGroups.contains(replayReference.retentionGroup),
-                      state.references[replayReference.id] == replayReference,
-                      replayReference.kind == .replay else { continue }
-            } else {
+            if !hasCompletedReplay {
                 if let answer = completion.answer {
-                    guard state.references[answer.id] == answer,
-                          !state.invalidatedRetentionGroups.contains(answer.retentionGroup),
+                    guard answer.kind == .visibleAnswer,
                           completion.assistantMessageID != nil else { continue }
                 } else {
                     if completion.visibleThinking == nil {
@@ -123,34 +223,73 @@ public struct JournalAgentHistoryReader: Sendable {
             try Task.checkCancellation()
             var messages: [AgentModelMessage]
             let sources: [AgentSourceReference]
-            if completion.status == .completed, let replayReference = completion.replay,
-               let value = try await readReplay(replayReference, state: state) {
-                guard value.sources.count <= 8_192 else { throw MiraError(.storage, "The historical replay transcript is invalid.") }
-                for source in value.sources { try source.validate() }
-                sources = AgentContextBuild.orderedSources(value.sources + [
-                    .sessionExecution(sessionID: state.id, executionID: executionID)
-                ])
-                guard let transformed = try replayMessages(value.messages, sourceRoute: try await readRoute(execution.admission, state: state),
-                    route: route, adapter: adapter, executionID: executionID) else { continue }
-                messages = transformed
+            if completion.status == .completed {
+                if execution.attemptIDs.isEmpty {
+                    guard let answer = completion.answer else { continue }
+                    let text = try await readAnswer(answer, state: state)
+                    guard !text.isEmpty else { continue }
+                    sources = [.sessionExecution(sessionID: state.id, executionID: executionID)]
+                    messages = [.init(role: .assistant,
+                        blocks: [.init(id: "answer", content: .text(text))])]
+                } else {
+                    let derived = try await readCommittedExchange(execution: execution, state: state)
+                    guard derived.complete else { continue }
+                    sources = AgentContextBuild.orderedSources(derived.sources + [
+                        .sessionExecution(sessionID: state.id, executionID: executionID)
+                    ])
+                    guard let sourceRoute = try await readRoute(execution.admission, state: state),
+                          let transformed = try replayMessages(derived.messages, sourceRoute: sourceRoute,
+                                                               route: route, adapter: adapter, executionID: executionID) else { continue }
+                    messages = transformed
+                }
             } else if [.cancelled, .interrupted].contains(completion.status) {
                 guard let recorded = try await readRecordedSources(execution: execution, state: state) else { continue }
                 sources = AgentContextBuild.orderedSources(recorded + [
                     .sessionExecution(sessionID: state.id, executionID: executionID)
                 ])
-                messages = []
+                let derived = try await readCommittedExchange(execution: execution, state: state)
+                if derived.messages.isEmpty {
+                    messages = []
+                } else {
+                    guard let sourceRoute = try await readRoute(execution.admission, state: state),
+                          let transformed = try replayMessages(derived.messages, sourceRoute: sourceRoute,
+                                                               route: route, adapter: adapter,
+                                                               executionID: executionID,
+                                                               allowToolTerminated: !derived.complete) else { continue }
+                    messages = transformed
+                }
+                var partialBlocks: [AgentModelBlock] = []
+                if let thinking = completion.visibleThinking {
+                    let text = try await readThinking(thinking, state: state)
+                    if !text.isEmpty { partialBlocks.append(.init(id: "incomplete-thinking", content: .thinking(text))) }
+                }
                 if let answer = completion.answer {
                     let text = try await readAnswer(answer, state: state)
-                    guard !text.isEmpty else { continue }
-                    messages.append(.init(role: .assistant,
-                        blocks: [.init(id: "incomplete-answer", content: .text(text))]))
+                    if !text.isEmpty { partialBlocks.append(.init(id: "incomplete-answer", content: .text(text))) }
                 }
+                if !partialBlocks.isEmpty { messages.append(.init(role: .assistant, blocks: partialBlocks)) }
                 messages.append(.init(role: .assistant, blocks: [.init(id: "incomplete-history",
                     content: .text("[The preceding assistant response was interrupted and is incomplete.]"))]))
             } else { continue }
             // The exchange's own provenance consumes the same finite source budget as domain references.
             guard sources.count <= 8_192 else { continue }
-            try await authorizer.validate(sources, for: request)
+            do {
+                try await authorizer.validate(sources, for: request)
+            } catch let error as MiraError where error.code == .unauthorized {
+                // A historical domain source may have been revoked or advanced
+                // since the exchange was committed. Omit that exchange rather
+                // than turning a fresh request into a failed execution. The
+                // session execution source remains a hard liveness boundary:
+                // if it cannot be authorized, propagate the denial.
+                let sessionSources = sources.filter {
+                    if case .sessionExecution = $0 { return true }
+                    return false
+                }
+                if !sessionSources.isEmpty {
+                    try await authorizer.validate(sessionSources, for: request)
+                }
+                continue
+            }
             try Task.checkCancellation()
             let exchange = AgentHistoryExchange(
                 messages: [AgentModelMessage(role: .user, blocks: [AgentModelBlock(id: "user", content: .text(userBody))])] + messages,
@@ -168,9 +307,8 @@ public struct JournalAgentHistoryReader: Sendable {
         return .init(exchanges: selected.sorted(by: { $0.index < $1.index }).map(\.exchange))
     }
 
-    private func readOriginalUser(_ reference: SessionPayloadReference?, state: SessionState) async throws -> String {
-        guard let reference, state.references[reference.id] == reference,
-              !state.invalidatedRetentionGroups.contains(reference.retentionGroup) else {
+    private func readOriginalUser(_ reference: SessionContent?, state: SessionState) async throws -> String {
+        guard let reference else {
             throw MiraError(.storage, "The historical user message is unavailable.")
         }
         guard let body = String(data: try await payloads.read(reference), encoding: .utf8) else {
@@ -179,60 +317,110 @@ public struct JournalAgentHistoryReader: Sendable {
         return body
     }
 
-    private func readReplay(_ reference: SessionPayloadReference, state: SessionState) async throws -> AgentReplayRecord? {
-        guard let committed = state.references[reference.id], committed == reference else { return nil }
-        guard reference.kind == .replay else { throw MiraError(.storage, "The historical replay reference has the wrong kind.") }
-        return try SessionCodec.decode(AgentReplayRecord.self, from: try await payloads.read(reference))
+    private struct CommittedExchange: Sendable {
+        let messages: [AgentModelMessage]
+        let sources: [AgentSourceReference]
+        let complete: Bool
     }
 
-    private func readAnswer(_ reference: SessionPayloadReference, state: SessionState) async throws -> String {
-        guard let committed = state.references[reference.id], committed == reference,
-              reference.kind == .visibleAnswer,
-              !state.invalidatedRetentionGroups.contains(reference.retentionGroup),
+    private func readCommittedExchange(execution: SessionExecutionState, state: SessionState) async throws -> CommittedExchange {
+        var messages: [AgentModelMessage] = []
+        var sources: [AgentSourceReference] = []
+        for attemptID in execution.attemptIDs {
+            guard let attempt = state.attempts[attemptID], let resolution = attempt.resolution,
+                  resolution.status == .completed, let outputReference = resolution.output,
+                  outputReference.kind == .modelOutput else { return .init(messages: messages, sources: sources, complete: false) }
+            let output = try SessionCodec.decode(AgentModelOutput.self, from: try await payloads.read(outputReference))
+            guard let sourceRoute = try await readRoute(execution.admission, state: state) else {
+                return .init(messages: messages, sources: sources, complete: false)
+            }
+            try output.validate(for: sourceRoute, replay: true)
+            // Validate and assemble one model/tool round before publishing it to
+            // the partial transcript. An interrupted suffix may contain an
+            // assistant tool call without a committed result; that suffix is
+            // not a replayable exchange and must not escape as history.
+            var roundMessages: [AgentModelMessage] = [output.message]
+            var roundSources: [AgentSourceReference] = []
+            let request = try await readBuild(attempt.attempt.request, state: state)
+            guard request.request.sessionID == state.id,
+                  request.request.executionID == execution.admission.executionID,
+                  request.request.workspaceID == state.header?.workspaceID,
+                  request.request.destination.modelRoute == sourceRoute else {
+                throw MiraError(.storage, "The committed model request evidence is inconsistent.")
+            }
+            try request.validate(for: sourceRoute)
+            roundSources += request.sources
+            guard attempt.invocationIDs.count == output.toolCalls.count else {
+                throw MiraError(.storage, "The committed tool exchange is inconsistent with its model output.")
+            }
+            for invocationID in attempt.invocationIDs.sorted(by: { lhs, rhs in
+                (state.invocations[lhs]?.invocation.modelOrder ?? .max) < (state.invocations[rhs]?.invocation.modelOrder ?? .max)
+            }) {
+                guard let invocation = state.invocations[invocationID],
+                      let resolution = invocation.resolution,
+                      invocation.invocation.modelOrder < output.toolCalls.count,
+                      invocation.invocation.call.kind == .toolCall else {
+                    return .init(messages: messages, sources: sources, complete: false)
+                }
+                let recordedCall = try SessionCodec.decode(CanonicalToolCall.self,
+                    from: try await payloads.read(invocation.invocation.call))
+                guard recordedCall == output.toolCalls[invocation.invocation.modelOrder] else {
+                    return .init(messages: messages, sources: sources, complete: false)
+                }
+                if let reference = invocation.intent?.intent.proposal {
+                    let proposal = try SessionCodec.decode(AgentToolProposal.self, from: try await payloads.read(reference))
+                    try proposal.validate()
+                    roundSources += proposal.plan.sources
+                }
+                let observation: JSONValue
+                do {
+                    observation = try SessionToolObservation.value(resolution)
+                } catch {
+                    return .init(messages: messages, sources: sources, complete: false)
+                }
+                roundMessages.append(.init(role: .tool, blocks: [.init(id: "result-\(recordedCall.id)",
+                    content: .toolResult(callID: recordedCall.id, text: try observation.jsonString()))]))
+            }
+            messages.append(contentsOf: roundMessages)
+            sources.append(contentsOf: roundSources)
+        }
+        return .init(messages: messages, sources: AgentContextBuild.orderedSources(sources), complete: true)
+    }
+
+    private func readBuild(_ reference: SessionContent, state: SessionState) async throws -> AgentSessionRequest {
+        guard reference.kind == .request else {
+            throw MiraError(.storage, "The committed model request is unavailable.")
+        }
+        return try SessionCodec.decode(AgentSessionRequest.self, from: try await payloads.read(reference))
+    }
+
+    private func readAnswer(_ reference: SessionContent, state: SessionState) async throws -> String {
+        guard reference.kind == .visibleAnswer,
               let value = String(data: try await payloads.read(reference), encoding: .utf8) else {
             throw MiraError(.storage, "The incomplete historical answer is unavailable.")
         }
         return value
     }
 
+    private func readThinking(_ reference: SessionContent, state: SessionState) async throws -> String {
+        guard reference.kind == .visibleThinking,
+              let value = String(data: try await payloads.read(reference), encoding: .utf8) else {
+            throw MiraError(.storage, "The incomplete historical thinking is unavailable.")
+        }
+        return value
+    }
+
     private func readRecordedSources(execution: SessionExecutionState, state: SessionState) async throws -> [AgentSourceReference]? {
         guard execution.attemptIDs.count <= 256 else { return nil }
-        // Check every reference before reading any hidden request payload. A partial
-        // exchange must never resurrect a request invalidated by privacy maintenance.
-        for attemptID in execution.attemptIDs {
-            guard let attempt = state.attempts[attemptID],
-                  attempt.resolution != nil,
-                  state.references[attempt.attempt.request.id] == attempt.attempt.request,
-                  attempt.attempt.request.kind == .request,
-                  !state.invalidatedRetentionGroups.contains(attempt.attempt.request.retentionGroup) else {
-                return nil
-            }
-        }
-        var sources = Set<AgentSourceReference>()
-        for attemptID in execution.attemptIDs {
-            guard let attempt = state.attempts[attemptID] else { return nil }
-            let build = try SessionCodec.decode(AgentContextBuild.self,
-                from: try await payloads.read(attempt.attempt.request))
-            guard build.request.sessionID == state.id,
-                  build.request.executionID == execution.admission.executionID,
-                  build.request.workspaceID == state.header?.workspaceID,
-                  build.sources.count <= 8_192 else {
-                throw MiraError(.storage, "The incomplete historical request evidence is inconsistent.")
-            }
-            guard let sourceRoute = build.request.destination.modelRoute else {
-                throw MiraError(.storage, "The incomplete historical request destination is unavailable.")
-            }
-            try build.prepared.validate(for: sourceRoute)
-            for source in build.sources { try source.validate() }
-            sources.formUnion(build.sources)
-            guard sources.count <= 65_536 else { return nil }
-        }
-        return sources.sorted(by: AgentSourceReference.ordered)
+        // Resolve the complete set of committed request and tool-proposal sources.
+        let sources = try await readExecutionSources(execution: execution, state: state, resolvedOnly: true)
+        guard sources.count <= 65_536 else { return nil }
+        return sources
     }
 
     private func readRoute(_ admission: SessionAdmission, state: SessionState) async throws -> AgentModelRoute? {
         let reference = admission.plan
-        guard state.references[reference.id] == reference, reference.kind == .executionPlan else {
+        guard reference.kind == .executionPlan else {
             throw MiraError(.storage, "The historical route reference is unavailable.")
         }
         return try await AgentExecutionPlan.read(for: admission, from: payloads).route
@@ -240,11 +428,16 @@ public struct JournalAgentHistoryReader: Sendable {
 
     private func replayMessages(_ messages: [AgentModelMessage], sourceRoute: AgentModelRoute?,
                                 route: AgentModelRoute, adapter: any AgentModelAdapter,
-                                executionID: ExecutionID) throws -> [AgentModelMessage]? {
+                                executionID: ExecutionID,
+                                allowToolTerminated: Bool = false) throws -> [AgentModelMessage]? {
         guard !messages.isEmpty, messages.count <= 256,
-              let last = messages.last, last.role == .assistant, last.toolCalls.isEmpty,
               messages.allSatisfy({ $0.role == .assistant || $0.role == .tool }) else {
             throw MiraError(.malformedStream, "The historical replay transcript is invalid.")
+        }
+        if !allowToolTerminated {
+            guard let last = messages.last, last.role == .assistant, last.toolCalls.isEmpty else {
+                throw MiraError(.malformedStream, "The historical replay transcript is invalid.")
+            }
         }
         let sourceInput = AgentModelInput(stepID: UUID(), executionID: executionID,
             instructions: "", messages: messages, tools: [])

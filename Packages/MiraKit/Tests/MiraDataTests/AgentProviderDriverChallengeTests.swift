@@ -21,10 +21,9 @@ struct AgentProviderDriverChallengeTests {
             #expect(output.continuation == ChallengeProvider.continuation)
             let requestReference = try #require(
                 first.attempts.values.max(by: { $0.sequence < $1.sequence })?.attempt.request)
-            let build = try SessionCodec.decode(
-                AgentContextBuild.self, from: await f.data.library.read(requestReference))
-            #expect(
-                build.prepared.input.messages.contains { $0.continuation == ChallengeProvider.continuation })
+            let request = try SessionCodec.decode(
+                AgentSessionRequest.self, from: await f.data.library.read(requestReference))
+            #expect(request.contextMessages.allSatisfy { $0.role == .context })
 
             let second = try await f.run(session: session)
             #expect(second.executions.count == 2)

@@ -26,8 +26,8 @@ struct SessionExecutionSourceTests {
         await fixture.close()
     }
 
-    @Test func onlyCompletedReplayableExecutionsResolve() async throws {
-        for kind in [SourceFixture.Kind.active, .failed, .completedWithoutReplay] {
+    @Test func onlyCompletedExecutionsResolve() async throws {
+        for kind in [SourceFixture.Kind.active, .failed] {
             let fixture = try await SourceFixture.make(kind: kind)
             await expectCode(.unauthorized) { _ = try await fixture.reader.executionSources([fixture.source]) }
             await fixture.close()
@@ -45,32 +45,8 @@ struct SessionExecutionSourceTests {
             #expect(evidence.source == fixture.source)
             #expect(evidence.originalUser.originalExecutionID == fixture.originalExecutionID)
             #expect(evidence.originalUser.userMessageID == fixture.userMessageID)
-            #expect(evidence.replay?.kind == .replay)
             #expect(evidence.workspaceID == fixture.workspaceID)
         } catch { await fixture.close(); throw error }
-        await fixture.close()
-    }
-
-    @Test func invalidationDeniesSourceWhileVisibleAnswerRemains() async throws {
-        let fixture = try await SourceFixture.make(kind: .completed)
-        do {
-            let before = try await fixture.reader.executionSources([fixture.source])
-            #expect(before.count == 1)
-            let state = await fixture.runtime.snapshot()
-            let invalidation = await fixture.runtime.commit(id: UUID()) { _ in
-                [.invalidated(.init(operationID: UUID(), executionIDs: [fixture.executionID],
-                    retentionGroups: fixture.hiddenRetentionGroups,
-                    authorizationEpoch: state.authorizationEpoch + 1, reason: .forgotten))]
-            }
-            try requireCommitted(invalidation)
-            await expectCode(.unauthorized) { _ = try await fixture.reader.executionSources([fixture.source]) }
-            let answer = try #require(state.executions[fixture.executionID]?.completion?.answer)
-            #expect(!fixture.hiddenRetentionGroups.contains(answer.retentionGroup))
-            #expect(try await fixture.library.read(answer) == Data("Visible answer".utf8))
-        } catch {
-            await fixture.close()
-            throw error
-        }
         await fixture.close()
     }
 
@@ -87,26 +63,6 @@ struct SessionExecutionSourceTests {
             } catch { await fixture.close(); throw error }
             await fixture.close()
         }
-    }
-
-    @Test func realSourceAuthorizerRejectsInvalidatedIncompleteSource() async throws {
-        let fixture = try await SourceFixture.make(kind: .cancelledPartial)
-        let domains = RuntimeRegistry<any AgentDomainSourceAuthority>()
-        let authorizer = JournalAgentSourceAuthorizer(reader: fixture.reader,
-            policy: AllowingContextPolicy(), domains: domains)
-        let state = await fixture.runtime.snapshot()
-        let invalidation = await fixture.runtime.commit(id: UUID()) { _ in
-            [.invalidated(.init(operationID: UUID(), executionIDs: [fixture.executionID],
-                retentionGroups: fixture.hiddenRetentionGroups,
-                authorizationEpoch: state.authorizationEpoch + 1, reason: .forgotten))]
-        }
-        try requireCommitted(invalidation)
-        let request = AgentContextRequest(sessionID: fixture.sessionID, executionID: ExecutionID(),
-            workspaceID: fixture.workspaceID, userText: "Continue", authorizationEpoch: 0, destination: .local)
-        await expectCode(.unauthorized) {
-            try await authorizer.validate([fixture.source], for: request)
-        }
-        await fixture.close()
     }
 
     @Test func invalidSelectionsRejectWithInvalidInput() async throws {
@@ -183,13 +139,13 @@ private final class SharedSourceFixture: Sendable {
                                  workspaceID: WorkspaceID, text: String) async throws -> Entry {
         let isFirstExecution = await runtime.snapshot().header == nil
         let result = await runtime.commit(id: UUID()) { context in
-            let body = try await context.stageBytes(Data(text.utf8), kind: .userText, retentionGroup: UUID())
+            let body = try await context.stageBytes(Data(text.utf8), kind: .userText)
             let plan = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1,
                 driverID: "mira.default", driverRevision: 1, instructions: "Local", limits: .init(),
-                priority: .foreground, route: nil), kind: .executionPlan, retentionGroup: UUID())
+                priority: .foreground, route: nil), kind: .executionPlan)
             var facts: [SessionFact] = []
             if isFirstExecution {
-                let title = try await context.stageBytes(Data("Session".utf8), kind: .title, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Session".utf8), kind: .title)
                 facts.append(.opened(.init(workspaceID: workspaceID, title: title)))
             }
             facts.append(.admitted(.init(executionID: executionID, userMessageID: messageID, userBody: body,
@@ -200,11 +156,9 @@ private final class SharedSourceFixture: Sendable {
         let settling = await runtime.commit(id: UUID()) { _ in [.phaseChanged(executionID: executionID, phase: .settling)] }
         try requireCommitted(settling)
         let finished = await runtime.commit(id: UUID()) { context in
-            let answer = try await context.stageBytes(Data("Visible answer".utf8), kind: .visibleAnswer, retentionGroup: UUID())
-            let replay = try await context.stage(AgentReplayRecord(messages: [.init(role: .assistant, blocks: [.init(id: "text", content: .text("Historical"))])], sources: []),
-                kind: .replay, retentionGroup: UUID())
+            let answer = try await context.stageBytes(Data("Visible answer".utf8), kind: .visibleAnswer)
             return [.finished(.init(executionID: executionID, status: .completed, assistantMessageID: MessageID(),
-                answer: answer, replay: replay))]
+                answer: answer))]
         }
         try requireCommitted(finished)
         return .init(id: runtime.id, executionID: executionID, messageID: messageID,
@@ -217,7 +171,7 @@ private struct AllowingContextPolicy: AgentContextPolicy {
 }
 
 private final class SourceFixture: Sendable {
-    enum Kind: String { case active, failed, completedWithoutReplay, completed, cancelledPartial, interruptedThinking }
+    enum Kind: String { case active, failed, completed, cancelledPartial, interruptedThinking }
 
     let directory: URL
     let library: FileSessionLibrary
@@ -229,7 +183,6 @@ private final class SourceFixture: Sendable {
     let userMessageID: MessageID
     let source: AgentSourceReference
     let workspaceID: WorkspaceID
-    let hiddenRetentionGroups: Set<UUID>
 
     static func make(kind: Kind, executionID: ExecutionID = ExecutionID()) async throws -> SourceFixture {
         try await make(directoryName: "mira-execution-source", kind: kind, executionID: executionID)
@@ -245,26 +198,22 @@ private final class SourceFixture: Sendable {
             let opened = try await SessionRuntime.open(id: sessionID, journal: library, payloads: library)
             runtime = opened
             let original = try await admit(opened, executionID: originalID, userMessageID: messageID, workspaceID: workspace, text: "Original")
-            _ = try await finish(opened, executionID: originalID, status: .failed, answer: nil, replay: nil)
+            _ = try await finish(opened, executionID: originalID, status: .failed, answer: nil)
             let retryCommit = await opened.commit(id: UUID()) { context in
                 let retryPlan = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1,
                     driverID: "mira.default", driverRevision: 1, instructions: "Retry", limits: .init(),
-                    priority: .foreground, route: nil), kind: .executionPlan, retentionGroup: UUID())
+                    priority: .foreground, route: nil), kind: .executionPlan)
                 let facts: [SessionFact] = [.admitted(.init(executionID: retryID, userMessageID: messageID, retryOfExecutionID: originalID,
                     userBody: nil, plan: retryPlan, hasModelRoute: false, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
                 return facts
             }
             try requireCommitted(retryCommit)
-            let retryPlan = try #require((await opened.snapshot()).executions[retryID]?.admission.plan)
-            let replay = AgentReplayRecord(messages: [.init(role: .assistant, blocks: [.init(id: "text", content: .text("Retry answer"))])], sources: [])
-            let refs = try await finish(opened, executionID: retryID, status: .completed, answer: "Retry answer", replay: replay)
-            let retryReplay = try #require(refs.replay)
+            _ = try await finish(opened, executionID: retryID, status: .completed, answer: "Retry answer")
             let source = AgentSourceReference.sessionExecution(sessionID: sessionID, executionID: retryID)
-            let hidden = Set([original.plan.retentionGroup, retryPlan.retentionGroup, retryReplay.retentionGroup])
             return SourceFixture(directory: directory, library: library, runtime: opened,
                 reader: .init(journal: library, payloads: library), sessionID: sessionID,
                 executionID: retryID, originalExecutionID: originalID, userMessageID: messageID,
-                source: source, workspaceID: workspace, hiddenRetentionGroups: hidden)
+                source: source, workspaceID: workspace)
         } catch {
             await runtime?.close(); try? await library.close(); try? FileManager.default.removeItem(at: directory); throw error
         }
@@ -278,27 +227,19 @@ private final class SourceFixture: Sendable {
             let sessionID = ConversationID(), messageID = MessageID(), workspace = WorkspaceID()
             let opened = try await SessionRuntime.open(id: sessionID, journal: library, payloads: library)
             runtime = opened
-            let admission = try await admit(opened, executionID: executionID, userMessageID: messageID, workspaceID: workspace, text: "Original")
-            var hidden = Set([admission.plan.retentionGroup])
-            var refs = CompletionReferences(plan: admission.plan, replay: nil, answer: nil, thinking: nil)
+            _ = try await admit(opened, executionID: executionID, userMessageID: messageID, workspaceID: workspace, text: "Original")
             if kind != .active {
-                let replay: AgentReplayRecord? = kind == .completed ? .init(messages: [.init(role: .assistant, blocks: [.init(id: "text", content: .text("Historical"))])], sources: []) : nil
                 let partial = kind == .cancelledPartial || kind == .interruptedThinking
-                refs = try await finish(opened, executionID: executionID,
+                _ = try await finish(opened, executionID: executionID,
                     status: kind == .failed ? .failed : (partial ? (kind == .cancelledPartial ? .cancelled : .interrupted) : .completed),
-                    answer: partial && kind == .cancelledPartial ? "Partial answer" : (kind == .completed || kind == .completedWithoutReplay ? "Visible answer" : nil),
-                    thinking: kind == .interruptedThinking ? "Partial thought" : nil, replay: replay)
-                if let replay = refs.replay { hidden.insert(replay.retentionGroup) }
-                if partial {
-                    if let answer = refs.answer { hidden.insert(answer.retentionGroup) }
-                    if let thinking = refs.thinking { hidden.insert(thinking.retentionGroup) }
-                }
+                    answer: partial && kind == .cancelledPartial ? "Partial answer" : (kind == .completed ? "Visible answer" : nil),
+                    thinking: kind == .interruptedThinking ? "Partial thought" : nil)
             }
             let source = AgentSourceReference.sessionExecution(sessionID: sessionID, executionID: executionID)
             return SourceFixture(directory: directory, library: library, runtime: opened,
                 reader: .init(journal: library, payloads: library), sessionID: sessionID,
                 executionID: executionID, originalExecutionID: executionID, userMessageID: messageID,
-                source: source, workspaceID: workspace, hiddenRetentionGroups: hidden)
+                source: source, workspaceID: workspace)
         } catch {
             await runtime?.close(); try? await library.close(); try? FileManager.default.removeItem(at: directory); throw error
         }
@@ -306,27 +247,25 @@ private final class SourceFixture: Sendable {
 
     private init(directory: URL, library: FileSessionLibrary, runtime: SessionRuntime, reader: JournalSessionReader,
                  sessionID: ConversationID, executionID: ExecutionID, originalExecutionID: ExecutionID,
-                 userMessageID: MessageID, source: AgentSourceReference, workspaceID: WorkspaceID,
-                 hiddenRetentionGroups: Set<UUID>) {
+                 userMessageID: MessageID, source: AgentSourceReference, workspaceID: WorkspaceID) {
         self.directory = directory; self.library = library; self.runtime = runtime; self.reader = reader
         self.sessionID = sessionID; self.executionID = executionID; self.originalExecutionID = originalExecutionID
         self.userMessageID = userMessageID; self.source = source; self.workspaceID = workspaceID
-        self.hiddenRetentionGroups = hiddenRetentionGroups
     }
 
     func close() async { await runtime.close(); try? await library.close(); try? FileManager.default.removeItem(at: directory) }
 
-    private struct CompletionReferences { let plan: SessionPayloadReference; let replay: SessionPayloadReference?; let answer: SessionPayloadReference?; let thinking: SessionPayloadReference? }
-    private struct AdmissionReferences { let userBody: SessionPayloadReference; let plan: SessionPayloadReference }
+    private struct CompletionReferences { let answer: SessionContent?; let thinking: SessionContent? }
+    private struct AdmissionReferences { let userBody: SessionContent; let plan: SessionContent }
 
     private static func admit(_ runtime: SessionRuntime, executionID: ExecutionID, userMessageID: MessageID,
                               workspaceID: WorkspaceID, text: String) async throws -> AdmissionReferences {
         let result = await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Session".utf8), kind: .title, retentionGroup: UUID())
-            let user = try await context.stageBytes(Data(text.utf8), kind: .userText, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Session".utf8), kind: .title)
+            let user = try await context.stageBytes(Data(text.utf8), kind: .userText)
             let plan = try await context.stage(AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1,
                 driverID: "mira.default", driverRevision: 1, instructions: "Local", limits: .init(),
-                priority: .foreground, route: nil), kind: .executionPlan, retentionGroup: UUID())
+                priority: .foreground, route: nil), kind: .executionPlan)
             return [.opened(.init(workspaceID: workspaceID, title: title)),
                     .admitted(.init(executionID: executionID, userMessageID: userMessageID, userBody: user,
                         plan: plan, hasModelRoute: false, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]
@@ -336,27 +275,23 @@ private final class SourceFixture: Sendable {
     }
 
     private static func finish(_ runtime: SessionRuntime, executionID: ExecutionID, status: ExecutionStatus,
-                               answer: String?, thinking: String? = nil, replay: AgentReplayRecord?) async throws -> CompletionReferences {
+                               answer: String?, thinking: String? = nil) async throws -> CompletionReferences {
         let settling = await runtime.commit(id: UUID()) { _ in [.phaseChanged(executionID: executionID, phase: .settling)] }
         try requireCommitted(settling)
         let result = await runtime.commit(id: UUID()) { context in
-            let answerRef: SessionPayloadReference?
-            if let answer { answerRef = try await context.stageBytes(Data(answer.utf8), kind: .visibleAnswer, retentionGroup: UUID()) }
+            let answerRef: SessionContent?
+            if let answer { answerRef = try await context.stageBytes(Data(answer.utf8), kind: .visibleAnswer) }
             else { answerRef = nil }
-            let replayRef: SessionPayloadReference?
-            if let replay { replayRef = try await context.stage(replay, kind: .replay, retentionGroup: UUID()) }
-            else { replayRef = nil }
-            let thinkingRef: SessionPayloadReference?
-            if let thinking { thinkingRef = try await context.stageBytes(Data(thinking.utf8), kind: .visibleThinking, retentionGroup: UUID()) }
+            let thinkingRef: SessionContent?
+            if let thinking { thinkingRef = try await context.stageBytes(Data(thinking.utf8), kind: .visibleThinking) }
             else { thinkingRef = nil }
             return [.finished(.init(executionID: executionID, status: status,
                 assistantMessageID: answer == nil && thinking == nil ? nil : MessageID(), answer: answerRef,
-                visibleThinking: thinkingRef, replay: replayRef))]
+                visibleThinking: thinkingRef))]
         }
         try requireCommitted(result)
         let state = await runtime.snapshot(), completion = try #require(state.executions[executionID]?.completion)
-        return .init(plan: state.executions[executionID]!.admission.plan, replay: completion.replay,
-            answer: completion.answer, thinking: completion.visibleThinking)
+        return .init(answer: completion.answer, thinking: completion.visibleThinking)
     }
 }
 

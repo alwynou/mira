@@ -9,8 +9,7 @@
         @Test func seedUsesTheApplicationRuntimeAndLeavesCredentialsUntouched() async throws {
             try await withDirectory { directory in
                 let credentials = CompositionCredentials()
-                let library = try await MacLibrary.open(
-                    directory: directory,
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
                     notifications: CompositionNotifications(),
                     credentials: credentials,
                     modules: { [MacBenchmarkModule(registry: $0)] })

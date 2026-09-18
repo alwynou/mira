@@ -22,7 +22,6 @@ struct SQLiteArchiveSessions {
         var executions: [ExecutionID: SessionEvidenceReference] = [:]
         var executionSequences: [ExecutionID: Int64] = [:]
         var completions: [UUID: Completion] = [:]
-        var invalidations: [UUID: SessionBatch] = [:]
     }
     private(set) var sessions: [ConversationID: Session] = [:]
 
@@ -44,7 +43,7 @@ struct SQLiteArchiveSessions {
                             let reference = SessionEvidenceReference(
                                 sessionID: captured.id, originalExecutionID: admission.executionID,
                                 userMessageID: admission.userMessageID, admissionEventID: event.id,
-                                admissionSequence: event.sequence, body: body)
+                                admissionSequence: event.sequence)
                             session.users[event.id] = User(
                                 reference: reference, admittedAt: event.occurredAt,
                                 timeZoneIdentifier: admission.timeZoneIdentifier,
@@ -61,11 +60,6 @@ struct SQLiteArchiveSessions {
                         session.completions[event.id] = Completion(
                             value: value,
                             head: .init(cursor: batch.cursor, batchID: batch.id))
-                    case .invalidated(let value):
-                        session.authorizationEpoch = max(session.authorizationEpoch, value.authorizationEpoch)
-                        guard session.invalidations.updateValue(batch, forKey: value.operationID) == nil else {
-                            throw LibraryArchiveIO.invalid
-                        }
                     default: break
                     }
                 }

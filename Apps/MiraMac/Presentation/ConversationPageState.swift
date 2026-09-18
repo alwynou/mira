@@ -2,7 +2,7 @@ import Foundation
 import MiraCore
 import Observation
 
-/// A window retains drafts and reading geometry independently of disposable session content.
+/// A window retains settled output and reading geometry independently of disposable session content.
 @MainActor @Observable
 final class ConversationPageState: Identifiable {
     let id = UUID()
@@ -16,7 +16,7 @@ final class ConversationPageState: Identifiable {
     var activities: [ExecutionID: [SessionActivityStep]] = [:]
     @ObservationIgnored var noticeGeneration = 0
     @ObservationIgnored var noticeTask: Task<Void, Never>?
-    var persistedDraft: SessionQueryDraft?
+    var settledOutput: SessionSettledOutput?
     var pendingAdmission: AgentSubmitCommand?
     var pendingAdmissionRuntimeID: UUID?
     var pendingSaveIDs: Set<ExecutionID> = []
@@ -58,7 +58,7 @@ final class ConversationPageState: Identifiable {
     var retryableExecution: SessionExecutionSummary? {
         guard let latestID = session?.summary.latestExecutionID,
             let last = executions.first(where: { $0.id == latestID }), let completion = last.completion,
-            completion.status != .completed, !last.isExcludedFromContext
+            completion.status != .completed
         else { return nil }
         return last
     }
@@ -86,10 +86,8 @@ final class ConversationPageState: Identifiable {
             if !retained.isEmpty { hasMoreMessages = previousHasMore }
         }
         if appendingOlder || messages.count == snapshot.messages.count { hasMoreMessages = snapshot.hasMore }
-        if let persistedDraft,
-            !executions.contains(where: { $0.id == persistedDraft.executionID && $0.completion == nil })
-        {
-            self.persistedDraft = nil
+        if settledOutput != nil, activeExecution == nil {
+            settledOutput = nil
         }
         isLoaded = true
         isLoading = false
@@ -101,7 +99,7 @@ final class ConversationPageState: Identifiable {
         let executionsByID = Dictionary(uniqueKeysWithValues: executions.map { ($0.id, $0) })
 
         // A retry replaces the answer to the original user message. Execution
-        // metadata retains command identity; retired answer payloads are purged.
+        // Execution metadata retains command identity while a retry replaces the answer slot.
         func turnID(for executionID: ExecutionID) -> MessageID? {
             executionsByID[executionID]?.admission.userMessageID
         }
@@ -138,7 +136,7 @@ final class ConversationPageState: Identifiable {
                 TranscriptItem(
                     id: id, role: summary.role, text: message.body.text ?? "",
                     status: summary.role == .user ? .completed : statuses[summary.executionID] ?? nil,
-                    isStreaming: false, message: message, isBodyPurged: message.body == .purged,
+                    isStreaming: false, message: message,
                     executionID: summary.executionID, thinking: message.thinking.text ?? "",
                     memoryNotices: summary.role == .assistant ? memoryNotices[summary.executionID, default: []] : [],
                     steps: summary.role == .assistant ? activitySteps(for: summary.executionID, live: nil,
@@ -164,8 +162,7 @@ final class ConversationPageState: Identifiable {
                 order += 1
                 continue
             }
-            guard !execution.isExcludedFromContext,
-                  !cancellationRequested.contains(execution.id) else { continue }
+            guard !cancellationRequested.contains(execution.id) else { continue }
             let observedOutput = streamBuffer.observation?.value
             let live = observedOutput?.executionID == execution.id ? observedOutput : nil
             let answer: String
@@ -173,9 +170,9 @@ final class ConversationPageState: Identifiable {
             if let live, live.executionID == execution.id {
                 answer = live.answer
                 thinking = live.thinking
-            } else if let persistedDraft, persistedDraft.executionID == execution.id {
-                answer = persistedDraft.answer
-                thinking = persistedDraft.thinking
+            } else if let settledOutput, activeExecution?.id == execution.id {
+                answer = settledOutput.answer ?? ""
+                thinking = settledOutput.thinking ?? ""
             } else {
                 answer = ""
                 thinking = ""
@@ -263,7 +260,7 @@ final class ConversationPageState: Identifiable {
         pendingSaveIDs = []
         cancellationRequested = []
         error = nil
-        persistedDraft = nil
+        settledOutput = nil
         streamBuffer.clear()
         hasMoreMessages = false
         isLoaded = conversationID == nil

@@ -116,7 +116,7 @@ private struct MemoryCitationSheet: View {
                                         locale: locale)
                                 )
                                 .font(.caption.weight(.semibold))
-                                if let excerpt = evidence.excerpt, evidence.bodyPurgedAt == nil {
+                                if let excerpt = evidence.excerpt {
                                     Text(verbatim: excerpt).textSelection(.enabled)
                                 } else {
                                     Text("Evidence body is unavailable.").foregroundStyle(.secondary)

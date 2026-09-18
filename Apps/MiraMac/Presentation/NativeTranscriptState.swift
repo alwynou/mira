@@ -8,7 +8,6 @@ struct TranscriptItem: Identifiable, Equatable {
     let status: ExecutionStatus?
     let isStreaming: Bool
     var message: SessionQueryMessage? = nil
-    var isBodyPurged: Bool = false
     var executionID: ExecutionID? = nil
     var thinking: String = ""
     var memoryNotices: [MemoryContextNotice] = []
@@ -112,7 +111,6 @@ struct TranscriptItem: Identifiable, Equatable {
         hasher.combine(text)
         hasher.combine(status?.rawValue)
         hasher.combine(isStreaming)
-        hasher.combine(isBodyPurged)
         hasher.combine(!thinking.isEmpty)
         for entry in orderedBlocks {
             hasher.combine(entry.id)
@@ -171,12 +169,11 @@ struct NativeTranscriptState {
         }
         items = Dictionary(uniqueKeysWithValues: snapshot.map { ($0.id, $0) })
         expandedActivity.formIntersection(ids)
-        for item in snapshot where item.isBodyPurged { expandedActivity.remove(item.id) }
         return Change(structureChanged: structureChanged, updated: updated, removed: removed)
     }
 
     mutating func toggleActivity(_ id: String) {
-        guard let item = items[id], !item.isBodyPurged else { return }
+        guard items[id] != nil else { return }
         if !expandedActivity.insert(id).inserted { expandedActivity.remove(id) }
     }
 }

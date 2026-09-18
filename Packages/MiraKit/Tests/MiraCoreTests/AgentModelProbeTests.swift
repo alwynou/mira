@@ -63,7 +63,7 @@ struct AgentModelProbeTests {
         .init(
             id: .init(), revision: 1, connectionID: .init(), connectionRevision: 1,
             modelDescriptorID: .init(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "probe.adapter", revision: 1),
-            invocationID: "default", invocationRevision: 1, endpointID: "primary", metadataEvidence: [],
+            invocationID: "default", invocationRevision: 1, endpointID: "primary",
             modelID: "probe", credential: nil, contextWindow: 4096, maximumOutputTokens: 128,
             capabilities: .init(streamsText: true, callsTools: false, producesThinking: false),
             configuration: .object([:]))

@@ -210,33 +210,6 @@ struct TaskWorkflowTests {
         }
     }
 
-    @Test func proposalCannotBeAcceptedAfterOriginalJournalEvidenceIsInvalidated() async throws {
-        let quote = "remind me tomorrow to review notes"
-        try await withTaskWorkflow(outputs: taskReplies(taskArguments(quote: quote, remind: true))) { f in
-            let address = try await f.run(quote)
-            let proposal = try #require(try await f.tasks.proposals(workspaceID: nil).first)
-            #expect(await f.runtime.shutdown().isSettled)
-            let session = try await SessionRuntime.open(id: address.sessionID, journal: f.library, payloads: f.library)
-            do {
-                let state = await session.snapshot()
-                let groups = Set(state.references.values.filter { $0.kind != .title }.map(\.retentionGroup))
-                try taskRequireCommitted(await session.commit(id: UUID()) { _ in
-                    [.invalidated(.init(operationID: UUID(), executionIDs: [address.executionID], retentionGroups: groups,
-                                        authorizationEpoch: state.authorizationEpoch + 1, reason: .forgotten))]
-                })
-                await session.close()
-            } catch { await session.close(); throw error }
-            await #expect(throws: MiraError.self) {
-                try await f.tasks.resolve(id: proposal.id, workspaceID: nil, accept: true,
-                    correctedDraft: .init(title: proposal.draft.title, reminderAt: TaskWorkflowFixture.now.addingTimeInterval(3600)))
-            }
-            #expect(try await f.tasks.tasks(workspaceID: nil).isEmpty)
-            #expect(try await f.tasks.proposals(workspaceID: nil).count == 1)
-            _ = try await f.tasks.resolve(id: proposal.id, workspaceID: nil, accept: false)
-            #expect(try await f.tasks.proposals(workspaceID: nil).isEmpty)
-        }
-    }
-
     @Test func deniedPermissionPreservesSavedRecordUntilExplicitPermissionRequest() async throws {
         try await withTaskWorkflow(permission: .denied) { f in
             let task = try await f.save(draft: .init(title: "Permission task", reminderAt: TaskWorkflowFixture.now.addingTimeInterval(3600)))
