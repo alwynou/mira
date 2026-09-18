@@ -80,23 +80,6 @@ public final class SQLiteBusinessEffects: AgentBusinessEffects, AgentEffectAutho
         }
     }
 
-    /// The maintenance owner has already advanced the epoch and durably blocked new authorization.
-    public func purgeResults(receiptIDs: Set<UUID>, maintenance: AgentLibraryMaintenanceOperation) async throws {
-        guard receiptIDs.count <= 10_000 else { throw MiraError(.invalidInput, "Too many business receipts were selected.") }
-        try maintenance.validate()
-        try await write { db in
-            try SQLiteLibraryAuthority.requirePending(maintenance, in: db, libraryID: self.libraryID)
-            for id in receiptIDs {
-                // Results exist only on the shared operation, so all associated receipts observe this purge.
-                try db.execute(sql: """
-                    UPDATE business_operations SET result_blob = NULL, result_purged = 1
-                    WHERE (namespace, business_key) =
-                      (SELECT operation_namespace, operation_key FROM business_receipts WHERE id = ?)
-                    """, arguments: [id.uuidString])
-            }
-        }
-    }
-
     public func commit(_ proof: AgentEffectProof) async -> AgentBusinessCommitOutcome {
         guard beginOperation() else { return .notCommitted(.init(.storage, "The business effect store is closed.")) }
         defer { finishOperation() }
@@ -243,7 +226,7 @@ public final class SQLiteBusinessEffects: AgentBusinessEffects, AgentEffectAutho
             let data = try SessionCodec.encode(result)
             guard data.count <= proposal.descriptor.maximumResultBytes else { throw MiraError(.outputLimit, "The business result exceeds its declared limit.") }
             resultDigest = Self.digest(data)
-            try db.execute(sql: "INSERT INTO business_operations(namespace, business_key, command_digest, result_digest, result_blob, result_purged) VALUES (?, ?, ?, ?, ?, 0)",
+            try db.execute(sql: "INSERT INTO business_operations(namespace, business_key, command_digest, result_digest, result_blob) VALUES (?, ?, ?, ?, ?)",
                            arguments: [namespace, key, commandDigest, resultDigest, data])
         }
         let id = UUID()
@@ -255,7 +238,8 @@ public final class SQLiteBusinessEffects: AgentBusinessEffects, AgentEffectAutho
                 String(authorization.epoch), proof.proposal.digest, resultDigest, namespace, key, try Self.encode(proof)])
         guard let row = try Self.receiptRow(invocationID: proof.invocationID, in: db) else { throw Self.corrupt }
         let receipt = try Self.receipt(row, in: db)
-        if let bytes = receipt.result {
+        do {
+            let bytes = receipt.result
             guard bytes.count <= proposal.descriptor.maximumResultBytes else { throw MiraError(.outputLimit, "The business result exceeds its declared limit.") }
             try ToolSchemaValidator.validate(SessionCodec.decode(JSONValue.self, from: bytes), schema: proposal.descriptor.outputSchema)
         }
@@ -313,13 +297,13 @@ public final class SQLiteBusinessEffects: AgentBusinessEffects, AgentEffectAutho
         let owned = Self.archiveTableNames
         let present = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (?, ?, ?, ?)", arguments: StatementArguments(owned))
         if !present.isEmpty {
-            guard Set(present) == Set(owned), try Int.fetchOne(db, sql: "SELECT format_version FROM business_effects_metadata WHERE id = 1") == 1 else {
+            guard Set(present) == Set(owned), try Int.fetchOne(db, sql: "SELECT format_version FROM business_effects_metadata WHERE id = 1") == 2 else {
                 throw MiraError(.storage, "The business library format is unsupported.")
             }
             return
         }
         for statement in Self.archiveSchemaStatements { try db.execute(sql: statement) }
-        try db.execute(sql: "INSERT INTO business_effects_metadata(id, format_version) VALUES (1, 1)")
+        try db.execute(sql: "INSERT INTO business_effects_metadata(id, format_version) VALUES (1, 2)")
     }
 
     private static func requireUnfenced(_ context: AgentToolContext, in db: Database) throws {
@@ -334,25 +318,21 @@ public final class SQLiteBusinessEffects: AgentBusinessEffects, AgentEffectAutho
     static func receipt(_ row: Row, in db: Database) throws -> AgentBusinessReceipt {
         guard let id = UUID(uuidString: row["id"]), let invocation = UUID(uuidString: row["invocation_id"]),
               let library = UUID(uuidString: row["library_id"]), let epoch = UInt64(row["epoch"] as String),
-              let operation = try Row.fetchOne(db, sql: "SELECT result_digest, result_purged, length(result_blob) AS byte_count FROM business_operations WHERE namespace = ? AND business_key = ?",
+              let operation = try Row.fetchOne(db, sql: "SELECT result_digest, length(result_blob) AS byte_count FROM business_operations WHERE namespace = ? AND business_key = ?",
                 arguments: [row["operation_namespace"] as String, row["operation_key"] as String]),
               (operation["result_digest"] as String) == (row["result_digest"] as String) else { throw corrupt }
         let reference = AgentBusinessReceiptReference(id: id, invocationID: invocation, authorization: .init(libraryID: library, epoch: epoch),
             intentDigest: row["intent_digest"], resultDigest: row["result_digest"])
         try reference.validate()
-        var body: Data?
-        if (operation["result_purged"] as Int) == 0 {
-            guard let count = operation["byte_count"] as Int?, (1...65_536).contains(count) else { throw corrupt }
-            body = try Data.fetchOne(db, sql: "SELECT result_blob FROM business_operations WHERE namespace = ? AND business_key = ?",
-                arguments: [row["operation_namespace"] as String, row["operation_key"] as String])
-            guard let body, body.count == count, digest(body) == reference.resultDigest else { throw corrupt }
-        }
+        guard let count = operation["byte_count"] as Int?, (1...65_536).contains(count),
+              let body = try Data.fetchOne(db, sql: "SELECT result_blob FROM business_operations WHERE namespace = ? AND business_key = ?",
+                arguments: [row["operation_namespace"] as String, row["operation_key"] as String]),
+              body.count == count, digest(body) == reference.resultDigest else { throw corrupt }
         return .init(reference: reference, result: body)
     }
     static func validateProof(_ proof: AgentEffectProof) throws {
         try proof.proposal.validate()
-        guard proof.intentSequence > 0, proof.proposal.sessionID == proof.sessionID,
-              proof.proposal.batchID == proof.intentBatchID, proof.proposal.kind == .effectIntent else { throw corrupt }
+        guard proof.intentSequence > 0, proof.proposal.kind == .effectIntent else { throw corrupt }
     }
     private static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     static func encode<T: Encodable>(_ value: T) throws -> String { String(decoding: try SessionCodec.encode(value), as: UTF8.self) }

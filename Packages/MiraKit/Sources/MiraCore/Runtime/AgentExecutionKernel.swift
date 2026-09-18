@@ -39,8 +39,8 @@ actor AgentExecutionKernel {
     nonisolated let request: AgentContextRequest
     private let runtime: SessionRuntime
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadReader
-    private let workPayloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
+    private let workPayloads: any SessionContentReader
     private let libraryLease: AgentLibraryAccessLease
     private let catalog: AgentRuntimeCatalog
     private let route: AgentModelRoute?
@@ -69,13 +69,15 @@ actor AgentExecutionKernel {
     private var latestStep: AgentModelStepResult?
     private var latestStepID: UUID?
     private var toolsResolved = true
-    private var trace = AgentContextHistory(messages: [], sources: [])
+    /// Ordinary contributor output is captured on the first preparation and reused
+    /// for every tool continuation in this turn.
+    private var frozenContext: AgentFrozenContext?
     private var steps = 0
     private var toolCalls = 0
     private var reservedOutputTokens = 0
 
     /// On initialization failure the caller still owns and must release the catalog and library lease.
-    init(runtime: SessionRuntime, journal: any SessionJournal, payloads: any SessionPayloadReader,
+    init(runtime: SessionRuntime, journal: any SessionJournal, payloads: any SessionContentReader,
          libraryLease: AgentLibraryAccessLease, executionID: ExecutionID, runtimeID: UUID, catalog: AgentRuntimeCatalog,
          policy: any AgentToolPolicy, authority: any AgentEffectAuthority, business: any AgentBusinessEffects,
          authorizer: any AgentSourceAuthorizer, approvals: RuntimeApprovalService,
@@ -83,7 +85,7 @@ actor AgentExecutionKernel {
         let workPayloads = libraryLease.reader(from: payloads)
         try await libraryLease.check()
         let state = await runtime.snapshot()
-        guard state.activeExecutionID == executionID, !state.excludedExecutionIDs.contains(executionID),
+        guard state.activeExecutionID == executionID,
               let execution = state.executions[executionID], execution.phase == .queued,
               execution.attemptIDs.isEmpty, execution.completion == nil,
               let original = state.executionOrder.compactMap({ state.executions[$0]?.admission })
@@ -236,10 +238,23 @@ actor AgentExecutionKernel {
         guard let route else { throw MiraError(.unsupported, "This execution has no model route.") }
         let adapter = try catalog.model(identity: route.adapter)
         let stepID = environment.uuid()
+        let state = await runtime.snapshot()
+        let currentTrace = try await JournalAgentHistoryReader(payloads: workPayloads).readCurrentExecution(
+            state: state, request: request, route: route)
         let preparation = AgentModelPreparation(runtime: runtime, payloads: workPayloads, request: request,
-            instructions: instructions, trace: trace, tools: tools.definitions, route: route, adapter: adapter,
+            instructions: instructions, currentTrace: currentTrace, frozenContext: frozenContext,
+            tools: tools.definitions, route: route, adapter: adapter,
             contributors: catalog.contributors, authorizer: authorizer)
         let build = try await prepareModel(preparation, stepID: stepID)
+        if frozenContext == nil {
+            let contextMessages = build.prepared.input.messages.filter { $0.role == .context }
+            guard contextMessages.count <= 1 else {
+                throw MiraError(.malformedStream, "The model input contains multiple context messages.")
+            }
+            frozenContext = .init(message: contextMessages.first, evidence: build.evidence,
+                                  omissions: build.omissions,
+                                  sources: build.evidence.flatMap(\.sources))
+        }
         try await eligible()
         steps += 1
         var attemptIndex = 0
@@ -271,23 +286,35 @@ actor AgentExecutionKernel {
         }
         try await eligible()
         latestStep = output; latestStepID = stepID; toolsResolved = output.invocations.isEmpty
-        trace = .init(messages: trace.messages + [output.output.message], sources: AgentContextBuild.orderedSources(trace.sources + build.sources))
-        guard trace.messages.count <= 256, trace.sources.count <= 8_192 else {
+        guard output.output.message.blocks.count <= 64, build.sources.count <= 8_192 else {
             throw MiraError(.contextLimit, "The model input exceeds its supported bounds.")
-        }
-        let calls = trace.messages.flatMap(\.toolCalls)
-        guard Set(calls.map(\.id)).count == calls.count else {
-            throw MiraError(.malformedStream, "The model transcript contains an incomplete or invalid tool exchange.")
         }
         if output.invocations.isEmpty {
             try AgentModelInput(stepID: stepID, executionID: request.executionID, instructions: "",
-                                messages: trace.messages, tools: []).validate(for: route)
+                                messages: [output.output.message], tools: []).validate(for: route)
         }
         guard output.output.finishReason != .outputLimit else {
             throw MiraError(.outputLimit, "The model stopped at its output limit.")
         }
         guard output.invocations.count <= limits.maximumToolCalls - toolCalls else {
             throw MiraError(.outputLimit, "The execution reached its tool invocation limit.")
+        }
+        // A provider must not reuse a tool-call identity across continuation steps.
+        // The journal-derived trace is the authority here; retaining this check on
+        // the derived messages prevents a duplicate from reaching tool dispatch.
+        var committedToolCallIDs = Set<String>()
+        for message in currentTrace.messages {
+            for block in message.blocks {
+                if case .toolCall(let call) = block.content,
+                   !committedToolCallIDs.insert(call.id).inserted {
+                    throw MiraError(.malformedStream, "The execution history contains a duplicate tool-call identity.")
+                }
+            }
+        }
+        for call in output.output.toolCalls {
+            guard committedToolCallIDs.insert(call.id).inserted else {
+                throw MiraError(.malformedStream, "The model reused a tool-call identity across steps.")
+            }
         }
         toolCalls += output.invocations.count
         return .init(id: stepID, output: output.output)
@@ -298,28 +325,17 @@ actor AgentExecutionKernel {
         let resolutions = try await toolExecutor.execute(attemptID: step.attemptID, executionID: request.executionID)
         try await eligible()
         guard resolutions.count == step.output.toolCalls.count,
-              resolutions.allSatisfy(\.effectIsKnown), !resolutions.contains(where: \.resultWasPurged) else {
+              resolutions.allSatisfy(\.effectIsKnown) else {
             throw MiraError(.interrupted, "The tool batch cannot safely continue model execution.")
         }
         let state = await runtime.snapshot()
-        var messages = trace.messages
-        var sources = trace.sources
-        for (call, resolution) in zip(step.output.toolCalls, resolutions) {
-            let content: JSONValue
-            if let reference = resolution.result { content = try SessionCodec.decode(JSONValue.self, from: await payloads.read(reference)) }
-            else { content = .null }
-            let observation = JSONValue.object(["status": .string(resolution.status.rawValue), "content": content,
-                                               "authority": .string("untrusted_tool_observation")])
-            messages.append(.init(
-                role: .tool,
-                blocks: [.init(id: "result-\(call.id)", content: .toolResult(callID: call.id, text: try observation.jsonString()))]))
+        for (_, resolution) in zip(step.output.toolCalls, resolutions) {
             if let reference = state.invocations[resolution.invocationID]?.intent?.intent.proposal {
                 let proposal = try SessionCodec.decode(AgentToolProposal.self, from: await payloads.read(reference))
-                sources += proposal.sources
+                for source in proposal.plan.sources { try source.validate() }
             }
         }
         try await eligible()
-        trace = .init(messages: messages, sources: AgentContextBuild.orderedSources(sources))
         toolsResolved = true
         return resolutions.map(\.status)
     }
@@ -394,13 +410,11 @@ actor AgentExecutionKernel {
             guard let execution = state.executions[request.executionID] else { throw MiraError(.notFound, "The execution is unavailable during settlement.") }
             let cancelled = await runtime.isCancellationRequested(executionID: request.executionID)
             var status: ExecutionStatus = cancelled ? .cancelled : .failed
-            var replay: AgentReplayRecord?
             var localAnswer: String?
             if failure == nil, case .complete = intendedCompletion {
                 if let latestStep, latestStep.output.toolCalls.isEmpty, toolsResolved,
                    execution.attemptIDs.last == latestStep.attemptID {
                     status = cancelled ? .cancelled : .completed
-                    replay = .init(messages: trace.messages, sources: trace.sources)
                 } else {
                     failure = .init(.conflict, "The driver cannot complete an unfinished execution.")
                 }
@@ -409,24 +423,54 @@ actor AgentExecutionKernel {
                    text.utf8.count <= 2_097_152 {
                     if !cancelled {
                         status = .completed; localAnswer = text
-                        replay = .init(messages: [.init(role: .assistant,
-                                                        blocks: [.init(id: "answer", content: .text(text))])], sources: [])
                     }
                 } else {
                     failure = .init(.conflict, "A local driver response requires bounded text and no model attempts.")
                 }
             } else if failure == nil, case .stop = intendedCompletion { status = .interrupted }
-            let draft = try await SessionDraftReader(journal: journal, payloads: payloads).read(state: state, executionID: request.executionID)
-            let answer = try localAnswer ?? Self.text(draft[.answer])
-            let thinking = try Self.text(draft[.thinking])
+            let settled = try await SessionSettledOutput.read(
+                execution: execution, attempts: state.attempts, payloads: workPayloads)
+            // The executor owns an unresolved stream only while this process
+            // is alive. It is safe to settle that in-memory prefix here; a
+            // cold recovery has no executor and therefore supplies no prefix.
+            let recoveredAttempts = await modelExecutor.interruptedAttempts()
+            var answer = localAnswer ?? settled.answer
+            var thinkingParts = settled.thinking.map { [$0] } ?? []
+            // A live executor can still own the final unresolved prefix when
+            // cancellation or another terminal failure reaches settlement.
+            // Fold it in attempt order after committed output; a cold recovery
+            // has no executor and therefore contributes no in-flight prefix.
+            for attemptID in execution.attemptIDs {
+                guard state.attempts[attemptID]?.resolution == nil,
+                      let output = recoveredAttempts[attemptID]?.output else { continue }
+                if !output.text.isEmpty { answer = output.text }
+                if !output.thinkingText.isEmpty {
+                    let currentBytes = thinkingParts.reduce(0) { $0 + $1.utf8.count }
+                    guard currentBytes + output.thinkingText.utf8.count <= SessionFormatLimits.maximumContentBytes else {
+                        throw MiraError(.outputLimit, "The settled thinking output exceeds its storage limit.")
+                    }
+                    thinkingParts.append(output.thinkingText)
+                }
+            }
+            let thinking = thinkingParts.isEmpty ? nil : thinkingParts.joined()
             var usage: TokenUsage?
             for id in execution.attemptIDs {
                 if let value = state.attempts[id]?.resolution?.usage { usage = usage.map { $0.adding(value) } ?? value }
             }
+            // A process-local cancellation can leave the latest attempt
+            // unresolved while the executor still owns provider usage. Include
+            // that usage exactly once; resolved attempts are already represented
+            // above and must not be counted again.
+            for (attemptID, recovered) in recoveredAttempts {
+                guard state.attempts[attemptID]?.resolution == nil,
+                      let value = recovered.output?.usage else { continue }
+                usage = usage.map { $0.adding(value) } ?? value
+            }
             settlementStarted = true
             let result = await finalizer.finish(.init(executionID: request.executionID,
                 expectedAttemptID: execution.attemptIDs.last, status: status, answer: answer,
-                visibleThinking: thinking, replay: replay, error: failure, usage: usage ?? .init()))
+                visibleThinking: thinking, error: failure, usage: usage ?? .init(),
+                recoveredAttempts: recoveredAttempts))
             if case .committed = result { await releaseExecutionResources() }
             return result
         } catch { return .notCommitted(Self.safe(error)) }
@@ -466,15 +510,10 @@ actor AgentExecutionKernel {
         guard acceptingOperations, !(await runtime.isCancellationRequested(executionID: request.executionID)) else { throw CancellationError() }
         let state = await runtime.snapshot()
         guard state.activeExecutionID == request.executionID, state.authorizationEpoch == request.authorizationEpoch,
-              state.header?.workspaceID == request.workspaceID, !state.excludedExecutionIDs.contains(request.executionID),
+              state.header?.workspaceID == request.workspaceID,
               state.executions[request.executionID]?.completion == nil else {
             throw MiraError(.unauthorized, "The execution context is no longer authorized.")
         }
-    }
-    private static func text(_ bytes: Data?) throws -> String? {
-        guard let bytes, !bytes.isEmpty else { return nil }
-        guard let value = String(data: bytes, encoding: .utf8) else { throw MiraError(.storage, "The execution draft contains invalid text encoding.") }
-        return value
     }
     private static func safe(_ error: any Error) -> MiraError {
         if error is CancellationError { return .init(.cancelled, "The execution was cancelled.") }

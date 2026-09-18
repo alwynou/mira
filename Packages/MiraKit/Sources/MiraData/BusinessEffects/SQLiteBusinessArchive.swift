@@ -11,8 +11,8 @@ extension SQLiteBusinessEffects {
         "CREATE TABLE business_fences (session_id TEXT NOT NULL, execution_id TEXT NOT NULL, PRIMARY KEY(session_id, execution_id))",
         """
         CREATE TABLE business_operations (namespace TEXT NOT NULL, business_key TEXT NOT NULL, command_digest TEXT NOT NULL,
-          result_digest TEXT NOT NULL, result_blob BLOB, result_purged INTEGER NOT NULL CHECK(result_purged IN (0, 1)),
-          PRIMARY KEY(namespace, business_key), CHECK((result_blob IS NULL AND result_purged = 1) OR (result_blob IS NOT NULL AND result_purged = 0)))
+          result_digest TEXT NOT NULL, result_blob BLOB NOT NULL,
+          PRIMARY KEY(namespace, business_key))
         """,
         """
         CREATE TABLE business_receipts (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
@@ -41,7 +41,7 @@ extension SQLiteBusinessEffects {
         let sessionID: ConversationID
         let batchID: UUID
         let sequence: Int64
-        let proposal: SessionPayloadReference
+        let proposal: SessionContent
         let authorization: AgentLibraryAuthorization
         let executionID: ExecutionID
         let invocation: SessionInvocation
@@ -73,7 +73,7 @@ extension SQLiteBusinessEffects {
         guard state.pending == nil,
             try SQLiteLibraryAuthority.availableAuthorization(in: db, libraryID: state.authorization.libraryID)
                 == state.authorization,
-            try Int.fetchOne(db, sql: "SELECT format_version FROM business_effects_metadata WHERE id = 1") == 1,
+            try Int.fetchOne(db, sql: "SELECT format_version FROM business_effects_metadata WHERE id = 1") == 2,
             try Int.fetchOne(db, sql: "SELECT count(*) FROM business_effects_metadata") == 1
         else { throw LibraryArchiveIO.invalid }
 
@@ -148,7 +148,11 @@ extension SQLiteBusinessEffects {
                         "SELECT command_digest, result_digest FROM business_operations WHERE namespace = ? AND business_key = ?",
                     arguments: [namespace, key]), (operation["result_digest"] as String?) == resultDigest
             else { throw LibraryArchiveIO.invalid }
-            if let bytes = try snapshot.readRetainedPayload(proof.proposal) {
+            do {
+                let bytes = proof.proposal.bytes
+                guard bytes.count == proof.proposal.byteCount, digest(bytes) == proof.proposal.digest else {
+                    throw LibraryArchiveIO.invalid
+                }
                 let proposal = try SessionCodec.decode(AgentToolProposal.self, from: bytes)
                 try proposal.validate()
                 guard proposal.businessNamespace == namespace, proposal.effect == .localWrite,
@@ -156,8 +160,6 @@ extension SQLiteBusinessEffects {
                     proposal.callDigest == intent.invocation.call.digest,
                     digest(try SessionCodec.encode(proposal.plan.input)) == (operation["command_digest"] as String?)
                 else { throw LibraryArchiveIO.invalid }
-            } else {
-                throw LibraryArchiveIO.invalid
             }
             let reference = AgentBusinessReceiptReference(
                 id: id, invocationID: invocationID,
@@ -189,7 +191,7 @@ extension SQLiteBusinessEffects {
         let operations = try Row.fetchCursor(
             db,
             sql: """
-                SELECT namespace, business_key, command_digest, result_digest, result_purged,
+                SELECT namespace, business_key, command_digest, result_digest,
                        length(CAST(result_blob AS BLOB)) AS result_bytes
                 FROM business_operations ORDER BY namespace, business_key
                 """)
@@ -201,10 +203,9 @@ extension SQLiteBusinessEffects {
                 let key: String = row["business_key"], (1...512).contains(key.utf8.count),
                 let commandDigest: String = row["command_digest"], validDigest(commandDigest),
                 let resultDigest: String = row["result_digest"], validDigest(resultDigest),
-                let purged: Int = row["result_purged"], purged == 0 || purged == 1,
                 receiptKeys.contains(namespace + "\u{0}" + key)
             else { throw LibraryArchiveIO.invalid }
-            if purged == 0 {
+            do {
                 guard let count: Int = row["result_bytes"], (1...65_536).contains(count),
                     let bytes = try Data.fetchOne(
                         db, sql: "SELECT result_blob FROM business_operations WHERE namespace = ? AND business_key = ?",
@@ -212,9 +213,6 @@ extension SQLiteBusinessEffects {
                     bytes.count == count, digest(bytes) == resultDigest
                 else { throw LibraryArchiveIO.invalid }
                 _ = try SessionCodec.decode(JSONValue.self, from: bytes)
-            } else {
-                let resultBytes: Int? = row["result_bytes"]
-                guard resultBytes == nil else { throw LibraryArchiveIO.invalid }
             }
         }
         guard operationCount == receiptKeys.count,
@@ -291,8 +289,6 @@ extension SQLiteBusinessEffects {
     private static func validateProof(_ proof: AgentEffectProof, state: AgentLibraryAuthorization) throws {
         try proof.proposal.validate()
         guard proof.intentSequence > 0, proof.proposal.kind == .effectIntent,
-            proof.proposal.sessionID == proof.sessionID,
-            proof.proposal.batchID == proof.intentBatchID,
             proof.authorization.libraryID == state.libraryID,
             proof.authorization.epoch <= state.epoch
         else { throw LibraryArchiveIO.invalid }

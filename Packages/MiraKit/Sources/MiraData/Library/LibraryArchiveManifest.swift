@@ -119,7 +119,7 @@ enum LibraryArchiveLimits {
     static let maximumManifestBytes = 2 * 1_024 * 1_024
     static let maximumDomainRows = 100_000
     static let maximumFileBytes = 2 * 1_024 * 1_024 * 1_024
-    static let maximumAttachmentBytes = SessionFormatLimits.maximumPayloadBytes
+    static let maximumAttachmentBytes = SessionFormatLimits.maximumContentBytes
     static let maximumTotalBytes: Int64 = 64 * 1_024 * 1_024 * 1_024
     // Source files, catalog chunks and the root manifest, plus all path components.
     static let maximumPhysicalFiles = maximumFiles + maximumChunks + 1

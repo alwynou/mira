@@ -319,16 +319,16 @@ private final class PreparationFixture: Sendable {
             }
             catalog = runtimeCatalog
             let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
-                modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: adapter.identity, invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "synthetic",
+                modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: adapter.identity, invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "synthetic",
                 credential: nil, contextWindow: 4_096, maximumOutputTokens: 128,
                 capabilities: .init(streamsText: true, callsTools: false, producesThinking: false), configuration: .object([:]))
             let plan = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: runtimeCatalog.generation,
                 driverID: "prep.driver", driverRevision: 1, instructions: "Answer.", limits: limits,
                 priority: .foreground, route: route)
             let admission = await opened.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Preparation fixture".utf8), kind: .title, retentionGroup: UUID())
-                let body = try await context.stageBytes(Data("Question".utf8), kind: .userText, retentionGroup: UUID())
-                let planReference = try await context.stage(plan, kind: .executionPlan, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Preparation fixture".utf8), kind: .title)
+                let body = try await context.stageBytes(Data("Question".utf8), kind: .userText)
+                let planReference = try await context.stage(plan, kind: .executionPlan)
                 return [.opened(.init(workspaceID: nil, title: title)),
                         .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: body,
                             plan: planReference, hasModelRoute: true, authorizationEpoch: 0, timeZoneIdentifier: "UTC"))]

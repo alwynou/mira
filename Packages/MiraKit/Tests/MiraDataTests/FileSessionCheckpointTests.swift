@@ -37,7 +37,7 @@ struct FileSessionCheckpointTests {
             try forgeUnkeyedCache(indexURL, format: "MIRA-SESSION-INDEX-2") { value in
                 value["references"] = []
             }
-            try forgeUnkeyedCache(checkpointURL(directory, runtime.id), format: "MIRA-SESSION-STATE-3") { value in
+            try forgeUnkeyedCache(checkpointURL(directory, runtime.id), format: "MIRA-SESSION-STATE-2") { value in
                 var snapshot = value["snapshot"] as! [String: Any]
                 var state = snapshot["state"] as! [String: Any]
                 state["isArchived"] = true; snapshot["state"] = state; value["snapshot"] = snapshot
@@ -123,42 +123,12 @@ struct FileSessionCheckpointTests {
         }
     }
 
-    @Test func staleCheckpointReducesPrivacyInvalidationBeforeReturningAnyState() async throws {
-        try await withDirectory { directory in
-            let library = try FileSessionLibrary(directory: directory)
-            let runtime = try await makeSession(library, renames: 0)
-            let group = UUID()
-            try committed(await runtime.commit(id: UUID()) { context in
-                let body = try await context.stageBytes(Data("Private synthetic body".utf8), kind: .module, retentionGroup: group)
-                return [.extensionRecorded(namespace: "test.fixture", schemaVersion: 1, required: false, body: body)]
-            })
-            let original = await runtime.snapshot()
-            await runtime.close(); try await library.close()
-            let reopened = try FileSessionLibrary(directory: directory)
-            let invalidation = SessionBatch(id: UUID(), sessionID: runtime.id, expectedSequence: original.sequence,
-                events: [.init(sequence: original.sequence + 1, occurredAt: Date(), fact: .invalidated(.init(
-                    operationID: UUID(), executionIDs: [], retentionGroups: [group], authorizationEpoch: 1, reason: .forgotten)))])
-            #expect(await reopened.append(invalidation) == .committed(invalidation.cursor))
-            try await reopened.purge(sessionID: runtime.id, retentionGroups: [group])
-            // Privacy erasure changes the physical prefix, so the old sidecar must be rebuilt.
-            try await reopened.close()
-            let recovered = try FileSessionLibrary(directory: directory)
-            let result = try await reader(recovered).snapshot(sessionID: runtime.id)
-            #expect(result.state.authorizationEpoch == 1)
-            #expect(result.state.invalidatedRetentionGroups.contains(group))
-            #expect(await recovered.readMetrics().restoredCheckpoints == 0)
-            let reference = try #require(original.references.values.first { $0.retentionGroup == group })
-            await #expect(throws: MiraError.self) { _ = try await recovered.read(reference) }
-            try await recovered.close()
-        }
-    }
-
     @Test func changedRequiredExtensionRegistryCannotReusePersistedState() async throws {
         try await withDirectory { directory in
             let library = try FileSessionLibrary(directory: directory)
             let runtime = try await makeSession(library, renames: 0, schemas: ["test.fixture": [1]])
             try committed(await runtime.commit(id: UUID()) { context in
-                let body = try await context.stageBytes(Data("Synthetic extension".utf8), kind: .module, retentionGroup: UUID())
+                let body = try await context.stageBytes(Data("Synthetic extension".utf8), kind: .module)
                 return [.extensionRecorded(namespace: "test.fixture", schemaVersion: 1, required: true, body: body)]
             })
             await runtime.close(); try await library.close()
@@ -181,7 +151,7 @@ struct FileSessionCheckpointTests {
             let first = try await library.head(sessionID: runtime.id), expected = await runtime.snapshot()
             try await library.flush()
             try committed(await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Newer".utf8), kind: .title, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Newer".utf8), kind: .title)
                 return [.renamed(title: title, revision: 2)]
             })
             let older = try await reader(library).snapshot(through: first)
@@ -223,12 +193,12 @@ struct FileSessionCheckpointTests {
                              schemas: [String: Set<Int>] = [:]) async throws -> SessionRuntime {
         let runtime = try await SessionRuntime.open(id: ConversationID(), journal: library, payloads: library, extensionSchemas: schemas)
         try committed(await runtime.commit(id: UUID()) { context in
-            let title = try await context.stageBytes(Data("Synthetic title".utf8), kind: .title, retentionGroup: UUID())
+            let title = try await context.stageBytes(Data("Synthetic title".utf8), kind: .title)
             return [.opened(.init(workspaceID: nil, title: title))]
         })
         for revision in 2..<(renames + 2) {
             try committed(await runtime.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Synthetic title \(revision)".utf8), kind: .title, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Synthetic title \(revision)".utf8), kind: .title)
                 return [.renamed(title: title, revision: revision)]
             })
         }

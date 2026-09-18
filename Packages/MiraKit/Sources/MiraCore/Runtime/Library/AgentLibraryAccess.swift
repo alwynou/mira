@@ -426,10 +426,10 @@ public final class AgentLibraryAccessLease: Sendable {
     /// Bind the actual owner's synchronous cancellation request. Late binding observes revocation.
     public func bindCancellation(_ cancel: @escaping @Sendable () -> Void) throws { try signal.bind(cancel) }
     public func check() async throws { try await gate.check(id, authorization: authorization) }
-    public func reader(from payloads: any SessionPayloadReader) -> any SessionPayloadReader {
+    public func reader(from payloads: any SessionContentReader) -> any SessionContentReader {
         AgentLibraryPayloadReader(lease: self, payloads: payloads)
     }
-    public func read(_ reference: SessionPayloadReference, from payloads: any SessionPayloadReader) async throws -> Data {
+    public func read(_ reference: SessionContent, from payloads: any SessionContentReader) async throws -> Data {
         try await read { try await payloads.read(reference) }
     }
     /// The query is owned until its actual return. Revocation discards a late result.
@@ -479,13 +479,10 @@ private final class AgentLibraryRevocation: @unchecked Sendable {
     }
 }
 
-private struct AgentLibraryPayloadReader: SessionPayloadReader {
+private struct AgentLibraryPayloadReader: SessionContentReader {
     let lease: AgentLibraryAccessLease
-    let payloads: any SessionPayloadReader
-    func activeDraft(sessionID: ConversationID) async throws -> SessionActiveDraft? {
-        try await lease.read { try await payloads.activeDraft(sessionID: sessionID) }
-    }
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    let payloads: any SessionContentReader
+    func read(_ reference: SessionContent) async throws -> Data {
         try await lease.read(reference, from: payloads)
     }
 }

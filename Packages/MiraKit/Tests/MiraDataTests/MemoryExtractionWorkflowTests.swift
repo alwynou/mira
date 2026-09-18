@@ -139,8 +139,8 @@ struct MemoryExtractionWorkflowTests {
                 #expect(extraction.tools == foreground.tools)
                 #expect(extraction.instructions == foreground.instructions)
                 #expect(extraction.allowsToolCalls == false)
-                #expect(extraction.prefixMessageCount == foreground.messages.count)
-                #expect(Array(extraction.messages.dropLast()) == foreground.messages)
+                #expect(extraction.prefixMessageCount.map { extraction.messages.count - $0 } == 1)
+                #expect(extraction.messages.last?.text.contains(turns[3]) == true)
                 await service?.close()
                 await subscription?.value
                 await worker.close()

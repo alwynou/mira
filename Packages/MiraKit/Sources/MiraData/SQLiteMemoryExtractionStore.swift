@@ -362,7 +362,7 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             try item.origin.validate(); try MemoryExtractionRequestBuilder.validate(source: item.source)
             guard item.origin.source == item.source.reference,
                   item.source.admittedAt.timeIntervalSince1970.isFinite,
-                  !item.source.reference.body.digest.isEmpty,
+                  !item.source.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(item.source.reference), in: db) else { continue }
             let durableSourceKey = try sourceKey(item.source.reference)
             guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM memory_extraction_sources WHERE source_key=?)", arguments: [durableSourceKey]) != true else { continue }

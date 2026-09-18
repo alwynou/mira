@@ -4,7 +4,7 @@ import Foundation
 /// physical stores and must close this service before replacing its work group.
 public actor SessionQueryService {
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let projection: any SessionProjectionStore
     private let coordinator: SessionProjectionCoordinator
     private let access: AgentLibraryAccess
@@ -15,7 +15,7 @@ public actor SessionQueryService {
     private var closed = false
 
     public init(
-        journal: any SessionJournal, payloads: any SessionPayloadReader,
+        journal: any SessionJournal, payloads: any SessionContentReader,
         projection: any SessionProjectionStore, access: AgentLibraryAccess, scope: RuntimeScope,
         maximumPageBytes: Int = 64 * 1_024 * 1_024,
         extensionSchemas: [String: Set<Int>] = [:]
@@ -76,12 +76,11 @@ public actor SessionQueryService {
             var bytes = 0
             for row in rows {
                 try Self.validate(row)
-                try Self.reserve(
-                    row.title, invalidated: row.titleInvalidated, total: &bytes, maximum: self.maximumPageBytes)
+                try Self.reserve(row.title, total: &bytes, maximum: self.maximumPageBytes)
             }
             var result: [SessionQueryItem] = []
             for row in rows {
-                let title = try await self.text(row.title, invalidated: row.titleInvalidated, lease: lease)
+                let title = try await self.text(row.title, lease: lease)
                 result.append(.init(summary: row, title: title))
             }
             return result
@@ -102,27 +101,24 @@ public actor SessionQueryService {
             try Self.validate(page, sessionID: sessionID, before: beforeSequence, limit: limit)
             var bytes = 0
             if let session = page.session {
-                try Self.reserve(
-                    session.title, invalidated: session.titleInvalidated, total: &bytes, maximum: self.maximumPageBytes)
+                try Self.reserve(session.title, total: &bytes, maximum: self.maximumPageBytes)
             }
             for row in page.messages {
-                try Self.reserve(
-                    row.body, invalidated: row.bodyInvalidated, total: &bytes, maximum: self.maximumPageBytes)
-                try Self.reserve(
-                    row.thinking, invalidated: row.thinkingInvalidated, total: &bytes, maximum: self.maximumPageBytes)
+                try Self.reserve(row.body, total: &bytes, maximum: self.maximumPageBytes)
+                try Self.reserve(row.thinking, total: &bytes, maximum: self.maximumPageBytes)
             }
             let session: SessionQueryItem?
             if let row = page.session {
                 session = .init(
-                    summary: row, title: try await self.text(row.title, invalidated: row.titleInvalidated, lease: lease)
+                    summary: row, title: try await self.text(row.title, lease: lease)
                 )
             } else {
                 session = nil
             }
             var messages: [SessionQueryMessage] = []
             for row in page.messages {
-                let body = try await self.text(row.body, invalidated: row.bodyInvalidated, lease: lease)
-                let thinking = try await self.text(row.thinking, invalidated: row.thinkingInvalidated, lease: lease)
+                let body = try await self.text(row.body, lease: lease)
+                let thinking = try await self.text(row.thinking, lease: lease)
                 messages.append(.init(summary: row, body: body, thinking: thinking))
             }
             return .init(session: session, messages: messages, executions: page.executions, hasMore: page.hasMore)
@@ -177,7 +173,7 @@ public actor SessionQueryService {
             let values = try await lease.read {
                 try await SessionActivityReader.read(
                     snapshot: snapshot, sessionID: sessionID, executionIDs: executionIDs,
-                    maximumPageBytes: self.maximumPageBytes, journal: self.journal,
+                    maximumPageBytes: self.maximumPageBytes,
                     payloads: lease.reader(from: self.payloads))
             }
             try await lease.check()
@@ -185,8 +181,9 @@ public actor SessionQueryService {
         }
     }
 
-    /// Loads a persisted visible draft for recovery, not for per-token UI polling.
-    public func persistedDraft(sessionID: ConversationID) async throws -> SessionQueryDraft? {
+    /// Reads the committed output of the active execution. Unresolved model
+    /// output belongs to the in-memory executor and is intentionally absent.
+    public func settledOutput(sessionID: ConversationID) async throws -> SessionSettledOutput? {
         try await owned { lease in
             let snapshot = try await lease.read {
                 try await JournalSessionReader(
@@ -194,21 +191,20 @@ public actor SessionQueryService {
                     extensionSchemas: self.extensionSchemas
                 ).snapshot(sessionID: sessionID)
             }
-            guard let executionID = snapshot.state.activeExecutionID,
-                !snapshot.state.excludedExecutionIDs.contains(executionID)
-            else { return nil }
-            let values = try await lease.read {
-                try await SessionDraftReader(journal: self.journal, payloads: lease.reader(from: self.payloads))
-                    .read(state: snapshot.state, executionID: executionID, parts: [.answer, .thinking])
+            guard let executionID = snapshot.state.activeExecutionID else { return nil }
+            guard let execution = snapshot.state.executions[executionID] else { throw Self.invalidPage }
+            var bytes = 0
+            for attemptID in execution.attemptIDs {
+                guard let attempt = snapshot.state.attempts[attemptID] else { throw Self.invalidPage }
+                if let output = attempt.resolution?.output {
+                    try Self.reserve(output, total: &bytes, maximum: self.maximumPageBytes)
+                }
             }
-            let answer = values[.answer, default: Data()]
-            let thinking = values[.thinking, default: Data()]
-            guard answer.count <= self.maximumPageBytes, thinking.count <= self.maximumPageBytes - answer.count else {
-                throw Self.pageTooLarge
+            return try await lease.read {
+                try await SessionSettledOutput.read(
+                    execution: execution, attempts: snapshot.state.attempts,
+                    payloads: lease.reader(from: self.payloads))
             }
-            return .init(
-                head: snapshot.head, executionID: executionID,
-                answer: try Self.decode(answer), thinking: try Self.decode(thinking))
         }
     }
 
@@ -223,11 +219,9 @@ public actor SessionQueryService {
     }
 
     private func text(
-        _ reference: SessionPayloadReference?, invalidated: Bool,
-        lease: AgentLibraryAccessLease
+        _ reference: SessionContent?, lease: AgentLibraryAccessLease
     ) async throws -> SessionTextContent {
         guard let reference else { return .absent }
-        if invalidated { return .purged }
         let bytes = try await lease.read { try await self.payloads.read(reference) }
         guard bytes.count == reference.byteCount else { throw Self.invalidPage }
         return .available(try Self.decode(bytes))
@@ -237,7 +231,7 @@ public actor SessionQueryService {
         try session.head.validate()
         try session.title.validate()
         guard session.head.cursor.sessionID == session.id, session.head.cursor.sequence > 0,
-            session.title.sessionID == session.id, session.title.kind == .title, session.revision > 0
+            session.title.kind == .title, session.revision > 0
         else { throw invalidPage }
     }
 
@@ -286,23 +280,18 @@ public actor SessionQueryService {
     }
 
     private static func validate(
-        _ reference: SessionPayloadReference?, kind: SessionPayloadKind,
+        _ reference: SessionContent?, kind: SessionContentKind,
         sessionID: ConversationID
     ) throws {
         guard let reference else { return }
         try reference.validate()
-        guard reference.kind == kind, reference.sessionID == sessionID else { throw invalidPage }
+        guard reference.kind == kind else { throw invalidPage }
     }
 
     private static func reserve(
-        _ reference: SessionPayloadReference?, invalidated: Bool,
-        total: inout Int, maximum: Int
+        _ reference: SessionContent?, total: inout Int, maximum: Int
     ) throws {
-        guard let reference else {
-            guard !invalidated else { throw invalidPage }
-            return
-        }
-        if invalidated { return }
+        guard let reference else { return }
         guard reference.byteCount >= 0, reference.byteCount <= maximum - total else { throw pageTooLarge }
         total += reference.byteCount
     }

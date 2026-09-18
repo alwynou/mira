@@ -27,6 +27,7 @@ public struct AgentModelCapabilities: Codable, Sendable, Equatable {
 }
 
 /// Adapter-owned configuration is frozen data. It never includes a credential value.
+/// Metadata provenance stays in model settings; routes retain resolved execution values.
 public struct AgentModelRoute: Codable, Sendable, Equatable {
     public let id: RouteID
     public let revision: Int
@@ -39,7 +40,6 @@ public struct AgentModelRoute: Codable, Sendable, Equatable {
     public let invocationID: String
     public let invocationRevision: Int
     public let endpointID: String
-    public let metadataEvidence: [AgentModelMetadataFact]
     public let modelID: String
     public let credential: AgentCredentialReference?
     public let contextWindow: Int
@@ -51,7 +51,6 @@ public struct AgentModelRoute: Codable, Sendable, Equatable {
     public init(id: RouteID, revision: Int, connectionID: ConnectionID, connectionRevision: Int,
                 modelDescriptorID: ModelDescriptorID, modelRevision: Int, modelAuthorizationRevision: Int, adapter: AgentAdapterIdentity,
                 invocationID: String, invocationRevision: Int, endpointID: String,
-                metadataEvidence: [AgentModelMetadataFact],
                 modelID: String, credential: AgentCredentialReference?, contextWindow: Int,
                 maximumOutputTokens: Int, capabilities: AgentModelCapabilities, configuration: JSONValue, maximumInputTokens: Int? = nil) {
         self.id = id; self.revision = revision; self.connectionID = connectionID
@@ -63,15 +62,14 @@ public struct AgentModelRoute: Codable, Sendable, Equatable {
         self.configuration = configuration
         self.maximumInputTokens = maximumInputTokens
         self.invocationID = invocationID; self.invocationRevision = invocationRevision
-        self.endpointID = endpointID; self.metadataEvidence = metadataEvidence
+        self.endpointID = endpointID
     }
 
     public func validate() throws {
         try adapter.validate()
-        for fact in metadataEvidence { try fact.validate() }
         guard revision > 0, connectionRevision > 0, modelRevision > 0, modelAuthorizationRevision > 0, modelAuthorizationRevision <= modelRevision, invocationRevision > 0,
               SessionState.validIdentifier(invocationID, maximumBytes: 128),
-              SessionState.validIdentifier(endpointID, maximumBytes: 128), metadataEvidence.count <= 256,
+              SessionState.validIdentifier(endpointID, maximumBytes: 128),
               !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, modelID.utf8.count <= 512,
               (1...10_000_000).contains(contextWindow), maximumOutputTokens > 0,
               maximumInputTokens.map({ (1...10_000_000).contains($0) }) ?? true,
@@ -110,38 +108,6 @@ public enum AgentModelBlockContent: Codable, Sendable, Equatable {
     case thinking(String)
     case toolCall(CanonicalToolCall)
     case toolResult(callID: String, text: String)
-
-    private enum CodingKeys: String, CodingKey { case type, text, call, callID }
-    private enum Kind: String, Codable { case text, thinking, toolCall = "tool_call", toolResult = "tool_result" }
-
-    public init(from decoder: any Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        switch try values.decode(Kind.self, forKey: .type) {
-        case .text: self = .text(try values.decode(String.self, forKey: .text))
-        case .thinking: self = .thinking(try values.decode(String.self, forKey: .text))
-        case .toolCall: self = .toolCall(try values.decode(CanonicalToolCall.self, forKey: .call))
-        case .toolResult:
-            self = .toolResult(callID: try values.decode(String.self, forKey: .callID),
-                               text: try values.decode(String.self, forKey: .text))
-        }
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var values = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case .text(let text), .thinking(let text):
-            let kind: Kind = if case .thinking = self { .thinking } else { .text }
-            try values.encode(kind, forKey: .type)
-            try values.encode(text, forKey: .text)
-        case .toolCall(let call):
-            try values.encode(Kind.toolCall, forKey: .type)
-            try values.encode(call, forKey: .call)
-        case .toolResult(let callID, let text):
-            try values.encode(Kind.toolResult, forKey: .type)
-            try values.encode(callID, forKey: .callID)
-            try values.encode(text, forKey: .text)
-        }
-    }
 }
 
 public struct AgentModelBlock: Codable, Sendable, Equatable {
@@ -159,14 +125,14 @@ public struct AgentModelBlock: Codable, Sendable, Equatable {
         }
         switch content {
         case .text(let value), .thinking(let value):
-            guard value.utf8.count <= SessionFormatLimits.maximumPayloadBytes else {
+            guard value.utf8.count <= SessionFormatLimits.maximumContentBytes else {
                 throw MiraError(.outputLimit, "The model block exceeds its text limit.")
             }
         case .toolCall(let call):
             try Self.validate(call)
         case .toolResult(let callID, let text):
             guard !callID.isEmpty, callID.utf8.count <= 256,
-                  text.utf8.count <= SessionFormatLimits.maximumPayloadBytes else {
+                  text.utf8.count <= SessionFormatLimits.maximumContentBytes else {
                 throw MiraError(.malformedStream, "The model tool result is invalid.")
             }
         }
@@ -300,7 +266,7 @@ public struct AgentModelInput: Codable, Sendable, Equatable {
         var usedIDs: Set<String> = []
         for message in messages {
             try message.validate(for: route.adapter, replay: true)
-            guard try SessionCodec.encode(message).count <= SessionFormatLimits.maximumPayloadBytes else {
+            guard try SessionCodec.encode(message).count <= SessionFormatLimits.maximumContentBytes else {
                 throw MiraError(.contextLimit, "The model input exceeds its supported bounds.")
             }
             if !pending.isEmpty {
@@ -329,7 +295,7 @@ public struct AgentModelInput: Codable, Sendable, Equatable {
     }
 }
 
-/// Preparation is pure and secret-free. The journal persists this before stream() can run.
+/// Preparation is pure and secret-free. Transport requests remain process-local.
 public struct AgentPreparedModelRequest: Codable, Sendable, Equatable {
     public let adapter: AgentAdapterIdentity
     public let input: AgentModelInput
@@ -344,7 +310,7 @@ public struct AgentPreparedModelRequest: Codable, Sendable, Equatable {
         let outputLimit = input.outputTokenLimit ?? route.maximumOutputTokens
         guard adapter == route.adapter, estimatedInputTokens >= 0,
               estimatedInputTokens <= min(route.contextWindow - outputLimit, route.maximumInputTokens ?? Int.max),
-              try SessionCodec.encode(self).count <= SessionFormatLimits.maximumPayloadBytes else {
+              try SessionCodec.encode(self).count <= SessionFormatLimits.maximumContentBytes else {
             throw MiraError(.contextLimit, "The prepared model request exceeds the frozen route budget.")
         }
     }

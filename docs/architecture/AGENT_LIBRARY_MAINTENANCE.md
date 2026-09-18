@@ -155,9 +155,9 @@ flowchart TD
 
 自动化证据和延期项见[核心验收记录](../engineering/AGENT_CORE_VERIFICATION.md)。
 
-## 会话清理实现
+## 会话与领域清理边界
 
-`SessionPrivacyMaintenance` 已实现规范日志的跨会话依赖闭包、原子持久清理计划、可见／隐藏分组保留、同一批次恢复及物理删除验证，契约和流程图见[会话隐私维护](AGENT_SESSION_PRIVACY.md)。领域处理器必须先持久保存此计划，再删除领域关联及正文。`MemoryForgetHandler` 已完成记忆、业务回执、会话正文和查询投影的清理及验证；知识 Blob 和原生缓存仍由后续完整组装负责。该会话引擎不单独完成库维护，也不开放原生遗忘入口。
+会话日志按 [规范会话日志](AGENT_SESSION_LOG.md) 保存不可变 inline 内容；它没有独立的会话隐私计划、sidecar 或跨会话正文失效图。Memory、Knowledge 和其他领域由各自的 forget/maintenance handler 维护业务证据、回执和查询投影。库级协调器负责排空工作组、推进维护代次并在领域事务完成后复核授权，不把领域清理扩展成第二套会话存储。
 
 ## 只读快照窗口
 
@@ -177,4 +177,4 @@ flowchart TD
 
 ## 会话全文缓存的维护边界
 
-`SessionPrivacyProjections` 可登记独立 `SessionSearchIndex`。记忆／知识清理必须先排空工作组中的搜索服务及共享追赶任务，再失效日志和清理正文；随后删除全部搜索数据库及 sidecar，同步目录，建立新身份的空索引。清理失败不开放普通读取，重试不得因为文件已不存在而跳过目录同步。验证还要检查 FTS vocabulary，不能仅依赖 external-content 表的 `COUNT`。完整规则见[搜索契约](SEARCH.md#新核心会话搜索)。
+`SessionPrivacyProjections` 可登记独立 `SessionSearchIndex`。记忆／知识清理必须先排空工作组中的搜索服务及共享追赶任务，再按搜索契约清理领域索引；随后删除全部搜索数据库，同步目录，建立新身份的空索引。清理失败不开放普通读取，重试不得因为文件已不存在而跳过目录同步。验证还要检查 FTS vocabulary，不能仅依赖 external-content 表的 `COUNT`。完整规则见[搜索契约](SEARCH.md#新核心会话搜索)。

@@ -1,5 +1,7 @@
 # Inline session event journal
 
+> Historical engineering record. The current contract is [AGENT_SESSION_LOG](../architecture/AGENT_SESSION_LOG.md). Measurements and implementation details below describe an earlier format and are not current acceptance criteria.
+
 Date: 2026-09-16. Baseline checkpoint: `08e2083`.
 
 ## Change

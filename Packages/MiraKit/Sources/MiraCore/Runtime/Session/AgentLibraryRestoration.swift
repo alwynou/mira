@@ -12,7 +12,7 @@ public actor AgentLibraryRestoration {
     private static let receiptPageSize = 1_000
 
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadStore
+    private let payloads: any SessionContentStore
     private let receipts: any AgentBusinessReceipts
     private let authorizer: any AgentSourceAuthorizer
     private let environment: RuntimeEnvironment
@@ -22,7 +22,7 @@ public actor AgentLibraryRestoration {
 
     public init(
         journal: any SessionJournal,
-        payloads: any SessionPayloadStore,
+        payloads: any SessionContentStore,
         receipts: any AgentBusinessReceipts,
         authorizer: any AgentSourceAuthorizer,
         environment: RuntimeEnvironment = .init(),
@@ -73,7 +73,7 @@ public actor AgentLibraryRestoration {
 
     private static func performRestore(
         journal: any SessionJournal,
-        payloads: any SessionPayloadStore,
+        payloads: any SessionContentStore,
         receipts: any AgentBusinessReceipts,
         authorizer: any AgentSourceAuthorizer,
         environment: RuntimeEnvironment,
@@ -184,7 +184,6 @@ public actor AgentLibraryRestoration {
         try receipt.validate()
         guard proof.sessionID == state.id,
             proof.intentSequence > 0,
-            proof.proposal.sessionID == state.id,
             proof.proposal.kind == .effectIntent,
             receipt.invocationID == proof.invocationID,
             receipt.authorization == proof.authorization,
@@ -201,12 +200,11 @@ public actor AgentLibraryRestoration {
             intent.intent.invocationID == proof.invocationID,
             intent.intent.authorization == proof.authorization,
             intent.intent.proposal == proof.proposal,
-            proof.proposal.batchID == proof.intentBatchID,
             let resolution = item.resolution,
             resolution.businessReceipt == receipt,
             resolution.status == .succeeded,
             resolution.effectIsKnown,
-            !resolution.resultWasPurged || publication.receipt.result == nil
+            resolution.result?.bytes == publication.receipt.result
         else {
             throw Self.invalidReceipt
         }

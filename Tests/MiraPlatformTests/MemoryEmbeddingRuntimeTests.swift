@@ -159,6 +159,8 @@ struct MemoryEmbeddingRuntimeTests {
             let execution = try #require(firstExecution)
             var configuration = Configuration()
             configuration.readonly = true
+            // The observer reads while the production background worker commits its vector.
+            configuration.busyMode = .timeout(5)
             let database = try DatabaseQueue(path: directory.appendingPathComponent("Business.sqlite").path, configuration: configuration)
             defer { try? database.close() }
             let deadline = ContinuousClock.now + .seconds(45)

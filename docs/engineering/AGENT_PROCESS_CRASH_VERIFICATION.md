@@ -58,7 +58,7 @@ sequenceDiagram
 
 ## 待发布正文恢复增量
 
-待发布记录与启动职责见[正文发布与恢复契约](../architecture/AGENT_PAYLOAD_RECOVERY.md)。新的四个场景使用真实 FileSessionLibrary 和原有父进程 SIGSTOP → SIGKILL → 两次独立恢复流程。清单只保存合成身份；正文、head、批次和物理文件从实际存储核对。`verifyNoUnpublished` 直接验证第一次打开已完成恢复，没有先调用 purge 掩盖初始化遗漏。
+待发布记录与启动职责见[正文发布与恢复契约](../architecture/AGENT_SESSION_LOG.md)。新的四个场景使用真实 FileSessionLibrary 和原有父进程 SIGSTOP → SIGKILL → 两次独立恢复流程。清单只保存合成身份；正文、head、批次和物理文件从实际存储核对。`verifyNoUnpublished` 直接验证第一次打开已完成恢复，没有先调用 purge 掩盖初始化遗漏。
 
 本轮完整 `swift test --package-path Packages/MiraKit` 退出 0：972 个注册测试／139 个套件，其中 970 个通过、2 个可选规模基准跳过，7.732 秒（`/tmp/mira-payload-recovery-package.log`）。全部 16 个真实终止场景通过。聚焦过程中仅有一个新增测试把大写合法 UUID 当作非法名称而失败；改为固定小写 UUID 后保留严格规范名称断言，生产实现没有为该夹具放宽规则。
 

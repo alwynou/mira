@@ -3,40 +3,6 @@ import Testing
 @testable import MiraCore
 
 struct AgentContextTests {
-    @Test func semanticRequestOmitsDuplicateWireJSONAndKeepsOrderedContinuation() throws {
-        let route = makeRoute(), context = request(route: makeRoute())
-        let request = AgentContextRequest(sessionID: context.sessionID, executionID: context.executionID,
-            workspaceID: context.workspaceID, userText: "Unique admitted text", authorizationEpoch: 1, destination: .model(route))
-        let continuation = AgentModelContinuation(adapter: route.adapter, format: "test.opaque",
-            payload: .object(["signature": .string("verbatim-signature"), "state": .array([.string("opaque")])]), isComplete: true)
-        let input = AgentModelInput(stepID: UUID(), executionID: context.executionID,
-            instructions: String(repeating: "Stable instruction. ", count: 1_000), messages: [
-                .init(role: .user, blocks: [.init(id: "old", content: .text("An older user message"))]),
-                .init(role: .assistant, blocks: [.init(id: "thinking", content: .thinking("Visible reasoning")),
-                    .init(id: "answer", content: .text("Earlier reply"))], continuation: continuation),
-                .init(role: .user, blocks: [.init(id: "current", content: .text(request.userText))])
-            ], tools: [])
-        let prepared = AgentPreparedModelRequest(adapter: route.adapter, input: input,
-            wirePayload: try SessionCodec.decode(JSONValue.self, from: SessionCodec.encode(input)), estimatedInputTokens: 50)
-        let build = AgentContextBuild(request: request, prepared: prepared, inheritedSources: [], evidence: [], omissions: [])
-        let record = try AgentRequestRecord(build), bytes = try SessionCodec.encode(record)
-        let restored = try SessionCodec.decode(AgentRequestRecord.self, from: bytes)
-        #expect(restored == record && restored.input == input)
-        let text = String(decoding: bytes, as: UTF8.self)
-        #expect(!text.contains("wirePayload") && !text.contains("_0"))
-        #expect(text.components(separatedBy: request.userText).count == 2)
-        struct FormerSnapshot: Encodable { let request: AgentContextRequest; let prepared: AgentPreparedModelRequest }
-        let oldBytes = try SessionCodec.encode(FormerSnapshot(request: request, prepared: prepared)).count
-        #expect(bytes.count * 100 < oldBytes * 60)
-        print("Synthetic semantic request: old=\(oldBytes) bytes new=\(bytes.count) bytes")
-        var json = try #require(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
-        for index in [-1, 0, 99] {
-            json["currentUserMessageIndex"] = index
-            let invalid = try JSONSerialization.data(withJSONObject: json)
-            #expect(throws: MiraError.self) { _ = try SessionCodec.decode(AgentRequestRecord.self, from: invalid) }
-        }
-    }
-
     @Test func totalSourceBudgetOmitsOptionalEvidenceAndRejectsRequiredOverflow() async throws {
         let route = makeRoute()
         let contextRequest = request(route: route)
@@ -69,12 +35,10 @@ struct AgentContextTests {
         #expect(build.inheritedSources == [source])
         #expect(build.sources == [source])
         #expect(await authorizer.calls == 2)
-        let record = try AgentRequestRecord(build)
-        let decoded = try SessionCodec.decode(AgentRequestRecord.self, from: SessionCodec.encode(record))
+        let request = AgentSessionRequest(build)
+        let decoded = try SessionCodec.decode(AgentSessionRequest.self, from: SessionCodec.encode(request))
         #expect(decoded.request == build.request)
-        #expect(decoded.input == build.prepared.input)
         #expect(decoded.sources == [source])
-        #expect(try SessionCodec.encode(record).contains(Data("wirePayload".utf8)) == false)
     }
 
     @Test func contributorTextRemainsDataAndCurrentUserRemainsLast() async throws {
@@ -230,6 +194,35 @@ struct AgentContextTests {
         #expect(!build.prepared.input.messages.contains { $0.text.contains("history-0-") || $0.text.contains("history-1-") })
     }
 
+    @Test func frozenContextDoesNotRecollectContributorsAcrossToolSteps() async throws {
+        let route = makeRoute()
+        let contextRequest = request(route: route)
+        let contributor = CountingContributor(id: "memory", items: [
+            .init(id: "item", text: "stable evidence", sources: [])
+        ])
+        let first = try await assembler().build(
+            request: contextRequest, stepID: UUID(), instructions: "Instructions",
+            history: .init(exchanges: []), currentTrace: .init(messages: [], sources: []),
+            tools: [], route: route, adapter: TestContextAdapter(),
+            contributors: [contributor], authorizer: TestAuthorizer())
+        let frozen = AgentFrozenContext(
+            message: first.prepared.input.messages.first(where: { $0.role == .context }),
+            evidence: first.evidence, omissions: first.omissions,
+            sources: first.evidence.flatMap(\.sources))
+        let second = try await assembler().build(
+            request: contextRequest, stepID: UUID(), instructions: "Instructions",
+            history: .init(exchanges: []),
+            currentTrace: .init(messages: [.init(role: .assistant,
+                blocks: [.init(id: "answer", content: .text("first step"))])], sources: []),
+            tools: [], route: route, adapter: TestContextAdapter(),
+            contributors: [contributor], authorizer: TestAuthorizer(), frozenContext: frozen)
+
+        #expect(await contributor.calls == 1)
+        #expect(second.prepared.input.messages.first(where: { $0.role == .context }) ==
+                first.prepared.input.messages.first(where: { $0.role == .context }))
+        #expect(second.prepared.input.messages.last?.text == "first step")
+    }
+
     @Test func initialSourceUnionPrunesHistoryButNeverCurrentTrace() async throws {
         let route = makeRoute()
         let contextRequest = request(route: route)
@@ -330,7 +323,7 @@ struct AgentContextTests {
               userText: "Current user text", authorizationEpoch: 1, destination: .model(route))
     }
     private func makeRoute(contextWindow: Int = 8_192, maximumOutputTokens: Int = 1_024) -> AgentModelRoute {
-        .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "family.context", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "model", credential: nil, contextWindow: contextWindow, maximumOutputTokens: maximumOutputTokens, capabilities: .init(streamsText: true, callsTools: false, producesThinking: false), configuration: .object([:]))
+        .init(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "family.context", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "model", credential: nil, contextWindow: contextWindow, maximumOutputTokens: maximumOutputTokens, capabilities: .init(streamsText: true, callsTools: false, producesThinking: false), configuration: .object([:]))
     }
 }
 

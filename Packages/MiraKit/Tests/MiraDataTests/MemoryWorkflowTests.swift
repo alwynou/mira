@@ -81,10 +81,9 @@ struct MemoryWorkflowTests {
             let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
             #expect(state.invocations.values.first?.resolution?.status == .succeeded)
             let extraction = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
-            let privacy = try SQLiteSessionPrivacyPlanStore(database: f.database, libraryID: f.authority.libraryID)
             let application = MemoryApplication(
                 store: store, extractionStatusReader: extraction, reader: .init(journal: f.library, payloads: f.library),
-                privacyHistory: privacy, access: f.access, scope: f.scope)
+                access: f.access, scope: f.scope)
             do {
                 _ = try await application.reviseMemory(
                     memory.id, workspaceID: nil,
@@ -100,10 +99,10 @@ struct MemoryWorkflowTests {
                         executionID: address.executionID, workspaceID: nil)
                 }
                 await application.close()
-                await extraction.close(); await privacy.close()
+                await extraction.close()
             } catch {
                 await application.close()
-                await extraction.close(); await privacy.close()
+                await extraction.close()
                 throw error
             }
         }

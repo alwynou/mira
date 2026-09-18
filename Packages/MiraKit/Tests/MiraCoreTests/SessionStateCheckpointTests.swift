@@ -190,13 +190,12 @@ private actor CheckpointFixture: SessionCheckpointJournal {
     func checkpointSnapshot() -> SessionJournalSnapshot? { checkpoint }
     func targetHead() -> SessionJournalHead? { batches.last.map { .init(cursor: $0.cursor, batchID: $0.id) } }
 
-    private static func reference(sessionID: ConversationID, kind: SessionPayloadKind,
-                                  batchID: UUID) -> SessionPayloadReference {
-        .init(id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: kind,
-              byteCount: 1, digest: String(repeating: "a", count: 64))
+    private static func reference(sessionID: ConversationID, kind: SessionContentKind,
+                                  batchID: UUID) -> SessionContent {
+        .init(id: UUID(), kind: kind, bytes: Data(kind.rawValue.utf8))
     }
 }
 
-private struct EmptyPayloads: SessionPayloadReader {
-    func read(_ reference: SessionPayloadReference) async throws -> Data { Data() }
+private struct EmptyPayloads: SessionContentReader {
+    func read(_ reference: SessionContent) async throws -> Data { Data() }
 }

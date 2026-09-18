@@ -53,33 +53,6 @@ struct AgentModelStreamChannelTests {
         await channel.close()
     }
 
-    @Test func repeatedCheckpointsCoalesceAndPrecedeBufferedEvent() async throws {
-        let channel = AgentModelStreamChannel()
-        #expect(await channel.checkpoint())
-        #expect(await channel.checkpoint())
-        #expect(await channel.checkpoint())
-
-        let producer = Task { try await channel.send(.blockStarted(.init(id: "text", content: .text("event")))) }
-        do {
-            try await waitUntilBuffered(channel)
-            guard case .checkpoint = try await channel.next() else {
-                Issue.record("coalesced checkpoint was not delivered first")
-                throw MiraError(.malformedStream, "Missing checkpoint")
-            }
-            switch try await channel.next() {
-            case .event(.blockStarted(.init(id: "text", content: .text("event")))): break
-            default: Issue.record("buffered event was not delivered after checkpoint")
-            }
-            try await producer.value
-        } catch {
-            producer.cancel()
-            await channel.close()
-            _ = try? await producer.value
-            throw error
-        }
-        await channel.close()
-    }
-
     @Test func finishPreservesBufferedEventThenReturnsExactTerminalOutcome() async throws {
         let completed = AgentModelStreamChannel()
         let producer = Task { try await completed.send(.blockStarted(.init(id: "text", content: .text("buffered")))) }
@@ -127,21 +100,17 @@ struct AgentModelStreamChannelTests {
         await failed.close()
     }
 
-    @Test func liveOutputTicksCoalesceIndependentlyOfDurableCheckpoints() async throws {
+    @Test func liveOutputTicksCoalesceWithoutDurableSignals() async throws {
         let channel = AgentModelStreamChannel()
         for _ in 0..<32 { #expect(await channel.output()) }
-        #expect(await channel.checkpoint())
         let producer = Task { try await channel.send(.blockStarted(.init(id: "text", content: .text("pending")))) }
         do {
             try await waitUntilBuffered(channel)
-            guard case .checkpoint = try await channel.next() else {
-                throw MiraError(.conflict, "The durable checkpoint signal was lost.")
-            }
             guard case .output = try await channel.next() else {
                 throw MiraError(.conflict, "The live output signal was lost.")
             }
             guard case .event(.blockStarted(.init(id: "text", content: .text("pending")))) = try await channel.next() else {
-                throw MiraError(.conflict, "Timer signals displaced the model event.")
+                throw MiraError(.conflict, "Coalesced live-output signals displaced the model event.")
             }
             try await producer.value
             await channel.finish()

@@ -89,21 +89,12 @@ actor MacLibrary {
                 ] + modules(registry))
             let active = try await host.activate(in: scope)
             activation = active
-            let sessions = SessionPrivacyMaintenance(
-                journal: storage.sessions, payloads: storage.sessions,
-                plans: storage.privacyPlans)
-            let projections = try SessionPrivacyProjections(
-                journal: storage.sessions, payloads: storage.sessions,
-                stores: [storage.projection], searchIndexes: [storage.searchIndex])
-            let memory = MemoryForgetHandler(
-                memories: storage.memories, sessions: sessions,
-                plans: storage.privacyPlans, business: storage.businessPrivacy, projections: projections)
+            let memory = MemoryForgetHandler(memories: storage.memories)
             try await handlers.register(id: memory.identity.namespace, value: memory, scope: scope)
             for action in [KnowledgePrivacyAction.revokeRemoteUse, .deleteSource] {
                 let handler = KnowledgePrivacyHandler(
                     action: action, knowledge: storage.knowledge,
-                    blobs: storage.knowledge, sessions: sessions, plans: storage.privacyPlans,
-                    business: storage.businessPrivacy, projections: projections)
+                    blobs: storage.knowledge)
                 try await handlers.register(id: handler.identity.namespace, value: handler, scope: scope)
             }
             let blobs = KnowledgeBlobCollectionHandler(store: storage.knowledge)

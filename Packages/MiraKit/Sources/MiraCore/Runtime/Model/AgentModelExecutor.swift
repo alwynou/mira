@@ -26,13 +26,14 @@ actor AgentModelExecutor {
     private let runtime: SessionRuntime
     private let libraryLease: AgentLibraryAccessLease
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let scheduler: RuntimeScheduler
     private let environment: RuntimeEnvironment
     private var running = false
+    private var activeAttempts: [UUID: AgentRecoveredAttempt] = [:]
 
     init(
-        runtime: SessionRuntime, journal: any SessionJournal, payloads: any SessionPayloadReader,
+        runtime: SessionRuntime, journal: any SessionJournal, payloads: any SessionContentReader,
         libraryLease: AgentLibraryAccessLease, scheduler: RuntimeScheduler, environment: RuntimeEnvironment = .init()
     ) {
         self.runtime = runtime
@@ -100,8 +101,8 @@ actor AgentModelExecutor {
                 AgentModelAttemptFailureRecord.self, from: await payloads.read(failureReference))
             try record.failure.validate()
             guard !record.receivedStreamEvents, record.failure.retryAdvice != nil,
-                try await AgentRequestRecord.read(previous.attempt.request, payloads: payloads)
-                    == (try AgentRequestRecord(build))
+                try SessionCodec.decode(AgentSessionRequest.self, from: await payloads.read(previous.attempt.request))
+                    == AgentSessionRequest(build)
             else {
                 throw Self.invalidRetry
             }
@@ -109,8 +110,7 @@ actor AgentModelExecutor {
         } else {
             retryingAttempt = nil
         }
-        let thinkingPrefix = try await SessionDraftReader(journal: journal, payloads: payloads).thinkingPrefix(
-            state: state, executionID: request.executionID)
+        let thinkingPrefix = try await settledThinkingPrefix(state: state, executionID: request.executionID)
         let lease = try await scheduler.acquire(executionID: request.executionID, priority: priority)
         do {
             let result = try await withThrowingTaskGroup(of: AgentModelStepResult.self) { group in
@@ -157,18 +157,14 @@ actor AgentModelExecutor {
             guard context.state.attempts[attemptID] == nil else {
                 throw MiraError(.conflict, "This model attempt has already been admitted.")
             }
-            let payload: SessionPayloadReference
-            let contents: [SessionPayloadReference]
+            let payload: SessionContent
             if let retryingAttempt {
                 guard context.state.executions[request.executionID]?.attemptIDs.last == retryingAttempt.id,
                     context.state.attempts[retryingAttempt.id]?.resolution?.status == .failed
                 else { throw Self.invalidRetry }
                 payload = retryingAttempt.request
-                contents = retryingAttempt.contents
             } else {
-                let staged = try await AgentRequestRecord.stage(build, context: context)
-                payload = staged.request
-                contents = staged.contents
+                payload = try await context.stage(AgentSessionRequest(build), kind: .request)
             }
             var facts: [SessionFact] = []
             if context.state.executions[request.executionID]?.phase != .preparing {
@@ -179,13 +175,10 @@ actor AgentModelExecutor {
                     .init(
                         id: attemptID, executionID: request.executionID,
                         stepID: stepID, stepIndex: stepIndex, attemptIndex: (retryingAttempt?.attemptIndex ?? 0) + 1,
-                        request: payload, contents: contents)))
+                        request: payload)))
             return facts
         }
         try AgentDurabilityFailure.requireCommitted(start)
-        guard let admitted = await runtime.snapshot().attempts[attemptID]?.attempt else {
-            throw MiraError(.storage, "The admitted model attempt is unavailable.")
-        }
         let ownerID = environment.uuid()
         let runtime = runtime
         let visible = try await libraryLease.start {
@@ -195,15 +188,12 @@ actor AgentModelExecutor {
             try await runtime.beginOutput(
                 ownerID: ownerID, executionID: request.executionID,
                 attemptID: attemptID, authorizationEpoch: request.authorizationEpoch, lease: libraryLease)
+            activeAttempts[attemptID] = .init(output: nil, stream: [])
             // Preparation, scheduler waits and disk I/O may all outlive a policy change.
             try await validateDispatch(request, sources: build.sources, authorizer: authorizer)
             var accumulator = try AgentModelAccumulator(route: route)
-            var lastTextSize = 0
-            var lastThinkingSize = 0
+            var recorder = AgentSessionStreamRecorder()
             var receivedStreamEvents = false
-            var dirty = false
-            let existingDraft = try? await payloads.activeDraft(sessionID: request.sessionID)
-            var draftRevision: UInt64 = existingDraft?.revision ?? 0
             var visibleDirty = false
             var publishedVisible = false
             let channel = AgentModelStreamChannel()
@@ -229,21 +219,6 @@ actor AgentModelExecutor {
                     group.addTask { [environment] in
                         do {
                             while true {
-                                try await environment.clock.sleep(for: .milliseconds(250))
-                                try Task.checkCancellation()
-                                guard await channel.checkpoint() else { return }
-                            }
-                        } catch {
-                            let failure: any Error =
-                                Task.isCancelled || error is CancellationError
-                                ? CancellationError()
-                                : MiraError(.interrupted, "The model draft checkpoint timer failed.")
-                            await channel.finish(error: failure)
-                        }
-                    }
-                    group.addTask { [environment] in
-                        do {
-                            while true {
                                 try await environment.clock.sleep(for: .milliseconds(100))
                                 try Task.checkCancellation()
                                 guard await channel.output() else { return }
@@ -260,14 +235,14 @@ actor AgentModelExecutor {
                         while let input = try await channel.next() {
                             try Task.checkCancellation()
                             try await validateEligibility(request)
-                            let timerFired: Bool
                             var outputTick = false
                             var finishing = false
                             switch input {
                             case .event(let event):
                                 receivedStreamEvents = true
                                 try accumulator.consume(event)
-                                dirty = true
+                                try recorder.consume(event, blocks: accumulator.blocks, at: environment.now())
+                                activeAttempts[attemptID] = Self.recoveredAttempt(accumulator, stream: recorder.records)
                                 switch event {
                                 case .blockStarted, .blockDelta, .blockFinished: visibleDirty = true
                                 case .finished:
@@ -275,10 +250,7 @@ actor AgentModelExecutor {
                                     visibleDirty = true
                                 default: break
                                 }
-                                timerFired = false
-                            case .checkpoint: timerFired = true
                             case .output:
-                                timerFired = false
                                 outputTick = true
                             }
                             if visibleDirty && (!publishedVisible || outputTick || finishing) {
@@ -291,16 +263,6 @@ actor AgentModelExecutor {
                                     publishedVisible = true
                                 }
                                 visibleDirty = false
-                            }
-                            let textSize = accumulator.text.utf8.count
-                            let thinkingSize = accumulator.thinkingText.utf8.count
-                            let changedBytes = abs(textSize - lastTextSize) + abs(thinkingSize - lastThinkingSize)
-                            if dirty && (timerFired || changedBytes >= 4_096) {
-                                try await checkpoint(accumulator, request: admitted.request, requestContext: request,
-                                                     attemptID: attemptID, revision: &draftRevision)
-                                dirty = false
-                                lastTextSize = textSize
-                                lastThinkingSize = thinkingSize
                             }
                         }
                         group.cancelAll()
@@ -317,22 +279,21 @@ actor AgentModelExecutor {
                 await owned.release()
                 try Task.checkCancellation()
                 let output = try accumulator.finish()
-                try await checkpoint(accumulator, request: admitted.request, requestContext: request,
-                                     attemptID: attemptID, revision: &draftRevision)
                 // The resolved model output and every tool identity enter the journal together.
                 let resolutionID = environment.uuid()
+                let stream = recorder.records
                 let invocationIDs = output.toolCalls.map { _ in environment.uuid() }
                 let resolution = await runtime.commit(id: resolutionID) { context in
                     try Self.validateActive(context.state, request: request)
-                    let outputRef = try await context.stage(output, kind: .modelOutput, retentionGroup: UUID())
+                    let outputRef = try await context.stage(output, kind: .modelOutput)
                     var facts: [SessionFact] = [
                         .attemptResolved(
                             .init(
                                 attemptID: attemptID, status: .completed,
-                                output: outputRef, usage: output.usage))
+                                output: outputRef, usage: output.usage, stream: stream))
                     ]
                     for (order, call) in output.toolCalls.enumerated() {
-                        let callRef = try await context.stage(call, kind: .toolCall, retentionGroup: UUID())
+                        let callRef = try await context.stage(call, kind: .toolCall)
                         facts.append(
                             .toolProposed(
                                 .init(
@@ -346,7 +307,7 @@ actor AgentModelExecutor {
                     return facts
                 }
                 try AgentDurabilityFailure.requireCommitted(resolution)
-                try? await runtime.removeActiveDraft(sessionID: request.sessionID, attemptID: attemptID)
+                activeAttempts.removeValue(forKey: attemptID)
                 let committed = await runtime.snapshot()
                 let invocations = try invocationIDs.map { id in
                     guard let invocation = committed.invocations[id]?.invocation else {
@@ -360,57 +321,37 @@ actor AgentModelExecutor {
                 // A persistence fence must be reconciled as-is, never overwritten by an error batch.
                 await owned.release()
                 if error is AgentDurabilityFailure { throw error }
-                if Task.isCancelled || error is CancellationError {
-                    // Cancellation can arrive after the last 250 ms checkpoint. Capture the
-                    // accumulator at this boundary on an uncancelled task so the finalizer can
-                    // recover the latest delta without appending a journal fact.
-                    if draftRevision < UInt64.max {
-                        let draft = SessionActiveDraft(
-                            request: admitted.request, executionID: request.executionID, attemptID: attemptID,
-                            authorizationEpoch: request.authorizationEpoch, revision: draftRevision + 1,
-                            blocks: accumulator.blocks, continuation: accumulator.continuation,
-                            usage: accumulator.usage)
-                        let save = Task.detached { [runtime] in
-                            try? await runtime.saveActiveDraft(draft)
-                        }
-                        await save.value
-                    }
-                    throw error
-                }
                 let failure = (error as? AgentModelFailure) ?? .init(error: MiraError.safe(error))
                 try failure.validate()
+                recorder.fail(failure.error, at: environment.now())
+                activeAttempts[attemptID] = Self.recoveredAttempt(accumulator, stream: recorder.records)
                 if !Task.isCancelled, !(error is CancellationError), failure.error.code != .cancelled {
                     let current = await runtime.snapshot()
                     if current.attempts[attemptID]?.resolution == nil,
                         (try? Self.validateActive(current, request: request)) != nil
                     {
-                        try await checkpoint(accumulator, request: admitted.request, requestContext: request,
-                                             attemptID: attemptID, revision: &draftRevision)
                         let record = AgentModelAttemptFailureRecord(
                             failure: failure, receivedStreamEvents: receivedStreamEvents)
                         let usage = accumulator.usage
-                        let partialBlocks = accumulator.blocks
-                        let partialContinuation = accumulator.continuation
+                        let stream = recorder.records
+                        let partial = Self.partialOutput(accumulator)
                         let resolution = await runtime.commit(id: environment.uuid()) { context in
                             try Self.validateActive(context.state, request: request)
-                            let reference = try await context.stage(record, kind: .error, retentionGroup: UUID())
-                            let partial: SessionPayloadReference?
-                            if !partialBlocks.isEmpty || partialContinuation != nil {
-                                let output = AgentModelOutput(blocks: partialBlocks,
-                                    continuation: partialContinuation, usage: usage,
-                                    finishReason: .stop)
-                                partial = try await context.stage(output, kind: .modelOutput, retentionGroup: UUID())
+                            let reference = try await context.stage(record, kind: .error)
+                            let outputReference: SessionContent?
+                            if let partial {
+                                outputReference = try await context.stage(partial, kind: .modelOutput)
                             } else {
-                                partial = nil
+                                outputReference = nil
                             }
                             return [
                                 .attemptResolved(
-                                    .init(attemptID: attemptID, status: .failed, output: partial,
-                                          error: reference, usage: usage))
+                                    .init(attemptID: attemptID, status: .failed, output: outputReference,
+                                         error: reference, usage: usage, stream: stream))
                             ]
                         }
                         try AgentDurabilityFailure.requireCommitted(resolution)
-                        try? await runtime.removeActiveDraft(sessionID: request.sessionID, attemptID: attemptID)
+                        activeAttempts.removeValue(forKey: attemptID)
                         if !receivedStreamEvents, failure.retryAdvice != nil {
                             throw AgentModelAttemptFailure(
                                 attemptID: attemptID, failure: failure, receivedStreamEvents: false)
@@ -447,7 +388,7 @@ actor AgentModelExecutor {
         guard state.id == request.sessionID, state.activeExecutionID == request.executionID,
             state.header?.workspaceID == request.workspaceID,
             state.authorizationEpoch == request.authorizationEpoch,
-            !state.excludedExecutionIDs.contains(request.executionID),
+            !state.supersededExecutionIDs.contains(request.executionID),
             let execution = state.executions[request.executionID], execution.completion == nil,
             execution.phase != .cancelling, execution.phase != .settling
         else {
@@ -461,25 +402,41 @@ actor AgentModelExecutor {
 
     private static func visibleThinking(_ accumulator: AgentModelAccumulator, prefix: String) throws -> String {
         let thinking = prefix + accumulator.thinkingText
-        guard thinking.utf8.count <= SessionFormatLimits.maximumPayloadBytes else {
-            throw MiraError(.outputLimit, "The execution thinking draft exceeds its storage limit.")
+        guard thinking.utf8.count <= SessionFormatLimits.maximumContentBytes else {
+            throw MiraError(.outputLimit, "The execution thinking output exceeds its storage limit.")
         }
         return thinking
     }
 
-    private func checkpoint(
-        _ accumulator: AgentModelAccumulator, request: SessionPayloadReference,
-        requestContext: AgentContextRequest, attemptID: UUID, revision: inout UInt64
-    ) async throws {
-        guard revision < UInt64.max else {
-            throw MiraError(.outputLimit, "The model draft revision limit was reached.")
+    private static func partialOutput(_ accumulator: AgentModelAccumulator) -> AgentModelOutput? {
+        guard !accumulator.blocks.isEmpty || accumulator.continuation != nil else { return nil }
+        return .init(blocks: accumulator.blocks, continuation: accumulator.continuation,
+                     usage: accumulator.usage, finishReason: .outputLimit)
+    }
+
+    private static func recoveredAttempt(_ accumulator: AgentModelAccumulator,
+                                         stream: [SessionMessageStreamRecord]) -> AgentRecoveredAttempt {
+        .init(output: partialOutput(accumulator), stream: stream)
+    }
+
+    func interruptedAttempts() async -> [UUID: AgentRecoveredAttempt] {
+        let state = await runtime.snapshot()
+        return activeAttempts.filter { id, _ in
+            guard let attempt = state.attempts[id] else { return false }
+            return attempt.resolution == nil
         }
-        let nextRevision = revision + 1
-        let draft = SessionActiveDraft(
-            request: request, executionID: requestContext.executionID, attemptID: attemptID,
-            authorizationEpoch: requestContext.authorizationEpoch, revision: nextRevision,
-            blocks: accumulator.blocks, continuation: accumulator.continuation, usage: accumulator.usage)
-        try await runtime.saveActiveDraft(draft)
-        revision = nextRevision
+    }
+
+    private func settledThinkingPrefix(state: SessionState, executionID: ExecutionID) async throws -> String {
+        guard let execution = state.executions[executionID] else {
+            throw MiraError(.notFound, "The model execution is unavailable.")
+        }
+        let settled = try await SessionSettledOutput.read(
+            execution: execution, attempts: state.attempts, payloads: payloads)
+        let prefix = settled.thinking ?? ""
+        guard prefix.utf8.count <= SessionFormatLimits.maximumContentBytes else {
+            throw MiraError(.outputLimit, "The execution thinking output exceeds its storage limit.")
+        }
+        return prefix
     }
 }

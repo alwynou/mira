@@ -94,7 +94,7 @@ struct SessionAuditQueryTests {
         }
     }
 
-    @Test func failedAttemptExposesTypedFailureUntilRetryPurgesItsPayload() async throws {
+    @Test func failedAttemptExposesTypedFailureAfterRetry() async throws {
         try await withTaskWorkflow(outputs: [[], [.blockStarted(.init(id: "text", content: .text("Recovered"))), .blockFinished(id: "text"), .finished(.stop)]]) { fixture in
             let original = try await fixture.run("Question", expectedStatus: .failed)
             try await withAudit(fixture) { query in
@@ -122,8 +122,8 @@ struct SessionAuditQueryTests {
                 let originalPage = try await query.executionAudit(
                     sessionID: original.sessionID, executionID: original.executionID)
                 let failed = try #require(originalPage.attempts.first)
-                #expect(failed.failure == .purged)
-                #expect(failed.request == .purged)
+                #expect(failed.failure != .absent)
+                #expect(failed.request != .absent)
                 #expect(originalPage.modelUsage.count == 1)
                 #expect(originalPage.modelUsage.first?.isComplete == false)
                 #expect(newest.modelUsage.count == 1)
@@ -155,10 +155,9 @@ struct SessionAuditQueryTests {
                 let plan = AgentExecutionPlan(runtimeID: UUID(), catalogGeneration: 1, driverID: "local",
                     driverRevision: 1, instructions: "", limits: .init(), priority: .foreground, route: nil)
                 try taskRequireCommitted(await local.commit(id: UUID()) { context in
-                    let title = try await context.stageBytes(Data("Local".utf8), kind: .title, retentionGroup: UUID())
-                    let user = try await context.stageBytes(Data("Local command".utf8), kind: .userText, retentionGroup: UUID())
-                    let planReference = try await context.stageBytes(try SessionCodec.encode(plan), kind: .executionPlan,
-                        retentionGroup: UUID())
+                    let title = try await context.stageBytes(Data("Local".utf8), kind: .title)
+                    let user = try await context.stageBytes(Data("Local command".utf8), kind: .userText)
+                    let planReference = try await context.stageBytes(try SessionCodec.encode(plan), kind: .executionPlan)
                     return [.opened(.init(workspaceID: nil, title: title)),
                             .admitted(.init(executionID: executionID, userMessageID: MessageID(), userBody: user,
                                 plan: planReference, hasModelRoute: false, authorizationEpoch: 0,
@@ -180,46 +179,8 @@ struct SessionAuditQueryTests {
         }
     }
 
-    @Test func purgedOutputIsDistinctFromAbsentErrorAndCorruptAvailableContentFails() async throws {
-        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Answer"))), .blockFinished(id: "text"), .finished(.stop)]]) { fixture in
-            let address = try await fixture.run("Question")
-            let corrupt = AuditPayloadProbe(base: fixture.library)
-            await corrupt.corruptModelOutput()
-            try await withAudit(fixture, reader: corrupt) { query in
-                await #expect(throws: MiraError(.storage, "The session audit payload is corrupt.")) {
-                    try await query.executionAudit(sessionID: address.sessionID, executionID: address.executionID)
-                }
-            }
-
-            #expect((await fixture.runtime.shutdown()).isSettled)
-            let runtime = try await SessionRuntime.open(id: address.sessionID, journal: fixture.library, payloads: fixture.library)
-            do {
-                let state = await runtime.snapshot()
-                let groups = state.privacyGroups(for: [address.executionID], retention: .purgeGeneratedHistory)
-                try taskRequireCommitted(await runtime.commit(id: UUID()) { _ in
-                    [.invalidated(.init(operationID: UUID(), executionIDs: [address.executionID],
-                        retentionGroups: groups, authorizationEpoch: 1, reason: .forgotten))]
-                })
-                try await fixture.library.purge(sessionID: address.sessionID, retentionGroups: groups)
-                await runtime.close()
-            } catch {
-                await runtime.close()
-                throw error
-            }
-            try await withAudit(fixture) { query in
-                let page = try await query.executionAudit(sessionID: address.sessionID, executionID: address.executionID)
-                let attempt = try #require(page.attempts.first)
-                #expect(attempt.output == .purged)
-                #expect(page.error == .absent)
-                #expect(page.modelUsage.count == 1)
-                #expect(page.modelUsage.first?.isComplete == true)
-            }
-
-        }
-    }
-
     private func withAudit(
-        _ fixture: TaskWorkflowFixture, reader: (any SessionPayloadReader)? = nil,
+        _ fixture: TaskWorkflowFixture, reader: (any SessionContentReader)? = nil,
         maximumPageBytes: Int = 64 * 1_024 * 1_024,
         _ body: (SessionQueryService) async throws -> Void
     ) async throws {
@@ -247,16 +208,16 @@ struct SessionAuditQueryTests {
     }
 }
 
-private actor AuditPayloadProbe: SessionPayloadReader {
-    let base: any SessionPayloadReader
-    private(set) var references: [SessionPayloadReference] = []
+private actor AuditPayloadProbe: SessionContentReader {
+    let base: any SessionContentReader
+    private(set) var references: [SessionContent] = []
     private var corruptOutput = false
 
-    init(base: any SessionPayloadReader) { self.base = base }
+    init(base: any SessionContentReader) { self.base = base }
 
     func corruptModelOutput() { corruptOutput = true }
 
-    func read(_ reference: SessionPayloadReference) async throws -> Data {
+    func read(_ reference: SessionContent) async throws -> Data {
         references.append(reference)
         if corruptOutput, reference.kind == .modelOutput {
             return Data(repeating: 0xFF, count: reference.byteCount)

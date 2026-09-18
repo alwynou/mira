@@ -1,7 +1,7 @@
 # DSH session logging: semantic boundaries and ordering
 
 Date: 2026-09-16.
-Status: implemented in Mira's v5 journal path. Focused implementation evidence is recorded in [semantic journal verification](SEMANTIC_SESSION_JOURNAL_VERIFICATION.md); this note records the DSH source findings and design rationale.
+Status: historical design research. The current contract is [AGENT_SESSION_LOG](../architecture/AGENT_SESSION_LOG.md); this note preserves the DSH source findings and earlier design rationale. Its historical implementation references do not define current storage or acceptance.
 
 ## Conclusion
 

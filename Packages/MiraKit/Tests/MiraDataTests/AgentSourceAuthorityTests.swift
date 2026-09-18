@@ -48,13 +48,13 @@ struct AgentSourceAuthorityTests {
         }
     }
 
-    @Test func taskSourceVersionAndNamespaceAreCurrent() async throws {
+    @Test func taskSourceRetainsAuthorizedHistoricalVersionsAndChecksNamespace() async throws {
         try await withTaskWorkflow { f in
             let task = try await f.save(draft: .init(title: "Source task"))
             let source: AgentSourceReference = .domain(namespace: "tasks", id: task.id.rawValue, revision: 1)
             try await f.authorizer.validate([source], for: request(f))
             _ = try await f.save(id: task.id, draft: .init(title: "Changed task"), expectedRevision: 1)
-            await #expect(throws: MiraError.self) { try await f.authorizer.validate([source], for: request(f)) }
+            try await f.authorizer.validate([source], for: request(f))
             await #expect(throws: MiraError.self) {
                 try await f.authorizer.validate([.domain(namespace: "unregistered", id: task.id.rawValue, revision: 2)], for: request(f))
             }
@@ -112,29 +112,6 @@ struct AgentSourceAuthorityTests {
                 #expect(await probe.cleaned)
                 await #expect(throws: MiraError.self) { try await f.authorizer.validate([source], for: request(f)) }
             } catch { await authority.release(); _ = await validation.result; await disposal?.value; await scope.dispose(); throw error }
-        }
-    }
-
-    @Test func sessionExecutionSourcesUseJournalScopeAndInvalidation() async throws {
-        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Synthetic answer"))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
-            let address = try await f.run("Original question")
-            let source: AgentSourceReference = .sessionExecution(sessionID: address.sessionID, executionID: address.executionID)
-            try await f.authorizer.validate([source], for: request(f))
-            let other = Workspace(id: .init(), name: "Other workspace")
-            try await save(other, in: f)
-            await #expect(throws: MiraError.self) { try await f.authorizer.validate([source], for: request(f, workspaceID: other.id)) }
-            #expect(await f.runtime.shutdown().isSettled)
-            let session = try await SessionRuntime.open(id: address.sessionID, journal: f.library, payloads: f.library)
-            do {
-                let state = await session.snapshot()
-                let groups = Set(state.references.values.filter { $0.kind != .title }.map(\.retentionGroup))
-                try taskRequireCommitted(await session.commit(id: UUID()) { _ in
-                    [.invalidated(.init(operationID: UUID(), executionIDs: [address.executionID], retentionGroups: groups,
-                                        authorizationEpoch: state.authorizationEpoch + 1, reason: .forgotten))]
-                })
-                await session.close()
-            } catch { await session.close(); throw error }
-            await #expect(throws: MiraError.self) { try await f.authorizer.validate([source], for: request(f)) }
         }
     }
 

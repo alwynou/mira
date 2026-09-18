@@ -62,8 +62,8 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
                     }
                     let attachments = try Self.inspectDatabase(db, snapshot: snapshot, modules: self.modules)
                     let fileCount =
-                        1 + snapshot.sessions.count + snapshot.sessions.reduce(0, { $0 + $1.payloads.count })
-                        + snapshot.sessions.reduce(0, { $0 + ($1.activeDraft == nil ? 0 : 1) }) + attachments.count
+                        1 + snapshot.sessions.count
+                        + attachments.count
                     guard fileCount <= LibraryArchiveLimits.maximumFiles else { throw LibraryArchiveIO.invalid }
                     try Self.checkCaptureSize(
                         db, snapshot: snapshot, attachments: attachments, root: self.attachmentDirectory)
@@ -90,7 +90,7 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
                     }
                     let sqlURL = stage.stage.appendingPathComponent("Business.sqlite")
                     try Self.snapshot(db, to: sqlURL)
-                    // Strip rebuildable domain indexes from the isolated snapshot, never the live library.
+                    // Strip derived indexes only from the isolated export snapshot.
                     let exportDatabase = try DatabaseQueue(path: sqlURL.path)
                     do {
                         try exportDatabase.write { exported in
@@ -106,30 +106,6 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
                     try append(Self.inspectFile(sqlURL, path: "Business.sqlite"))
                     try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions"))
                     try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions/sessions"))
-                    try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions/payloads"))
-                    try FileSessionIO.ensureDirectory(stage.stage.appendingPathComponent("Sessions/drafts"))
-                    for session in snapshot.sessions {
-                        if let draft = session.activeDraft {
-                            let bytes = try SessionCodec.encode(draft)
-                            guard bytes.count <= SessionActiveDraft.maximumBytes else { throw LibraryArchiveIO.invalid }
-                            let path = Self.draftPath(session.id)
-                            let url = try LibraryArchiveIO.file(path, under: stage.stage, createParents: true)
-                            try LibraryArchiveIO.write(bytes, to: url)
-                            try append(Self.inspectFile(url, path: path))
-                        }
-                    }
-                    // Full-path order: drafts, payloads, then sessions. Only one session's
-                    // reference ordering is materialized; the catalog buffers one chunk.
-                    for session in snapshot.sessions {
-                        for reference in session.payloads.keys.sorted(by: { Self.payloadPath($0) < Self.payloadPath($1) }) {
-                            guard let source = session.payloads[reference] else { throw LibraryArchiveIO.invalid }
-                            let file = try Self.copy(source, path: Self.payloadPath(reference), to: stage.stage, limit: reference.byteCount)
-                            guard file.byteCount == reference.byteCount, file.digest == reference.digest else {
-                                throw LibraryArchiveIO.invalid
-                            }
-                            try append(file)
-                        }
-                    }
                     for session in snapshot.sessions {
                         try append(Self.copy(session.journalURL, path: Self.journalPath(session.id), to: stage.stage,
                                              limit: LibraryArchiveLimits.maximumFileBytes))
@@ -334,10 +310,6 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
         var total = pages * size
         for session in snapshot.sessions {
             total += try LibraryArchiveIO.byteCount(session.journalURL, limit: LibraryArchiveLimits.maximumFileBytes)
-            total += session.payloads.keys.reduce(Int64(0), { $0 + Int64($1.byteCount) })
-            if let draft = session.activeDraft {
-                total += Int64(try SessionCodec.encode(draft).count)
-            }
             guard total <= LibraryArchiveLimits.maximumTotalBytes else { throw LibraryArchiveIO.invalid }
         }
         for attachment in attachments {
@@ -367,12 +339,6 @@ public final class SQLiteLibraryArchiveExporter: @unchecked Sendable {
 
     static func journalPath(_ id: ConversationID) -> String {
         "Sessions/sessions/\(id.rawValue.uuidString).jsonl"
-    }
-    static func draftPath(_ id: ConversationID) -> String {
-        "Sessions/drafts/\(id.rawValue.uuidString).json"
-    }
-    static func payloadPath(_ reference: SessionPayloadReference) -> String {
-        "Sessions/payloads/\(reference.sessionID.rawValue.uuidString)/\(reference.batchID.uuidString)/\(reference.id.uuidString).bin"
     }
     private static func safe(_ error: any Error) -> MiraError {
         if error is CancellationError { return .init(.cancelled, "The library archive operation was cancelled.") }

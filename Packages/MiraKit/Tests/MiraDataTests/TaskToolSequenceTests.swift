@@ -80,10 +80,11 @@ struct TaskToolSequenceTests {
             }
 
             let completion = try #require(state.executions[address.executionID]?.completion)
-            let replayReference = try #require(completion.replay)
-            let replay = try await AgentReplayManifest.read(replayReference, state: state, payloads: fixture.library)
-            #expect(replay.messages.last?.text == "Task change completed")
-            #expect(replay.sources.contains(.domain(namespace: "tasks", id: task.id.rawValue, revision: 1)))
+            let answer = try await fixture.library.read(try #require(completion.answer))
+            #expect(String(data: answer, encoding: .utf8) == "Task change completed")
+            let sources = try await JournalAgentHistoryReader(payloads: fixture.library).readExecutionSources(
+                execution: try #require(state.executions[address.executionID]), state: state, route: fixture.route)
+            #expect(sources.contains(.domain(namespace: "tasks", id: task.id.rawValue, revision: 1)))
         }
     }
 

@@ -117,7 +117,7 @@ extension AgentModelRoute {
          maximumOutputTokens: Int, capabilities: AgentModelCapabilities, configuration: JSONValue) {
         self.init(id: id, revision: revision, connectionID: connectionID, connectionRevision: connectionRevision,
                   modelDescriptorID: modelDescriptorID, modelRevision: modelRevision, modelAuthorizationRevision: modelRevision,
-                  adapter: adapter, invocationID: "fixture", invocationRevision: 1, endpointID: "primary", metadataEvidence: [],
+                  adapter: adapter, invocationID: "fixture", invocationRevision: 1, endpointID: "primary",
                   modelID: modelID, credential: credential, contextWindow: contextWindow, maximumOutputTokens: maximumOutputTokens,
                   capabilities: capabilities, configuration: configuration)
     }

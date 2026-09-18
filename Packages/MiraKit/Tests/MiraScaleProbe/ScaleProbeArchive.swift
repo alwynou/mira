@@ -138,7 +138,7 @@ extension ScaleProbe {
                             throw failure("A restored projection page is incomplete.")
                         }
                         for (offset, row) in page.messages.enumerated() {
-                            guard let reference = row.body, !row.bodyInvalidated,
+                            guard let reference = row.body,
                                   try await restoredLibrary.read(reference) == Data(
                                     body(
                                         session: ordinal, turn: turns - 1 - offset / 2,

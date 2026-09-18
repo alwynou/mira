@@ -377,7 +377,6 @@ public struct AgentModelRouteCandidate: Codable, Sendable, Equatable {
             connectionID: connection.id, connectionRevision: connection.configurationRevision,
             modelDescriptorID: model.id, modelRevision: model.revision, modelAuthorizationRevision: model.authorizationRevision, adapter: spec.adapter,
             invocationID: spec.id, invocationRevision: spec.revision, endpointID: spec.endpointID,
-            metadataEvidence: try AgentModelMetadataResolver.selectedFacts(for: spec.id, facts: model.facts).values.sorted { $0.field < $1.field },
             modelID: model.modelID, credential: try endpoint.credential, contextWindow: window,
             maximumOutputTokens: preset.maximumOutputTokens,
             capabilities: .init(streamsText: true, callsTools: spec.supports(AgentModelCapabilityID.toolCalls),

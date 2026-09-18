@@ -1,5 +1,7 @@
 # Semantic session journal verification
 
+> Historical engineering evidence. The current contract is [AGENT_SESSION_LOG](../architecture/AGENT_SESSION_LOG.md). The test counts, sidecar, external-body, and request-manifest references below retain their historical labels and do not claim current acceptance.
+
 Date: 2026-09-16. Environment: Apple M1 Pro, macOS 26.6.2, Xcode 26.6,
 Swift 6.3.3. This increment implements the boundary described in
 [DSH source research](DSH_SESSION_LOG_RESEARCH.md).

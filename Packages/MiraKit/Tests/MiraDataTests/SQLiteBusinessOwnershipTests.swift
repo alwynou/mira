@@ -13,9 +13,9 @@ private func ownershipDatabase(path: String) throws -> DatabaseQueue {
 
 private func ownershipContext(sessionID: ConversationID, executionID: ExecutionID, invocationID: UUID) -> AgentToolContext {
     let batchID = UUID()
-    let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .userText, byteCount: 5, digest: String(repeating: "0", count: 64))
-    let evidence = SessionUserEvidence(reference: .init(sessionID: sessionID, originalExecutionID: executionID, userMessageID: MessageID(), admissionEventID: UUID(), admissionSequence: 1, body: body), workspaceID: nil, admittedAt: Date(timeIntervalSince1970: 1), timeZoneIdentifier: "UTC", text: "owner", observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID), sessionAuthorizationEpoch: 0)
-    let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "synthetic", credential: nil, contextWindow: 4096, maximumOutputTokens: 128, capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:]))
+    let body = SessionContent(id: UUID(), kind: .userText, bytes: Data("owner".utf8))
+    let evidence = SessionUserEvidence(reference: .init(sessionID: sessionID, originalExecutionID: executionID, userMessageID: MessageID(), admissionEventID: UUID(), admissionSequence: 1), workspaceID: nil, admittedAt: Date(timeIntervalSince1970: 1), timeZoneIdentifier: "UTC", text: "owner", observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 1), batchID: batchID), sessionAuthorizationEpoch: 0)
+    let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1, modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1, adapter: .init(id: "synthetic.model", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "synthetic", credential: nil, contextWindow: 4096, maximumOutputTokens: 128, capabilities: .init(streamsText: true, callsTools: true, producesThinking: false), configuration: .object([:]))
     return .init(executionID: executionID, invocationID: invocationID, evidence: evidence, route: route)
 }
 
@@ -258,7 +258,7 @@ private final class OwnershipFixture: Sendable {
             let store = try SQLiteBusinessEffects(database: database, libraryID: authority.libraryID, resolver: resolver, handlers: [OwnershipHandler()], validator: OwnershipValidator())
             ownedStore = store
             let auth = try await authority.authorization()
-            let reference = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: batchID, retentionGroup: UUID(), kind: .effectIntent, byteCount: 1, digest: String(repeating: "0", count: 64))
+            let reference = SessionContent(id: UUID(), kind: .effectIntent, bytes: Data("x".utf8))
             let proof = AgentEffectProof(sessionID: sessionID, executionID: executionID, invocationID: invocationID, intentBatchID: batchID, intentSequence: 1, authorization: auth, proposal: reference)
             return .init(store: store, authority: authority, resolver: resolver, path: path, database: database, proof: proof, sessionID: sessionID)
         } catch {

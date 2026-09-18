@@ -70,7 +70,7 @@ Message
 └── deletedAt?
 ```
 
-System Prompt、Memory Injection 和 Tool Schema 不伪装成普通 Conversation Message；它们属于 Request Snapshot。
+System Prompt、Memory Injection 和 Tool Schema 不伪装成普通 Conversation Message；它们作为 `system/message`、`request/context` 与 `request/header` 记录及其来源证据进入规范会话日志。完整 HTTP 请求仍只在进程内准备。
 
 <a id="s09-04"></a>
 
@@ -111,7 +111,7 @@ Assistant 流式输出先进入 AssistantDraft，完成或中断后原子提交�
 
 ### 1.7 应用事件边界
 
-`ApplicationEvent.changed` 表示库列表或其他全局失效，订阅建立时也先发出一次。Provider、Model、Route 和 Binding 的配置变更单独发送 `configurationChanged`，仅刷新配置与可用路线，不重读会话正文。运行时 Execution 的启动、Model Attempt、Tool 和终态变化通过带 `ConversationID` 的 `conversationChanged` 发送，使页面只刷新对应会话。流式 Draft / Thinking 仍按 `ExecutionID` 单独发送；定时 checkpoint 不触发完整会话重读。会话保存失败通过 `conversationFailure(ConversationID, MiraError)` 归属到原会话，关闭应用等全局错误继续使用 `failure`。会影响保留会话正文或引用隐私的 Forget、Source 清理和远程使用策略收紧先发送无 payload 的 `conversationContentInvalidated`，再执行其他异步清理；收到事件的缓存必须立即丢弃敏感内容，随后可用 `changed` 重读权威数据。
+`ApplicationEvent.changed` 表示库列表或其他全局失效，订阅建立时也先发出一次。Provider、Model、Route 和 Binding 的配置变更单独发送 `configurationChanged`，仅刷新配置与可用路线，不重读会话正文。运行时 Execution 的启动、Model Attempt、Tool 和终态变化通过带 `ConversationID` 的 `conversationChanged` 发送，使页面只刷新对应会话。实时 process-local stream / thinking 仍按 `ExecutionID` 单独发送；结算后才写入规范日志，未结算流不产生 durable checkpoint。会话保存失败通过 `conversationFailure(ConversationID, MiraError)` 归属到原会话，关闭应用等全局错误继续使用 `failure`。会影响当前可见内容或远程使用策略的来源授权收紧先发送无 payload 的 `conversationContentInvalidated`，再执行其他异步清理；收到事件的缓存必须立即丢弃不可发布内容，随后可用 `changed` 重读权威日志。
 
 ---
 
@@ -335,8 +335,8 @@ Assemble Output
 |---|---|
 | Turn | 一条用户消息触发的一次 Agent 处理；当前由一个 Execution 表达，包含若干 Step |
 | Step | 一次逻辑模型决策及其工具处理；工具完成后才开始下一 Step |
-| Attempt | Step 中一次实际网络调用，即一个 ModelCall；重试产生新 ID 与新请求快照 |
-| Request | Attempt 真正发送的输入；快照与 Provider、能力、预算同属该 Attempt |
+| Attempt | Step 中一次实际网络调用，即一个 ModelCall；重试产生新 ID 与新的请求证据 |
+| Request | Attempt 真正发送的输入；请求证据与 Provider、能力、预算同属该 Attempt，完整 wire body 保持进程内 |
 
 同一 Conversation 最多一个非终态 Execution。以数据库部分唯一索引兜底，索引覆盖 created、queued、running、waitingForModel、waitingForTool、waitingForUser、cancelling；UI 禁用重复发送不是唯一防线。提交用户消息、增加 sequence、创建 queued Execution 必须原子完成。
 
@@ -713,4 +713,4 @@ Mira Runtime 负责全局并发，ProviderScheduler 可以按连接限速进一�
 
 ## First-class thinking
 
-The [thinking contract](THINKING.md) adds separate stream snapshots, ordered assistant/tool traces and provider-specific replay data to the existing runtime. Thinking-only drafts participate in checkpoint, cancellation, recovery and terminal uniqueness. The current tool-use turn freezes its base request so signed provider state can be replayed without prefix changes. Authorization continues to run before every dispatch.
+The [thinking contract](THINKING.md) adds separate stream snapshots, ordered assistant/tool traces and provider-specific replay data to the existing runtime. Thinking-only process-local output participates in cancellation and terminal settlement; unsettled output is lost on hard crash. The current tool-use turn freezes its base request so signed provider state can be replayed without prefix changes. Authorization continues to run before every dispatch.

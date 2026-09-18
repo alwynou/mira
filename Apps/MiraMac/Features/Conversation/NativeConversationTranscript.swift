@@ -202,7 +202,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
                 parent.readingState.leave()
             }
             if parent.contentGeneration != newParent.contentGeneration {
-                // Privacy invalidation must clear native bodies even on hidden pages.
+                // A new content generation requires native rows to rebuild from the latest snapshot.
                 resetForSelection()
             }
             if conversationID != newParent.conversationID {
@@ -226,9 +226,6 @@ struct NativeConversationTranscript: NSViewRepresentable {
             // The temporary empty loading state is not an authoritative snapshot.
             // Do not prune the destination's saved measurements or thinking state.
             guard !parent.page.isLoading else { return }
-            let privacyChanged = parent.items.contains { item in
-                item.isBodyPurged && state.items[item.id]?.isBodyPurged != true
-            }
             let previousItems = state.items
             let change = state.apply(parent.items)
             let contentChanged = change.structureChanged || !change.updated.isEmpty
@@ -293,7 +290,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             else if hasInstalledSnapshot {
                 for token in change.updated { list.update(token) }
             }
-            if hasInstalledSnapshot && (privacyChanged || !change.removed.isEmpty) {
+            if hasInstalledSnapshot && !change.removed.isEmpty {
                 measurement.clearContent()
                 for row in rowViews.allObjects { row.clearContent() }
                 list.reloadData()
@@ -327,7 +324,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
 
         private func renderedContentChange(from previous: TranscriptItem, to current: TranscriptItem) -> Bool {
             previous.role != current.role || previous.text != current.text ||
-                previous.thinking != current.thinking || previous.isBodyPurged != current.isBodyPurged
+            previous.thinking != current.thinking
         }
 
         /// Keep the native container and its cleared reuse pool warm across selections.
@@ -475,7 +472,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             let origin = conversationID
             let contentGeneration = parent.contentGeneration
             if !measuring { rowViews.add(row) }
-            let visible = !item.isBodyPurged && item.role == .assistant
+            let visible = item.role == .assistant
             let expanded = state.expandedActivity.contains(item.id)
             var reasoningSource = ""
             if visible && expanded {

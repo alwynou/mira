@@ -18,17 +18,15 @@ public struct SessionObservation: Sendable, Equatable {
 struct SessionCommandContext: Sendable {
     let batchID: UUID
     let state: SessionState
-    let payloads: any SessionPayloadStore
+    let payloads: any SessionContentStore
 
-    func stage<T: Encodable & Sendable>(_ value: T, kind: SessionPayloadKind,
-                                        retentionGroup: UUID) async throws -> SessionPayloadReference {
-        try await stageBytes(SessionCodec.encode(value), kind: kind, retentionGroup: retentionGroup)
+    func stage<T: Encodable & Sendable>(_ value: T, kind: SessionContentKind) async throws -> SessionContent {
+        try await stageBytes(SessionCodec.encode(value), kind: kind)
     }
 
-    func stageBytes(_ bytes: Data, kind: SessionPayloadKind,
-                    retentionGroup: UUID) async throws -> SessionPayloadReference {
+    func stageBytes(_ bytes: Data, kind: SessionContentKind) async throws -> SessionContent {
         try await payloads.stage(bytes, sessionID: state.id, batchID: batchID,
-                                 retentionGroup: retentionGroup, kind: kind)
+                                 kind: kind)
     }
 }
 
@@ -36,7 +34,7 @@ struct SessionCommandContext: Sendable {
 public actor SessionRuntime {
     public nonisolated let id: ConversationID
     private let journal: any SessionJournal
-    private let payloads: any SessionPayloadStore
+    private let payloads: any SessionContentStore
     private let environment: RuntimeEnvironment
     private let extensionSchemas: [String: Set<Int>]
     private var state: SessionState
@@ -62,14 +60,14 @@ public actor SessionRuntime {
         var value: SessionVisibleOutput?
     }
 
-    private init(state: SessionState, journal: any SessionJournal, payloads: any SessionPayloadStore,
+    private init(state: SessionState, journal: any SessionJournal, payloads: any SessionContentStore,
                  environment: RuntimeEnvironment, extensionSchemas: [String: Set<Int>]) {
         id = state.id; self.state = state; self.journal = journal; self.payloads = payloads
         self.environment = environment; self.extensionSchemas = extensionSchemas
     }
 
     public static func open(id: ConversationID, journal: any SessionJournal,
-                            payloads: any SessionPayloadStore, environment: RuntimeEnvironment = .init(),
+                            payloads: any SessionContentStore, environment: RuntimeEnvironment = .init(),
                             extensionSchemas: [String: Set<Int>] = [:]) async throws -> SessionRuntime {
         let snapshot = try await JournalSessionReader(journal: journal, payloads: payloads,
             extensionSchemas: extensionSchemas).snapshot(sessionID: id)
@@ -78,33 +76,6 @@ public actor SessionRuntime {
     }
 
     public func snapshot() -> SessionState { state }
-
-    /// Replaces recovery state without advancing the authoritative journal cursor.
-    func saveActiveDraft(_ draft: SessionActiveDraft) async throws {
-        try await acquireLane()
-        defer { releaseLane() }
-        try draft.validate()
-        guard pending == nil, draft.request.sessionID == id,
-              state.activeExecutionID == draft.executionID,
-              state.authorizationEpoch == draft.authorizationEpoch,
-              !state.excludedExecutionIDs.contains(draft.executionID),
-              state.executions[draft.executionID]?.attemptIDs.last == draft.attemptID,
-              let attempt = state.attempts[draft.attemptID], attempt.resolution == nil,
-              attempt.attempt.request == draft.request else {
-            throw MiraError(.interrupted, "The active draft owner is no longer authorized.")
-        }
-        try await payloads.saveActiveDraft(draft)
-    }
-
-    func removeActiveDraft(sessionID: ConversationID, attemptID: UUID) async throws {
-        try await acquireLane()
-        defer { releaseLane() }
-        guard sessionID == id, pending == nil else {
-            throw MiraError(.interrupted, "The active draft cannot be retired during reconciliation.")
-        }
-        try await payloads.removeActiveDraft(sessionID: id, attemptID: attemptID)
-    }
-
 
     /// Resolves original user evidence through the same journal and extension schemas as this session.
     /// This read does not grant a business permission or reserve a future commit.
@@ -199,7 +170,7 @@ public actor SessionRuntime {
                   }
               }),
               answer.utf8.count <= 2 * 1_024 * 1_024,
-              thinking.utf8.count <= SessionFormatLimits.maximumPayloadBytes,
+              thinking.utf8.count <= SessionFormatLimits.maximumContentBytes,
               toolCall.map({ $0.arguments.utf8.count <= 2 * 1_024 * 1_024 && $0.name.utf8.count <= 256 }) ?? true
         else { return false }
         let value = SessionVisibleOutput(executionID: writer.executionID, attemptID: writer.attemptID,
@@ -408,7 +379,7 @@ public actor SessionRuntime {
         var handoffChanged = false
         if let handoff = outputHandoff,
            closed || pending != nil || state.authorizationEpoch != handoff.authorizationEpoch
-            || state.excludedExecutionIDs.contains(handoff.executionID)
+            || state.supersededExecutionIDs.contains(handoff.executionID)
             || cancellationRequests.contains(handoff.executionID) {
             outputHandoff = nil
             advanceOutputRevision()
@@ -423,7 +394,7 @@ public actor SessionRuntime {
         if changed, !closed, pending == nil, !writer.lease.isRevoked,
            !cancellationRequests.contains(writer.executionID),
            state.authorizationEpoch == writer.authorizationEpoch,
-           !state.excludedExecutionIDs.contains(writer.executionID),
+           !state.supersededExecutionIDs.contains(writer.executionID),
            let resolution = state.attempts[writer.attemptID]?.resolution,
            resolution.status == .completed, resolution.output != nil {
             outputHandoff = (writer.executionID, writer.authorizationEpoch)

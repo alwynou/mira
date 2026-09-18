@@ -138,25 +138,23 @@ struct AgentToolPolicyCompositionTests {
             maximumResultBytes: 1_024
         )
         return AgentToolProposal(descriptor: descriptor, effect: .read, businessNamespace: nil,
-                                 callDigest: String(repeating: "a", count: 64), inheritedSources: [],
-                                 plan: .init(input: .object([:]), sources: [], targets: []))
+                                 callDigest: String(repeating: "a", count: 64),
+                                 inheritedSources: [], plan: .init(input: .object([:]), sources: [], targets: []))
     }
 
     private func context() -> AgentToolContext {
         let sessionID = ConversationID()
         let executionID = ExecutionID()
-        let body = SessionPayloadReference(id: UUID(), sessionID: sessionID, batchID: UUID(), retentionGroup: UUID(),
-                                           kind: .userText, byteCount: 4, digest: String(repeating: "b", count: 64))
         let evidenceReference = SessionEvidenceReference(sessionID: sessionID, originalExecutionID: executionID,
                                                          userMessageID: MessageID(), admissionEventID: UUID(),
-                                                         admissionSequence: 2, body: body)
+                                                         admissionSequence: 2)
         let evidence = SessionUserEvidence(reference: evidenceReference, workspaceID: nil,
                                            admittedAt: Date(timeIntervalSince1970: 100), timeZoneIdentifier: "UTC",
-                                           text: "User", observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 2), batchID: body.batchID),
+                                           text: "User", observedHead: .init(cursor: .init(sessionID: sessionID, sequence: 2), batchID: UUID()),
                                            sessionAuthorizationEpoch: 0)
         let route = AgentModelRoute(id: RouteID(), revision: 1, connectionID: ConnectionID(), connectionRevision: 1,
                                     modelDescriptorID: ModelDescriptorID(), modelRevision: 1, modelAuthorizationRevision: 1,
-                                    adapter: .init(id: "policy.adapter", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", metadataEvidence: [], modelID: "policy-model",
+                                    adapter: .init(id: "policy.adapter", revision: 1), invocationID: "test-invocation", invocationRevision: 1, endpointID: "test-endpoint", modelID: "policy-model",
                                     credential: nil, contextWindow: 4_096, maximumOutputTokens: 512,
                                     capabilities: .init(streamsText: true, callsTools: true, producesThinking: false),
                                     configuration: .object([:]))

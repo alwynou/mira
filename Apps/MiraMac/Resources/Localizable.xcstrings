@@ -1,6 +1,141 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "The selected reply does not belong to this session.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The selected reply does not belong to this session."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "所选回复不属于此会话。"}}}},
+    "A transcript patch targets the wrong draft component.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "A transcript patch targets the wrong draft component."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "转录补丁针对错误的草稿组件。"}}}},
+    "Context contributions": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Context contributions"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "附加上下文"}}}},
+    "Conversation history comes from the session journal. The entries below are the context added for this turn.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Conversation history comes from the session journal. The entries below are the context added for this turn."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "对话历史来自会话日志。以下条目是本轮加入的上下文。"}}}},
+    "Request context": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Request context"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "请求上下文"}}}},
+    "Request metadata": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Request metadata"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "请求元数据"}}}},
+    "The committed model request does not match the current execution.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The committed model request does not match the current execution."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已提交的模型请求与当前执行不匹配。"}}}},
+    "The committed model request evidence is inconsistent.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The committed model request evidence is inconsistent."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已提交的模型请求记录不一致。"}}}},
+    "The committed model request is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The committed model request is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已提交的模型请求不可用。"}}}},
+    "The committed tool call differs from its model output.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The committed tool call differs from its model output."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已提交的工具调用与其模型输出不同。"}}}},
+    "The committed tool exchange is inconsistent with its model output.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The committed tool exchange is inconsistent with its model output."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已提交的工具交互与其模型输出不一致。"}}}},
+    "The committed tool invocation is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The committed tool invocation is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已提交的工具调用不可用。"}}}},
+    "The committed tool result is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The committed tool result is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已提交的工具结果不可用。"}}}},
+    "The current execution history request is stale.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The current execution history request is stale."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "当前执行历史请求已过期。"}}}},
+    "The current model step is waiting for committed tool results.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The current model step is waiting for committed tool results."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "当前模型步骤正在等待已提交的工具结果。"}}}},
+    "The execution attempt is unavailable while reading settled output.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The execution attempt is unavailable while reading settled output."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "读取已结算输出时，执行尝试不可用。"}}}},
+    "The execution history contains a duplicate tool-call identity.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The execution history contains a duplicate tool-call identity."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "执行历史中存在重复的工具调用标识。"}}}},
+    "The execution thinking output exceeds its storage limit.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The execution thinking output exceeds its storage limit."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "执行的思考内容超过了存储限制。"}}}},
+    "The frozen context snapshot is invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The frozen context snapshot is invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "冻结的上下文快照无效。"}}}},
+    "The incomplete historical thinking is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The incomplete historical thinking is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "不完整的历史思考内容不可用。"}}}},
+    "The inline session content exceeds its supported bounds.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The inline session content exceeds its supported bounds."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "内联会话内容超出支持的范围。"}}}},
+    "The local tool did not commit its business effect.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The local tool did not commit its business effect."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "本地工具未提交其业务操作。"}}}},
+    "The model execution is unavailable.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The model execution is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "模型执行不可用。"}}}},
+    "The model input contains multiple context messages.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The model input contains multiple context messages."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "模型输入包含多条上下文消息。"}}}},
+    "The model reused a tool-call identity across steps.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The model reused a tool-call identity across steps."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "模型在不同步骤中重复使用了工具调用标识。"}}}},
+    "The read tool was interrupted before its result was confirmed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The read tool was interrupted before its result was confirmed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "读取工具在确认结果前被中断。"}}}},
+    "The requested tool is not registered.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The requested tool is not registered."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "请求的工具未注册。"}}}},
+    "The session content cannot be prepared for this batch.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The session content cannot be prepared for this batch."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "无法为此批次准备会话内容。"}}}},
+    "The session stream references an unknown block.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The session stream references an unknown block."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "会话流引用了未知区块。"}}}},
+    "The settled model output has an invalid content kind.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The settled model output has an invalid content kind."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已结算模型输出的内容类型无效。"}}}},
+    "The settled model output has an invalid length.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The settled model output has an invalid length."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已结算模型输出的长度无效。"}}}},
+    "The settled thinking output exceeds its storage limit.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The settled thinking output exceeds its storage limit."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已结算的思考内容超过了存储限制。"}}}},
+    "The tool authorization changed before its result was published.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool authorization changed before its result was published."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具授权在发布结果前已改变。"}}}},
+    "The tool effect could not be confirmed after interruption.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool effect could not be confirmed after interruption."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "中断后无法确认工具操作。"}}}},
+    "The tool effect did not produce a result.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool effect did not produce a result."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具操作未产生结果。"}}}},
+    "The tool effect was not committed.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool effect was not committed."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具操作未提交。"}}}},
+    "The tool failed to produce a result.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool failed to produce a result."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具未能产生结果。"}}}},
+    "The tool policy denied this invocation.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool policy denied this invocation."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具策略拒绝了此次调用。"}}}},
+    "The tool result is invalid or exceeds its declared limit.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool result is invalid or exceeds its declared limit."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具结果无效或超出声明的限制。"}}}},
+    "The tool timed out.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool timed out."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具已超时。"}}}},
+    "The tool was cancelled before dispatch.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool was cancelled before dispatch."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具在派发前已取消。"}}}},
+    "The tool was cancelled.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool was cancelled."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具已取消。"}}}},
+    "The tool was interrupted before recovery could confirm its result.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The tool was interrupted before recovery could confirm its result."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具在恢复确认结果前被中断。"}}}},
+    "The transcript draft exceeds its storage limit.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The transcript draft exceeds its storage limit."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "转录草稿超出存储上限。"}}}},
+    "The transcript draft patch exceeds its storage limit.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The transcript draft patch exceeds its storage limit."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "转录草稿补丁超出存储上限。"}}}},
+    "The transcript draft patch has invalid bounds.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The transcript draft patch has invalid bounds."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "转录草稿补丁的边界无效。"}}}},
+    "The transcript draft patch is invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The transcript draft patch is invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "转录草稿补丁无效。"}}}},
+    "The transcript draft result length is invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The transcript draft result length is invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "转录草稿结果长度无效。"}}}},
+    "Tool approval was denied.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Tool approval was denied."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "工具审批被拒绝。"}}}},
+    "Memory extraction exceeds the current request or daily token budget.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Memory extraction exceeds the current request or daily token budget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆提取超过当前请求限制或每日 token 预算。"}}}},
+    "Daily extraction budget": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily extraction budget"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日提取预算"
+          }
+        }
+      }
+    },
+    "Daily token limit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily token limit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日 Token 上限"
+          }
+        }
+      }
+    },
+    "Enter a daily token limit from 1 to 10,000,000.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a daily token limit from 1 to 10,000,000."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入 1 到 10,000,000 之间的每日 Token 上限。"
+          }
+        }
+      }
+    },
+    "Daily token budget for automatic memory. Resets at 00:00 UTC.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily token budget for automatic memory. Resets at 00:00 UTC."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动记忆的每日 token 额度，于 UTC 00:00 重置。"
+          }
+        }
+      }
+    },
+    "Remaining today": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaining today"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日剩余"
+          }
+        }
+      }
+    },
     "The admitted model attempt is unavailable.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The admitted model attempt is unavailable."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "已接纳的模型请求记录不可用。"}}}},
     "The model draft revision limit was reached.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The model draft revision limit was reached."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "模型草稿已达到修订次数上限。"}}}},
     "The execution request manifest is invalid or unsupported.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The execution request manifest is invalid or unsupported."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "执行请求清单无效或不受支持。"}}}},

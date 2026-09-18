@@ -410,7 +410,7 @@ final class ConversationModel {
                         else { return }
                         page.streamBuffer.receive(output)
                         if output.value == nil {
-                            if output.handoffExecutionID == nil { page.persistedDraft = nil }
+                            if output.handoffExecutionID == nil { page.settledOutput = nil }
                             if !output.isClosing { refresh(page) }
                         }
                     }
@@ -440,7 +440,7 @@ final class ConversationModel {
                 do {
                     snapshotLoadCount &+= 1
                     let snapshot = try await group.queries.messagePage(sessionID: id)
-                    let draft = try await group.queries.persistedDraft(sessionID: id)
+                    let settledOutput = try await group.queries.settledOutput(sessionID: id)
                     let activities: [ExecutionID: [SessionActivityStep]]
                     var activityError: MiraError?
                     do {
@@ -460,16 +460,16 @@ final class ConversationModel {
                         selectedWorkspaceID = session.summary.workspaceID
                         showArchived = session.summary.isArchived
                     }
-                    if let draft, page.activeExecution?.id == draft.executionID,
-                        !page.cancellationRequested.contains(draft.executionID)
+                    if let settledOutput, let activeExecution = page.activeExecution,
+                        !page.cancellationRequested.contains(activeExecution.id)
                     {
-                        page.persistedDraft = draft
+                        page.settledOutput = settledOutput
                     } else {
-                        page.persistedDraft = nil
+                        page.settledOutput = nil
                     }
                     if let handoff = page.streamBuffer.observation?.handoffExecutionID,
                        let head = snapshot.session?.summary.head,
-                       page.persistedDraft?.executionID == handoff
+                       (page.activeExecution?.id == handoff && page.settledOutput != nil)
                         || snapshot.executions.contains(where: { $0.id == handoff && $0.completion != nil }) {
                         page.streamBuffer.completeHandoff(executionID: handoff, through: head.cursor.sequence)
                     }

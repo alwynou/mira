@@ -10,11 +10,11 @@ public struct SessionSearchLocation: Codable, Sendable, Equatable {
     public let part: SessionSearchPart
     public let sequence: Int64
     public let occurredAt: Date
-    public let reference: SessionPayloadReference
+    public let reference: SessionContent
 
     public init(
         sessionID: ConversationID, messageID: MessageID?, executionID: ExecutionID?,
-        part: SessionSearchPart, sequence: Int64, occurredAt: Date, reference: SessionPayloadReference
+        part: SessionSearchPart, sequence: Int64, occurredAt: Date, reference: SessionContent
     ) {
         self.sessionID = sessionID
         self.messageID = messageID
@@ -27,7 +27,7 @@ public struct SessionSearchLocation: Codable, Sendable, Equatable {
 
     public func validate() throws {
         try reference.validate()
-        let kind: SessionPayloadKind
+        let kind: SessionContentKind
         switch part {
         case .title: kind = .title
         case .user: kind = .userText
@@ -35,7 +35,7 @@ public struct SessionSearchLocation: Codable, Sendable, Equatable {
         case .thinking: kind = .visibleThinking
         }
         guard sequence > 0, occurredAt.timeIntervalSince1970.isFinite,
-            reference.sessionID == sessionID, reference.kind == kind,
+            reference.kind == kind,
             (part == .title) == (messageID == nil), (part == .title) == (executionID == nil)
         else {
             throw MiraError(.storage, "The session search location is invalid.")
@@ -52,8 +52,8 @@ public struct SessionSearchDocument: Codable, Sendable, Equatable {
     }
 }
 
-/// One complete source batch and its still-retained, explicitly visible text.
-/// Missing documents are allowed only for content already purged at the indexer's fixed source head.
+/// One complete source batch and its explicitly visible text.
+/// Missing documents are rejected when the index validates the batch's event locations.
 public struct SessionSearchUpdate: Codable, Sendable, Equatable {
     public let batch: SessionBatch
     public let documents: [SessionSearchDocument]
@@ -160,7 +160,7 @@ public struct SessionSearchPage: Sendable, Equatable {
 /// A disposable local index. Implementations never call models, tools or business consumers.
 public protocol SessionSearchIndex: Sendable {
     func head(sessionID: ConversationID) async throws -> SessionJournalHead?
-    /// Atomically applies visible documents, metadata, invalidations and the complete-batch cursor.
+    /// Atomically applies visible documents, metadata and the complete-batch cursor.
     func apply(_ update: SessionSearchUpdate) async throws
     /// Newest indexed documents first. Cursor binds query filters and this index's current identity.
     /// Scope/time/archive predicates precede a 20,000 candidate cap; deadline/cap exhaustion is explicit.

@@ -49,7 +49,7 @@
 
 Tool-owned reads and inherited model context are stored separately in the proposal. The executor authorizes their complete union at the tool dispatch and publication boundaries; domain validators receive only the tool-owned plan. See [tool source ownership](AGENT_TOOL_EXECUTION.md#tool-owned-and-inherited-sources). Task context references identify retained immutable revisions, subject to current task/workspace access; they do not authorize mutation of an obsolete revision. Task list freshness and mutation compare-and-swap checks still require the current revision.
 
-终态结算对成功回合，以及任何将发布非空回答或思考的失败、取消、恢复回合，重新读取实际尝试的持久上下文，核对目的地、执行与工作区，取全部来源的去重并集再次授权。成功重放的来源还必须与持久请求一致。明确撤销时结算为无正文、无思考、无重放的中断状态；仍获授权的取消或恢复草稿可以保留。没有模型尝试的本地文本遵守本地驱动器的独立限制。
+终态结算对成功回合，以及任何将发布非空回答或思考的失败、取消、恢复回合，重新读取实际尝试的持久上下文，核对目的地、执行与工作区，取全部来源的去重并集再次授权。成功重放的来源还必须与持久请求一致。明确撤销时结算为无正文、无思考、无重放的中断状态；进程内未结算流不会绕过撤权继续发布。没有模型尝试的本地文本遵守本地驱动器的独立限制。
 
 只有明确 `unauthorized` 才能转换为上述撤销终态。存储读取失败保留原结算意图，后续只重试原结算，不重新运行模型、工具或驱动器。已提交但确认丢失的结算依旧按原批次核对。
 

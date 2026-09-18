@@ -41,7 +41,7 @@ struct AgentLiveOutputIntegrationTests {
             await observer.value
         }
     }
-    @Test func visibleOutputCoalescesIndependentlyFromDurableDrafts() async throws {
+    @Test func visibleOutputCoalescesWithoutStreamingWrites() async throws {
         let clock = LiveOutputClock()
         let environment = RuntimeEnvironment(now: { TaskWorkflowFixture.now }, sleep: { duration in
             try await clock.sleep(for: duration)
@@ -65,15 +65,12 @@ struct AgentLiveOutputIntegrationTests {
                 try await taskEventually { await fixture.model.streamHeld }
                 try await taskEventually { await probe.hasValue(executionID: address.executionID, answer: "Hello", thinking: "") }
                 try await taskEventually { await clock.isEntered(.visible) }
-                try await taskEventually { await clock.isEntered(.durable) }
 
                 let beforeHead = try await fixture.library.head(sessionID: address.sessionID)
-                #expect(try await fixture.library.activeDraft(sessionID: address.sessionID) == nil)
 
                 await clock.release(.visible)
                 try await taskEventually { await probe.hasValue(executionID: address.executionID, answer: "Hello", thinking: "Plan") }
                 #expect(try await fixture.library.head(sessionID: address.sessionID) == beforeHead)
-                #expect(try await fixture.library.activeDraft(sessionID: address.sessionID) == nil)
 
                 observer.cancel()
                 await observer.value
@@ -183,7 +180,7 @@ struct AgentLiveOutputIntegrationTests {
         }
     }
 
-    @Test func applicationShutdownFinishesOutputStreamAfterProducerDrainAndRetainsCommittedDraftOnly() async throws {
+    @Test func applicationShutdownFinishesOutputStreamAfterProducerDrainAndRetainsPartialOutput() async throws {
         let clock = LiveOutputClock()
         let environment = RuntimeEnvironment(now: { TaskWorkflowFixture.now }, sleep: { duration in
             try await clock.sleep(for: duration)
@@ -210,15 +207,6 @@ struct AgentLiveOutputIntegrationTests {
                 try await taskEventually { await clock.isEntered(.visible) }
                 await clock.release(.visible)
                 try await taskEventually { await probe.hasValue(executionID: address.executionID, answer: "Final", thinking: "Plan") }
-                try await taskEventually { await clock.isEntered(.durable) }
-                await clock.release(.durable)
-                try await taskEventually {
-                    let state = try await fixture.runtime.sessionSnapshot(id: address.sessionID)
-                    let drafts = try await SessionDraftReader(journal: fixture.library, payloads: fixture.library)
-                        .read(state: state, executionID: address.executionID)
-                    return String(data: drafts[.answer, default: Data()], encoding: .utf8) == "Final"
-                        && String(data: drafts[.thinking, default: Data()], encoding: .utf8) == "Plan"
-                }
 
                 shutdown = Task {
                     let report = await fixture.runtime.shutdown()
@@ -309,7 +297,7 @@ private actor CompletionProbe {
     func mark() { value = true }
 }
 
-private enum OutputTimer: Hashable, Sendable { case visible, durable }
+private enum OutputTimer: Hashable, Sendable { case visible }
 
 private actor LiveOutputClock: RuntimeClock {
     private var waiters: [OutputTimer: [UUID: CheckedContinuation<Void, any Error>]] = [:]
@@ -352,7 +340,6 @@ private actor LiveOutputClock: RuntimeClock {
 
     private static func timer(for duration: Duration) -> OutputTimer? {
         if duration == .milliseconds(100) { return .visible }
-        if duration == .milliseconds(250) { return .durable }
         return nil
     }
 }

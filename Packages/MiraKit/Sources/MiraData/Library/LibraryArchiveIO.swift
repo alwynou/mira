@@ -92,7 +92,7 @@ enum LibraryArchiveIO {
             var index = 0
             init(entries: [Entry], depth: Int) { self.entries = entries; self.depth = depth }
         }
-        private let required: Set<String> = ["Sessions", "Sessions/sessions", "Sessions/payloads"]
+        private let required: Set<String> = ["Sessions", "Sessions/sessions"]
         private var seenRequired: Set<String> = []
         private var remaining = LibraryArchiveLimits.maximumDirectoryEntries
         private var fileCount = 0
@@ -104,9 +104,7 @@ enum LibraryArchiveIO {
             guard depth <= 8 else { throw LibraryArchiveIO.invalid }
             let urls = try FileSessionIO.directoryEntries(directory, limit: remaining)
             remaining -= urls.count
-            if urls.isEmpty, !required.contains(String(prefix.dropLast())), prefix != "Sessions/drafts/" {
-                throw LibraryArchiveIO.invalid
-            }
+            if urls.isEmpty, !required.contains(String(prefix.dropLast())) { throw LibraryArchiveIO.invalid }
             var entries: [Entry] = []
             for url in urls {
                 let path = prefix + url.lastPathComponent
@@ -171,7 +169,7 @@ enum LibraryArchiveIO {
     /// Source adapters may create their empty blob directories while opening.
     /// Only a privately owned, closed restoration stage may use this operation.
     static func removeEmptyStageDirectories(_ root: URL) throws {
-        let required: Set<String> = ["", "Sessions", "Sessions/sessions", "Sessions/payloads", "Sessions/drafts"]
+        let required: Set<String> = ["", "Sessions", "Sessions/sessions"]
         var visited = 0
         func visit(_ directory: URL, relative: String, depth: Int) throws {
             guard depth <= 8 else { throw invalid }

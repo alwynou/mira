@@ -44,8 +44,8 @@ struct AgentApplicationRuntimeIntegrationTests {
             let session = try await SessionRuntime.open(id: ConversationID(), journal: fixture.library,
                 payloads: fixture.library, extensionSchemas: schemas)
             try requireCommitted(await session.commit(id: UUID()) { context in
-                let title = try await context.stageBytes(Data("Synthetic extension".utf8), kind: .title, retentionGroup: UUID())
-                let body = try await context.stageBytes(Data("Synthetic module data".utf8), kind: .module, retentionGroup: UUID())
+                let title = try await context.stageBytes(Data("Synthetic extension".utf8), kind: .title)
+                let body = try await context.stageBytes(Data("Synthetic module data".utf8), kind: .module)
                 return [.opened(.init(workspaceID: nil, title: title)),
                         .extensionRecorded(namespace: "application.fixture", schemaVersion: 1, required: true, body: body)]
             })
@@ -81,9 +81,9 @@ struct AgentApplicationRuntimeIntegrationTests {
             let head = try await fixture.library.head(sessionID: command.sessionID)
             try await fixture.library.flush()
             let user = try await fixture.library.stage(Data("Question".utf8), sessionID: command.sessionID,
-                batchID: command.id, retentionGroup: UUID(), kind: .userText)
+                batchID: command.id, kind: .userText)
             let plan = try await fixture.library.stage(SessionCodec.encode(command.options.plan(runtimeID: UUID(), generation: 1)),
-                sessionID: command.sessionID, batchID: command.id, retentionGroup: UUID(), kind: .executionPlan)
+                sessionID: command.sessionID, batchID: command.id, kind: .executionPlan)
             let admission = SessionBatch(id: command.id, sessionID: command.sessionID, expectedSequence: head.cursor.sequence,
                 events: [.init(sequence: head.cursor.sequence + 1, occurredAt: Date(), fact: .admitted(.init(
                     executionID: command.executionID, userMessageID: MessageID(), userBody: user, plan: plan,
@@ -696,13 +696,13 @@ private final class ApplicationFixture: Sendable {
                 let runtime = try await SessionRuntime.open(id: command.sessionID, journal: library, payloads: library)
                 do {
                     try requireCommitted(await runtime.commit(id: UUID()) { context in
-                        let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title, retentionGroup: UUID())
+                        let title = try await context.stageBytes(Data("Synthetic".utf8), kind: .title)
                         return [.opened(.init(workspaceID: nil, title: title))]
                     })
                     try requireCommitted(await runtime.commit(id: command.id) { context in
                         guard case .message(let id, let text, let zone) = command.input else { throw MiraError(.invalidInput, "Invalid fixture message.") }
-                        let user = try await context.stageBytes(Data(text.utf8), kind: .userText, retentionGroup: UUID())
-                        let plan = try await context.stage(try command.options.plan(runtimeID: UUID(), generation: 1), kind: .executionPlan, retentionGroup: UUID())
+                        let user = try await context.stageBytes(Data(text.utf8), kind: .userText)
+                        let plan = try await context.stage(try command.options.plan(runtimeID: UUID(), generation: 1), kind: .executionPlan)
                         return [.admitted(.init(executionID: command.executionID, userMessageID: id, userBody: user,
                             plan: plan, hasModelRoute: false, authorizationEpoch: 0, timeZoneIdentifier: zone))]
                     })
@@ -738,7 +738,7 @@ private final class ApplicationFixture: Sendable {
         let libraryAccess = self.libraryAccess
         return try await Self.makeRoot(journal: library, payloads: library, libraryAccess: libraryAccess, driver: driver, probe: ModuleProbe(), schemas: schemas)
     }
-    private static func makeRoot(journal: any SessionJournal, payloads: any SessionPayloadStore, libraryAccess: AgentLibraryAccess,
+    private static func makeRoot(journal: any SessionJournal, payloads: any SessionContentStore, libraryAccess: AgentLibraryAccess,
                                  driver: DriverProbe, probe: ModuleProbe, schemas: [String: Set<Int>] = [:]) async throws -> AgentApplicationRuntime {
         let registry = RuntimeRegistry<AgentCapability>()
         return try await AgentApplicationRuntime.open(journal: journal, payloads: payloads, libraryAccess: libraryAccess, registry: registry,

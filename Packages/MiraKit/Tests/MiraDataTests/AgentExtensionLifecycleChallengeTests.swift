@@ -229,17 +229,17 @@ private struct ObserverFixture: Sendable {
                 if sequence == 1 {
                     let title = try await openedLibrary.stage(
                         Data("opened".utf8), sessionID: sessionID,
-                        batchID: batchID, retentionGroup: UUID(), kind: .title)
+                        batchID: batchID, kind: .title)
                     fact = .opened(.init(workspaceID: nil, title: title))
                 } else if sequence == 2 {
                     let title = try await openedLibrary.stage(
                         Data("renamed-\(sequence)".utf8), sessionID: sessionID,
-                        batchID: batchID, retentionGroup: UUID(), kind: .title)
+                        batchID: batchID, kind: .title)
                     fact = .renamed(title: title, revision: sequence)
                 } else {
                     let title = try await openedLibrary.stage(
                         Data("renamed-\(sequence)".utf8), sessionID: sessionID,
-                        batchID: batchID, retentionGroup: UUID(), kind: .title)
+                        batchID: batchID, kind: .title)
                     fact = .renamed(title: title, revision: sequence)
                 }
                 let batch = SessionBatch(

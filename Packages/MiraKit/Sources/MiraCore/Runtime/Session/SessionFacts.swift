@@ -6,8 +6,8 @@ public enum ExecutionPhase: String, Codable, Sendable {
 
 public struct SessionHeader: Codable, Sendable, Equatable {
     public let workspaceID: WorkspaceID?
-    public let title: SessionPayloadReference
-    public init(workspaceID: WorkspaceID?, title: SessionPayloadReference) {
+    public let title: SessionContent
+    public init(workspaceID: WorkspaceID?, title: SessionContent) {
         self.workspaceID = workspaceID; self.title = title
     }
 }
@@ -16,8 +16,8 @@ public struct SessionAdmission: Codable, Sendable, Equatable {
     public let executionID: ExecutionID
     public let userMessageID: MessageID
     public let retryOfExecutionID: ExecutionID?
-    public let userBody: SessionPayloadReference?
-    public let plan: SessionPayloadReference
+    public let userBody: SessionContent?
+    public let plan: SessionContent
     public let hasModelRoute: Bool
     public let authorizationEpoch: UInt64
     public let timeZoneIdentifier: String
@@ -25,7 +25,7 @@ public struct SessionAdmission: Codable, Sendable, Equatable {
     /// Admission is rejected if a concurrent selection change committed first.
     public let modelSelectionRevision: Int
     public init(executionID: ExecutionID, userMessageID: MessageID, retryOfExecutionID: ExecutionID? = nil,
-                userBody: SessionPayloadReference?, plan: SessionPayloadReference, hasModelRoute: Bool, authorizationEpoch: UInt64,
+                userBody: SessionContent?, plan: SessionContent, hasModelRoute: Bool, authorizationEpoch: UInt64,
                 timeZoneIdentifier: String, modelSelectionRevision: Int = 0) {
         self.executionID = executionID; self.userMessageID = userMessageID
         self.retryOfExecutionID = retryOfExecutionID; self.userBody = userBody
@@ -41,25 +41,27 @@ public struct SessionAttempt: Codable, Sendable, Equatable, Identifiable {
     public let stepID: UUID
     public let stepIndex: Int
     public let attemptIndex: Int
-    public let request: SessionPayloadReference
-    public let contents: [SessionPayloadReference]
+    public let request: SessionContent
     public init(id: UUID, executionID: ExecutionID, stepID: UUID, stepIndex: Int,
-                attemptIndex: Int, request: SessionPayloadReference, contents: [SessionPayloadReference] = []) {
+                attemptIndex: Int, request: SessionContent) {
         self.id = id; self.executionID = executionID; self.stepID = stepID
-        self.stepIndex = stepIndex; self.attemptIndex = attemptIndex; self.request = request; self.contents = contents
+        self.stepIndex = stepIndex; self.attemptIndex = attemptIndex; self.request = request
     }
 }
 
 public struct SessionAttemptResolution: Codable, Sendable, Equatable {
     public let attemptID: UUID
     public let status: AttemptStatus
-    public let output: SessionPayloadReference?
-    public let error: SessionPayloadReference?
+    public let output: SessionContent?
+    public let error: SessionContent?
     public let usage: TokenUsage
-    public init(attemptID: UUID, status: AttemptStatus, output: SessionPayloadReference? = nil,
-                error: SessionPayloadReference? = nil, usage: TokenUsage = .init()) {
+    public let stream: [SessionMessageStreamRecord]
+    public init(attemptID: UUID, status: AttemptStatus, output: SessionContent? = nil,
+                error: SessionContent? = nil, usage: TokenUsage = .init(),
+                stream: [SessionMessageStreamRecord] = []) {
         self.attemptID = attemptID; self.status = status; self.output = output
         self.error = error; self.usage = usage
+        self.stream = stream
     }
 }
 
@@ -71,9 +73,9 @@ public struct SessionInvocation: Codable, Sendable, Equatable, Identifiable {
     public let modelOrder: Int
     public let toolName: String
     public let effect: SessionEffectKind
-    public let call: SessionPayloadReference
+    public let call: SessionContent
     public init(id: UUID, attemptID: UUID, modelOrder: Int, toolName: String,
-                effect: SessionEffectKind, call: SessionPayloadReference) {
+                effect: SessionEffectKind, call: SessionContent) {
         self.id = id; self.attemptID = attemptID; self.modelOrder = modelOrder
         self.toolName = toolName; self.effect = effect; self.call = call
     }
@@ -82,8 +84,8 @@ public struct SessionInvocation: Codable, Sendable, Equatable, Identifiable {
 public struct SessionEffectIntent: Codable, Sendable, Equatable {
     public let invocationID: UUID
     public let authorization: AgentLibraryAuthorization
-    public let proposal: SessionPayloadReference
-    public init(invocationID: UUID, authorization: AgentLibraryAuthorization, proposal: SessionPayloadReference) {
+    public let proposal: SessionContent
+    public init(invocationID: UUID, authorization: AgentLibraryAuthorization, proposal: SessionContent) {
         self.invocationID = invocationID; self.authorization = authorization; self.proposal = proposal
     }
 }
@@ -91,112 +93,43 @@ public struct SessionEffectIntent: Codable, Sendable, Equatable {
 public struct SessionToolResolution: Codable, Sendable, Equatable {
     public let invocationID: UUID
     public let status: ToolResultStatus
-    public let result: SessionPayloadReference?
+    public let result: SessionContent?
     public let businessReceipt: AgentBusinessReceiptReference?
-    public let resultWasPurged: Bool
     public let effectIsKnown: Bool
-    public init(invocationID: UUID, status: ToolResultStatus, result: SessionPayloadReference? = nil,
-                businessReceipt: AgentBusinessReceiptReference? = nil, resultWasPurged: Bool = false, effectIsKnown: Bool = true) {
+    public let error: MiraError?
+    public init(invocationID: UUID, status: ToolResultStatus, result: SessionContent? = nil,
+                businessReceipt: AgentBusinessReceiptReference? = nil, effectIsKnown: Bool = true,
+                error: MiraError? = nil) {
         self.invocationID = invocationID; self.status = status; self.result = result
-        self.businessReceipt = businessReceipt; self.resultWasPurged = resultWasPurged; self.effectIsKnown = effectIsKnown
+        self.businessReceipt = businessReceipt; self.effectIsKnown = effectIsKnown
+        self.error = error
     }
 }
-
-public enum SessionDraftPart: String, Codable, Sendable, Hashable { case answer, thinking, transcript }
 
 public struct SessionCompletion: Codable, Sendable, Equatable {
     public let executionID: ExecutionID
     public let status: ExecutionStatus
     public let assistantMessageID: MessageID?
-    public let answer: SessionPayloadReference?
-    public let visibleThinking: SessionPayloadReference?
-    public let replay: SessionPayloadReference?
-    public let error: SessionPayloadReference?
+    public let answer: SessionContent?
+    public let visibleThinking: SessionContent?
+    public let error: SessionContent?
     public let usage: TokenUsage
     public init(executionID: ExecutionID, status: ExecutionStatus, assistantMessageID: MessageID? = nil,
-                answer: SessionPayloadReference? = nil, visibleThinking: SessionPayloadReference? = nil,
-                replay: SessionPayloadReference? = nil, error: SessionPayloadReference? = nil,
+                answer: SessionContent? = nil, visibleThinking: SessionContent? = nil,
+                error: SessionContent? = nil,
                 usage: TokenUsage = .init()) {
         self.executionID = executionID; self.status = status; self.assistantMessageID = assistantMessageID
-        self.answer = answer; self.visibleThinking = visibleThinking; self.replay = replay
+        self.answer = answer; self.visibleThinking = visibleThinking
         self.error = error; self.usage = usage
     }
 }
 
-public enum SessionInvalidationReason: String, Codable, Sendable {
-    case forgotten, sourceDeleted, permissionRevoked, sourceChanged
-}
-
-public struct SessionInvalidation: Codable, Sendable, Equatable {
-    public let operationID: UUID
-    public let executionIDs: Set<ExecutionID>
-    public let retentionGroups: Set<UUID>
-    public let authorizationEpoch: UInt64
-    public let reason: SessionInvalidationReason
-    public init(operationID: UUID, executionIDs: Set<ExecutionID>, retentionGroups: Set<UUID>,
-                authorizationEpoch: UInt64, reason: SessionInvalidationReason) {
-        self.operationID = operationID; self.executionIDs = executionIDs; self.retentionGroups = retentionGroups
-        self.authorizationEpoch = authorizationEpoch; self.reason = reason
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case operationID, executionIDs, retentionGroups, authorizationEpoch, reason
-    }
-    public init(from decoder: any Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        operationID = try values.decode(UUID.self, forKey: .operationID)
-        let executions = try values.decode([ExecutionID].self, forKey: .executionIDs)
-        let groups = try values.decode([UUID].self, forKey: .retentionGroups)
-        executionIDs = Set(executions); retentionGroups = Set(groups)
-        guard executions.count == executionIDs.count, groups.count == retentionGroups.count else {
-            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
-                debugDescription: "The session invalidation contains duplicate identities."))
-        }
-        authorizationEpoch = try values.decode(UInt64.self, forKey: .authorizationEpoch)
-        reason = try values.decode(SessionInvalidationReason.self, forKey: .reason)
-    }
-    public func encode(to encoder: any Encoder) throws {
-        var values = encoder.container(keyedBy: CodingKeys.self)
-        try values.encode(operationID, forKey: .operationID)
-        // Hashes and idempotent batch comparisons must survive decoding in another process.
-        try values.encode(executionIDs.sorted { $0.rawValue.uuidString < $1.rawValue.uuidString }, forKey: .executionIDs)
-        try values.encode(retentionGroups.sorted { $0.uuidString < $1.uuidString }, forKey: .retentionGroups)
-        try values.encode(authorizationEpoch, forKey: .authorizationEpoch)
-        try values.encode(reason, forKey: .reason)
-    }
-}
-
-/// Clears generated payloads from an unsuccessful execution when its question is
-/// retried. The execution remains in the journal as content-free provenance; the
-/// retry owns the only live answer for that user message.
-public struct SessionRetryCleanup: Codable, Sendable, Equatable {
+/// An explicit retry selects a new execution for the original user message.
+public struct SessionRetrySupersession: Codable, Sendable, Equatable {
     public let sourceExecutionID: ExecutionID
     public let retryExecutionID: ExecutionID
-    public let retentionGroups: Set<UUID>
-
-    public init(sourceExecutionID: ExecutionID, retryExecutionID: ExecutionID, retentionGroups: Set<UUID>) {
-        self.sourceExecutionID = sourceExecutionID
-        self.retryExecutionID = retryExecutionID
-        self.retentionGroups = retentionGroups
-    }
-
-    private enum CodingKeys: String, CodingKey { case sourceExecutionID, retryExecutionID, retentionGroups }
-    public func encode(to encoder: any Encoder) throws {
-        var values = encoder.container(keyedBy: CodingKeys.self)
-        try values.encode(sourceExecutionID, forKey: .sourceExecutionID)
-        try values.encode(retryExecutionID, forKey: .retryExecutionID)
-        try values.encode(retentionGroups.sorted { $0.uuidString < $1.uuidString }, forKey: .retentionGroups)
-    }
-    public init(from decoder: any Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        sourceExecutionID = try values.decode(ExecutionID.self, forKey: .sourceExecutionID)
-        retryExecutionID = try values.decode(ExecutionID.self, forKey: .retryExecutionID)
-        let groups = try values.decode([UUID].self, forKey: .retentionGroups)
-        retentionGroups = Set(groups)
-        guard groups.count == retentionGroups.count else {
-            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
-                debugDescription: "The retry cleanup contains duplicate retention groups."))
-        }
+    public init(sourceExecutionID: ExecutionID, retryExecutionID: ExecutionID) {
+        self.sourceExecutionID = sourceExecutionID; self.retryExecutionID = retryExecutionID
     }
 }
 
@@ -204,7 +137,7 @@ public struct SessionRetryCleanup: Codable, Sendable, Equatable {
 public enum SessionFact: Codable, Sendable, Equatable {
     case opened(SessionHeader)
     case modelSelectionChanged(selection: AgentSessionModelSelection, expectedRevision: Int)
-    case renamed(title: SessionPayloadReference, revision: Int)
+    case renamed(title: SessionContent, revision: Int)
     case archived(revision: Int)
     case admitted(SessionAdmission)
     case phaseChanged(executionID: ExecutionID, phase: ExecutionPhase)
@@ -217,25 +150,24 @@ public enum SessionFact: Codable, Sendable, Equatable {
     case toolDispatched(invocationID: UUID, authorizationEpoch: UInt64)
     case toolResolved(SessionToolResolution)
     case finished(SessionCompletion)
-    case invalidated(SessionInvalidation)
-    case retryCleared(SessionRetryCleanup)
-    case extensionRecorded(namespace: String, schemaVersion: Int, required: Bool, body: SessionPayloadReference)
+    case retrySuperseded(SessionRetrySupersession)
+    case extensionRecorded(namespace: String, schemaVersion: Int, required: Bool, body: SessionContent)
 
-    public var payloadReferences: [SessionPayloadReference] {
+    public var payloadReferences: [SessionContent] {
         switch self {
         case .opened(let value): [value.title]
         case .modelSelectionChanged: []
         case .renamed(let title, _): [title]
         case .admitted(let value): [value.userBody, value.plan].compactMap { $0 }
-        case .attemptStarted(let value): [value.request] + value.contents
+        case .attemptStarted(let value): [value.request]
         case .attemptResolved(let value): [value.output, value.error].compactMap { $0 }
         case .toolProposed(let value): [value.call]
         case .toolPrepared(let value): [value.proposal]
         case .toolResolved(let value): [value.result].compactMap { $0 }
-        case .finished(let value): [value.answer, value.visibleThinking, value.replay, value.error].compactMap { $0 }
+        case .finished(let value): [value.answer, value.visibleThinking, value.error].compactMap { $0 }
         case .extensionRecorded(_, _, _, let body): [body]
         case .archived, .phaseChanged, .toolDispatched, .toolApprovalRequested, .toolApprovalResolved,
-             .invalidated, .retryCleared: []
+             .retrySuperseded: []
         }
     }
 }

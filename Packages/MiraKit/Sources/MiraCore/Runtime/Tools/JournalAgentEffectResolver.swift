@@ -2,10 +2,10 @@ import Foundation
 
 /// Resolves business eligibility from the journal authority. Query projections are never consulted.
 public struct JournalAgentEffectResolver: AgentEffectIntentResolver {
-    private let payloads: any SessionPayloadReader
+    private let payloads: any SessionContentReader
     private let reader: JournalSessionReader
 
-    public init(journal: any SessionJournal, payloads: any SessionPayloadReader, extensionSchemas: [String: Set<Int>] = [:]) {
+    public init(journal: any SessionJournal, payloads: any SessionContentReader, extensionSchemas: [String: Set<Int>] = [:]) {
         self.payloads = payloads
         self.reader = .init(journal: journal, payloads: payloads, extensionSchemas: extensionSchemas)
     }
@@ -15,7 +15,6 @@ public struct JournalAgentEffectResolver: AgentEffectIntentResolver {
         let snapshot = try await reader.snapshot(sessionID: proof.sessionID)
         let state = snapshot.state
         guard proof.intentSequence > 0, proof.proposal.kind == .effectIntent,
-              proof.proposal.sessionID == proof.sessionID, proof.proposal.batchID == proof.intentBatchID,
               let invocation = state.invocations[proof.invocationID], let intent = invocation.intent,
               intent.sequence == proof.intentSequence, intent.batchID == proof.intentBatchID,
               intent.intent.invocationID == proof.invocationID, intent.intent.proposal == proof.proposal,
@@ -25,7 +24,7 @@ public struct JournalAgentEffectResolver: AgentEffectIntentResolver {
               let execution = state.executions[proof.executionID] else { throw Self.invalidIntent }
         if requireEligible {
             guard state.activeExecutionID == proof.executionID, execution.completion == nil,
-                  !state.excludedExecutionIDs.contains(proof.executionID), invocation.dispatchedAt != nil,
+                  !state.supersededExecutionIDs.contains(proof.executionID), invocation.dispatchedAt != nil,
                   invocation.resolution == nil, [.waitingForTools, .waitingForUser].contains(execution.phase),
                   attempt.resolution?.status == .completed else { throw Self.ineligible }
         }
@@ -35,24 +34,21 @@ public struct JournalAgentEffectResolver: AgentEffectIntentResolver {
               proposal.effect == invocation.invocation.effect, proposal.callDigest == invocation.invocation.call.digest else {
             throw Self.invalidIntent
         }
-        let build = try await AgentRequestRecord.read(attempt.attempt.request, payloads: payloads)
+        let build = try SessionCodec.decode(AgentSessionRequest.self, from: await payloads.read(attempt.attempt.request))
         let plan = try await AgentExecutionPlan.read(for: execution.admission, from: payloads)
         guard let route = plan.route else { throw Self.invalidIntent }
         try build.validate(for: route)
         guard build.request.destination == .model(route),
               build.request.executionID == proof.executionID, build.request.sessionID == proof.sessionID,
               build.request.workspaceID == state.header?.workspaceID,
-              build.input.executionID == proof.executionID,
-              build.input.stepID == attempt.attempt.stepID,
               build.sources == proposal.inheritedSources,
-              build.input.tools.contains(where: { $0 == proposal.descriptor.definition }) else {
+              build.tools.contains(where: { $0 == proposal.descriptor.definition }) else {
             throw Self.invalidIntent
         }
         if requireEligible, build.request.authorizationEpoch != state.authorizationEpoch { throw Self.ineligible }
         let evidence = try await reader.userEvidence(in: snapshot, executionID: proof.executionID)
         guard evidence.text == build.request.userText,
-              build.input.messages.last(where: { $0.role == .user })?.text == evidence.text,
-              build.input.instructions == plan.instructions else { throw Self.invalidIntent }
+              build.instructions == plan.instructions else { throw Self.invalidIntent }
         try Task.checkCancellation()
         return .init(proposal: proposal, context: .init(executionID: proof.executionID,
             invocationID: proof.invocationID, evidence: evidence, route: route))

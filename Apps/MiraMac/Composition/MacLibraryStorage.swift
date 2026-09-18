@@ -20,8 +20,6 @@ actor MacLibraryStorage {
     let knowledge: SQLiteKnowledgeStore
     let tasks: SQLiteTaskStore
     let business: SQLiteBusinessEffects
-    let businessPrivacy: SQLiteBusinessPrivacyStore
-    let privacyPlans: SQLiteSessionPrivacyPlanStore
     let contextPolicy: SQLiteAgentContextPolicy
     let searchIndex: SQLiteSessionSearchIndex
     let projection: SQLiteSessionProjection
@@ -36,7 +34,6 @@ actor MacLibraryStorage {
         modelMetadata: SQLiteAgentModelMetadataStore,
         memories: SQLiteMemoryStore, embeddings: any MemoryEmbeddingService, extraction: SQLiteMemoryExtractionStore,
         knowledge: SQLiteKnowledgeStore, tasks: SQLiteTaskStore, business: SQLiteBusinessEffects,
-        businessPrivacy: SQLiteBusinessPrivacyStore, privacyPlans: SQLiteSessionPrivacyPlanStore,
         contextPolicy: SQLiteAgentContextPolicy, projection: SQLiteSessionProjection,
         searchIndex: SQLiteSessionSearchIndex,
         archiveModules: [SQLiteArchiveModule], changes: SQLiteBusinessChanges
@@ -55,8 +52,6 @@ actor MacLibraryStorage {
         self.knowledge = knowledge
         self.tasks = tasks
         self.business = business
-        self.businessPrivacy = businessPrivacy
-        self.privacyPlans = privacyPlans
         self.contextPolicy = contextPolicy
         self.projection = projection
         self.searchIndex = searchIndex
@@ -65,7 +60,10 @@ actor MacLibraryStorage {
     }
 
     /// Opening owns its blocking I/O independently of the UI actor and waiter cancellation.
-    static func open(embeddings injectedEmbeddings: (any MemoryEmbeddingService)? = nil, directory: URL, expectedLibraryID: UUID? = nil, environment: RuntimeEnvironment = .init())
+    static func open(
+        embeddings injectedEmbeddings: (any MemoryEmbeddingService)? = nil,
+        directory: URL, expectedLibraryID: UUID? = nil, environment: RuntimeEnvironment = .init()
+    )
         async throws -> MacLibraryStorage
     {
         try Task.checkCancellation()
@@ -113,7 +111,8 @@ actor MacLibraryStorage {
                     .appendingPathComponent("MiraModels/qwen3-embedding-0.6b-4bit", isDirectory: true)
                 let embeddings: any MemoryEmbeddingService = injectedEmbeddings ?? MacMemoryEmbeddingService(directory: models)
                 cleanups.append { await embeddings.close() }
-                let memories = try SQLiteMemoryStore(database: database, libraryID: authority.libraryID, embeddings: embeddings)
+                let memories = try SQLiteMemoryStore(
+                    database: database, libraryID: authority.libraryID, embeddings: embeddings)
                 cleanups.append { await memories.close() }
                 let extraction = try SQLiteMemoryExtractionStore(database: database, libraryID: authority.libraryID)
                 cleanups.append { await extraction.close() }
@@ -132,10 +131,6 @@ actor MacLibraryStorage {
                     ],
                     validator: MacBusinessValidator(now: environment.now))
                 cleanups.append { try? await business.close() }
-                let businessPrivacy = try SQLiteBusinessPrivacyStore(database: database, libraryID: authority.libraryID)
-                cleanups.append { await businessPrivacy.close() }
-                let privacyPlans = try SQLiteSessionPrivacyPlanStore(database: database, libraryID: authority.libraryID)
-                cleanups.append { await privacyPlans.close() }
                 let contextPolicy = try SQLiteAgentContextPolicy(database: database, libraryID: authority.libraryID)
                 cleanups.append { await contextPolicy.close() }
                 let projectionDirectory = directory.appendingPathComponent("Projections")
@@ -158,7 +153,7 @@ actor MacLibraryStorage {
                     authority: authority, access: access, workspaces: workspaces, settings: settings,
                     modelMetadata: modelMetadata,
                     memories: memories, embeddings: embeddings, extraction: extraction, knowledge: knowledge, tasks: tasks,
-                    business: business, businessPrivacy: businessPrivacy, privacyPlans: privacyPlans,
+                    business: business,
                     contextPolicy: contextPolicy, projection: projection, searchIndex: searchIndex,
                     archiveModules: modules, changes: changes)
             } catch {
@@ -183,8 +178,6 @@ actor MacLibraryStorage {
             await workspaces.close()
             await settings.close()
             await contextPolicy.close()
-            await businessPrivacy.close()
-            await privacyPlans.close()
             await authority.close()
             do { try await projection.close() } catch { failure = failure ?? MiraError.safe(error) }
             do { try await searchIndex.close() } catch { failure = failure ?? MiraError.safe(error) }
@@ -221,7 +214,7 @@ actor MacLibraryStorage {
             SQLiteAgentModelMetadataStore.archiveModule(),
             SQLiteMemoryExtractionStore.archiveModule(), SQLiteTaskStore.archiveModule(),
             SQLiteKnowledgeStore.archiveModule(blobDirectory: "Knowledge"),
-            SQLiteSessionConsumer.archiveModule(), SQLiteSessionPrivacyPlanStore.archiveModule(),
+            SQLiteSessionConsumer.archiveModule(),
         ]
     }
 

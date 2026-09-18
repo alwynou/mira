@@ -9,8 +9,7 @@
         @Test
         func manualWriteKeepsOperationIdentityAcrossRetry() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
                     let model = MemoryEditorModel(library: library, workspaces: [])
@@ -42,8 +41,7 @@
         @Test
         func staleRevisionIsRejectedWithoutCreatingAnotherMemory() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
                     let creator = MemoryEditorModel(library: library, workspaces: [])
@@ -75,8 +73,7 @@
         @Test
         func editedDraftStartsANewOperationAfterTheOriginalSettles() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 do {
                     let model = MemoryEditorModel(library: library, workspaces: [])
@@ -101,8 +98,7 @@
         @Test
         func missingSourcePageStopsLoadingAndCloseClearsCachedSource() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(), modules: { _ in [] })
                 var observer: Task<Void, Never>?
                 do {
@@ -110,8 +106,7 @@
                     let summary = SessionMessageSummary(
                         id: MessageID(), sessionID: sessionID, executionID: ExecutionID(),
                         role: .user, sequence: 1, occurredAt: .now,
-                        body: nil, thinking: nil, bodyInvalidated: false,
-                        thinkingInvalidated: false, isExcludedFromContext: false)
+                        body: nil, thinking: nil)
                     let source = SessionQueryMessage(
                         summary: summary, body: .available("cached source"), thinking: .absent)
                     let model = MemoryEditorModel(
@@ -139,8 +134,7 @@
         @Test
         func sourceIsRevalidatedAcrossLibraryGenerationBeforeWriting() async throws {
             try await withDirectory { directory in
-                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(),
-                    directory: directory, notifications: CompositionNotifications(),
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
                     credentials: CompositionCredentials(),
                     modules: { [MacDemoModule(registry: $0)] })
                 var observer: Task<Void, Never>?

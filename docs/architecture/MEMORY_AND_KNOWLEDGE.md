@@ -8,7 +8,7 @@
 
 The current production memory contract is detailed in [Memory implementation](MEMORY_IMPLEMENTATION.md); this document remains the broader domain contract.
 
-新核心的记忆遗忘已通过独立库作用域处理器组合领域、业务回执、会话正文和查询投影，具体当前契约见[会话隐私维护](AGENT_SESSION_PRIVACY.md#记忆遗忘处理器)。生产宿主仍在直接切换，不增加旧存储兼容入口。
+新核心的记忆遗忘通过独立库作用域处理器组合记忆领域、业务回执和查询投影；会话日志仍遵循[规范会话日志](AGENT_SESSION_LOG.md)，不增加旧存储兼容入口。
 
 返回 [ARCHITECTURE.md](../ARCHITECTURE.md) · 版本范围：[MVP](../MVP.md)
 
@@ -16,7 +16,7 @@ The current production memory contract is detailed in [Memory implementation](ME
 
 <a id="s19"></a>
 
-历史回复的当前记忆状态及清理后提示见[历史状态查询契约](AGENT_MEMORY_HISTORY.md)。该查询基于日志与持久隐私计划，只返回身份及原因，不作为新的记忆来源。
+历史回复的当前记忆状态及清理后提示见[历史状态查询契约](AGENT_MEMORY_HISTORY.md)。该查询基于日志与领域持久事实，只返回身份及原因，不作为新的记忆来源。
 
 ## 1. Memory Domain 与 Pipeline
 
