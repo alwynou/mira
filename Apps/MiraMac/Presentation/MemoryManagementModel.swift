@@ -9,7 +9,7 @@ import Observation
 final class MemoryManagementModel {
     let library: MacLibrary
 
-    var searchText = "" { didSet { if searchText != oldValue { refresh() } } }
+    var searchText = "" { didSet { if searchText != oldValue { scheduleSearchRefresh() } } }
     var scope: MemoryManagementScope = .all { didSet { if scope != oldValue { refresh() } } }
     var section: MemoryManagementSection = .current { didSet { if section != oldValue { refresh() } } }
     var order: MemoryManagementOrder = .newestFirst { didSet { if order != oldValue { refresh() } } }
@@ -41,6 +41,7 @@ final class MemoryManagementModel {
     @ObservationIgnored private var detailTask: Task<Void, Never>?
     @ObservationIgnored private var validityTask: Task<Void, Never>?
     @ObservationIgnored private var actionTask: Task<Void, Never>?
+    @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var retirementTask: Task<Void, Never>?
     @ObservationIgnored private var readID = UUID()
     @ObservationIgnored private var detailID = UUID()
@@ -95,6 +96,16 @@ final class MemoryManagementModel {
         await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
         if runID == run { observationTask = nil }
         await retirementTask?.value
+    }
+
+    private func scheduleSearchRefresh() {
+        searchTask?.cancel()
+        searchTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+            guard !Task.isCancelled, let self else { return }
+            self.searchTask = nil
+            self.refresh()
+        }
     }
 
     func refresh() {
@@ -472,8 +483,9 @@ final class MemoryManagementModel {
     private func stopReadTasks() {
         validityTask?.cancel()
         validityTask = nil
-        let tasks = [readTask, detailTask].compactMap { $0 }
-        readTask = nil; detailTask = nil
+        searchTask?.cancel()
+        let tasks = [readTask, detailTask, searchTask].compactMap { $0 }
+        readTask = nil; detailTask = nil; searchTask = nil
         readID = UUID(); detailID = UUID(); readDirty = false
         tasks.forEach { $0.cancel() }
         retire(tasks)
