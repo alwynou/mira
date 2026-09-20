@@ -12,6 +12,8 @@ final class ConversationPageState: Identifiable {
     private(set) var messages: [SessionQueryMessage] = []
     private(set) var executions: [SessionExecutionSummary] = []
     private(set) var hasMoreMessages = false
+    /// Message selected by an explicit source reveal action in memory management.
+    var revealedMessageID: MessageID?
     var memoryNotices: [ExecutionID: [MemoryContextNotice]] = [:]
     var activities: [ExecutionID: [SessionActivityStep]] = [:]
     @ObservationIgnored var noticeGeneration = 0
@@ -263,6 +265,7 @@ final class ConversationPageState: Identifiable {
         settledOutput = nil
         streamBuffer.clear()
         hasMoreMessages = false
+        revealedMessageID = nil
         isLoaded = conversationID == nil
         isLoading = false
         contentGeneration &+= 1

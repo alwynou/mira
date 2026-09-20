@@ -13,7 +13,7 @@ The subsequent user-requested [daily quota removal](engineering/LOCAL_MEMORY_IMP
 
 The [memory search relevance correction](engineering/MEMORY_SEARCH_RELEVANCE.md) filters low-scoring vector neighbors so small libraries no longer return every memory for unrelated queries. Focused tool/store tests and a real local-model fixture passed; broad answerability calibration remains open.
 
-**状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒底层能力保留。2026-09-08 按用户要求移除原记忆、知识库和任务管理界面，菜单保留为无跳转的待实现入口，替代界面待设计；历史原生界面验收不代表当前可用界面。本机通知授权、应用完全退出后的普通提醒送达，以及重启后的到期状态曾通过用户配合验收。专注模式与正式分发按用户选择暂缓。历史证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
+**状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒底层能力保留。2026-09-20 已重建 macOS Memory 管理界面，提供当前／历史、范围、搜索、排序、分页、详情、手动保存、编辑、替代、归档和遗忘；Knowledge 与 Tasks 管理界面仍暂缓。2026-09-08 移除旧界面的记录是历史状态，旧原生界面验收不代表当前版本已验收。Memory 管理的原生证据与未验证范围见 [Memory management verification](engineering/MEMORY_MANAGEMENT_VERIFICATION.md)；该增量不代表完整 M3 验收、真实模型质量通过或 macOS 15 原生运行验证。本机通知授权、应用完全退出后的普通提醒送达，以及重启后的到期状态曾通过用户配合验收。专注模式与正式分发按用户选择暂缓。其他历史证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 服务商接入流程已按“配置并激活服务商 → 选择服务商模型 → 模型池 → 选择模型”更新，模型池阶段验收见 [模型池验收记录](engineering/PROVIDER_POOL_VERIFICATION.md)。新增服务商目录、models.dev 资料和用途筛选的当前范围见 [目录与筛选验收](engineering/MODEL_CATALOG_VERIFICATION.md)。
 
@@ -113,13 +113,13 @@ M2 使用 Fake Tool 验证完整管线，测试工具不进入发布注册表。
 
 | 区域 | 首版必需内容 |
 |---|---|
-| Sidebar | Inbox、Workspace、Settings；Memories、Knowledge、Tasks 按用户要求暂保留为无跳转的待实现入口 |
-| Conversation | 消息、发送 / 取消 / 重试、模型和执行状态、记忆处理反馈、引用入口 |
+| Sidebar | Inbox、Workspace、Settings；Memory 管理界面已实现。Knowledge 与 Tasks 仍为待实现入口 |
+| Conversation | 消息、发送 / 取消 / 重试、模型和执行状态、历史记忆状态提示、引用入口 |
 | Workspace | 名称、项目背景、发送策略；不建设层级 Workspace |
-| Memory | 管理界面已移除，替代设计与实现待完成；底层记忆和对话内反馈保留 |
-| Knowledge | 管理界面已移除，替代设计与实现待完成；底层检索和对话引用保留 |
+| Memory | 当前／历史、范围与搜索、排序分页、证据和修订详情、手动本地记忆、编辑、替代、归档、遗忘及正文清理占位；不提供自动候选收件箱 |
+| Knowledge | 管理界面仍待实现；底层检索和对话引用保留 |
 | Inspector | 实际 Context、有效来源、被省略原因、Step / Tool / 错误、Usage |
-| Settings | Provider / 用途路线、自动记忆与预算、隐私、备份 / 恢复 / 清理 |
+| Settings | Provider / 用途路线、自动记忆、隐私、备份 / 恢复 / 清理 |
 
 高级 Home / Today、Graph、Timeline 聚合、专用 Note 编辑器、独立 Artifact 工作台不在 v0.1。第一版只建立当前能力需要的导航和数据模型。
 
@@ -289,7 +289,7 @@ The first composer focus no longer initializes the macOS OTP AutoFill panel. The
 
 ## 5. 开发前条件与发布前条件
 
-**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并保留可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆保留独立配置、任务、预算与审核用例；M4 保留资料工具与完整文件备份；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。自然记忆与资料预取、M6 任务 / 一次性提醒底层实现保留。原记忆、知识库和任务管理界面已按用户要求移除，待重新设计与实现，历史界面验收不视为当前可用能力。真实 Provider 的广泛质量验证、Keychain 故障演练及完整平台交互验收仍待补；M3–M6 尚未完成全部发布验收。
+**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并保留可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆保留独立配置与后台任务；M4 保留资料工具与完整文件备份；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。自然记忆与资料预取、M6 任务 / 一次性提醒底层实现保留。Memory 管理界面已重建；Knowledge 与 Tasks 界面仍待设计与实现，历史界面验收不视为当前版本的验收。Memory 管理的原生运行与质量边界见 [Memory management verification](engineering/MEMORY_MANAGEMENT_VERIFICATION.md)。真实 Provider 的广泛质量验证、Keychain 故障演练及完整平台交互验收仍待补；M3–M6 尚未完成全部发布验收。
 
 **实施时填写的证据：** 实际选用的模型 ID / 端点及能力验证结果、Package.resolved、最低系统与各 CPU 的验证环境。无需在文档中写入密钥。
 

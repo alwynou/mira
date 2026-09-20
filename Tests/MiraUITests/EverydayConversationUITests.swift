@@ -77,7 +77,7 @@ final class EverydayConversationUITests: XCTestCase {
             }
             let draft = "Keep this unsent draft while selecting deferred navigation."
             try enter(draft, in: app)
-            for identifier in ["sidebar.memories", "sidebar.knowledge", "sidebar.tasks", "conversation.knowledge"] {
+            for identifier in ["sidebar.knowledge", "sidebar.tasks", "conversation.knowledge"] {
                 let entry = app.buttons[identifier]
                 try require(entry.waitForExistence(timeout: 5), "A deferred navigation entry is missing: \(identifier).")
                 entry.click()

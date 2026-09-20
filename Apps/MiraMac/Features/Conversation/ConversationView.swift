@@ -6,6 +6,9 @@ struct ConversationRoot: View {
     @Environment(\.locale) private var locale
     @Environment(\.openWindow) private var openWindow
     @State private var model: ConversationModel
+    @State private var memoryModel: MemoryManagementModel
+    @State private var showsMemories = false
+    @State private var memoryEditor: MemoryEditorDestination?
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
     @State private var showsInspector = false
@@ -14,6 +17,7 @@ struct ConversationRoot: View {
 
     init(library: MacLibrary, isDemo: Bool) {
         _model = State(initialValue: ConversationModel(library: library))
+        _memoryModel = State(initialValue: MemoryManagementModel(library: library))
         self.isDemo = isDemo
     }
 
@@ -47,6 +51,9 @@ struct ConversationRoot: View {
                     )
                     .environment(\.locale, locale)
                 }
+            }
+            .onChange(of: showsMemories) { _, showing in
+                model.activePage.isActive = !showing
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active, let group = model.workgroup { Task { await group.wake() } }
@@ -83,6 +90,15 @@ struct ConversationRoot: View {
                         .disabled(!page.isActive)
                         .accessibilityHidden(!page.isActive)
                     }
+                    MemoryManagementView(model: memoryModel, editor: $memoryEditor) { reference in
+                        Task {
+                            if await model.revealMemorySource(reference) { showsMemories = false }
+                        }
+                    }
+                    .opacity(showsMemories ? 1 : 0)
+                    .allowsHitTesting(showsMemories)
+                    .disabled(!showsMemories)
+                    .accessibilityHidden(!showsMemories)
                 }
                 .environment(\.locale, locale)
                 .environment(\.miraOpenSettingsWindow, openWindow)
@@ -91,13 +107,17 @@ struct ConversationRoot: View {
                 ExecutionInspector(model: model, page: model.activePage)
                     .environment(\.locale, locale)),
             title: displayedConversationTitle, locale: locale,
-            canInspect: !model.activePage.executions.isEmpty, showsInspector: $showsInspector,
-            newConversation: { Task { await model.newConversation() } }
+            canInspect: !showsMemories && !model.activePage.executions.isEmpty,
+            showsInspector: Binding(get: { !showsMemories && showsInspector }, set: { showsInspector = $0 }),
+            newConversation: { showsMemories = false; Task { await model.newConversation() } },
+            addMemory: showsMemories ? { memoryEditor = .init(scope: memoryModel.creationScope) } : nil
         )
         .ignoresSafeArea()
     }
 
-    private var displayedConversationTitle: String { title(for: model.activePage) }
+    private var displayedConversationTitle: String {
+        showsMemories ? L10n.string("Memories", locale: locale) : title(for: model.activePage)
+    }
 
     private func title(for page: ConversationPageState) -> String {
         guard let conversation = page.session ?? model.conversations.first(where: { $0.id == page.conversationID })
@@ -131,17 +151,17 @@ struct ConversationRoot: View {
                 VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
                     VStack(spacing: 2) {
                         Button {
+                            showsMemories = false
                             Task { await model.newConversation() }
                         } label: {
                             MiraSidebarRow { Label("New conversation", systemImage: "square.and.pencil") }
                         }
                         .accessibilityIdentifier("sidebar.newConversation")
-                        // Keep these destinations inert until their replacement interfaces are designed.
                         Button {
+                            showsMemories = true
                         } label: {
-                            MiraSidebarRow { Label("Memories", systemImage: "brain") }
+                            MiraSidebarRow(isSelected: showsMemories) { Label("Memories", systemImage: "brain") }
                         }
-                        .help("Not implemented yet")
                         .accessibilityIdentifier("sidebar.memories")
                         Button {
                         } label: {
@@ -184,17 +204,19 @@ struct ConversationRoot: View {
                 .padding(.horizontal, MiraTheme.Spacing.md)
                 .padding(.bottom, MiraTheme.Spacing.sm)
             Button {
+                showsMemories = false
                 Task { await model.selectWorkspace(nil) }
             } label: {
-                MiraSidebarRow(isSelected: model.selectedWorkspaceID == nil) {
+                MiraSidebarRow(isSelected: !showsMemories && model.selectedWorkspaceID == nil) {
                     Label("Inbox", systemImage: "tray")
                 }
             }
             ForEach(model.workspaces) { workspace in
                 Button {
+                    showsMemories = false
                     Task { await model.selectWorkspace(workspace.id) }
                 } label: {
-                    MiraSidebarRow(isSelected: model.selectedWorkspaceID == workspace.id) {
+                    MiraSidebarRow(isSelected: !showsMemories && model.selectedWorkspaceID == workspace.id) {
                         Label {
                             Text(verbatim: workspace.name).lineLimit(1)
                         } icon: {
@@ -226,6 +248,7 @@ struct ConversationRoot: View {
                     .font(MiraTheme.Typography.section)
                 Spacer()
                 Button {
+                    showsMemories = false
                     model.showArchived.toggle()
                     Task { await model.selectConversation(nil) }
                 } label: {
@@ -246,9 +269,10 @@ struct ConversationRoot: View {
             .padding(.trailing, MiraTheme.Spacing.xs)
             ForEach(model.filteredConversations) { conversation in
                 Button {
+                    showsMemories = false
                     Task { await model.selectConversation(conversation.id) }
                 } label: {
-                    MiraSidebarRow(isSelected: model.selectedConversationID == conversation.id) {
+                    MiraSidebarRow(isSelected: !showsMemories && model.selectedConversationID == conversation.id) {
                         Text(verbatim: displayTitle(conversation))
                             .lineLimit(1)
                     }
@@ -299,7 +323,6 @@ private struct ConversationDetail: View {
     let inspect: (ExecutionID) -> Void
     @Environment(\.locale) private var locale
     @State private var rememberedMessage: SessionQueryMessage?
-    @State private var revealedMessageID: MessageID?
     @State private var bottomOverlayHeight: CGFloat = 0
 
     private var currentConversation: SessionQueryItem? { page.session }
@@ -349,7 +372,7 @@ private struct ConversationDetail: View {
                 ConversationTranscript(
                     model: model, page: page, topOverlayHeight: topOverlayHeight,
                     bottomOverlayHeight: bottomOverlayHeight, rememberedMessage: $rememberedMessage,
-                    revealedMessageID: $revealedMessageID)
+                    revealedMessageID: $page.revealedMessageID)
             }
             if page.messages.isEmpty && page.activeExecution == nil {
                 if !page.isLoading {

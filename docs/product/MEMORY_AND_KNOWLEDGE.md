@@ -1,18 +1,20 @@
 # 记忆与知识产品规范
 
 **文档版本：** v1.2  
-**更新日期：** 2026-09-16
+**更新日期：** 2026-09-20
 **状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
 
 定义 Memory、Project Context、Working Memory、Knowledge 与 Artifact 的用户语义、反馈和纠正体验；技术模型由对应 architecture 文档负责。
 
 返回 [PRD.md](../PRD.md) · 版本范围：[MVP](../MVP.md)
 
-## Current management UI status — 2026-09-08
+## Current management UI status — 2026-09-20
 
-The previous Memory and Knowledge management screens have been removed at the user's request. Their sidebar entries remain visible as inert destinations with a "Not implemented yet" help label; clicking them preserves the current conversation and draft. The toolbar Knowledge entry is also inert. The conversation memory extraction disclosure and status panel have also been removed at the user's request; replacement feedback presentation is pending. Replacement management interfaces are pending design and implementation; the management interactions described below are product requirements, not currently available UI.
+The macOS Memory management screen is implemented. It provides search, global/workspace scope filters, current/history sections, updated-time ordering, and paged results. A selected memory shows its evidence, revisions, and related replacement records; related records can be opened from detail even when they fall outside the current filter or page. Manual memories default to local-only. Editing wording keeps the memory identity, scope, and subject; replacing creates a separate memory and retains the previous one in history. Users can archive, restore, reject a candidate, and forget a memory after confirmation. Forgetting clears the body and source excerpts while retaining a body-free tombstone. At compact widths, including the 850×620 target window, detail uses a drill-in layout with a return action. Conversation drafts remain available when switching to Memory and back to a new conversation.
 
-This removes presentation only. Memory extraction, recall, conversation citations, explicit save flows, settings, persisted records, and knowledge retrieval remain in place.
+Replacement proposals require explicit review from their history and relationship context. There is no automatic candidate inbox. Knowledge and Tasks management screens remain deferred; their navigation entries are not implemented destinations. The conversation memory-extraction disclosure and status panel remain removed, and replacement feedback presentation is still pending. Native test evidence and unverified acceptance are tracked in [Memory management verification](../engineering/MEMORY_MANAGEMENT_VERIFICATION.md). This management UI increment does not establish full M3 acceptance, real-model memory quality, or macOS 15 native runtime validation.
+
+The 2026-09-08 removal was a historical state, superseded by the Memory management implementation recorded here. That change affected presentation only: Memory extraction, recall, conversation citations, explicit save flows, settings, persisted records, and knowledge retrieval remain separate capabilities.
 
 Memory settings explains always-automatic background capture using the conversation model. There is no capture-mode selector, separate extraction-model setup, daily token quota, remaining-budget display, or Save/Discard flow. A local search card shows the pinned Qwen3 0.6B 4-bit model and preparation state; embeddings require no API key. Actual usage and cache counters remain available in execution inspection. Source authorization and sensitive-memory boundaries remain in force.
 
@@ -112,7 +114,7 @@ Workspace 是检索与数据发送边界，标签和实体链接不会自动授�
 
 同类 Memory 只有在表达同一具体方面且用户自然表达了变化时才视为可能替代；不同方面的偏好可以同时保留。模型提供的方面标识只用于发现候选冲突，不是用户授权，也不能单独触发替代。
 
-这类记忆在后台自然生效，不逐条弹窗或要求确认，也不要求在回答中显示引用。内部来源可以关联整个会话批次，供纠正和遗忘时追踪依赖。管理界面的编辑和撤销入口仍是待实现产品要求，不能把当前不可用入口当成已交付能力。
+这类记忆在后台自然生效，不逐条弹窗或要求确认，也不要求在回答中显示引用。内部来源可以关联整个会话批次，供纠正和遗忘时追踪依赖。已实现的记忆管理界面提供编辑、替代、归档与遗忘入口；后台处理结果的独立审核队列不在当前范围内。
 
 #### C. 推断、敏感、冲突或低置信内容
 
@@ -236,7 +238,7 @@ Memory search returns relevant matches, up to its result limit, and can return n
 - 当前状态；
 - 是否被用户明确确认。
 
-The replacement management interface must open a specific memory from its processing result, including an older item beyond the initial list, while preserving workspace access boundaries. This direct navigation is currently unavailable while the interface is deferred.
+The management screen supports locating older memories through search, scope filters, history, ordering, and pagination, while retaining workspace access boundaries. It does not add a separate processing-result inbox or automatic navigation into proposed replacements.
 
 <a id="s09-09"></a>
 

@@ -1,7 +1,7 @@
 # 记忆与知识领域设计
 
 **文档版本：** v1.2  
-**更新日期：** 2026-09-16
+**更新日期：** 2026-09-20
 **状态：** 设计基线；当前实现与验收范围见 [实施记录](../engineering/IMPLEMENTATION_STATUS.md)。
 
 定义记忆提取、来源、抑制、演化、工作记忆及资料版本与解析；用户可见行为在产品规范中定义。
@@ -261,6 +261,16 @@ ExtractionDecision 的抑制元数据不保存被遗忘正文；保留必要来�
 明确“记住”通过受保护的 `memory.remember` 工具或手动保存用例完成；宿主将来源绑定到当前真实用户消息，校验范围和抑制，无需额外确认。记忆始终自动，提取沿用会话模型；普通陈述由批量后台提取处理，工具说明要求仅在用户明确要求保存时调用。自动提取使用同一提交用例并执行自动记忆策略。相同来源的两个路径只能得到一条业务结果。
 
 后台提取成功前，前台只可显示待处理状态。手动保存与 `memory.remember` 成功回执在事务后产生，模型只能依据该回执声称“已记住”。首版不允许工具直接写 SQL 或绕过 Evidence / Triage。
+
+### 1.12 macOS 记忆管理查询与展示
+
+`MemoryManagementQuery` is a host-management read contract, separate from recall and tool-facing memory search. It accepts a scope (`all`, `global`, or one workspace), a section (`current` or `history`), a bounded text query, updated-time order, a page limit, and an optional cursor. The macOS presentation requests up to 100 records per page. The store applies scope, lifecycle, and text filters before limiting results; text search is a case-insensitive substring match over records that still have a body. Forgotten tombstones remain visible in history but cannot be found by matching cleared text. Each page also returns the earliest upcoming validity boundary (`nextTransitionAt`) within its scope and text filter. The presentation schedules a refresh for that boundary, capped to a 24-hour sleep, so memories move between current and history as their validity changes without requiring a manual reload.
+
+`current` means active, unsuperseded, undeleted, unforgotten, and valid at the query timestamp. `history` contains all retained records outside that effective state, including superseded, archived, candidate, rejected, removed, forgotten, expired, and not-yet-valid records. Ordering uses `(updatedAt, memoryID)` in the requested direction. The keyset cursor carries that pair plus a query key derived from scope, section, text, and order, so it cannot continue under changed filters. The store reads `limit + 1` rows to determine whether another page exists. This contract adds no persisted schema or migration.
+
+Selecting a row resolves detail using the selected memory's own workspace scope; the active list filter never grants detail access. Detail includes body-bearing evidence, revisions, and replacement relations. The macOS screen resolves both endpoints for the first 32 replacement relations using that same owning workspace scope, and exposes when older relationship history remains. Opening a conversation source validates the journal-backed message identity, workspace, and current conversation head, then pages backward from the head in contiguous chunks of 128 messages, up to 32 pages. If the source is older than that bound, the localized limit message tells the user to open the original conversation and load earlier messages. Read and action results are bound to the library generation and selected detail token. Maintenance, forgetting, closure, or a failed read clears cached detail and related bodies; forgetting is admitted through revision-bound `memory.forget` maintenance.
+
+The current macOS management UI supports manual local-only memories, immutable scope and subject when editing, text edits that preserve identity, explicit replacement, archive/restore, candidate rejection, and confirmed forgetting with a body-free tombstone. Proposed replacements require explicit review from history and relationship detail; no automatic candidate inbox is defined. Knowledge and Tasks management interfaces remain deferred. Native acceptance limits are tracked in [Memory management verification](../engineering/MEMORY_MANAGEMENT_VERIFICATION.md); this presentation contract does not claim full M3 quality or runtime validation on macOS 15.
 
 > **参考设计标注｜Nowledge Mem**  
 > 借鉴 Atomic Memory、来源、Working Memory 和 `replaces / enriches / confirms / challenges` 类知识演化。Mira 使用自动 Active / 跳过策略，并增加可重建 Current Projection，避免每次召回递归计算完整演化链。

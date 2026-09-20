@@ -7,6 +7,69 @@
     @MainActor
     struct MemoryEditorModelTests {
         @Test
+        func manualEntryDefaultsToLocalOnlyAndCanUseProvidedInitialScope() async throws {
+            try await withDirectory { directory in
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
+                    credentials: CompositionCredentials(), modules: { _ in [] })
+                do {
+                    let workspace = Workspace(id: WorkspaceID(), name: "Synthetic workspace")
+                    let group = try await library.workloads()
+                    try await group.workspaces.save(workspace, expectedRevision: nil)
+                    let model = MemoryEditorModel(
+                        library: library, workspaces: [workspace], initialScope: .workspace(workspace.id))
+                    #expect(!model.allowsRemoteUse)
+                    #expect(!model.sensitive)
+                    #expect(model.scopeChoice == .workspace(workspace.id))
+                    model.content = "A synthetic manual memory."
+                    await model.save()
+                    let memory = try #require(model.receipt?.memory)
+                    #expect(memory.draft?.allowsRemoteUse == false)
+                    #expect(memory.scope == .workspace(workspace.id))
+                    #expect(await library.close().isSettled)
+                } catch {
+                    _ = await library.close()
+                    throw error
+                }
+            }
+        }
+
+        @Test
+        func replacementStartsEmptyAndRetainsFrozenScopeSubjectAndConnectionAllowlist() async throws {
+            try await withDirectory { directory in
+                let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
+                    credentials: CompositionCredentials(), modules: { _ in [] })
+                do {
+                    let workspace = Workspace(id: WorkspaceID(), name: "Synthetic workspace")
+                    let connectionID = ConnectionID()
+                    let group = try await library.workloads()
+                    try await group.workspaces.save(workspace, expectedRevision: nil)
+                    let original = try await group.memories.createMemory(
+                        draft: .init(
+                            content: "Original synthetic memory", scope: .workspace(workspace.id),
+                            subject: .workspace, allowsRemoteUse: true,
+                            allowedConnectionIDs: [connectionID]),
+                        source: .manualEntry(id: UUID(), statement: "Original synthetic memory"),
+                        operationID: UUID()).memory
+                    let editor = MemoryEditorModel(library: library, workspaces: [workspace], replacing: original)
+                    #expect(editor.content.isEmpty)
+                    #expect(editor.replacingMemoryContent == "Original synthetic memory")
+                    #expect(editor.scopeChoice == .workspace(workspace.id))
+                    #expect(editor.subject == .workspace)
+                    editor.content = "Updated synthetic memory"
+                    await editor.save()
+                    let replacement = try #require(editor.receipt?.memory)
+                    #expect(replacement.scope == .workspace(workspace.id))
+                    #expect(replacement.subject == .workspace)
+                    #expect(replacement.draft?.allowedConnectionIDs == [connectionID])
+                    #expect(await library.close().isSettled)
+                } catch {
+                    _ = await library.close()
+                    throw error
+                }
+            }
+        }
+
+        @Test
         func manualWriteKeepsOperationIdentityAcrossRetry() async throws {
             try await withDirectory { directory in
                 let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
