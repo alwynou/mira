@@ -90,15 +90,13 @@ struct ConversationRoot: View {
                         .disabled(!page.isActive)
                         .accessibilityHidden(!page.isActive)
                     }
-                    MemoryManagementView(model: memoryModel, editor: $memoryEditor) { reference in
-                        Task {
-                            if await model.revealMemorySource(reference) { showsMemories = false }
+                    if showsMemories {
+                        MemoryManagementView(model: memoryModel, editor: $memoryEditor) { reference in
+                            Task {
+                                if await model.revealMemorySource(reference) { showsMemories = false }
+                            }
                         }
                     }
-                    .opacity(showsMemories ? 1 : 0)
-                    .allowsHitTesting(showsMemories)
-                    .disabled(!showsMemories)
-                    .accessibilityHidden(!showsMemories)
                 }
                 .environment(\.locale, locale)
                 .environment(\.miraOpenSettingsWindow, openWindow)
