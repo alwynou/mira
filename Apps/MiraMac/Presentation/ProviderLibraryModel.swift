@@ -71,6 +71,16 @@ final class ProviderLibraryModel {
         connections.first { $0.id == selectedConnectionID }
     }
 
+    /// Resolves the saved connection that replaces a catalog-only destination.
+    func configuredConnection(forCatalogProviderID providerID: String) -> AgentConfiguredConnection? {
+        guard let provider = catalog.directoryProviders.first(where: { $0.id == providerID }) else { return nil }
+        return connections.first { connection in
+            let directoryProvider = catalog.matchingProvider(for: connection)
+                ?? catalog.directoryProviders.first { $0.name == connection.name }
+            return directoryProvider?.directoryID == provider.directoryID
+        }
+    }
+
     var providerModels: [AgentConfiguredModel] {
         models.filter { $0.connectionID == selectedConnectionID }
     }
