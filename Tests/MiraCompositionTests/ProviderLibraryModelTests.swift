@@ -43,6 +43,134 @@ struct ProviderLibraryModelTests {
         }
     }
 
+    @Test func catalogProviderActivationResolvesToNewConnectionAlongsideAnotherActiveProvider() async throws {
+        try await withDirectory { directory in
+            let credentials = CompositionCredentials()
+            let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
+            let container = AppContainer(launch: launch) { launch in
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory,
+                    notifications: CompositionNotifications(), credentials: credentials, modules: { _ in [] })
+            }
+            await container.start()
+            do {
+                let library = try #require(container.library)
+                let group = try #require(container.workgroup)
+                let model = ProviderLibraryModel(container: container)
+                await model.refresh()
+                let existingProvider = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "openai" })
+                let existingTemplate = try existingProvider.makeConnection(credential: nil)
+                let existing = try await group.credentialSettings.saveConnection(
+                    id: existingTemplate.id, name: existingTemplate.name, isEnabled: true,
+                    definitionID: existingTemplate.definitionID, endpoints: existingTemplate.endpoints,
+                    discovery: existingTemplate.discovery, defaultInvocation: existingTemplate.defaultInvocation,
+                    previous: nil, credentialEndpointID: existingTemplate.endpoints[0].id,
+                    credential: .replace("synthetic-existing-key")).connection
+                await model.refresh()
+                #expect(model.connections.contains { $0.id == existing.id && $0.isEnabled })
+                let provider = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "deepseek" })
+                let editor = ProviderConnectionSettingsModel(
+                    existing: nil, template: provider, library: library, isDemo: false)
+                editor.secret = "synthetic-provider-key"
+                let refreshAfterSave: @MainActor (AgentConfiguredConnection) async -> Void = { updated in
+                    await model.refresh(ifMissing: updated)
+                }
+
+                editor.save(onSaved: refreshAfterSave)
+                await editor.waitForAction()
+                let saved = try #require(model.configuredConnection(forCatalogProviderID: provider.id))
+                #expect(!saved.isEnabled)
+                #expect(saved.id != existing.id)
+
+                editor.setEnabled(true, onSaved: refreshAfterSave)
+                await editor.waitForAction()
+                let enabled = try #require(model.connections.first { $0.id == saved.id })
+                #expect(enabled.isEnabled)
+                #expect(model.configuredConnection(forCatalogProviderID: provider.id)?.id == enabled.id)
+
+                model.selectedConnectionID = enabled.id
+                let catalogModel = try #require(model.newCatalogModels.first)
+                await model.addCatalogModel(catalogModel, connection: enabled)
+                let configured = try #require(model.providerModels.first { $0.modelID == catalogModel.id })
+                await model.setModelEnabled(false, model: configured)
+                let disabled = try #require(model.providerModels.first { $0.id == configured.id })
+                await model.setModelEnabled(true, model: disabled)
+                #expect(model.providerModels.first { $0.id == configured.id }?.isEnabled == true)
+                #expect(await container.close().isSettled)
+            } catch {
+                _ = await container.close()
+                throw error
+            }
+        }
+    }
+
+    @Test func typedKeyCanActivateCatalogProviderBeforeExplicitSave() async throws {
+        try await withDirectory { directory in
+            let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
+            let container = AppContainer(launch: launch) { launch in
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory,
+                    notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: { _ in [] })
+            }
+            await container.start()
+            do {
+                let library = try #require(container.library)
+                let model = ProviderLibraryModel(container: container)
+                await model.refresh()
+                let provider = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "deepseek" })
+                let editor = ProviderConnectionSettingsModel(
+                    existing: nil, template: provider, library: library, isDemo: false)
+                editor.secret = "synthetic-provider-key"
+                editor.setEnabled(true) { updated in
+                    await model.refresh(ifMissing: updated)
+                }
+                await editor.waitForAction()
+                let enabled = try #require(model.configuredConnection(forCatalogProviderID: provider.id))
+                #expect(enabled.isEnabled)
+                model.selectedConnectionID = enabled.id
+                let catalogModel = try #require(model.newCatalogModels.first)
+                await model.addCatalogModel(catalogModel, connection: enabled)
+                #expect(model.providerModels.contains { $0.modelID == catalogModel.id && $0.isEnabled })
+                #expect(await container.close().isSettled)
+            } catch {
+                _ = await container.close()
+                throw error
+            }
+        }
+    }
+
+    @Test func activationSaveFailureDoesNotPublishProviderOrModelState() async throws {
+        try await withDirectory { directory in
+            let credentials = CompositionCredentials()
+            let launch = MacLibraryLaunchConfiguration(directory: directory, isDemo: false, stress: false)
+            let container = AppContainer(launch: launch) { launch in
+                try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: launch.directory,
+                    notifications: CompositionNotifications(), credentials: credentials, modules: { _ in [] })
+            }
+            await container.start()
+            do {
+                let library = try #require(container.library)
+                let group = try #require(container.workgroup)
+                let model = ProviderLibraryModel(container: container)
+                await model.refresh()
+                let provider = try #require(ProviderModelCatalog.bundled.providers.first { $0.id == "deepseek" })
+                let editor = ProviderConnectionSettingsModel(
+                    existing: nil, template: provider, library: library, isDemo: false)
+                editor.secret = "synthetic-provider-key"
+                var callbackCount = 0
+                credentials.failNext(.save)
+                editor.setEnabled(true) { _ in callbackCount += 1 }
+                await editor.waitForAction()
+                #expect(callbackCount == 0)
+                #expect(editor.error != nil)
+                #expect(model.configuredConnection(forCatalogProviderID: provider.id) == nil)
+                #expect(try await group.modelSettings.connections(after: nil, limit: 128).isEmpty)
+                #expect(await container.close().isSettled)
+            } catch {
+                _ = await container.close()
+                throw error
+            }
+        }
+    }
+
     @Test func probeObservationIsEphemeralAndMaintenanceClearsGenerationCaches() async throws {
         try await withDirectory { directory in
             let container = makeContainer(

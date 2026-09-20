@@ -80,6 +80,11 @@ struct ProviderConfigurationView: View {
         }) {
             selectedProviderContent
         }
+        // Catalog and saved-provider rows can share model IDs, but their
+        // bindings and disabled state differ. Recreate the owner when the
+        // persisted connection replaces the catalog placeholder so realized
+        // native controls do not retain the catalog binding.
+        .id(selectedProviderDestination)
         .accessibilityIdentifier("settings.providers.page")
     }
 
@@ -203,10 +208,18 @@ struct ProviderConfigurationView: View {
         switch destination {
         case .provider(let id) where listedConnections.contains(where: { $0.id == id }):
             return destination
-        case .catalogProvider(let id) where unconfiguredProviders.contains(where: { $0.id == id }):
-            return destination
-        case .catalogProvider("custom"):
-            return destination
+        case .catalogProvider(let id):
+            if id == "custom" { return destination }
+            // A catalog destination may survive one render after its
+            // connection is persisted. Resolve it before falling back to a
+            // different active provider; this selection belongs to the
+            // connection created from the catalog entry.
+            if let connection = model.configuredConnection(forCatalogProviderID: id) {
+                return .provider(connection.id)
+            }
+            if unconfiguredProviders.contains(where: { $0.id == id }) { return destination }
+            if let first = activeConnections.first ?? inactiveConnections.first { return .provider(first.id) }
+            return unconfiguredProviders.first.map { .catalogProvider($0.id) }
         default:
             if let first = activeConnections.first ?? inactiveConnections.first { return .provider(first.id) }
             return unconfiguredProviders.first.map { .catalogProvider($0.id) }
@@ -263,7 +276,9 @@ struct ProviderConfigurationView: View {
                 }
             ) { updated in
                 await model.refresh(ifMissing: updated)
-                if editorDestination == editingDestination { navigate(.provider(updated.id)) }
+                if editorDestination == editingDestination || editorDestination == .provider(updated.id) {
+                    navigate(.provider(updated.id))
+                }
             }
             .id(editorDestination)
             #if DEBUG
