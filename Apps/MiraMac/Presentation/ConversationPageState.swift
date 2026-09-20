@@ -45,6 +45,9 @@ final class ConversationPageState: Identifiable {
     @ObservationIgnored var observers: [Task<Void, Never>] = []
     @ObservationIgnored var observationID: UUID?
     @ObservationIgnored var lastObservedSequence: Int64?
+    @ObservationIgnored private var transcriptBaseGeneration = -1
+    @ObservationIgnored private var transcriptBase: [TranscriptItem] = []
+    @ObservationIgnored private var transcriptLatestExecutionByTurn: [MessageID: SessionExecutionSummary] = [:]
 
     init(conversationID: ConversationID? = nil, workspaceID: WorkspaceID? = nil) {
         self.conversationID = conversationID
@@ -94,9 +97,48 @@ final class ConversationPageState: Identifiable {
         isLoaded = true
         isLoading = false
         inspectionRevision &+= 1
+        contentGeneration &+= 1
     }
 
     var transcriptItems: [TranscriptItem] {
+        if transcriptBaseGeneration != contentGeneration {
+            rebuildTranscriptBase()
+        }
+        var entries = transcriptBase
+        var order = entries.count
+
+        // Only the active answer slot changes on stream-buffer updates. Durable
+        // message/execution projection is rebuilt when contentGeneration changes.
+        for execution in transcriptLatestExecutionByTurn.values where execution.completion == nil {
+            guard !cancellationRequested.contains(execution.id) else { continue }
+            let observedOutput = streamBuffer.observation?.value
+            let live = observedOutput?.executionID == execution.id ? observedOutput : nil
+            let answer: String
+            let thinking: String
+            if let live {
+                answer = live.answer
+                thinking = live.thinking
+            } else if let settledOutput, activeExecution?.id == execution.id {
+                answer = settledOutput.answer ?? ""
+                thinking = settledOutput.thinking ?? ""
+            } else {
+                answer = ""
+                thinking = ""
+            }
+            entries.append(.init(
+                id: Self.answerTranscriptID(for: execution.admission.userMessageID),
+                role: .assistant, text: answer, status: nil, isStreaming: true,
+                executionID: execution.id, thinking: thinking,
+                executionPhase: execution.phase, outputPhase: live?.phase ?? .waiting,
+                pendingToolCall: live?.toolCall,
+                steps: activitySteps(for: execution.id, live: live),
+                liveAttemptID: live?.attemptID))
+            order += 1
+        }
+        return entries
+    }
+
+    private func rebuildTranscriptBase() {
         let statuses = Dictionary(uniqueKeysWithValues: executions.map { ($0.id, $0.completion?.status) })
         let executionsByID = Dictionary(uniqueKeysWithValues: executions.map { ($0.id, $0) })
 
@@ -147,51 +189,25 @@ final class ConversationPageState: Identifiable {
         }
 
         // A terminal execution without visible output still occupies the same
-        // answer slot. This also covers a newly reopened page where only the
-        // user message and execution summaries are available on the first page.
+        // answer slot. Active executions are overlaid separately so stream
+        // snapshots do not rebuild unchanged durable history.
         for execution in latestExecutionByTurn.values {
             let turn = execution.admission.userMessageID
-            guard latestAssistantByTurn[turn] == nil else { continue }
-            let identity = Self.answerTranscriptID(for: turn)
-            if let completion = execution.completion {
-                // A persisted answer outside the loaded page is not an empty
-                // answer. Its row appears when its message page is loaded.
-                guard completion.answer == nil, completion.visibleThinking == nil else { continue }
-                entries.append((execution.sequence, order, .init(
-                    id: identity, role: .assistant, text: "", status: completion.status,
-                    isStreaming: false, executionID: execution.id,
-                    steps: activitySteps(for: execution.id, live: nil))))
-                order += 1
-                continue
-            }
-            guard !cancellationRequested.contains(execution.id) else { continue }
-            let observedOutput = streamBuffer.observation?.value
-            let live = observedOutput?.executionID == execution.id ? observedOutput : nil
-            let answer: String
-            let thinking: String
-            if let live, live.executionID == execution.id {
-                answer = live.answer
-                thinking = live.thinking
-            } else if let settledOutput, activeExecution?.id == execution.id {
-                answer = settledOutput.answer ?? ""
-                thinking = settledOutput.thinking ?? ""
-            } else {
-                answer = ""
-                thinking = ""
-            }
+            guard latestAssistantByTurn[turn] == nil, let completion = execution.completion else { continue }
+            // A persisted answer outside the loaded page is not an empty
+            // answer. Its row appears when its message page is loaded.
+            guard completion.answer == nil, completion.visibleThinking == nil else { continue }
             entries.append((execution.sequence, order, .init(
-                id: identity, role: .assistant, text: answer, status: nil,
-                isStreaming: true, executionID: execution.id, thinking: thinking,
-                executionPhase: execution.phase,
-                outputPhase: live?.phase ?? .waiting,
-                pendingToolCall: live?.toolCall,
-                steps: activitySteps(for: execution.id, live: live),
-                liveAttemptID: live?.attemptID)))
+                id: Self.answerTranscriptID(for: turn), role: .assistant, text: "",
+                status: completion.status, isStreaming: false, executionID: execution.id,
+                steps: activitySteps(for: execution.id, live: nil))))
             order += 1
         }
-        return entries.sorted {
+        transcriptBase = entries.sorted {
             $0.sequence == $1.sequence ? $0.order < $1.order : $0.sequence < $1.sequence
         }.map(\.item)
+        transcriptLatestExecutionByTurn = latestExecutionByTurn
+        transcriptBaseGeneration = contentGeneration
     }
 
     /// Overlay only the current attempt; earlier durable steps remain in their original order.
