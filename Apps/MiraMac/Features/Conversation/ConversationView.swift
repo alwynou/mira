@@ -383,7 +383,7 @@ private struct ConversationDetail: View {
                     .padding(.bottom, MiraTheme.Spacing.lg)
             }
             if currentConversation?.summary.isArchived != true {
-                ConversationComposer(model: model, page: page, isDemo: isDemo)
+                ConversationComposer(model: model, page: page)
             }
         }
         .frame(maxWidth: .infinity)
@@ -432,12 +432,18 @@ private struct ConversationDetail: View {
 private struct ConversationComposer: View {
     let model: ConversationModel
     @Bindable var page: ConversationPageState
-    let isDemo: Bool
     @Environment(\.locale) private var locale
     @FocusState private var composerFocused: Bool
 
     private var selectedModelUnavailable: Bool {
         page.selectedRouteID.map { selected in !model.routes.contains { $0.id == selected } } ?? false
+    }
+
+    private var canSend: Bool {
+        model.isReady && !page.isSending && !page.isSelectingModel
+            && page.activeExecution == nil && !page.needsPersistenceRetry
+            && !selectedModelUnavailable && !model.routes.isEmpty
+            && !page.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -451,21 +457,27 @@ private struct ConversationComposer: View {
                     .lineLimit(3...8)
                     .font(MiraTheme.Typography.body)
                     .focused($composerFocused)
+                    .onKeyPress(keys: [.return], phases: .down) { press in
+                        guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
+                              !editor.hasMarkedText() else { return .ignored }
+                        let modifiers = press.modifiers.intersection([.command, .control, .option, .shift])
+                        if modifiers == .command {
+                            editor.insertNewlineIgnoringFieldEditor(nil)
+                            return .handled
+                        }
+                        guard modifiers.isEmpty else { return .ignored }
+                        send()
+                        return .handled
+                    }
                     .accessibilityLabel("Message input")
                     .accessibilityIdentifier("conversation.composer")
                 if selectedModelUnavailable {
                     Text("Choose an available model or use the default model before sending.")
                         .font(MiraTheme.Typography.caption).foregroundStyle(.orange)
                 }
-                MiraComposerBarLayout {
+                HStack(spacing: MiraTheme.Spacing.sm) {
                     HStack(spacing: MiraTheme.Spacing.sm) { executionStatus }
-                    Text(
-                        L10n.string(
-                            isDemo ? "Local demo" : "Send to selected model service · ⌘ Return to send", locale: locale)
-                    )
-                    .font(MiraTheme.Typography.composerFootnote)
-                    .foregroundStyle(MiraTheme.Colors.secondaryText)
-                    .multilineTextAlignment(.center)
+                    Spacer(minLength: MiraTheme.Spacing.sm)
                     HStack(spacing: MiraTheme.Spacing.sm) {
                         modelPicker
                         primaryAction
@@ -577,21 +589,20 @@ private struct ConversationComposer: View {
                 .help("Stop")
                 .accessibilityIdentifier("conversation.stop")
         } else {
-            Button("Send", systemImage: "arrow.up") {
-                Task {
-                    await model.send(page)
-                    if page.isActive { composerFocused = true }
-                }
-            }
+            Button("Send", systemImage: "arrow.up", action: send)
             .labelStyle(.iconOnly)
             .buttonStyle(MiraCircleButtonStyle())
-            .keyboardShortcut(.return, modifiers: .command)
-            .disabled(
-                !model.isReady || page.isSending || selectedModelUnavailable || model.routes.isEmpty
-                    || page.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            )
+            .disabled(!canSend)
             .help("Send")
             .accessibilityIdentifier("conversation.send")
+        }
+    }
+
+    private func send() {
+        guard canSend else { return }
+        Task {
+            await model.send(page)
+            if page.isActive { composerFocused = true }
         }
     }
 }

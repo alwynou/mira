@@ -179,10 +179,8 @@ private struct MiraComponentPreview: View {
                 VStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
                         Text("Send a message…").foregroundStyle(MiraTheme.Colors.secondaryText)
-                        MiraComposerBarLayout {
-                            Color.clear.frame(width: 0, height: 0)
-                            Text("Local demo").font(MiraTheme.Typography.composerFootnote)
-                                .foregroundStyle(MiraTheme.Colors.secondaryText)
+                        HStack(spacing: MiraTheme.Spacing.sm) {
+                            Spacer(minLength: 0)
                             HStack(spacing: MiraTheme.Spacing.sm) {
                                 Text(verbatim: "Model One").font(MiraTheme.Typography.composerModel)
                                     .foregroundStyle(MiraTheme.Colors.secondaryText)

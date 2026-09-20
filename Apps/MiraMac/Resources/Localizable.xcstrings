@@ -6830,23 +6830,6 @@
         }
       }
     },
-    "Send to selected model service · ⌘ Return to send": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Send to selected model service · ⌘ Return to send"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "发送到所选模型服务 · ⌘ Return 发送"
-          }
-        }
-      }
-    },
     "Sensitive memory": {
       "localizations": {
         "en": {

@@ -143,7 +143,6 @@ enum MiraTheme {
         static let body: Font = .system(size: 14)
         static let sidebar: Font = .system(size: 14)
         static let caption: Font = .system(size: 12)
-        static let composerFootnote: Font = .system(size: 10)
         static let composerModel: Font = .system(size: 11)
         static let section: Font = .system(size: 12)
         static let title: Font = .system(size: 20, weight: .semibold)

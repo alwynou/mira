@@ -4,7 +4,7 @@ Current implementation; verification captured on 2026-09-09, consolidated on 202
 
 ## Behavior
 
-The input, context shelf, sending hint, and model/send controls share one floating surface above the full-height native transcript. `MiraComposerBackdropView` uses `NSVisualEffectView` with `.headerView`, `.withinWindow`, `.active`, and 100% material opacity in both appearances. There is no additional surface-color overlay. Reduce Transparency or Increase Contrast selects an opaque shared surface. The input and controls retain full opacity.
+The input, context shelf, and model/send controls share one floating surface above the full-height native transcript. `MiraComposerBackdropView` uses `NSVisualEffectView` with `.headerView`, `.withinWindow`, `.active`, and 100% material opacity in both appearances. There is no additional surface-color overlay. Reduce Transparency or Increase Contrast selects an opaque shared surface. The input and controls retain full opacity.
 
 Shared tokens define a 22 pt corner radius, a constant 1 pt border at 70% opacity, and a 6% black shadow with 4 pt radius and 2 pt vertical offset. Focus does not strengthen the border or shadow. The container sits 14 pt above the window content bottom. The centered sending hint is 10 pt; the secondary 11 pt model label is capped at 160 pt and sits 8 pt from Send. The full model label remains available in help/accessibility and the native selection menu.
 
