@@ -52,6 +52,25 @@ final class EverydayMemoryLiveTests: XCTestCase {
         }
     }
 
+    func testStateEvolutionCorpusIsValidOffline() throws {
+        let base = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "scenarios", withExtension: "json"))
+        let url = base.deletingLastPathComponent().appendingPathComponent("state-evolution.json")
+        let corpus = try JSONDecoder().decode(StateEvolutionCorpus.self, from: Data(contentsOf: url))
+        XCTAssertEqual(corpus.version, 1)
+        XCTAssertFalse(corpus.scenarios.isEmpty)
+        XCTAssertEqual(Set(corpus.scenarios.map(\.id)).count, corpus.scenarios.count)
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "replacement" })
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "ambiguousRetraction" })
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "forgetReopen" })
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "relatedUnsupported" })
+        for scenario in corpus.scenarios {
+            XCTAssertTrue(["en", "zh-CN"].contains(scenario.language))
+            XCTAssertFalse(scenario.steps.isEmpty)
+            XCTAssertFalse(scenario.followUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            XCTAssertTrue(scenario.steps.allSatisfy { !$0.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+        }
+    }
+
     func testOptInEverydayMemoryEvaluation() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["MIRA_RUN_LIVE_MEMORY_EVAL"] == "1" else {
@@ -590,4 +609,19 @@ private struct LiveEvaluationReport: Codable {
     /// Credential-read admission count, not an exact HTTP transport dispatch count.
     let requestAuthorizationCap: Int
     var requestAuthorizationCount: Int
+}
+
+private struct StateEvolutionCorpus: Codable {
+    let version: Int
+    let scenarios: [StateEvolutionScenario]
+}
+private struct StateEvolutionScenario: Codable {
+    struct Step: Codable { let input: String; let expect: String }
+    let id: String
+    let language: String
+    let kind: String
+    let steps: [Step]
+    let followUp: String
+    let requiredTerms: [String]
+    let forbiddenTerms: [String]
 }
