@@ -13,6 +13,7 @@ concurrency:
 jobs:
   macos:
     runs-on: macos-15
+    timeout-minutes: 45
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
@@ -20,12 +21,16 @@ jobs:
       - name: Toolchain
         run: xcodebuild -version && swift --version
       - name: Package tests
-        run: swift test --package-path Packages/MiraKit --disable-automatic-resolution
+        timeout-minutes: 15
+        # Blocking boundary fixtures must not compete across unrelated tests.
+        # Each test still exercises its own concurrent tasks and cancellation.
+        run: swift test --package-path Packages/MiraKit --disable-automatic-resolution --no-parallel
       - name: Catalog generator tests
         run: python3 -m unittest discover -s scripts/tests -v
       - name: Language policy
         run: python3 scripts/check_language_policy.py
       - name: macOS app and localization tests
+        timeout-minutes: 30
         run: xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO test
       - name: Extracted UI string coverage
         run: python3 scripts/check_language_policy.py --extracted-dir .build/xcode/Build/Intermediates.noindex/Mira.build/Debug/Mira.build
