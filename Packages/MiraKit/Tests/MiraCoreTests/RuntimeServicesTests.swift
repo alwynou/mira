@@ -42,7 +42,11 @@ struct RuntimeServicesTests {
         let invocation = UUID()
         let request = RuntimeApprovalRequest(invocationID: invocation, executionID: ExecutionID(), proposalHash: "hash", authorizationEpoch: 4, expiresAt: Date().addingTimeInterval(30), prompt: "Approve")
         let waiting = Task { try await service.request(request) }
-        await Task.yield()
+        for _ in 0..<100 {
+            if await service.pending().contains(where: { $0.id == invocation }) { break }
+            await Task.yield()
+        }
+        #expect(await service.pending().contains(where: { $0.id == invocation }))
         do {
             try await service.resolve(id: invocation, proposalHash: "wrong", authorizationEpoch: 4, decision: .approved)
             Issue.record("stale proposal unexpectedly resolved")
