@@ -154,12 +154,16 @@ private final class TransientStreamFixture: Sendable {
 
     func waitForProcessLocalPrefix() async throws -> AgentRecoveredAttempt {
         for _ in 0..<200 {
-            if let prefix = await executor.interruptedAttempts()[attemptID], prefix.output != nil {
+            if let prefix = await executor.interruptedAttempts()[attemptID],
+               prefix.output?.text == "partial answer",
+               prefix.output?.thinkingText == "partial thinking",
+               prefix.output?.continuation?.isComplete == false,
+               prefix.stream.count >= 3 {
                 return prefix
             }
             try await Task.sleep(for: .milliseconds(25))
         }
-        throw MiraError(.timeout, "The model stream did not produce a process-local prefix within the test bound.")
+        throw MiraError(.timeout, "The model stream did not consume the expected process-local prefix within the test bound.")
     }
 
     func close() async {
