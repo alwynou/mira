@@ -194,6 +194,40 @@ struct AgentContextTests {
         #expect(!build.prepared.input.messages.contains { $0.text.contains("history-0-") || $0.text.contains("history-1-") })
     }
 
+    @Test func frozenContinuationEvictsOldHistoryBeforeFailingContextLimit() async throws {
+        let route = makeRoute(contextWindow: 500, maximumOutputTokens: 100)
+        let contextRequest = request(route: route)
+        let history = AgentSessionHistory(exchanges: (0..<3).map { index in
+            .init(messages: [
+                .init(role: .user, blocks: [.init(id: "user-\(index)",
+                    content: .text("history-\(index)-" + String(repeating: "h", count: 1_800)))]),
+                .init(role: .assistant, blocks: [.init(id: "answer-\(index)",
+                    content: .text("history-\(index)-answer-" + String(repeating: "a", count: 1_800)))])
+            ], sources: [])
+        })
+        let frozen = AgentFrozenContext(
+            message: .init(role: .context, blocks: [.init(id: "context", content: .text("stable frozen evidence"))]),
+            evidence: [], omissions: [], sources: [])
+        let trace = AgentContextHistory(messages: [
+            .init(role: .assistant, blocks: [.init(id: "tool-call",
+                content: .toolCall(.init(id: "read-once", name: "fixture.read", arguments: "{}")))]),
+            .init(role: .tool, blocks: [.init(id: "tool-result",
+                content: .toolResult(callID: "read-once", text: #"{"ok":true}"#))])
+        ], sources: [])
+
+        let build = try await assembler().build(
+            request: contextRequest, stepID: UUID(), instructions: "Instructions",
+            history: history, currentTrace: trace, tools: [], route: route,
+            adapter: TestContextAdapter(), contributors: [], authorizer: TestAuthorizer(),
+            frozenContext: frozen)
+
+        #expect(build.prepared.input.messages.contains { $0.text == "stable frozen evidence" })
+        #expect(build.prepared.input.messages.contains { $0.toolCalls.first?.id == "read-once" })
+        #expect(build.prepared.input.messages.contains { $0.toolResults.first?.callID == "read-once" })
+        #expect(build.prepared.input.messages.contains { $0.text.contains("history-2-") })
+        #expect(!build.prepared.input.messages.contains { $0.text.contains("history-0-") || $0.text.contains("history-1-") })
+    }
+
     @Test func frozenContextDoesNotRecollectContributorsAcrossToolSteps() async throws {
         let route = makeRoute()
         let contextRequest = request(route: route)
