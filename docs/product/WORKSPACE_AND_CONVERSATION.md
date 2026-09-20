@@ -103,6 +103,8 @@ Conversation 表示一次相对连续的话题或任务上下文。
 
 Conversation pages retain their input draft, explicit model selection, thinking expansion and reading position independently. Returning to a cached page activates it directly. The recent-page cache is bounded; evicted pages retain drafts and reading position for restoration. First entry defaults to the latest message. Background generation continues when another page is selected.
 
+The focused conversation input submits with Return and inserts a newline at the selection with Command-Return. Input-method composition keeps its native confirmation behavior. Submission is unavailable for empty drafts, unavailable models, an active execution or pending persistence. The composer shows no keyboard shortcut hint; Send and Stop remain accessible native buttons.
+
 Each window has one unsent New Conversation draft. Repeated New Conversation actions activate that same draft without adding history records or clearing its text. Choosing a workspace explicitly changes the draft's sending scope. The first successful message enqueue promotes the draft into a formal conversation; only then can another new draft be created. Validation or storage failure preserves the draft and creates no empty history record.
 
 <a id="s08-02"></a>

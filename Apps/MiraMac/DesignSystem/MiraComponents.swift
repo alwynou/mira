@@ -302,36 +302,6 @@ private struct MiraInteractiveLabel<Shape: InsettableShape>: View {
     }
 }
 
-/// Centers the hint without letting either control group overlap it.
-struct MiraComposerBarLayout: Layout {
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? MiraTheme.Layout.composerMax
-        let sizes = measuredSizes(width: width, subviews: subviews)
-        return CGSize(width: width, height: max(MiraTheme.Layout.controlHeight, sizes.map(\.height).max() ?? 0))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let sizes = measuredSizes(width: bounds.width, subviews: subviews)
-        guard sizes.count == 3 else { return }
-        for index in 0..<3 {
-            let x = index == 0 ? bounds.minX + sizes[index].width / 2
-                : (index == 1 ? bounds.midX : bounds.maxX - sizes[index].width / 2)
-            subviews[index].place(at: CGPoint(x: x, y: bounds.midY), anchor: .center,
-                                  proposal: ProposedViewSize(sizes[index]))
-        }
-    }
-
-    private func measuredSizes(width: CGFloat, subviews: Subviews) -> [CGSize] {
-        guard subviews.count == 3 else { return [] }
-        let sideWidth = max(0, width * 0.4)
-        let leading = subviews[0].sizeThatFits(.init(width: sideWidth, height: nil))
-        let trailing = subviews[2].sizeThatFits(.init(width: sideWidth, height: nil))
-        let centerWidth = max(0, width - 2 * (max(leading.width, trailing.width) + MiraTheme.Spacing.sm))
-        let center = subviews[1].sizeThatFits(.init(width: centerWidth, height: nil))
-        return [leading, center, trailing]
-    }
-}
-
 /// Real split accessory content. AppKit owns its scroll-edge material and layout.
 @MainActor
 final class MiraConversationHeaderView: NSView {

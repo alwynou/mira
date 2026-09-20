@@ -5,6 +5,70 @@ import XCTest
 /// local model output and synthetic read-only tool results.
 @MainActor
 final class ConversationFlowUITests: XCTestCase {
+    func testComposerReturnShortcutsEnglishLight() throws {
+        try exerciseComposerReturnShortcuts(language: "en", dark: false)
+    }
+
+    func testComposerReturnShortcutsChineseDark() throws {
+        try exerciseComposerReturnShortcuts(language: "zh-CN", dark: true)
+    }
+
+    private func exerciseComposerReturnShortcuts(language: String, dark: Bool) throws {
+        try withApplication(language: language, dark: dark) { app in
+            let composer = app.descendants(matching: .any)["conversation.composer"]
+            func settleInputSource() {
+                // macOS exposes its transient input-source indicator as a dialog.
+                XCTAssertTrue(app.dialogs.firstMatch.waitForNonExistence(timeout: 5))
+            }
+            func press(_ key: XCUIKeyboardKey, modifiers: XCUIElement.KeyModifierFlags = []) {
+                composer.typeKey(key, modifierFlags: modifiers)
+                settleInputSource()
+            }
+            func paste(_ text: String) {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                composer.typeKey("v", modifierFlags: .command)
+                settleInputSource()
+            }
+            composer.click()
+            settleInputSource()
+            press(.return)
+            XCTAssertEqual(composer.value as? String, "")
+            XCTAssertFalse(app.buttons["conversation.stop"].exists)
+
+            paste("firstsecond")
+            for _ in 0..<6 { press(.leftArrow) }
+            press(.return, modifiers: .command)
+            XCTAssertEqual(composer.value as? String, "first\nsecond",
+                           "Command-Return must insert at the caret without submitting.")
+            XCTAssertFalse(app.buttons["conversation.stop"].exists)
+            capture(app, name: "Composer shortcuts - \(language) - multiline")
+
+            composer.typeKey("a", modifierFlags: .command)
+            press(.return, modifiers: .command)
+            XCTAssertEqual(composer.value as? String, "\n",
+                           "Command-Return must replace the selected text with a newline.")
+            press(.return)
+            XCTAssertEqual(composer.value as? String, "\n", "Whitespace-only input must not submit or grow.")
+            composer.typeKey("a", modifierFlags: .command)
+            paste(String(repeating: "Explain the latest activity state. ", count: 50))
+            press(.return)
+            try require(app.buttons["conversation.stop"].waitForExistence(timeout: 10),
+                        "Return must start an execution.")
+            XCTAssertEqual(composer.value as? String, "")
+
+            paste("Retained draft")
+            press(.return)
+            XCTAssertEqual(composer.value as? String, "Retained draft",
+                           "Return during execution must neither submit nor cancel.")
+            XCTAssertTrue(app.buttons["conversation.stop"].exists)
+            press(.return, modifiers: .command)
+            XCTAssertEqual(composer.value as? String, "Retained draft\n")
+            capture(app, name: "Composer shortcuts - \(language) - active execution")
+            app.buttons["conversation.stop"].click()
+        }
+    }
+
     func testModelSelectionPolicyEnglishLight() throws {
         try exerciseModelSelection(language: "en", dark: false, extended: true)
     }
