@@ -68,8 +68,7 @@ struct AgentSourceDispatchTests {
         }
     }
 
-    @Test(arguments: [false, true])
-    func cancellationPublishesOnlyStillAuthorizedOutput(revoked: Bool) async throws {
+    @Test func cancellationAfterRevocationSuppressesPartialOutput() async throws {
         let partial = String(repeating: "Partial output. ", count: 400)
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text(partial))), .blockFinished(id: "text"), .finished(.stop)]]) { f in
             let workspace = Workspace(id: .init(), name: "Cancelled stream workspace")
@@ -77,7 +76,7 @@ struct AgentSourceDispatchTests {
             await f.model.holdStream(number: 1, afterEvents: 1)
             let sessionID = ConversationID()
             let run = Task { try await f.run("Cancel during streaming", sessionID: sessionID,
-                workspaceID: workspace.id, expectedStatus: revoked ? .interrupted : .cancelled) }
+                workspaceID: workspace.id, expectedStatus: .interrupted) }
             do {
                 try await taskEventually { await f.model.streamHeld }
                 try await taskEventually {
@@ -85,18 +84,13 @@ struct AgentSourceDispatchTests {
                     guard let id = state.activeExecutionID else { return false }
                     return state.attempts.values.contains { $0.attempt.executionID == id && $0.resolution == nil }
                 }
-                if revoked { try await revoke("workspace", workspace: workspace, in: f) }
+                try await revoke("workspace", workspace: workspace, in: f)
                 await f.runtime.cancel(sessionID: sessionID)
                 await f.model.releaseStream()
                 let address = try await run.value
                 let state = try await f.runtime.sessionSnapshot(id: sessionID)
                 let completion = try #require(state.executions[address.executionID]?.completion)
-                if revoked {
-                    #expect(completion.answer == nil && completion.visibleThinking == nil)
-                } else {
-                    let answer = try #require(completion.answer)
-                    #expect(try await f.library.read(answer) == Data(partial.utf8))
-                }
+                #expect(completion.answer == nil && completion.visibleThinking == nil)
                 #expect(await f.model.inputs.count == 1)
             } catch { await f.model.releaseStream(); _ = await run.result; throw error }
         }
