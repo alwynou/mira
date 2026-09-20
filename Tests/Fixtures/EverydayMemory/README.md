@@ -73,3 +73,10 @@ PY
 Corpus validation is offline. Real-provider execution is owned by the explicitly enabled, bounded evaluator described in [the testing workflow](../../../docs/engineering/EVERYDAY_MEMORY_TESTING.md); ordinary CI never calls model endpoints.
 
 The opt-in live runner defaults to a shared ceiling of four provider dispatches, including background extraction and tool continuations. `MIRA_EVAL_DISPATCH_CAP` may explicitly set a value from 1 through 12. Select only the necessary cases; this cap is a cost guard, not a request to run the complete corpus.
+
+
+## State-evolution corpus
+
+`state-evolution.json` complements the empty-library scenarios with multi-step synthetic cases. It covers explicit replacement, retraction without a stable replacement, forget/reopen, and related-but-unsupported recall. The ordinary CI path validates its schema only; provider execution remains opt-in.
+
+A state-evolution runner must execute each natural-language `establish` / `replace` / `retractWithoutReplacement` step through the same production conversation and extraction path used by `EverydayMemoryLiveTests`. The special `forget` step is a harness action rather than model input: resolve the established memory and submit the production `memory.forget` `AgentLibraryMaintenanceRequest`, then close and reopen the temporary library before the follow-up. This prevents an evaluator from accidentally testing a conversational request to forget instead of Mira's actual privacy boundary.
