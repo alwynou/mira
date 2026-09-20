@@ -7,7 +7,7 @@ final class MiraWindowShellTests: XCTestCase {
     func testInspectorPreservesWindowSidebarAndPresentationState() async throws {
         _ = NSApplication.shared
         let state = InspectorState()
-        var shell = MiraWindowShell(
+        let shell = MiraWindowShell(
             sidebar: AnyView(Color.clear),
             detail: AnyView(Text(verbatim: String(repeating: "Synthetic content ", count: 100)).frame(idealWidth: 1_600)),
             inspector: AnyView(Text(verbatim: String(repeating: "Synthetic audit ", count: 100)).frame(idealWidth: 1_600)),
@@ -83,22 +83,40 @@ final class MiraWindowShellTests: XCTestCase {
         }
         let mouseDown = try mouseEvent(.leftMouseDown, at: dragStart)
         let distanceToMaximum = inspector.maximumThickness - inspector.viewController.view.frame.width
-        let mouseDrag = try mouseEvent(.leftMouseDragged, at: NSPoint(x: dragStart.x - distanceToMaximum, y: dragStart.y))
-        let overshootTimer = Timer(timeInterval: 0.05, repeats: true) { _ in
-            MainActor.assumeIsolated {
-                let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: dragEnd, modifierFlags: [],
-                                             timestamp: ProcessInfo.processInfo.systemUptime,
-                                             windowNumber: window.windowNumber, context: nil,
-                                             eventNumber: 0, clickCount: 1, pressure: 1)!
-                NSApp.postEvent(drag, atStart: false)
-            }
-        }
+        let dragToMaximum = NSPoint(x: dragStart.x - distanceToMaximum, y: dragStart.y)
+        let mouseDrag = try mouseEvent(.leftMouseDragged, at: dragToMaximum)
         var sampledWhileHeld = false
-        let releaseTimer = Timer(timeInterval: 0.15, repeats: false) { _ in
+        var postedOvershoot = false
+        var postedRelease = false
+        var trackingDeadline: ContinuousClock.Instant?
+        // Wait for native tracking to consume each drag before sampling. A fixed
+        // 150 ms release timer can fire before the first drag on a cold runner.
+        let trackingTimer = Timer(timeInterval: 0.02, repeats: true) { _ in
             MainActor.assumeIsolated {
-                sampledWhileHeld = true
-                let sidebar = controller.splitViewItems[0]
+                guard !postedRelease else { return }
+                if trackingDeadline == nil {
+                    trackingDeadline = ContinuousClock.now.advanced(by: .seconds(10))
+                }
                 let inspector = controller.splitViewItems[2]
+                let reachedMaximum = abs(inspector.viewController.view.frame.width - inspector.maximumThickness) <= 1
+                let consumedOvershoot = postedOvershoot
+                    && NSApp.currentEvent?.type == .leftMouseDragged
+                    && NSApp.currentEvent?.locationInWindow == dragEnd
+                let expired = ContinuousClock.now >= trackingDeadline!
+                if !consumedOvershoot && !expired {
+                    let point = reachedMaximum ? dragEnd : dragToMaximum
+                    let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: point, modifierFlags: [],
+                                                 timestamp: ProcessInfo.processInfo.systemUptime,
+                                                 windowNumber: window.windowNumber, context: nil,
+                                                 eventNumber: 0, clickCount: 1, pressure: 1)!
+                    postedOvershoot = postedOvershoot || reachedMaximum
+                    NSApp.postEvent(drag, atStart: false)
+                    return
+                }
+                postedRelease = true
+                sampledWhileHeld = consumedOvershoot
+                XCTAssertTrue(consumedOvershoot, "Native tracking must consume the overshoot before the deadline.")
+                let sidebar = controller.splitViewItems[0]
                 let heldSidebar = sidebar.viewController.view.convert(sidebar.viewController.view.bounds, to: controller.view)
                 let heldInspector = inspector.viewController.view.convert(inspector.viewController.view.bounds, to: controller.view)
                 let heldShell = controller.view.convert(controller.view.bounds, to: host.view)
@@ -116,12 +134,10 @@ final class MiraWindowShellTests: XCTestCase {
                 NSApp.postEvent(mouseUp, atStart: false)
             }
         }
-        RunLoop.main.add(releaseTimer, forMode: .eventTracking)
-        RunLoop.main.add(overshootTimer, forMode: .eventTracking)
+        RunLoop.main.add(trackingTimer, forMode: .eventTracking)
         NSApp.postEvent(mouseDrag, atStart: true)
         window.sendEvent(mouseDown)
-        releaseTimer.invalidate()
-        overshootTimer.invalidate()
+        trackingTimer.invalidate()
         XCTAssertTrue(sampledWhileHeld, "The native divider must enter mouse tracking.")
 
         // Native divider collapse must update the SwiftUI presentation binding.

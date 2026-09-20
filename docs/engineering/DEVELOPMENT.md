@@ -16,7 +16,7 @@
 | 分发 | 用户直接下载安装，不走 Mac App Store |
 | 首版功能与协议选择 | 以 [MVP](../MVP.md) 的已确认范围为准 |
 | 语言模式 | Swift 6 严格并发检查；跨 Actor 的领域值使用 Sendable |
-| 工具链 | 本机 Xcode 26.6 / Swift 6.3.3；CI 使用 macos-15 / Xcode 26.3；Host 依赖要求 Swift 6.2+，MiraKit Package tools-version 6.1 |
+| 工具链 | 本机 Xcode 26.6 / Swift 6.3.3；CI 包测试使用 macos-15 / Xcode 26.3，应用测试使用 macos-26 / Xcode 26.6；Host 依赖要求 Swift 6.2+，MiraKit Package tools-version 6.1 |
 | 依赖 | GRDB 7.11.1，已提交 Package 与 Xcode 的 Package.resolved；工程生成器 XcodeGen 2.46.0 |
 
 macOS 版本范围和直接分发方式由用户确认；具体工具链与依赖固定是工程默认。本机为 Apple Silicon，只能作为该架构的验证证据；不能据此宣称 Intel 已验证或不再支持。每个发布产物明确列出已测试 CPU 架构和最低系统。
@@ -138,13 +138,15 @@ xcodebuild -project Mira.xcodeproj -scheme Mira \
 
 The package command exercises MiraKit. The host command runs the renamed `MiraHostTests` target, which contains localization and isolated Keychain fixtures. Native macOS UI and CI execution are separate evidence and must be recorded independently.
 
+CI adds `--no-parallel` to the package command so unrelated Swift Testing fixtures do not compete for the hosted runner's executor threads. Cancellation and ownership tests retain their internal concurrent tasks and blocking boundaries. The package step is limited to 15 minutes in a 20-minute job; the independent app/host step has 30 minutes in a 35-minute job. See [CI reliability](CI_RELIABILITY.md) for the observed stall and validation scope.
+
 `MiraCompositionTests` compiles the production `MacLibrary`, storage owner and workload group directly into an independent test bundle. Run `xcodebuild -project Mira.xcodeproj -scheme MiraCompositionTests -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO test`. This suite uses synthetic model and notification ports with real journals and business databases. Both the `Mira` and `MiraHostTests` schemes include it; its independent success does not establish app or UI acceptance while legacy presentation callers are being replaced.
 
 Opt-in live memory evaluation uses `MIRA_EVAL_CASE_IDS` (one to four fixture IDs) and a shared `MIRA_EVAL_DISPATCH_CAP`; the default cap is 4 and valid overrides are 1 through 12. The cap includes provider continuations and background extraction, so a run must record the selected IDs and effective cap with its evidence. Live evaluation requires an isolated schema 12 library, configured synthetic corpus, and a new report path; it is never part of the normal package or host test commands.
 
 首次解析可使用 `swift package --package-path Packages/MiraKit resolve`。依赖升级时同时检查两个 `Package.resolved`。工程源配置为根目录 `project.yml`，新增 Host 文件后用 XcodeGen 2.46.0 生成并提交 `.xcodeproj` 与共享 Scheme。Core / Data / Providers 是 Swift Package 的三个库；测试只使用合成数据。
 
-CI 的 `macos-15` 镜像与 Xcode 26.3 路径以 [GitHub 官方镜像清单](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) 为依据。MarkdownView、ListViewKit 与 Litext 以提交号固定，当前 Host 使用 Xcode 26.3 构建。编译器升级不改变 macOS 15 最低部署版本。CI 的运行结果与本机结果分别记录，不从配置文件存在推断 CI 已成功。
+CI keeps package runtime coverage on `macos-15` / Xcode 26.3. App and host checks use `macos-26` / Xcode 26.6, matching the verified Icon Composer toolchain; the previous asset compiler crashed while compiling the layered icon. The [macOS 15 image](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) and [macOS 26 image](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md) document the installed Xcode paths. MarkdownView, ListViewKit and Litext remain pinned. The deployment target remains macOS 15; macOS 26 app tests do not establish native macOS 15 runtime acceptance. CI results and local results are recorded separately.
 
 ### 资料库与演示
 

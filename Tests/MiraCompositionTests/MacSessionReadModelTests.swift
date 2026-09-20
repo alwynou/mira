@@ -12,11 +12,13 @@
             try await withDirectory { directory in
                 let credentials = CompositionCredentials()
                 let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory, notifications: CompositionNotifications(),
-                    credentials: credentials, modules: { [MacDemoModule(registry: $0)] })
+                    credentials: credentials, modules: { [SyntheticCompositionModelModule(registry: $0)] })
                 let reader = MacSessionReadModel<MemoryExtractionStatusPage>()
                 var observer: Task<Void, Never>?
                 do {
                     let group = try await library.workloads()
+                    // Reuse only the debug demo's credential-free settings contract;
+                    // the registered synthetic adapter returns bounded fixture output.
                     try await MacDemoModule.seed(in: group)
                     let route = try await group.modelSettings.resolve(purpose: AgentModelPurposeID.conversation,
                         explicitRouteID: nil, sessionSelection: .inherit, workspaceID: nil).route
@@ -46,6 +48,7 @@
                         return state == .completed || state == .paused || state == .failed
                     }
                     let job = try #require(reader.value?.jobs.first)
+                    #expect(job.state == .completed)
                     let report = try await group.memories.extractionReport(job.id, sessionID: command.sessionID,
                         executionID: command.executionID, workspaceID: nil)
                     #expect(!report.attempts.isEmpty && report.job.attemptCount == 1)
