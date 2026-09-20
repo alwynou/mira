@@ -47,6 +47,42 @@ struct JournalMemoryExtractionStoreTests {
         }
     }
 
+    @Test func extractionClaimFindsRelevantManualMemoryBeyondLegacyFirstThirtyTwo() async throws {
+        try await withTaskWorkflow(
+            outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))),
+                       .blockFinished(id: "text"), .finished(.stop)]],
+            memoryEnabled: true
+        ) { fixture in
+            let memory = try #require(fixture.memory)
+            let auth = try await fixture.authority.authorization()
+            let now = TaskWorkflowFixture.now
+            try await fixture.database.write { db in
+                for index in 0..<40 {
+                    _ = try SQLiteMemoryStore.createMemoryInTransaction(
+                        draft: .init(content: "Unrelated preference \(index)", scope: .global),
+                        source: .manualEntry(id: UUID(), statement: "Unrelated preference \(index)"),
+                        operationID: UUID(), replacing: nil, expectedRevision: nil, at: now, in: db)
+                }
+            }
+            let target = try await memory.createMemory(
+                draft: .init(content: "I prefer green tea", scope: .global),
+                source: .manualEntry(id: UUID(), statement: "I prefer green tea"),
+                operationID: UUID(), replacing: nil, expectedRevision: nil,
+                authorization: auth, at: now).memory
+
+            let source = try await completedSource(in: fixture, text: "I prefer black tea now instead of green tea")
+            let job = try #require(await enqueue(origin: origin(for: source), source: source, in: fixture))
+            try await withExtractionStore(fixture) { store in
+                let claim = try #require(try await store.claimMemoryExtraction(
+                    job.id, expectedAttemptCount: 0, source: source,
+                    selection: .init(route: fixture.route, binding: nil),
+                    authorization: auth, at: now))
+                #expect(claim.existingMemories.contains { $0.id == target.id })
+                #expect(claim.existingMemories.count <= 32)
+            }
+        }
+    }
+
     @Test func sameOriginIsEnqueuedAtMostOnce() async throws {
         try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { fixture in
             let source = try await completedSource(in: fixture, text: "I prefer green tea")
