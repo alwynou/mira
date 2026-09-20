@@ -1,6 +1,9 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Chat Completions": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Chat Completions"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Chat Completions"}}}, "comment": "Protocol name; preserve the API name in both languages."},
+    "Model Two": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Model Two"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Model Two"}}}, "comment": "Synthetic model name in the component gallery; preserve model identity in both languages."},
+    "Thinking budget tokens": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Thinking budget tokens"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "思考预算 Token 数"}}}},
     "The selected reply does not belong to this session.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "The selected reply does not belong to this session."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "所选回复不属于此会话。"}}}},
     "A transcript patch targets the wrong draft component.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "A transcript patch targets the wrong draft component."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "转录补丁针对错误的草稿组件。"}}}},
     "Context contributions": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Context contributions"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "附加上下文"}}}},
