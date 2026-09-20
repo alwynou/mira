@@ -155,6 +155,32 @@ struct AgentModelRetryIntegrationTests {
         }
     }
 
+    @Test func retryThatSucceedsWithToolCallContinuesWithCommittedToolExchange() async throws {
+        let fixture = try await RetryFixture.make(behaviors: [.transient(0), .tool, .success], includeTool: true)
+        try await withRetryFixture(fixture) { fixture in
+            let result = await fixture.kernel.run()
+            guard case .committed = result else { Issue.record("Tool retry did not settle: \(result)"); return }
+            let state = await fixture.runtime.snapshot()
+            #expect(state.executions[fixture.executionID]?.completion?.status == .completed)
+            #expect(await fixture.probe.dispatchCount == 3)
+            #expect(await fixture.toolProbe.executeCount == 1)
+
+            let attempts = try #require(state.executions[fixture.executionID]).attemptIDs.compactMap { state.attempts[$0] }
+            try #require(attempts.count == 3)
+            #expect(attempts.map { $0.attempt.stepIndex } == [1, 1, 2])
+            #expect(attempts.map { $0.attempt.attemptIndex } == [1, 2, 1])
+            #expect(attempts[0].resolution?.status == .failed)
+            #expect(attempts[1].resolution?.status == .completed)
+
+            let inputs = await fixture.probe.inputs
+            try #require(inputs.count == 3)
+            let assistant = try #require(inputs[2].messages.first(where: { $0.role == .assistant }))
+            #expect(assistant.toolCalls == [.init(id: "read-once", name: "retry.read", arguments: "{}")])
+            let tool = try #require(inputs[2].messages.first(where: { $0.role == .tool }))
+            #expect(tool.toolResults.first?.callID == "read-once")
+        }
+    }
+
     @Test func retryAfterToolStepDoesNotDuplicateToolExecution() async throws {
         let fixture = try await RetryFixture.make(behaviors: [.toolWithThinking, .transient(0), .success], includeTool: true)
         try await withRetryFixture(fixture) { fixture in
