@@ -52,6 +52,45 @@ final class EverydayMemoryLiveTests: XCTestCase {
         }
     }
 
+    func testStateEvolutionCorpusIsValidOffline() throws {
+        let base = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "scenarios", withExtension: "json"))
+        let url = base.deletingLastPathComponent().appendingPathComponent("state-evolution.json")
+        let corpus = try JSONDecoder().decode(StateEvolutionCorpus.self, from: Data(contentsOf: url))
+        XCTAssertEqual(corpus.version, 1)
+        XCTAssertFalse(corpus.scenarios.isEmpty)
+        XCTAssertEqual(Set(corpus.scenarios.map(\.id)).count, corpus.scenarios.count)
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "replacement" })
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "ambiguousRetraction" })
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "forgetReopen" })
+        XCTAssertTrue(corpus.scenarios.contains { $0.kind == "relatedUnsupported" })
+        for scenario in corpus.scenarios {
+            XCTAssertTrue(["en", "zh-CN"].contains(scenario.language))
+            XCTAssertFalse(scenario.steps.isEmpty)
+            XCTAssertFalse(scenario.followUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            XCTAssertTrue(scenario.steps.allSatisfy { !$0.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+        }
+    }
+
+    func testOptInStateEvolutionEvaluation() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["MIRA_RUN_LIVE_MEMORY_STATE_EVAL"] == "1" else {
+            throw XCTSkip("Opt-in live memory state evaluation is disabled.")
+        }
+        let configuration = try LiveEvaluationConfiguration(environment: environment)
+        let base = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "scenarios", withExtension: "json"))
+        let corpus = try JSONDecoder().decode(
+            StateEvolutionCorpus.self,
+            from: Data(contentsOf: base.deletingLastPathComponent().appendingPathComponent("state-evolution.json")))
+        let selected = corpus.scenarios.filter { configuration.caseIDs.contains($0.id) }
+        XCTAssertEqual(selected.count, configuration.caseIDs.count)
+
+        let counter = RequestAuthorizationCounter()
+        for scenario in selected {
+            try await Self.evaluateStateEvolution(
+                scenario, configuration: configuration, requestAuthorizationCounter: counter)
+        }
+    }
+
     func testOptInEverydayMemoryEvaluation() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["MIRA_RUN_LIVE_MEMORY_EVAL"] == "1" else {
@@ -228,6 +267,99 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 references: references, verifiedCitations: verifiedCitations, prefetchedMemoryCount: 0,
                 approvalDenialCount: approvalCounter.value, terminalErrorCode: terminalErrorCode)
         }
+    }
+
+    private static func evaluateStateEvolution(
+        _ scenario: StateEvolutionScenario, configuration: LiveEvaluationConfiguration,
+        requestAuthorizationCounter: RequestAuthorizationCounter
+    ) async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Mira-MemoryStateEval-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let credentials = EvaluationCredentials(
+            secret: configuration.apiKey, counter: requestAuthorizationCounter,
+            limit: configuration.requestAuthorizationCap)
+
+        func openLibrary() async throws -> MacLibrary {
+            try await MacLibrary.open(
+                embeddings: OfflineMemoryEmbedding(), directory: directory,
+                notifications: LiveNoopNotifications(), credentials: credentials,
+                modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
+        }
+
+        var library = try await openLibrary()
+        var group = try await library.workloads()
+        var routes = try await installSettings(in: group, configuration: configuration)
+        var establishedMemory: Memory?
+
+        for step in scenario.steps {
+            if step.expect == "forget" {
+                guard let memory = establishedMemory else {
+                    throw MiraError(.invalidInput, "State evaluation cannot forget before a memory is established.")
+                }
+                let request = AgentLibraryMaintenanceRequest(
+                    id: UUID(), namespace: "memory.forget", revision: 1,
+                    scope: .sources([.domain(namespace: "memories", id: memory.id.rawValue, revision: memory.revision)]),
+                    requestedAt: .now)
+                _ = try await library.maintain(request)
+                _ = await library.close()
+                library = try await openLibrary()
+                group = try await library.workloads()
+                // Provider/model settings are durable in the temporary library.
+                routes = .init(
+                    conversation: try await group.modelSettings.resolve(
+                        purpose: AgentModelPurposeID.conversation, explicitRouteID: nil,
+                        sessionSelection: .inherit, workspaceID: nil, requiredCapabilities: []).route,
+                    extraction: routes.extraction)
+                establishedMemory = nil
+                continue
+            }
+
+            let sessionID = ConversationID(), executionID = ExecutionID()
+            let admission = await group.application.submit(command(
+                sessionID: sessionID, executionID: executionID, text: step.input,
+                route: routes.conversation,
+                opening: .init(title: "Memory state eval \(scenario.id)", workspaceID: nil)))
+            guard case .committed = admission else {
+                throw MiraError(.storage, "State evaluation admission was not committed.")
+            }
+            let completion = await group.application.waitForExecution(id: executionID, sessionID: sessionID)
+            guard case .committed = completion,
+                  try await executionStatus(in: group, sessionID: sessionID, executionID: executionID) == .completed else {
+                throw MiraError(.storage, "State evaluation execution did not complete.")
+            }
+            await group.wake()
+            _ = try await waitForMemory(in: group, sourceSession: sessionID, sourceExecution: executionID, timeout: 240)
+            let current = try await group.memories.list(
+                workspaceID: nil, states: [.active, .candidate], query: "", limit: 128)
+            if step.expect == "establish" {
+                establishedMemory = current.memories.first(where: { $0.state == .active })
+                guard establishedMemory != nil else {
+                    throw MiraError(.notFound, "State evaluation did not establish an active memory.")
+                }
+            }
+        }
+
+        let followupSessionID = ConversationID(), followupExecutionID = ExecutionID()
+        let admission = await group.application.submit(command(
+            sessionID: followupSessionID, executionID: followupExecutionID, text: scenario.followUp,
+            route: routes.conversation,
+            opening: .init(title: "Memory state follow-up \(scenario.id)", workspaceID: nil)))
+        guard case .committed = admission else { throw MiraError(.storage, "State follow-up admission failed.") }
+        let completion = await group.application.waitForExecution(id: followupExecutionID, sessionID: followupSessionID)
+        guard case .committed = completion,
+              try await executionStatus(in: group, sessionID: followupSessionID, executionID: followupExecutionID) == .completed else {
+            throw MiraError(.storage, "State follow-up execution failed.")
+        }
+        let answer = (try await assistantAnswer(in: group, sessionID: followupSessionID) ?? "").lowercased()
+        for term in scenario.requiredTerms {
+            XCTAssertTrue(answer.contains(term.lowercased()), "Missing required term for \(scenario.id): \(term)")
+        }
+        for term in scenario.forbiddenTerms {
+            XCTAssertFalse(answer.contains(term.lowercased()), "Observed forbidden term for \(scenario.id): \(term)")
+        }
+        await group.close()
+        _ = await library.close()
     }
 
     private static func installSettings(
@@ -590,4 +722,19 @@ private struct LiveEvaluationReport: Codable {
     /// Credential-read admission count, not an exact HTTP transport dispatch count.
     let requestAuthorizationCap: Int
     var requestAuthorizationCount: Int
+}
+
+private struct StateEvolutionCorpus: Codable {
+    let version: Int
+    let scenarios: [StateEvolutionScenario]
+}
+private struct StateEvolutionScenario: Codable {
+    struct Step: Codable { let input: String; let expect: String }
+    let id: String
+    let language: String
+    let kind: String
+    let steps: [Step]
+    let followUp: String
+    let requiredTerms: [String]
+    let forbiddenTerms: [String]
 }

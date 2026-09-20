@@ -13,6 +13,7 @@
 		03C50924944C8AFB624C61AF /* MiraWindowShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD84A08C5C39E10979BA2CE3 /* MiraWindowShell.swift */; };
 		03CDE882AFA359F43F9B4657 /* MiraSettingsLazyLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380CFD856B7674B6A05EBCC5 /* MiraSettingsLazyLayoutTests.swift */; };
 		0400365C61EDDC4E0BAA5E8E /* scenarios.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F402A6D2655C83EF54B73DA /* scenarios.json */; };
+		11A1B2C3D4E5F60718293A4B /* state-evolution.json in Resources */ = {isa = PBXBuildFile; fileRef = 33C3D4E5F60718293A4B5C6D /* state-evolution.json */; };
 		04DDB66F188B8826C8BA12E3 /* TranscriptViewportLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66CA5BFA92B1B5844A0F70C2 /* TranscriptViewportLayout.swift */; };
 		050B4E6F84AF25DB8FCF8771 /* ConversationStreamBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E3D702C61C5B91AA3209DB3 /* ConversationStreamBufferTests.swift */; };
 		0590ABAEF3EE98F3E216C95B /* PoolModelEditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABE6D8587B864C5B11E2078 /* PoolModelEditorModel.swift */; };
@@ -279,6 +280,7 @@
 		E2FB6736C4B0B3C47802ABC2 /* MacLibraryDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593D6D4A9092990AF94F054A /* MacLibraryDiagnosticsTests.swift */; };
 		E35F50CDEF05CDB8EBADCD9B /* SettingsLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE628971CD7AD8E16A880588 /* SettingsLayoutUITests.swift */; };
 		E420DBF7125B2CE76D93CEBB /* scenarios.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F402A6D2655C83EF54B73DA /* scenarios.json */; };
+		22B2C3D4E5F60718293A4B5C /* state-evolution.json in Resources */ = {isa = PBXBuildFile; fileRef = 33C3D4E5F60718293A4B5C6D /* state-evolution.json */; };
 		E43B283BAA3CDF65EE4AA711 /* MiraTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142B8CB1666AEFE507570C80 /* MiraTheme.swift */; };
 		E490C9227E8E3857957CEDCC /* NativePerformanceBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D66BA8C496C63E61EED5D3 /* NativePerformanceBenchmark.swift */; };
 		E5CD1252B1C3F30DB12BD826 /* UsageCostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22AF29C5271787E4E8DC17CF /* UsageCostView.swift */; };
@@ -408,6 +410,7 @@
 		8DDC1567E136455CA11CFC59 /* LibraryLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryLifecycleTests.swift; sourceTree = "<group>"; };
 		8E3D702C61C5B91AA3209DB3 /* ConversationStreamBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStreamBufferTests.swift; sourceTree = "<group>"; };
 		8F402A6D2655C83EF54B73DA /* scenarios.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = scenarios.json; sourceTree = "<group>"; };
+		33C3D4E5F60718293A4B5C6D /* state-evolution.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "state-evolution.json"; sourceTree = "<group>"; };
 		956CE02197182EB2CDD6D525 /* MemoryCitationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCitationModel.swift; sourceTree = "<group>"; };
 		9694816FFCD2C18888B1CC56 /* TranscriptFollowScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFollowScheduler.swift; sourceTree = "<group>"; };
 		972749C4E096725797904C8B /* CompositionCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionCredentials.swift; sourceTree = "<group>"; };
@@ -951,6 +954,7 @@
 			isa = PBXGroup;
 			children = (
 				8F402A6D2655C83EF54B73DA /* scenarios.json */,
+				33C3D4E5F60718293A4B5C6D /* state-evolution.json */,
 			);
 			path = EverydayMemory;
 			sourceTree = "<group>";
@@ -1140,6 +1144,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E420DBF7125B2CE76D93CEBB /* scenarios.json in Resources */,
+				22B2C3D4E5F60718293A4B5C /* state-evolution.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1149,6 +1154,7 @@
 			files = (
 				6AFA95AB244E4407486ECE4E /* Localizable.xcstrings in Resources */,
 				0400365C61EDDC4E0BAA5E8E /* scenarios.json in Resources */,
+				11A1B2C3D4E5F60718293A4B /* state-evolution.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

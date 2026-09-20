@@ -39,10 +39,13 @@ struct RuntimeServicesTests {
     @Test func approvalRequiresMatchingOneShotDecision() async throws {
         let service = RuntimeApprovalService()
         let snapshots = await service.snapshots()
+        var iterator = snapshots.makeAsyncIterator()
+        _ = await iterator.next() // Initial empty snapshot.
         let invocation = UUID()
         let request = RuntimeApprovalRequest(invocationID: invocation, executionID: ExecutionID(), proposalHash: "hash", authorizationEpoch: 4, expiresAt: Date().addingTimeInterval(30), prompt: "Approve")
         let waiting = Task { try await service.request(request) }
-        await Task.yield()
+        let pending = await iterator.next()
+        #expect(pending?.contains(where: { $0.id == invocation }) == true)
         do {
             try await service.resolve(id: invocation, proposalHash: "wrong", authorizationEpoch: 4, decision: .approved)
             Issue.record("stale proposal unexpectedly resolved")
