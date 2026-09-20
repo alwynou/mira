@@ -12,6 +12,8 @@ Running the later compiler-extracted string check locally also found three missi
 
 The [first serialized CI run](https://github.com/alwynou/mira/actions/runs/35486434841) passed package tests, script tests, and language policy, then exposed an asset compiler crash: `AssetCatalogAgent-AssetRuntime` closed its connection while compiling `MiraAppIcon.icon` under macOS 15 / Xcode 26.3. The icon already has successful native build/render evidence on macOS 26.6.2 / Xcode 26.6 in [app icon verification](APP_ICON_DESIGN.md).
 
+The [split-job run](https://github.com/alwynou/mira/actions/runs/35487028539) compiled the app successfully and exposed three host-fixture failures: a 150 ms native drag timer sampled before the drag was consumed, a conversation test exceeded its one-minute limit while streaming the 24-section rendering demo, and an extraction status test exceeded its polling bound while the demo adapter echoed the large extraction prompt character by character. These were previously hidden behind package and asset-build failures.
+
 ## Change
 
 The package CI command explicitly uses `--no-parallel`. No tests or assertions are removed: concurrent operations within each test still run and verify their original boundaries. Production code and normal focused-test commands are unchanged.
@@ -22,6 +24,10 @@ Package and script checks retain macOS 15 / Xcode 26.3. The app/host job uses ma
 
 The missing catalog entries now include both supported languages. The protocol and synthetic model names remain verbatim in both languages; the thinking-budget field receives its missing Simplified Chinese label. No controls or layout change.
 
+The native divider test waits for the initial drag to reach maximum width and the overshoot event to be consumed before asserting geometry while the mouse remains held. A ten-second watchdog still releases the synthetic mouse and fails the test if tracking does not progress. The original geometry and sidebar assertions remain.
+
+Two composition tests now use a bounded synthetic model adapter instead of the deliberately slow rendering demo. Background extraction returns a valid empty version-3 result and the read-model test asserts completion. The conversation test pauses a short thinking/body stream with a one-shot continuation while switching pages, then releases it and verifies durable content and retained drafts. Entry uses the existing bounded polling helper; cancellation releases the gate and drains the producer. No production adapters or test time limits change.
+
 ## Verification
 
 - Local baseline at `f4b595e`: 1,037 package tests in 148 suites passed with default parallelism in 11.707 seconds (test execution only).
@@ -29,6 +35,7 @@ The missing catalog entries now include both supported languages. The protocol a
 - Catalog and script tests: 14 passed.
 - Complete local app/host command: `TEST SUCCEEDED`, including Swift Testing summaries of 109 tests in 17 suites and 174 tests in 31 suites, plus the XCTest suites.
 - Language policy including compiler-extracted strings: 2,165 bilingual entries passed after filling the missing catalog entries.
+- Focused acceptance after the fixture changes: all 16 conversation/read-model tests and both native window tests passed together; the extraction job reaches `completed`. The generated project includes the new composition-only fixture.
 - Host tests are rerun after the catalog change. Both pinned GitHub jobs must also pass before merging. Final results are recorded on the fix PR; local success alone does not establish hosted-runner success.
 
 Native light/dark, minimum-size, and language-switch visual checks were not repeated for this catalog-only label correction. Test/build and compiler-extracted string coverage establish resource availability, not visual acceptance.

@@ -108,7 +108,8 @@
         @Test
         func sendsDurableThinkingAndBodyAndRetainsDraftPageAcrossConversationSwitches() async throws {
             try await withDirectory { directory in
-                let library = try await Self.openDemoLibrary(directory: directory, stress: true)
+                let gate = SyntheticCompositionStreamGate()
+                let library = try await Self.openSyntheticLibrary(directory: directory, gate: gate)
                 let model = ConversationModel(library: library)
                 let observer = Task { @MainActor in await model.observe() }
                 do {
@@ -116,13 +117,16 @@
                     let group = try #require(model.workgroup)
                     let firstPage = model.activePage
                     firstPage.composer = "Show the local demo fixture."
-                    await model.send()
+                    await gate.arm()
+                    await model.send(firstPage)
+                    try await eventually { await gate.hasEntered }
                     let sessionID = try #require(firstPage.conversationID)
                     firstPage.composer = "Draft retained while browsing."
                     firstPage.readingState.recordOffset(123)
                     await model.newConversation()
                     let streamingDestination = model.activePage
                     streamingDestination.composer = "Second conversation draft."
+                    await gate.release()
                     try await Self.waitForExecution(group, sessionID: sessionID)
                     #expect(model.activePage === streamingDestination)
                     #expect(streamingDestination.composer == "Second conversation draft.")
@@ -167,6 +171,7 @@
                     await observer.value
                     #expect(await library.close().isSettled)
                 } catch {
+                    await gate.release()
                     observer.cancel()
                     await observer.value
                     _ = await library.close()
@@ -486,6 +491,21 @@
             do {
                 let group = try await library.workloads()
                 try await MacDemoModule.seed(in: group)
+                return library
+            } catch {
+                _ = await library.close()
+                throw error
+            }
+        }
+
+        private static func openSyntheticLibrary(
+            directory: URL, gate: SyntheticCompositionStreamGate? = nil
+        ) async throws -> MacLibrary {
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
+                notifications: CompositionNotifications(), credentials: CompositionCredentials(),
+                modules: { [SyntheticCompositionModelModule(registry: $0, gate: gate)] })
+            do {
+                try await MacDemoModule.seed(in: library.workloads())
                 return library
             } catch {
                 _ = await library.close()
