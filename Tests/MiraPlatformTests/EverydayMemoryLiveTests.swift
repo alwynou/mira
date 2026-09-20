@@ -351,7 +351,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
               try await executionStatus(in: group, sessionID: followupSessionID, executionID: followupExecutionID) == .completed else {
             throw MiraError(.storage, "State follow-up execution failed.")
         }
-        let answer = (try await assistantAnswer(in: group, sessionID: followupSessionID)).lowercased()
+        let answer = (try await assistantAnswer(in: group, sessionID: followupSessionID) ?? "").lowercased()
         for term in scenario.requiredTerms {
             XCTAssertTrue(answer.contains(term.lowercased()), "Missing required term for \(scenario.id): \(term)")
         }
