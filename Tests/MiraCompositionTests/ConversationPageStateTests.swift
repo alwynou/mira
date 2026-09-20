@@ -103,6 +103,42 @@ struct ConversationPageStateTests {
         #expect(observer.isCancelled)
     }
 
+    @Test func streamingOverlayUpdatesWithoutChangingDurableTranscriptIdentity() {
+        let session = ConversationID()
+        let page = ConversationPageState(conversationID: session)
+        let executionID = ExecutionID()
+        let active = execution(session: session, sequence: 3, executionID: executionID)
+        let historyExecutionID = ExecutionID()
+        let history = execution(
+            session: session, sequence: 1, executionID: historyExecutionID,
+            completion: .init(executionID: historyExecutionID, status: .completed))
+        let oldUser = message(session: session, sequence: 1, role: .user, text: "old", executionID: historyExecutionID)
+        let oldAnswer = message(session: session, sequence: 2, role: .assistant, text: "old answer", executionID: historyExecutionID)
+        let user = message(session: session, sequence: 3, role: .user, text: "current", executionID: executionID)
+        page.apply(snapshot(session: session, messages: [oldUser, oldAnswer, user],
+                            executions: [history, active], hasMore: false))
+
+        page.streamBuffer.receive(.init(
+            cursor: .init(sessionID: session, sequence: 4), revision: 1,
+            value: .init(executionID: executionID, attemptID: UUID(), stepID: UUID(),
+                         answer: "first", thinking: ""), isClosing: false))
+        page.streamBuffer.flush()
+        let first = page.transcriptItems
+        let durableIDs = first.dropLast().map(\.id)
+
+        page.streamBuffer.receive(.init(
+            cursor: .init(sessionID: session, sequence: 5), revision: 2,
+            value: .init(executionID: executionID, attemptID: UUID(), stepID: UUID(),
+                         answer: "second", thinking: ""), isClosing: false))
+        page.streamBuffer.flush()
+        let second = page.transcriptItems
+
+        #expect(second.dropLast().map(\.id) == durableIDs)
+        #expect(second.dropLast().map(\.text) == first.dropLast().map(\.text))
+        #expect(first.last?.text == "first")
+        #expect(second.last?.text == "second")
+    }
+
     @Test func transcriptUsesStableAnswerSlotAndNeverShowsLiveTextAfterCompletionOrCancellation() {
         let session = ConversationID()
         let page = ConversationPageState(conversationID: session)
