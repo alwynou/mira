@@ -43,6 +43,26 @@ extension SQLiteMemoryStore {
         }
         return memory
     }
+    static func recentActiveMemories(workspaceID: WorkspaceID?, request: AgentContextRequest,
+                                     limit: Int, at: Date, in db: Database) throws -> [Memory] {
+        guard (1...128).contains(limit) else { throw invalid }
+        try date(at)
+        var (conditions, arguments) = try eligibility(
+            workspaceID: workspaceID, states: [.active], request: request, at: at, in: db)
+        arguments += [limit]
+        let rows = try Row.fetchAll(db, sql: """
+            SELECT m.* FROM memory_records m
+            WHERE \(conditions.joined(separator: " AND "))
+            ORDER BY json_extract(m.json, '$.updatedAt') DESC, m.id
+            LIMIT ?
+            """, arguments: arguments)
+        return try rows.map {
+            let memory = try record($0)
+            _ = try recall(memory.id, request: request, at: at, in: db)
+            return memory
+        }
+    }
+
     static func search(query: String, workspaceID: WorkspaceID?, states: Set<MemoryState>, request: AgentContextRequest?, limit: Int, at: Date?, in db: Database) throws -> MemorySearchResult {
         guard (1...128).contains(limit), query.unicodeScalars.count <= 500 else { throw invalid }
         if let at { try date(at) }
