@@ -261,6 +261,9 @@ private actor MemoryTestStore: MemoryStore, MemoryExtractionStatusReader {
     func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) async throws -> MemoryDetail {
         .init(memory: syntheticMemory(id), evidence: [], revisions: [], replacements: [])
     }
+    func memoryManagementPage(_ query: MemoryManagementQuery, at: Date) async throws -> MemoryManagementPage {
+        .init(memories: [], nextCursor: nil)
+    }
     func memoryCitationRevision(_ reference: MemoryCitationReference, workspaceID: WorkspaceID?) async throws
         -> MemoryCitationDetail
     {

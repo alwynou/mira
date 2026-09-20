@@ -7,6 +7,11 @@ import MiraCore
 public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
     let owner: SQLiteDomainDatabase
     let embeddings: (any MemoryEmbeddingService)?
+    static func managementLikePattern(_ value: String) -> String {
+        "%" + value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_") + "%"
+    }
     public init(database: DatabaseQueue, libraryID: UUID, embeddings: (any MemoryEmbeddingService)? = nil) throws {
         self.embeddings = embeddings
         owner = try SQLiteDomainDatabase(database: database, libraryID: libraryID, label: "mira.memories")
@@ -29,6 +34,74 @@ public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
             let relations = try Row.fetchAll(db, sql: "SELECT * FROM memory_replacements WHERE replacement_id = ? OR previous_id = ? ORDER BY id LIMIT 1001", arguments: [Self.key(id), Self.key(id)]).map(Self.relation)
             guard relations.count <= 1000 else { throw Self.corrupt }
             return .init(memory: memory, evidence: try Self.evidence(id, in: db), revisions: revisions, replacements: relations)
+        }
+    }
+    public func memoryManagementPage(_ query: MemoryManagementQuery, at: Date) async throws -> MemoryManagementPage {
+        guard (1...100).contains(query.limit), query.query.unicodeScalars.count <= 500,
+              at.timeIntervalSince1970.isFinite else { throw Self.invalid }
+        return try await owner.read { db in
+            if case .workspace(let id) = query.scope { _ = try SQLiteWorkspaceStore.read(id, in: db) }
+            let column = "json_extract(m.json, '$.updatedAt')"
+            let ascending = query.order == .oldestFirst
+            let direction = ascending ? "ASC" : "DESC"
+            var conditions = ["1 = 1"]
+            var arguments = StatementArguments()
+            switch query.scope {
+            case .all: break
+            case .global: conditions.append("m.scope = 'global'")
+            case .workspace(let id):
+                conditions.append("m.scope = ?"); arguments += [MemoryScope.workspace(id).key]
+            }
+            let trimmed = query.query.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                conditions.append("(m.draft_json IS NOT NULL AND lower(json_extract(m.draft_json, '$.content')) LIKE lower(?) ESCAPE '\\')")
+                arguments += [Self.managementLikePattern(trimmed)]
+            }
+            let nextTransitionAt: Date? = try Double.fetchOne(db, sql: """
+                SELECT MIN(CASE
+                    WHEN json_extract(m.draft_json, '$.validFrom') > ? THEN json_extract(m.draft_json, '$.validFrom')
+                    WHEN json_extract(m.draft_json, '$.validUntil') > ? THEN json_extract(m.draft_json, '$.validUntil')
+                END)
+                FROM memory_records m
+                WHERE m.scope IS NOT NULL AND m.state = 'active' AND m.superseded_by IS NULL
+                    AND m.deleted_at IS NULL AND m.forgotten_at IS NULL AND m.draft_json IS NOT NULL
+                    AND (json_extract(m.draft_json, '$.validFrom') IS NULL
+                         OR json_extract(m.draft_json, '$.validUntil') IS NULL
+                         OR json_extract(m.draft_json, '$.validFrom') < json_extract(m.draft_json, '$.validUntil'))
+                    AND \(conditions.joined(separator: " AND "))
+                """, arguments: [at.timeIntervalSinceReferenceDate, at.timeIntervalSinceReferenceDate] + arguments)
+                .map { Date(timeIntervalSinceReferenceDate: $0) }
+            // Current means currently effective; every other retained lifecycle state belongs to history.
+            let current = "m.state = 'active' AND m.superseded_by IS NULL AND m.deleted_at IS NULL AND m.forgotten_at IS NULL AND (json_extract(m.draft_json, '$.validFrom') IS NULL OR json_extract(m.draft_json, '$.validFrom') <= ?) AND (json_extract(m.draft_json, '$.validUntil') IS NULL OR json_extract(m.draft_json, '$.validUntil') > ?)"
+            if query.section == .current {
+                conditions.append("(\(current))")
+                arguments += [at.timeIntervalSinceReferenceDate, at.timeIntervalSinceReferenceDate]
+            } else {
+                conditions.append("NOT (\(current))")
+                arguments += [at.timeIntervalSinceReferenceDate, at.timeIntervalSinceReferenceDate]
+            }
+            if let cursor = query.cursor {
+                guard cursor.timestamp.timeIntervalSince1970.isFinite,
+                      cursor.queryKey == query.key else { throw Self.invalid }
+                let op = ascending ? ">" : "<"
+                conditions.append("(\(column) \(op) ? OR (\(column) = ? AND m.id \(op) ?))")
+                let time = cursor.timestamp.timeIntervalSinceReferenceDate
+                arguments += [time, time, Self.key(cursor.memoryID)]
+            }
+            let rows = try Row.fetchAll(db,
+                sql: "SELECT m.*, \(column) AS management_updated_at FROM memory_records m WHERE \(conditions.joined(separator: " AND ")) ORDER BY management_updated_at \(direction), m.id \(direction) LIMIT ?",
+                arguments: arguments + [query.limit + 1])
+            let hasMore = rows.count > query.limit
+            let pageRows = Array(rows.prefix(query.limit))
+            let memories = try pageRows.map(Self.record)
+            guard hasMore, let last = pageRows.last else {
+                return .init(memories: memories, nextCursor: nil, nextTransitionAt: nextTransitionAt)
+            }
+            let timestamp: Double = last["management_updated_at"]
+            return .init(memories: memories,
+                         nextCursor: .init(timestamp: Date(timeIntervalSinceReferenceDate: timestamp),
+                                           memoryID: .init(try Self.uuid(last["id"])), queryKey: query.key),
+                         nextTransitionAt: nextTransitionAt)
         }
     }
     public func memoryCitationRevision(_ reference: MemoryCitationReference, workspaceID: WorkspaceID?) async throws -> MemoryCitationDetail {

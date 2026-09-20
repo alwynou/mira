@@ -1,0 +1,23 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "Memory management": {
+      "versions": [
+        {
+          "path": "Memory.html",
+          "createdAt": "2026-09-20T11:36:22.941Z",
+          "status": "approved",
+          "subtitle": "List/detail proposal with light, dark and minimum-size review states",
+          "viewport": {
+            "width": 1240,
+            "height": 780
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-20T11:36:22.941Z",
+  "updatedAt": "2026-09-20T11:43:29.854Z"
+}

@@ -112,6 +112,7 @@ targets:
       - Apps/MiraMac/Presentation/SourceCitationModel.swift
       - Apps/MiraMac/Presentation/MemoryCitationModel.swift
       - Apps/MiraMac/Presentation/MemoryEditorModel.swift
+      - Apps/MiraMac/Presentation/MemoryManagementModel.swift
       - Apps/MiraMac/Presentation/MemorySettingsModel.swift
       - Apps/MiraMac/Presentation/DataSettingsModel.swift
       - Apps/MiraMac/Presentation/ProviderConnectionTestModel.swift
@@ -121,6 +122,8 @@ targets:
       - Apps/MiraMac/Presentation/PurposeRoutingModel.swift
       - Apps/MiraMac/Features/Settings/DataSettingsView.swift
       - Apps/MiraMac/Features/Memory/MemoryEditorView.swift
+      - Apps/MiraMac/Features/Memory/MemoryManagementView.swift
+      - Apps/MiraMac/Features/Memory/MemoryManagementDetail.swift
       - Apps/MiraMac/Features/Settings/MemorySettingsView.swift
       - Apps/MiraMac/Features/Settings/MiraSettingsLink.swift
       - Apps/MiraMac/Features/Conversation/RuntimeApprovalView.swift

@@ -60,6 +60,82 @@ struct JournalMemoryStoreTests {
         }
     }
 
+    @Test func managementPageFiltersBeforeKeysetPaginationAndRetainsBodyFreeForgottenRows() async throws {
+        try await withMemoryFixture { f in
+            let workspace = WorkspaceID()
+            try await f.saveWorkspace(Workspace(id: workspace, name: "Test"))
+            let one = try await f.store.createMemory(draft: .init(content: "needle first", scope: .global), source: .manualEntry(id: UUID(), statement: "needle first"), operationID: UUID(), replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date).memory
+            let second = try await f.store.createMemory(draft: .init(content: "needle second", scope: .workspace(workspace)), source: .manualEntry(id: UUID(), statement: "needle second"), operationID: UUID(), replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date).memory
+            let third = try await f.store.createMemory(draft: .init(content: "needle third", scope: .global), source: .manualEntry(id: UUID(), statement: "needle third"), operationID: UUID(), replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date).memory
+            _ = try await f.store.reviseMemory(one.id, workspaceID: nil, draft: .init(content: "needle first revised", scope: .global), expectedRevision: 1, operationID: UUID(), authorization: f.authorization, at: f.date.addingTimeInterval(60))
+            let unrelated = try await f.create("other text")
+            _ = try await f.store.changeMemoryState(unrelated.id, workspaceID: nil, state: .archived, expectedRevision: 1, operationID: UUID(), authorization: f.authorization, at: f.date)
+
+            let firstPage = try await f.store.memoryManagementPage(.init(scope: .all, query: "needle", limit: 1), at: f.date)
+            #expect(firstPage.memories.count == 1)
+            #expect(firstPage.memories[0].id == one.id)
+            #expect(firstPage.nextCursor != nil)
+            let next = try await f.store.memoryManagementPage(.init(scope: .all, query: "needle", limit: 1, cursor: firstPage.nextCursor), at: f.date)
+            #expect(next.memories.count == 1)
+            #expect(firstPage.memories[0].id != next.memories[0].id)
+            let thirdPage = try await f.store.memoryManagementPage(.init(scope: .all, query: "needle", limit: 1, cursor: next.nextCursor), at: f.date)
+            #expect(Set([one.id, second.id, third.id]) == Set([firstPage.memories[0].id, next.memories[0].id, thirdPage.memories[0].id]))
+
+            let scoped = try await f.store.memoryManagementPage(.init(scope: .workspace(workspace)), at: f.date)
+            #expect(scoped.memories.map(\.id) == [second.id])
+            let global = try await f.store.memoryManagementPage(.init(scope: .global, query: "needle", order: .oldestFirst), at: f.date)
+            #expect(global.memories.map(\.id) == [third.id, one.id])
+            let history = try await f.store.memoryManagementPage(.init(section: .history), at: f.date)
+            #expect(history.memories.map(\.id) == [unrelated.id])
+
+            let expiring = try await f.store.createMemory(draft: .init(content: "expires", scope: .global, validUntil: f.date), source: .manualEntry(id: UUID(), statement: "expires"), operationID: UUID(), replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date).memory
+            let status = expiring.managementStatus(at: f.date)
+            #expect(status == .expired)
+            let invalidCursor = MemoryManagementCursor(timestamp: f.date, memoryID: one.id, queryKey: "different")
+            await #expect(throws: MiraError.self) {
+                _ = try await f.store.memoryManagementPage(.init(query: "different", cursor: invalidCursor), at: f.date)
+            }
+            await #expect(throws: MiraError.self) { _ = try await f.store.memoryManagementPage(.init(limit: 101), at: f.date) }
+        }
+    }
+
+    @Test func managementPageFindsValidityTransitionsBeyondCurrentPage() async throws {
+        try await withMemoryFixture { f in
+            let workspace = WorkspaceID()
+            try await f.saveWorkspace(Workspace(id: workspace, name: "Other"))
+            let beginsSoon = try await f.store.createMemory(
+                draft: .init(content: "transition begins", scope: .global,
+                             validFrom: f.date.addingTimeInterval(60), validUntil: f.date.addingTimeInterval(300)),
+                source: .manualEntry(id: UUID(), statement: "transition begins"), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date).memory
+            _ = try await f.store.createMemory(
+                draft: .init(content: "transition expires", scope: .global,
+                             validUntil: f.date.addingTimeInterval(120)),
+                source: .manualEntry(id: UUID(), statement: "transition expires"), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date)
+            _ = try await f.store.createMemory(
+                draft: .init(content: "unrelated", scope: .global, validFrom: f.date.addingTimeInterval(30)),
+                source: .manualEntry(id: UUID(), statement: "unrelated"), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date)
+            _ = try await f.store.createMemory(
+                draft: .init(content: "transition other scope", scope: .workspace(workspace),
+                             validFrom: f.date.addingTimeInterval(20)),
+                source: .manualEntry(id: UUID(), statement: "transition other scope"), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: f.authorization, at: f.date)
+            let visible = try await f.store.createMemory(
+                draft: .init(content: "transition visible", scope: .global),
+                source: .manualEntry(id: UUID(), statement: "transition visible"), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: f.authorization,
+                at: f.date.addingTimeInterval(600)).memory
+
+            let page = try await f.store.memoryManagementPage(
+                .init(scope: .global, section: .current, query: "transition", limit: 1), at: f.date)
+            #expect(page.memories.map(\.id) == [visible.id])
+            #expect(page.nextTransitionAt == f.date.addingTimeInterval(60))
+            #expect(beginsSoon.managementStatus(at: f.date) == .notYetValid)
+        }
+    }
+
     @Test func purgeRequiresPendingMaintenanceAndRemovesBody() async throws {
         try await withMemoryFixture { f in
             let m = try await f.create("forget me")
@@ -72,6 +148,10 @@ struct JournalMemoryStoreTests {
             let detail = try await f.store.memoryDetail(m.id, workspaceID: nil)
             #expect(detail.memory.draft == nil)
             #expect(detail.evidence.allSatisfy { $0.excerpt == nil })
+            let management = try await f.store.memoryManagementPage(.init(section: .history), at: f.date)
+            let retained = try #require(management.memories.first { $0.id == m.id })
+            #expect(retained.draft == nil)
+            #expect(retained.managementStatus(at: f.date) == .forgotten)
         }
     }
 }

@@ -100,8 +100,8 @@ Mira/
 
 ## 2. 开发协作与工程边界
 
-- 当前开发分支为 `dev`，`main` 保留已发布或稳定基线；新的临时实现分支默认以 `codex/` 开头，从所需基线创建。
-- 按 MVP 里程碑提交可审阅的纵向变更，提交信息采用 Conventional Commits。是否合并或推送遵循当前任务授权；分支约定不自动授权发布。
+- Every requirement adjustment follows GitHub issue → fresh `codex/` branch → implementation and focused verification → linked PR → merge after required checks pass. Create or reuse the issue before implementation and record scope and acceptance criteria. Fetch and fast-forward `main` before branching; preserve unrelated local changes.
+- The user approved this standing workflow on 2026-09-20, including routine pushes, PR creation, and merging. Follow explicit exceptions for a particular task and never bypass failing checks or branch protections. Link the PR with `Closes #<issue>`, use Conventional Commits, record exact verification and remaining gaps, then synchronize local `main` after merge. Release publication remains a separate action.
 - 建工程时提交 Xcode 工程、共享 Scheme、Swift Package 清单和解析依赖；增加适合 Swift / Xcode 的 `.gitignore`，不提交 DerivedData、用户工作区状态、密钥或真实资料库。
 - 使用 SwiftUI 原生控件与 Observation，平台桥接仅在所需能力不由 SwiftUI 提供时加入。View 仅发意图，业务执行由长生命周期的明确所有者管理。
 - 测试通过 Clock、ID Generator、Fake Provider / Tool 与隔离临时数据目录注入不确定性；不为每个数据类型增加无实际作用的一层 Protocol。

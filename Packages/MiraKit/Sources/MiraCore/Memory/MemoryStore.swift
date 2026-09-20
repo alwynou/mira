@@ -9,6 +9,8 @@ public protocol MemoryProfileStore: Sendable {
 public protocol MemoryReadStore: Sendable {
     func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) async throws -> MemorySearchResult
     func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) async throws -> MemoryDetail
+    /// Host-only management listing. This result is never a recall or tool input.
+    func memoryManagementPage(_ query: MemoryManagementQuery, at: Date) async throws -> MemoryManagementPage
     /// Returns an exact local revision; the application must independently establish journal usage.
     func memoryCitationRevision(_ reference: MemoryCitationReference, workspaceID: WorkspaceID?) async throws -> MemoryCitationDetail
     /// Body-free current status for journal-proven historical use; never grants source access.

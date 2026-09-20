@@ -43,6 +43,14 @@ public actor MemoryApplication {
         }
     }
 
+    public func managementPage(_ query: MemoryManagementQuery) async throws -> MemoryManagementPage {
+        try await owned { lease in
+            try await lease.read {
+                try await self.store.memoryManagementPage(query, at: self.timestamp())
+            }
+        }
+    }
+
     public func createMemory(
         draft: MemoryDraft, source: MemorySourceInput, operationID: UUID,
         replacing: MemoryID? = nil, expectedRevision: Int? = nil

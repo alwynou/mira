@@ -60,6 +60,7 @@ private struct MemorySaveToken: Sendable, Equatable {
 final class MemoryEditorModel {
     let library: MacLibrary
     let workspaces: [Workspace]
+    let replacingMemoryContent: String?
     private let existingID: MemoryID?
     private let existingRevision: Int?
     private let existingWorkspaceID: WorkspaceID?
@@ -103,10 +104,12 @@ final class MemoryEditorModel {
 
     init(
         library: MacLibrary, workspaces: [Workspace], existing: Memory? = nil,
-        replacing: Memory? = nil, sourceMessage: SessionQueryMessage? = nil
+        replacing: Memory? = nil, sourceMessage: SessionQueryMessage? = nil,
+        initialScope: MemoryScope? = nil
     ) {
         self.library = library
         self.workspaces = workspaces
+        replacingMemoryContent = replacing?.draft?.content
         existingID = existing?.id
         existingRevision = existing?.revision
         existingWorkspaceID = existing?.scope.workspaceID
@@ -124,13 +127,15 @@ final class MemoryEditorModel {
         }
         let original = existing ?? replacing
         let sourceText = sourceMessage?.body.text
-        scopeChoice = MemoryScopeChoice(scope: original?.scope ?? .global)
+        scopeChoice = MemoryScopeChoice(scope: original?.scope ?? initialScope ?? .global)
         subject = original?.draft?.subject ?? original?.subject ?? .user
         kind = original?.draft?.kind ?? .fact
-        content = sourceText ?? original?.draft?.content ?? ""
+        content = sourceText ?? (replacing == nil ? original?.draft?.content : nil) ?? ""
         evidenceExcerpt = Self.boundedExcerpt(sourceText ?? "")
         sensitive = original?.draft?.sensitivity == .sensitive
-        allowsRemoteUse = original?.draft?.allowsRemoteUse ?? true
+        // Manually created memories begin local-only; source-backed explicit saves
+        // retain their existing opt-in defaults.
+        allowsRemoteUse = original?.draft?.allowsRemoteUse ?? (sourceMessage != nil)
         hasValidFrom = original?.draft?.validFrom != nil
         hasValidUntil = original?.draft?.validUntil != nil
         validFrom = original?.draft?.validFrom ?? .now

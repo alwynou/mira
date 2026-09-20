@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- Design proposal only. All records are synthetic; no Mira services or user data are accessed. -->
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mira · Memory management design</title>
+  <link rel="stylesheet" href="memory.css">
+  <script defer src="memory.js"></script>
+</head>
+<body>
+  <header class="review-bar" aria-label="Design preview controls">
+    <div class="review-title"><strong>Mira</strong><span class="review-slash">/</span><span data-copy="designTitle"></span><span class="review-badge" data-copy="synthetic"></span></div>
+    <div class="review-controls">
+      <button id="theme" class="review-button" aria-label="Toggle dark appearance"></button>
+      <button id="language" class="review-button">EN</button>
+      <button id="size" class="review-button" aria-pressed="false">850 × 620</button>
+      <button id="empty" class="review-button" data-copy="emptyPreview" aria-pressed="false"></button>
+      <button id="reset" class="review-button" data-copy="reset"></button>
+      <button id="notes" class="review-button" data-copy="designNotes" aria-expanded="false"></button>
+    </div>
+  </header>
+  <main class="stage">
+    <div class="frame-slot" id="frame-slot"><div class="window" id="window" data-screen-label="Memory management">
+      <aside class="sidebar" aria-label="Mira navigation">
+        <div class="window-chrome"><div class="traffic-lights" aria-hidden="true"><i></i><i></i><i></i></div><button class="icon-button" id="sidebar-toggle" data-label="toggleSidebar"></button></div>
+        <div class="brand">Mira</div>
+        <nav class="primary-nav">
+          <div class="nav-row muted-nav"><img src="assets/square.and.pencil.png" alt=""><span data-copy="newConversation"></span></div>
+          <button class="nav-row selected" id="memories-nav" aria-current="page"><img src="assets/brain.png" alt=""><span data-copy="memories"></span></button>
+          <div class="nav-row muted-nav"><img src="assets/book.closed.png" alt=""><span data-copy="knowledge"></span></div>
+          <div class="nav-row muted-nav"><img src="assets/checklist.png" alt=""><span data-copy="tasks"></span></div>
+        </nav>
+        <div class="nav-section"><div class="nav-heading" data-copy="workspace"></div>
+          <button class="nav-row scope-nav" data-scope="global"><img src="assets/tray.png" alt=""><span data-copy="inbox"></span></button>
+          <button class="nav-row scope-nav" data-scope="Mira"><img src="assets/folder.png" alt=""><span>Mira</span></button>
+          <div class="nav-row muted-nav"><img src="assets/plus.png" alt=""><span data-copy="createWorkspace"></span></div>
+        </div>
+        <div class="nav-section recent"><div class="nav-heading" data-copy="conversations"></div><div class="conversation-label">更合适的回答方式</div><div class="conversation-label">Mira 的设计方向</div><div class="conversation-label">周末阅读计划</div></div>
+        <div class="sidebar-footer"><div class="nav-row muted-nav"><img src="assets/gearshape.png" alt=""><span data-copy="settings"></span></div></div>
+      </aside>
+      <section class="main-pane">
+        <header class="app-toolbar"><div class="toolbar-title"><button id="show-sidebar" class="icon-button" data-label="toggleSidebar"></button><h1 data-copy="memories"></h1></div><button id="add-memory" class="button primary"><img src="assets/plus.png" alt=""><span data-copy="addMemory"></span></button></header>
+        <div class="memory-workspace">
+          <section class="memory-list-pane" aria-label="Memory list">
+            <div class="list-tools">
+              <div class="search-field"><img src="assets/magnifyingglass.png" alt=""><input id="search" type="search" data-placeholder="search" autocomplete="off" spellcheck="false"></div>
+              <div class="filter-row"><select id="scope" data-label="scopeFilter"></select><div class="segmented" role="tablist"><button id="current-tab" role="tab" data-copy="current" aria-selected="true"></button><button id="history-tab" role="tab" data-copy="history" aria-selected="false"></button></div></div>
+            </div>
+            <div class="list-caption"><span id="result-count" aria-live="polite"></span><select id="sort" data-label="sort"></select></div>
+            <div class="memory-list" id="memory-list" role="list"></div>
+            <footer class="list-footer"><img src="assets/brain.png" alt=""><span data-copy="captureHint"></span></footer>
+          </section>
+          <section class="memory-detail" id="memory-detail" aria-label="Memory details"></section>
+        </div>
+      </section>
+      <div class="toast" id="toast" role="status" hidden></div>
+    </div></div>
+  </main>
+  <aside id="design-notes" class="design-notes" hidden></aside>
+  <dialog id="modal" aria-labelledby="modal-title"></dialog>
+</body>
+</html>

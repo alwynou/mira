@@ -53,6 +53,7 @@ private actor ModuleMemoryStore: MemoryReadStore {
     func memoryContextNotices(references: [MemoryCitationReference], workspaceID: WorkspaceID?, connectionID: ConnectionID?, at: Date) -> [MemoryContextNotice] { [] }
     func memoryList(workspaceID: WorkspaceID?, states: Set<MemoryState>, query: String, limit: Int) async throws -> MemorySearchResult { .init(memories: []) }
     func memoryDetail(_ id: MemoryID, workspaceID: WorkspaceID?) async throws -> MemoryDetail { throw MiraError(.notFound, "Memory fixture has no records.") }
+    func memoryManagementPage(_ query: MemoryManagementQuery, at: Date) async throws -> MemoryManagementPage { .init(memories: [], nextCursor: nil) }
     func memoryCitationRevision(_ reference: MemoryCitationReference, workspaceID: WorkspaceID?) async throws -> MemoryCitationDetail { throw MiraError(.notFound, "Memory fixture has no records.") }
     func recallMemories(query: String, request: AgentContextRequest, limit: Int, at: Date) async throws -> MemorySearchResult { .init(memories: []) }
     func recallMemory(_ id: MemoryID, request: AgentContextRequest, at: Date) async throws -> Memory { throw MiraError(.notFound, "Memory fixture has no records.") }

@@ -34,6 +34,7 @@ final class ConversationModel {
     @ObservationIgnored private var draftPage: ConversationPageState?
     @ObservationIgnored private var recentIDs: [UUID] = []
     @ObservationIgnored private var bindingID = UUID()
+    @ObservationIgnored private var sourceRevealID = UUID()
     @ObservationIgnored private var libraryGeneration: UInt64?
     @ObservationIgnored private var observationID: UUID?
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
@@ -275,6 +276,7 @@ final class ConversationModel {
     }
 
     func selectConversation(_ id: ConversationID?) async {
+        sourceRevealID = UUID()
         guard let id else {
             activateDraft()
             await initializeModel(activePage)
@@ -295,7 +297,166 @@ final class ConversationModel {
         }
     }
 
+    /// Opens the authorized original user turn for a memory source.
+    ///
+    /// The source reference is checked against the journal-backed application
+    /// snapshot before any page is selected. Both reads are bounded; a second
+    /// read around the admission sequence makes older turns reachable without
+    /// walking the conversation history.
+    @discardableResult
+    func revealMemorySource(_ reference: SessionEvidenceReference) async -> Bool {
+        guard let group = workgroup, let generation = libraryGeneration else {
+            activePage.error = MiraError(.busy, "The conversation library is not ready.")
+            return false
+        }
+        let token = bindingID
+        let reveal = UUID()
+        let originPage = activePage
+        sourceRevealID = reveal
+        guard await isCurrentSourceReveal(reveal, binding: token, generation: generation, origin: originPage) else {
+            return false
+        }
+
+        do {
+            try reference.validate()
+            guard reference.admissionSequence < Int64.max else {
+                throw MiraError(.unauthorized, "The original user message is unavailable.")
+            }
+            let state = try await group.application.sessionSnapshot(id: reference.sessionID)
+            guard await isCurrentSourceReveal(reveal, binding: token, generation: generation, origin: originPage) else { return false }
+            guard state.id == reference.sessionID,
+                let execution = state.executions[reference.originalExecutionID],
+                execution.admission.executionID == reference.originalExecutionID,
+                execution.admission.userMessageID == reference.userMessageID,
+                execution.admissionEventID == reference.admissionEventID,
+                execution.admissionSequence == reference.admissionSequence,
+                execution.admission.retryOfExecutionID == nil,
+                execution.admission.userBody?.kind == .userText
+            else {
+                throw MiraError(.unauthorized, "The original user message is unavailable.")
+            }
+
+            let authorizedWorkspaces = try await group.workspaces.workspaces()
+            guard await isCurrentSourceReveal(reveal, binding: token, generation: generation, origin: originPage) else { return false }
+            if let workspaceID = state.header?.workspaceID,
+                !authorizedWorkspaces.contains(where: { $0.id == workspaceID })
+            {
+                throw MiraError(.unauthorized, "The source workspace is no longer available.")
+            }
+
+            var contiguousPages: [SessionQueryMessagePage]?
+            for _ in 0..<2 {
+                let headPage = try await group.queries.messagePage(sessionID: reference.sessionID, limit: 128)
+                guard await isCurrentSourceReveal(reveal, binding: token, generation: generation, origin: originPage) else { return false }
+                guard let headSession = headPage.session,
+                    headSession.summary.id == reference.sessionID,
+                    headSession.summary.workspaceID == state.header?.workspaceID
+                else {
+                    throw MiraError(.unauthorized, "The original user message is unavailable.")
+                }
+
+                var pages = [headPage]
+                var oldestSequence = headPage.messages.map { $0.summary.sequence }.min()
+                var reachedSource = false
+                var changedHead = false
+                while !reachedSource {
+                    if pages.contains(where: { page in page.messages.contains { $0.id == reference.userMessageID } }) {
+                        reachedSource = true
+                        break
+                    }
+                    guard let before = oldestSequence, pages.last?.hasMore == true else { break }
+                    guard pages.count < Self.memorySourceMaximumPages else {
+                        throw MiraError(
+                            .outputLimit,
+                            "This source is too far back to open in the conversation. Open the original conversation and load earlier messages.")
+                    }
+                    let olderPage = try await group.queries.messagePage(
+                        sessionID: reference.sessionID, beforeSequence: before, limit: 128)
+                    guard await isCurrentSourceReveal(reveal, binding: token, generation: generation, origin: originPage) else { return false }
+                    guard let olderSession = olderPage.session,
+                        olderSession.summary.id == reference.sessionID,
+                        olderSession.summary.workspaceID == state.header?.workspaceID
+                    else {
+                        throw MiraError(.unauthorized, "The original user message is unavailable.")
+                    }
+                    guard olderSession.summary.head == headSession.summary.head else {
+                        changedHead = true
+                        break
+                    }
+                    guard let nextOldest = olderPage.messages.map({ $0.summary.sequence }).min(),
+                        olderPage.messages.allSatisfy({ $0.summary.sequence < before }),
+                        nextOldest < before
+                    else {
+                        throw MiraError(.storage, "The conversation source history could not be paged safely.")
+                    }
+                    pages.append(olderPage)
+                    oldestSequence = nextOldest
+                }
+                if changedHead { continue }
+                if reachedSource { contiguousPages = pages; break }
+                throw MiraError(.unauthorized, "The original user message is unavailable.")
+            }
+            guard let contiguousPages, let newestPage = contiguousPages.first else {
+                throw MiraError(.conflict, "The conversation changed while opening its memory source.")
+            }
+
+            guard let source = contiguousPages.lazy.flatMap(\.messages).first(where: { $0.id == reference.userMessageID }),
+                source.summary.sessionID == reference.sessionID,
+                source.summary.executionID == reference.originalExecutionID,
+                source.summary.sequence == reference.admissionSequence,
+                source.summary.role == .user,
+                source.body.text != nil
+            else {
+                throw MiraError(.unauthorized, "The original user message is unavailable.")
+            }
+
+            guard await isCurrentSourceReveal(reveal, binding: token, generation: generation, origin: originPage) else { return false }
+            guard let session = newestPage.session else {
+                throw MiraError(.unauthorized, "The original user message is unavailable.")
+            }
+            let page = pages[reference.sessionID]
+                ?? ConversationPageState(conversationID: reference.sessionID, workspaceID: session.summary.workspaceID)
+            pages[reference.sessionID] = page
+            page.apply(newestPage)
+            for olderPage in contiguousPages.dropFirst() {
+                page.apply(olderPage, appendingOlder: true)
+            }
+            page.revealedMessageID = reference.userMessageID
+            selectedWorkspaceID = session.summary.workspaceID
+            showArchived = session.summary.isArchived
+            activate(page)
+            mount(page)
+            refresh(page)
+            refreshNotices(page)
+            return true
+        } catch {
+            guard await isCurrentSourceReveal(reveal, binding: token, generation: generation, origin: originPage) else { return false }
+            originPage.error = MiraError.safe(error)
+            return false
+        }
+    }
+
+    private func isCurrentSourceReveal(
+        _ reveal: UUID, binding: UUID, generation: UInt64, origin: ConversationPageState
+    ) async -> Bool {
+        guard !Task.isCancelled, sourceRevealID == reveal, bindingID == binding,
+            libraryGeneration == generation, activePage === origin
+        else { return false }
+        let status = await library.status()
+        guard !Task.isCancelled, sourceRevealID == reveal, bindingID == binding,
+            libraryGeneration == generation, activePage === origin
+        else { return false }
+        guard status.phase == .ready, status.generation == generation else {
+            origin.error = MiraError(.busy, "The conversation library changed while opening its source.")
+            return false
+        }
+        return true
+    }
+
+    private static let memorySourceMaximumPages = 32
+
     func selectWorkspace(_ id: WorkspaceID?) async {
+        sourceRevealID = UUID()
         selectedWorkspaceID = id
         await newConversation()
         requestReload()
@@ -303,6 +464,7 @@ final class ConversationModel {
     }
 
     func newConversation() async {
+        sourceRevealID = UUID()
         showArchived = false
         activateDraft()
         if activePage.composer.isEmpty, activePage.pendingAdmission == nil {

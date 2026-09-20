@@ -11,6 +11,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
     var canInspect: Bool
     @Binding var showsInspector: Bool
     var newConversation: () -> Void
+    var addMemory: (() -> Void)? = nil
 
     func makeNSViewController(context: Context) -> Controller { Controller(configuration: self) }
     func updateNSViewController(_ controller: Controller, context: Context) { controller.update(self) }
@@ -41,6 +42,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private static let separator = NSToolbarItem.Identifier("mira.sidebar.separator")
         private static let newItem = NSToolbarItem.Identifier("conversation.new")
         private static let inspectorID = NSToolbarItem.Identifier("conversation.inspector")
+        private static let memoryNew = NSToolbarItem.Identifier("memory.new")
         private static let knowledge = NSToolbarItem.Identifier("conversation.knowledge")
 
         init(configuration: MiraWindowShell) {
@@ -197,6 +199,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private var desiredItems: [NSToolbarItem.Identifier] {
+            if configuration.addMemory != nil {
+                return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.memoryNew]
+            }
             return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.inspectorID, Self.knowledge]
         }
 
@@ -221,6 +226,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 let label: String
                 switch id {
                 case Self.newItem: label = "New conversation"
+                case Self.memoryNew: label = "Add memory"
                 case Self.inspectorID: label = "Execution details"
                 case Self.knowledge: label = "Knowledge"
                 default: continue
@@ -248,6 +254,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             let symbol: String
             let action: Selector
             switch id {
+            case Self.memoryNew: (label, symbol, action) = ("Add memory", "plus", #selector(addMemory))
             case Self.newItem: (label, symbol, action) = ("New conversation", "square.and.pencil", #selector(newConversation))
             case Self.inspectorID: (label, symbol, action) = ("Execution details", "sidebar.right", #selector(toggleExecutionInspector))
             case Self.knowledge: (label, symbol, action) = ("Knowledge", "book.closed", #selector(openKnowledge))
@@ -271,6 +278,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             return item
         }
 
+        @objc private func addMemory() { configuration.addMemory?() }
         @objc private func newConversation() { configuration.newConversation() }
         @objc private func toggleExecutionInspector() { configuration.showsInspector.toggle() }
         @objc private func openKnowledge() {}
