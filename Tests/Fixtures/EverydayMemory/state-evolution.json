@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "scenarios": [
+    {"id":"en-tea-explicit-replacement","language":"en","kind":"replacement","steps":[{"input":"I usually prefer green tea in the afternoon.","expect":"establish"},{"input":"That has changed: I prefer black tea in the afternoon now.","expect":"replace"}],"followUp":"What tea would suit me this afternoon?","requiredTerms":["black tea"],"forbiddenTerms":["green tea"]},
+    {"id":"zh-update-style-explicit-replacement","language":"zh-CN","kind":"replacement","steps":[{"input":"工作更新我通常喜欢先写完整背景，再给结论。","expect":"establish"},{"input":"这个习惯改了，我现在希望工作更新先给结论，再补背景。","expect":"replace"}],"followUp":"帮我整理一条工作更新时，应该按什么顺序写？","requiredTerms":["先给结论"],"forbiddenTerms":["先写完整背景"]},
+    {"id":"en-early-flight-ambiguous-retraction","language":"en","kind":"ambiguousRetraction","steps":[{"input":"I prefer early flights when I travel.","expect":"establish"},{"input":"Actually, that was only true for one trip because there were no other options.","expect":"retractWithoutReplacement"}],"followUp":"What flight time do I generally prefer?","requiredTerms":[],"forbiddenTerms":["prefer early flights"]},
+    {"id":"en-forget-and-reopen-breakfast","language":"en","kind":"forgetReopen","steps":[{"input":"I usually prefer a savory breakfast.","expect":"establish"},{"input":"forget","expect":"forget"}],"followUp":"What kind of breakfast do I usually prefer?","requiredTerms":[],"forbiddenTerms":["savory breakfast"]},
+    {"id":"en-related-but-unsupported","language":"en","kind":"relatedUnsupported","steps":[{"input":"For city trips I prefer hotels in walkable neighborhoods.","expect":"establish"}],"followUp":"Which airline do I usually prefer for city trips?","requiredTerms":[],"forbiddenTerms":["airline preference"]}
+  ]
+}
