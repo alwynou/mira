@@ -138,8 +138,16 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             let request = AgentContextRequest(sessionID: source.reference.sessionID, executionID: claim.executionID,
                 workspaceID: source.workspaceID, userText: source.text,
                 authorizationEpoch: source.sessionAuthorizationEpoch, destination: .model(claim.route))
-            let candidates = try SQLiteMemoryStore.search(query: "", workspaceID: source.workspaceID,
+            // Correction/replacement decisions need memories related to the
+            // committed user text, not an arbitrary UUID-ordered prefix of the
+            // library. Prefer relevance search and use a small recent fallback
+            // only when the statement has no searchable terms.
+            let relevant = try SQLiteMemoryStore.search(query: source.text, workspaceID: source.workspaceID,
                 states: [.active], request: request, limit: 32, at: at, in: db).memories
+            let candidates = relevant.isEmpty
+                ? try SQLiteMemoryStore.recentActiveMemories(workspaceID: source.workspaceID,
+                    request: request, limit: 32, at: at, in: db)
+                : relevant
             var contextBytes = 0
             claim.existingMemories = candidates.filter { memory in
                 contextBytes += memory.draft?.content.utf8.count ?? 0
