@@ -10,11 +10,15 @@ The package uses Swift Testing, which runs unrelated tests concurrently unless e
 
 Running the later compiler-extracted string check locally also found three missing catalog keys: `Chat Completions`, `Model Two`, and `Thinking budget tokens`. The plain source/catalog check had passed because these keys require compiler extraction.
 
+The [first serialized CI run](https://github.com/alwynou/mira/actions/runs/35486434841) passed package tests, script tests, and language policy, then exposed an asset compiler crash: `AssetCatalogAgent-AssetRuntime` closed its connection while compiling `MiraAppIcon.icon` under macOS 15 / Xcode 26.3. The icon already has successful native build/render evidence on macOS 26.6.2 / Xcode 26.6 in [app icon verification](APP_ICON_DESIGN.md).
+
 ## Change
 
 The package CI command explicitly uses `--no-parallel`. No tests or assertions are removed: concurrent operations within each test still run and verify their original boundaries. Production code and normal focused-test commands are unchanged.
 
-The package step has a 15-minute deadline, the app/host step has a 30-minute deadline, and the complete job has a 45-minute deadline. These workflow deadlines bound future stalls even when a blocked test cannot drain after cooperative cancellation. Existing console logs retain the started test and failure details.
+The package step has a 15-minute deadline in a 20-minute job; the independent app/host step has a 30-minute deadline in a 35-minute job. These workflow deadlines bound future stalls even when a blocked test cannot drain after cooperative cancellation. Existing console logs retain the started test and failure details.
+
+Package and script checks retain macOS 15 / Xcode 26.3. The app/host job uses macOS 26 / Xcode 26.6, whose installed path is confirmed by the [official runner image](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md). Both jobs must succeed; the canonical layered icon and the macOS 15 deployment target are unchanged. Native app runtime acceptance on macOS 15 remains a separate open check.
 
 The missing catalog entries now include both supported languages. The protocol and synthetic model names remain verbatim in both languages; the thinking-budget field receives its missing Simplified Chinese label. No controls or layout change.
 
@@ -25,6 +29,6 @@ The missing catalog entries now include both supported languages. The protocol a
 - Catalog and script tests: 14 passed.
 - Complete local app/host command: `TEST SUCCEEDED`, including Swift Testing summaries of 109 tests in 17 suites and 174 tests in 31 suites, plus the XCTest suites.
 - Language policy including compiler-extracted strings: 2,165 bilingual entries passed after filling the missing catalog entries.
-- Host tests are rerun after the catalog change. The pinned macOS 15 / Xcode 26.3 GitHub run must also pass before merging. Final results are recorded on the fix PR; local success alone does not establish hosted-runner success.
+- Host tests are rerun after the catalog change. Both pinned GitHub jobs must also pass before merging. Final results are recorded on the fix PR; local success alone does not establish hosted-runner success.
 
 Native light/dark, minimum-size, and language-switch visual checks were not repeated for this catalog-only label correction. Test/build and compiler-extracted string coverage establish resource availability, not visual acceptance.
