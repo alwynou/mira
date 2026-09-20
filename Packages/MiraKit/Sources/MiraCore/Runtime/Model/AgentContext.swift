@@ -191,11 +191,22 @@ public struct AgentContextAssembler: Sendable {
                 throw MiraError(.configuration, "The frozen context snapshot is invalid.")
             }
             for source in frozenContext.sources { try source.validate() }
-            return try await fit(request: request, stepID: stepID, instructions: instructions,
-                history: historyContext, currentTrace: currentTrace, tools: tools,
-                route: route, adapter: adapter, authorizer: authorizer,
-                inherited: inherited, contextMessage: frozenContext.message,
-                fixedEvidence: frozenContext.evidence, entries: [], omissions: frozenContext.omissions)
+            while true {
+                do {
+                    return try await fit(request: request, stepID: stepID, instructions: instructions,
+                        history: historyContext, currentTrace: currentTrace, tools: tools,
+                        route: route, adapter: adapter, authorizer: authorizer,
+                        inherited: inherited, contextMessage: frozenContext.message,
+                        fixedEvidence: frozenContext.evidence, entries: [], omissions: frozenContext.omissions)
+                } catch let error as MiraError where error.code == .contextLimit && !history.isEmpty {
+                    try Task.checkCancellation()
+                    history = history.removingOldestExchange()
+                    historyContext = history.context
+                    inherited = AgentContextBuild.orderedSources(
+                        historyContext.sources + currentTrace.sources + frozenContext.sources)
+                    if !inherited.isEmpty { try await authorizer.validate(inherited, for: request) }
+                }
+            }
         }
         for contributor in contributors.sorted(by: { $0.id < $1.id }) {
             try Task.checkCancellation()
