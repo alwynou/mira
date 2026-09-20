@@ -224,6 +224,8 @@ targets:
       - Tests/MiraTestSupport
       - path: Tests/Fixtures/EverydayMemory/scenarios.json
         buildPhase: resources
+      - path: Tests/Fixtures/EverydayMemory/state-evolution.json
+        buildPhase: resources
       - Apps/MiraMac/Platform/Keychain
       - Apps/MiraMac/Platform/MemoryEmbedding
       - Apps/MiraMac/Presentation/ConversationStreamBuffer.swift
