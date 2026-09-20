@@ -107,9 +107,8 @@ public struct JournalAgentHistoryReader: Sendable {
         }
         var messages: [AgentModelMessage] = []
         var sources: [AgentSourceReference] = []
-        for attemptID in execution.attemptIDs {
-            guard let attempt = state.attempts[attemptID],
-                  let resolution = attempt.resolution,
+        for attempt in replayAttempts(execution: execution, state: state) {
+            guard let resolution = attempt.resolution,
                   resolution.status == .completed,
                   let outputReference = resolution.output,
                   outputReference.kind == .modelOutput else { break }
@@ -326,8 +325,9 @@ public struct JournalAgentHistoryReader: Sendable {
     private func readCommittedExchange(execution: SessionExecutionState, state: SessionState) async throws -> CommittedExchange {
         var messages: [AgentModelMessage] = []
         var sources: [AgentSourceReference] = []
-        for attemptID in execution.attemptIDs {
-            guard let attempt = state.attempts[attemptID], let resolution = attempt.resolution,
+        let attempts = replayAttempts(execution: execution, state: state)
+        for attempt in attempts {
+            guard let resolution = attempt.resolution,
                   resolution.status == .completed, let outputReference = resolution.output,
                   outputReference.kind == .modelOutput else { return .init(messages: messages, sources: sources, complete: false) }
             let output = try SessionCodec.decode(AgentModelOutput.self, from: try await payloads.read(outputReference))
@@ -385,6 +385,39 @@ public struct JournalAgentHistoryReader: Sendable {
             sources.append(contentsOf: roundSources)
         }
         return .init(messages: messages, sources: AgentContextBuild.orderedSources(sources), complete: true)
+    }
+
+    /// Returns at most one replayable attempt for each logical model step.
+    ///
+    /// Automatic retries retain the same step ID and frozen request. Failed
+    /// attempts remain in the journal for audit and usage accounting, but they
+    /// must not hide a later successful attempt when reconstructing model
+    /// history. An unresolved or terminally failed step is retained as the
+    /// group's representative so callers can preserve their existing
+    /// incomplete-boundary behavior.
+    private func replayAttempts(execution: SessionExecutionState, state: SessionState) -> [SessionAttemptState] {
+        var result: [SessionAttemptState] = []
+        var index = 0
+        while index < execution.attemptIDs.count {
+            guard let first = state.attempts[execution.attemptIDs[index]] else {
+                index += 1
+                continue
+            }
+            let stepID = first.attempt.stepID
+            var group: [SessionAttemptState] = []
+            while index < execution.attemptIDs.count,
+                  let value = state.attempts[execution.attemptIDs[index]],
+                  value.attempt.stepID == stepID {
+                group.append(value)
+                index += 1
+            }
+            if let completed = group.last(where: { $0.resolution?.status == .completed }) {
+                result.append(completed)
+            } else if let last = group.last {
+                result.append(last)
+            }
+        }
+        return result
     }
 
     private func readBuild(_ reference: SessionContent, state: SessionState) async throws -> AgentSessionRequest {
