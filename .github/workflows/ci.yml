@@ -2,7 +2,6 @@ name: Swift checks
 
 on:
   pull_request:
-    paths-ignore: ['docs/**', 'README.md']
   workflow_dispatch:
 
 permissions:
@@ -14,34 +13,95 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  plan:
+    name: Select affected checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      package: ${{ steps.plan.outputs.package }}
+      macos: ${{ steps.plan.outputs.macos }}
+      scripts: ${{ steps.plan.outputs.scripts }}
+      language: ${{ steps.plan.outputs.language }}
+      tokens: ${{ steps.plan.outputs.tokens }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify the complete PR diff
+        id: plan
+        run: python3 scripts/ci_plan.py
+
+  lightweight:
+    name: Lightweight checks (Linux)
+    needs: plan
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Script tests, including CI routing and result checks
+        if: needs.plan.outputs.scripts != 'false'
+        run: python3 -m unittest discover -s scripts/tests
+      - name: CI routing and result checks
+        if: needs.plan.outputs.scripts == 'false'
+        run: python3 -m unittest discover -s scripts/tests -p 'test_ci_*.py'
+      - name: Language policy
+        if: needs.plan.outputs.language != 'false'
+        run: python3 scripts/check_language_policy.py
+      - name: Generated design tokens
+        if: needs.plan.outputs.tokens != 'false'
+        run: |
+          python3 scripts/export_design_tokens.py
+          git diff --exit-code -- designs/mira-ui/tokens.json
+
   package:
     name: Package tests (macOS 15)
+    needs: plan
+    # Missing planner outputs select the suite instead of silently skipping it.
+    if: ${{ !cancelled() && needs.plan.outputs.package != 'false' }}
     runs-on: macos-15
     timeout-minutes: 20
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/swift-dependencies
+        with:
+          target: package
       - name: Package tests
         timeout-minutes: 15
         # Blocking boundary fixtures must not compete across unrelated tests.
         # Each test still exercises its own concurrent tasks and cancellation.
         run: swift test --package-path Packages/MiraKit --disable-automatic-resolution --no-parallel
-      - name: Catalog generator tests
-        run: python3 -m unittest discover -s scripts/tests
-      - name: Language policy
-        run: python3 scripts/check_language_policy.py
 
   macos:
     name: App and host tests (macOS 26)
+    needs: plan
+    if: ${{ !cancelled() && needs.plan.outputs.macos != 'false' }}
     runs-on: macos-26
     timeout-minutes: 35
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/swift-dependencies
+        with:
+          target: app
       - name: macOS app and host tests
         timeout-minutes: 30
         run: xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO test
       - name: Extracted UI string coverage
         run: python3 scripts/check_language_policy.py --extracted-dir .build/xcode/Build/Intermediates.noindex/Mira.build/Debug/Mira.build
+
+  result:
+    name: CI result
+    needs: [plan, lightweight, package, macos]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every selected check to succeed
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci_result.py

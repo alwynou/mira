@@ -1,5 +1,7 @@
 # CI reliability
 
+This record describes the original full-check arrangement. Current affected-check selection and dependency-cache behavior are defined in [Continuous integration](CI.md); the native commands, serialization and deadlines below remain in force whenever their suites are selected.
+
 Date: 2026-09-20. Tracked in [issue #9](https://github.com/alwynou/mira/issues/9).
 
 ## Observed failure
