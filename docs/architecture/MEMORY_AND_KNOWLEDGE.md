@@ -143,7 +143,7 @@ Update Search Index / Current Projection
 - 不是短期情绪；
 - Scope 可确定；
 - 不属于敏感自动捕获禁区；
-- 替代必须有明确纠正意图、相同主体与范围、兼容种类及当前修订；
+- Corrections require explicit correction intent; non-conflicting enrichment requires an exact target for the same identified entity. Both preserve subject, scope, compatible kind, current revision and disclosure authority;
 - 通过重复检测。
 
 未满足时不自动创建，不进入后台候选审核列表。

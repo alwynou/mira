@@ -220,7 +220,7 @@ public enum MemoryAssertionMode: String, Codable, CaseIterable, Sendable {
 }
 
 public enum MemoryChangeIntent: String, Codable, CaseIterable, Sendable {
-    case independent, explicitReplacement, uncertain
+    case independent, explicitReplacement, enrichment, uncertain
 }
 
 public struct MemoryAssertionMetadata: Codable, Equatable, Sendable {
@@ -245,10 +245,12 @@ public struct MemoryExtractionProposal: Sendable {
     public let assertion: MemoryAssertionMetadata
     public let inputIndex: Int
     public let replacesIndex: Int?
+    public let replacesProposalIndex: Int?
     public init(
         draft: MemoryDraft, quote: String, origin: MemoryOrigin, authority: MemoryAuthority,
         triage: MemoryExtractionTriage, reviewReason: String? = nil,
-        assertion: MemoryAssertionMetadata = .init(mode: .uncertain, aspectKey: nil, changeIntent: .uncertain), inputIndex: Int = 0, replacesIndex: Int? = nil
+        assertion: MemoryAssertionMetadata = .init(mode: .uncertain, aspectKey: nil, changeIntent: .uncertain),
+        inputIndex: Int = 0, replacesIndex: Int? = nil, replacesProposalIndex: Int? = nil
     ) {
         self.draft = draft
         self.quote = quote
@@ -259,5 +261,6 @@ public struct MemoryExtractionProposal: Sendable {
         self.assertion = assertion
         self.inputIndex = inputIndex
         self.replacesIndex = replacesIndex
+        self.replacesProposalIndex = replacesProposalIndex
     }
 }

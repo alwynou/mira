@@ -2,193 +2,167 @@ import Foundation
 import GRDB
 import MiraCore
 
-/// Commits validated automatic-memory proposals into the business database.
-/// Journal evidence and library authorization are supplied by the caller; this
-/// reducer never reads session or conversation tables.
+/// Commits validated proposals and their evolution in one business transaction.
+/// The model identifies semantic relationships; source, policy and revision
+/// authority remain host-owned. Similarity and aspect keys never authorize enrichment.
 extension SQLiteMemoryStore {
     static func commitExtractionBatchProposals(
         _ proposals: [MemoryExtractionProposal], claim: MemoryExtractionClaim,
         sources: [SessionUserEvidence], at: Date, in db: Database
     ) throws -> (memoryIDs: [MemoryID], candidateMemoryIDs: [MemoryID], decisions: [MemoryExtractionDecision]) {
-        guard !sources.isEmpty, proposals.count <= 6 else { throw invalid }
-        var memories: [MemoryID] = [], candidates: [MemoryID] = [], decisions: [MemoryExtractionDecision] = []
+        try claim.validate()
+        try date(at)
+        guard !sources.isEmpty, sources.count == claim.batchSources.count, proposals.count <= 6 else { throw invalid }
+        for (source, expected) in zip(sources, claim.batchSources) {
+            try MemoryExtractionRequestBuilder.validate(source: source)
+            guard source.reference == expected.reference, source.text == expected.text,
+                source.workspaceID == expected.workspaceID, source.admittedAt == expected.admittedAt,
+                source.timeZoneIdentifier == expected.timeZoneIdentifier,
+                source.sessionAuthorizationEpoch == expected.sessionAuthorizationEpoch,
+                source.sessionAuthorizationEpoch == claim.source.sessionAuthorizationEpoch,
+                source.workspaceID == claim.job.workspaceID,
+                source.reference == claim.source.reference || claim.job.turns.contains(where: { $0.source == source.reference })
+            else { throw invalid }
+            guard try !suppressedMemorySource(.userMessage(source.reference), in: db) else { throw unauthorized }
+        }
+
+        var decisions: [MemoryExtractionDecision] = []
+        // Raw output positions stay stable even when an item is skipped.
+        var committed: [Int: Memory] = [:]
         for (index, proposal) in proposals.enumerated() {
             guard sources.indices.contains(proposal.inputIndex) else { throw invalid }
             let source = sources[proposal.inputIndex]
-            let selected = [proposal]
-            guard selected.allSatisfy({ $0.quote == source.text || source.text.range(of: $0.quote) != nil }) else { throw invalid }
-            guard !selected.isEmpty else { continue }
-            let result = try commitExtractionProposals(selected, claim: claim, source: source, at: at, in: db)
-            for decision in result.decisions where decision.disposition == .created {
-                let memory = try read(decision.memoryID, workspaceID: source.workspaceID, in: db)
-                guard let draft = memory.draft else { throw invalid }
-                for context in sources where context.reference != source.reference {
-                    let resolved = try resolve(.userMessage(evidence: context, excerpt: String(context.text.prefix(2_048))), draft: draft, in: db)
-                    try bindSource(resolved, in: db)
-                    let evidence = MemoryEvidence(memoryID: memory.id, source: resolved.identity,
-                        sourceWorkspaceID: context.workspaceID, excerpt: resolved.excerpt,
-                        sourceHash: resolved.bodyHash, createdAt: at)
-                    try db.execute(sql: "INSERT INTO memory_evidence(id, memory_id, source_key, source_workspace_id, json) VALUES (?, ?, ?, ?, ?)",
-                        arguments: [key(evidence.id), key(memory.id), try sourceKey(resolved.identity), context.workspaceID.map(key), try encode(evidence)])
-                }
-            }
-            memories.append(contentsOf: result.memoryIDs)
-            candidates.append(contentsOf: result.candidateMemoryIDs)
-            decisions.append(contentsOf: result.decisions.map { decision in
-                .init(proposalIndex: index, memoryID: decision.memoryID, memoryRevision: decision.memoryRevision,
-                      memoryState: decision.memoryState, disposition: decision.disposition,
-                      validationReviewReason: decision.validationReviewReason, conflictReason: decision.conflictReason,
-                      conflictingMemoryIDs: decision.conflictingMemoryIDs, replacedMemoryID: decision.replacedMemoryID)
-            })
-        }
-        return (memories.reduce(into: []) { if !$0.contains($1) { $0.append($1) } }, candidates.reduce(into: []) { if !$0.contains($1) { $0.append($1) } }, decisions)
-    }
-
-    static func commitExtractionProposals(
-        _ proposals: [MemoryExtractionProposal],
-        claim: MemoryExtractionClaim,
-        source: SessionUserEvidence,
-        at: Date,
-        in db: Database
-    ) throws -> (memoryIDs: [MemoryID], candidateMemoryIDs: [MemoryID], decisions: [MemoryExtractionDecision]) {
-        try claim.validate()
-        try MemoryExtractionRequestBuilder.validate(source: source)
-        try date(at)
-        guard (source.reference == claim.source.reference || claim.job.turns.contains { $0.source == source.reference }),
-            source.workspaceID == claim.job.workspaceID,
-            claim.batchSources.contains(where: {
-                $0.reference == source.reference && $0.text == source.text &&
-                $0.workspaceID == source.workspaceID && $0.admittedAt == source.admittedAt &&
-                $0.timeZoneIdentifier == source.timeZoneIdentifier &&
-                $0.sessionAuthorizationEpoch == source.sessionAuthorizationEpoch
-            }),
-            source.sessionAuthorizationEpoch == claim.source.sessionAuthorizationEpoch,
-            proposals.count <= 6
-        else { throw invalid }
-
-        let sourceIdentity = MemoryEvidenceSource.userMessage(source.reference)
-        guard try !suppressedMemorySource(sourceIdentity, in: db) else { throw unauthorized }
-
-        var memoryIDs: [MemoryID] = []
-        var candidateIDs: [MemoryID] = []
-        var decisions: [MemoryExtractionDecision] = []
-        for (index, proposal) in proposals.enumerated() {
             try validate(proposal, source: source)
+            try validateEvolutionTarget(proposal, index: index, existingCount: claim.existingMemories.count)
             guard proposal.triage == .active else { continue }
-            let resolved = try resolve(
-                .userMessage(evidence: source, excerpt: proposal.quote), draft: proposal.draft, in: db)
+            if let target = proposal.replacesProposalIndex, committed[target] == nil { continue }
+
+            let resolved = try resolve(.userMessage(evidence: source, excerpt: proposal.quote), draft: proposal.draft, in: db)
             try bindSource(resolved, in: db)
-            let assertionKey = try assertionKey(draft: proposal.draft, source: sourceIdentity)
-
-            if let row = try Row.fetchOne(
-                db, sql: "SELECT memory_id FROM memory_assertions WHERE assertion_key = ?", arguments: [assertionKey])
-            {
-                let memory = try read(
-                    .init(try uuid(row["memory_id"])), workspaceID: proposal.draft.scope.workspaceID, in: db)
-                guard memory.forgottenAt == nil, memory.deletedAt == nil,
-                    ![.removed, .rejected].contains(memory.state)
-                else { throw conflict }
-                decisions.append(
-                    .init(
-                        proposalIndex: index, memoryID: memory.id, memoryRevision: memory.revision,
-                        memoryState: memory.state, disposition: .reused,
-                        validationReviewReason: proposal.reviewReason))
-                append(memory, to: &memoryIDs, candidates: &candidateIDs)
+            let assertion = try assertionKey(draft: proposal.draft, source: resolved.identity)
+            if let row = try Row.fetchOne(db, sql: "SELECT memory_id FROM memory_assertions WHERE assertion_key = ?", arguments: [assertion]) {
+                let memory = try read(.init(try uuid(row["memory_id"])), workspaceID: source.workspaceID, in: db)
+                guard memory.forgottenAt == nil, memory.deletedAt == nil, ![.removed, .rejected].contains(memory.state) else { throw conflict }
+                decisions.append(.init(proposalIndex: index, memoryID: memory.id, memoryRevision: memory.revision,
+                    memoryState: memory.state, disposition: .reused, validationReviewReason: nil))
+                committed[index] = memory
                 continue
             }
 
-            if let duplicate = claim.existingMemories.first(where: {
-                $0.scope == proposal.draft.scope && $0.subject == proposal.draft.subject &&
-                $0.draft.map { normalized($0.content) == normalized(proposal.draft.content) } == true
-            }) {
-                let current = try read(duplicate.id, workspaceID: source.workspaceID, in: db)
-                guard current.revision == duplicate.revision, current.isCurrent else { throw conflict }
-                decisions.append(.init(proposalIndex: index, memoryID: current.id, memoryRevision: current.revision,
-                                       memoryState: current.state, disposition: .reused, validationReviewReason: nil))
-                append(current, to: &memoryIDs, candidates: &candidateIDs)
+            // Also reuse exact assertions produced by earlier items in this batch.
+            // Compare policy and validity as well as text; deduplication cannot widen disclosure.
+            let candidates = claim.existingMemories + committed.keys.sorted().compactMap { committed[$0] }
+            let duplicates = candidates.filter { sameAssertion($0, draft: proposal.draft) }
+            var duplicate: Memory?
+            for expected in duplicates {
+                let current = try read(expected.id, workspaceID: source.workspaceID, in: db)
+                // Earlier items may have evolved inside this transaction. They are no longer duplicate targets.
+                if current.supersededBy != nil { continue }
+                guard current == expected, current.isCurrent else { throw conflict }
+                duplicate = current
+                break
+            }
+            if let duplicate {
+                decisions.append(.init(proposalIndex: index, memoryID: duplicate.id, memoryRevision: duplicate.revision,
+                    memoryState: duplicate.state, disposition: .reused, validationReviewReason: nil))
+                committed[index] = duplicate
                 continue
             }
+
             let matches: [(memory: Memory, metadataRevision: Int)]
             if let target = proposal.replacesIndex {
-                guard claim.existingMemories.indices.contains(target) else { throw invalid }
                 let expected = claim.existingMemories[target]
+                let current = try read(expected.id, workspaceID: source.workspaceID, in: db)
+                guard current == expected else { throw conflict }
+                matches = [(current, current.revision)]
+            } else if let target = proposal.replacesProposalIndex {
+                guard let expected = committed[target] else { continue }
                 let current = try read(expected.id, workspaceID: source.workspaceID, in: db)
                 guard current == expected else { throw conflict }
                 matches = [(current, current.revision)]
             } else {
                 matches = try matchingMemories(for: proposal, in: db)
             }
-            let current = matches.count == 1 ? matches[0] : nil
-            let replaces =
-                current.map {
-                    canAutomaticallyReplace(
-                        $0.memory, metadataRevision: $0.metadataRevision,
-                        proposal: proposal, source: source)
-                } ?? false
-            // Automatic extraction never creates a review inbox. Ambiguous
-            // conflicts and low-confidence items are skipped atomically.
-            guard proposal.triage == .active, matches.isEmpty || replaces else { continue }
-            let state: MemoryState = .active
-            let memory = Memory(
-                draft: proposal.draft, scope: proposal.draft.scope, subject: proposal.draft.subject,
-                state: state, origin: proposal.origin, authority: proposal.authority,
-                createdAt: at, updatedAt: at)
+            let previous = matches.count == 1 ? matches[0] : nil
+            let evolves = previous.map {
+                canAutomaticallyReplace($0.memory, metadataRevision: $0.metadataRevision, proposal: proposal, at: at)
+            } ?? false
+            guard matches.isEmpty || evolves else { continue }
+            let memory = Memory(draft: proposal.draft, scope: proposal.draft.scope, subject: proposal.draft.subject,
+                state: .active, origin: proposal.origin, authority: proposal.authority, createdAt: at, updatedAt: at)
             try write(memory, insert: true, in: db)
 
-            let evidence = MemoryEvidence(
-                memoryID: memory.id, source: sourceIdentity,
-                sourceWorkspaceID: source.workspaceID, excerpt: resolved.excerpt,
-                sourceHash: resolved.bodyHash, createdAt: at)
-            try db.execute(
-                sql:
-                    "INSERT INTO memory_evidence(id, memory_id, source_key, source_workspace_id, json) VALUES (?, ?, ?, ?, ?)",
-                arguments: [
-                    key(evidence.id), key(memory.id), try sourceKey(sourceIdentity), source.workspaceID.map(key),
-                    try encode(evidence),
-                ])
-            try db.execute(
-                sql: "INSERT INTO memory_assertions(assertion_key, memory_id, source_key) VALUES (?, ?, ?)",
-                arguments: [assertionKey, key(memory.id), try sourceKey(sourceIdentity)])
-            try insertAspectMetadata(
-                proposal.assertion, memoryID: memory.id, memoryRevision: memory.revision,
-                source: sourceIdentity, sourceHash: resolved.bodyHash, at: at, in: db)
-
-            if replaces, let current {
-                var old = current.memory
-                try writeRelation(
-                    .init(replacementID: memory.id, previousID: old.id, state: .confirmed, createdAt: at), in: db)
+            // Enrichment inherits old evidence, not just the later statement that supplied the new detail.
+            // A copied source remains subject to suppression, workspace and disclosure checks.
+            if proposal.assertion.changeIntent == .enrichment, let previous {
+                for item in try evidence(previous.memory.id, in: db) {
+                    guard item.bodyPurgedAt == nil, try !suppressedMemorySource(item.source, in: db) else { throw unauthorized }
+                    try insertExtractionEvidence(.init(memoryID: memory.id, source: item.source,
+                        sourceWorkspaceID: item.sourceWorkspaceID, excerpt: item.excerpt,
+                        sourceHash: item.sourceHash, createdAt: item.createdAt), in: db)
+                }
+            }
+            for context in sources {
+                let value = try resolve(.userMessage(evidence: context, excerpt: String(context.text.prefix(2_048))), draft: proposal.draft, in: db)
+                try bindSource(value, in: db)
+                try insertExtractionEvidence(.init(memoryID: memory.id, source: value.identity,
+                    sourceWorkspaceID: context.workspaceID, excerpt: value.excerpt, sourceHash: value.bodyHash, createdAt: at), in: db)
+            }
+            try db.execute(sql: "INSERT INTO memory_assertions(assertion_key, memory_id, source_key) VALUES (?, ?, ?)",
+                arguments: [assertion, key(memory.id), try sourceKey(resolved.identity)])
+            try insertAspectMetadata(proposal.assertion, memoryID: memory.id, memoryRevision: memory.revision,
+                source: resolved.identity, sourceHash: resolved.bodyHash, at: at, in: db)
+            if evolves, let previous {
+                var old = previous.memory
+                try writeRelation(.init(replacementID: memory.id, previousID: old.id, state: .confirmed, createdAt: at), in: db)
                 old.supersededBy = memory.id
                 old.revision += 1
                 old.updatedAt = at
                 try write(old, insert: false, in: db)
-            } else {
-                for match in matches {
-                    try writeRelation(
-                        .init(
-                            replacementID: memory.id, previousID: match.memory.id,
-                            state: .proposed, createdAt: at), in: db)
-                }
             }
-            let conflictReason: MemoryExtractionConflictReason? =
-                replaces || matches.isEmpty
-                ? nil
-                : (matches.count == 1 ? .currentMemoryRequiresReview : .multipleCurrentMemories)
-            decisions.append(
-                .init(
-                    proposalIndex: index, memoryID: memory.id, memoryRevision: memory.revision,
-                    memoryState: memory.state, disposition: .created,
-                    validationReviewReason: proposal.reviewReason, conflictReason: conflictReason,
-                    conflictingMemoryIDs: matches.map { $0.memory.id },
-                    replacedMemoryID: replaces ? current?.memory.id : nil))
-            append(memory, to: &memoryIDs, candidates: &candidateIDs)
+            decisions.append(.init(proposalIndex: index, memoryID: memory.id, memoryRevision: memory.revision,
+                memoryState: memory.state, disposition: .created, validationReviewReason: nil,
+                conflictingMemoryIDs: matches.map { $0.memory.id }, replacedMemoryID: evolves ? previous?.memory.id : nil))
+            committed[index] = memory
         }
         for decision in decisions { try decision.validate() }
-        return (memoryIDs, candidateIDs, decisions)
+        let ids = decisions.reduce(into: [MemoryID]()) { if !$0.contains($1.memoryID) { $0.append($1.memoryID) } }
+        let candidateIDs = decisions.filter { $0.memoryState == .candidate }.reduce(into: [MemoryID]()) {
+            if !$0.contains($1.memoryID) { $0.append($1.memoryID) }
+        }
+        return (ids, candidateIDs, decisions)
     }
 
-    private static func append(_ memory: Memory, to ids: inout [MemoryID], candidates: inout [MemoryID]) {
-        if !ids.contains(memory.id) { ids.append(memory.id) }
-        if memory.state == .candidate, !candidates.contains(memory.id) { candidates.append(memory.id) }
+    private static func sameAssertion(_ memory: Memory, draft: MemoryDraft) -> Bool {
+        guard var prior = memory.draft else { return false }
+        prior.content = normalized(prior.content)
+        var proposed = draft
+        proposed.content = normalized(proposed.content)
+        return prior == proposed
+    }
+
+    private static func validateEvolutionTarget(_ proposal: MemoryExtractionProposal, index: Int, existingCount: Int) throws {
+        let intent = proposal.assertion.changeIntent
+        guard proposal.replacesIndex == nil || proposal.replacesProposalIndex == nil else { throw invalid }
+        if let target = proposal.replacesIndex {
+            guard (0..<existingCount).contains(target), intent == .explicitReplacement || intent == .enrichment else { throw invalid }
+        }
+        if let target = proposal.replacesProposalIndex {
+            guard (0..<index).contains(target), intent == .enrichment else { throw invalid }
+        }
+        if intent == .enrichment {
+            guard proposal.replacesIndex != nil || proposal.replacesProposalIndex != nil else { throw invalid }
+        }
+    }
+
+    private static func insertExtractionEvidence(_ value: MemoryEvidence, in db: Database) throws {
+        let source = try sourceKey(value.source)
+        if try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_evidence WHERE memory_id = ? AND source_key = ?",
+            arguments: [key(value.memoryID), source]) == 1 { return }
+        guard try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_evidence WHERE memory_id = ?",
+            arguments: [key(value.memoryID)]) ?? 0 < 100 else { throw limit }
+        try db.execute(sql: "INSERT INTO memory_evidence(id, memory_id, source_key, source_workspace_id, json) VALUES (?, ?, ?, ?, ?)",
+            arguments: [key(value.id), key(value.memoryID), source, value.sourceWorkspaceID.map(key), try encode(value)])
     }
 
     private static func validate(
@@ -261,12 +235,13 @@ extension SQLiteMemoryStore {
     private static func canAutomaticallyReplace(
         _ current: Memory, metadataRevision: Int,
         proposal: MemoryExtractionProposal,
-        source: SessionUserEvidence
+        at: Date
     ) -> Bool {
         guard proposal.triage == .active,
             proposal.assertion.mode == .directStable,
-            proposal.assertion.changeIntent == .explicitReplacement,
+            (proposal.assertion.changeIntent == .explicitReplacement || proposal.assertion.changeIntent == .enrichment),
             metadataRevision == current.revision,
+            current.lifecycleStatus(at: at) == .active,
             current.state == .active, current.supersededBy == nil,
             current.deletedAt == nil, current.forgottenAt == nil,
             let oldDraft = current.draft,
@@ -278,6 +253,10 @@ extension SQLiteMemoryStore {
             oldDraft.allowedConnectionIDs == proposal.draft.allowedConnectionIDs,
             (try? compatible(proposal.draft, previous: current)) != nil
         else { return false }
+        // Adding detail cannot change when the original fact applies.
+        if proposal.assertion.changeIntent == .enrichment {
+            guard oldDraft.validFrom == proposal.draft.validFrom, oldDraft.validUntil == proposal.draft.validUntil else { return false }
+        }
         return true
     }
 

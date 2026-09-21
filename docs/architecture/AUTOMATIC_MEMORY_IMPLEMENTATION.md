@@ -99,7 +99,15 @@ DeepSeek 根据相同前缀复用缓存，属于 best-effort；Mira 保证请求
 
 自动保存只接受高置信度、直接、稳定的标准用户事实、偏好和约束，并允许 user 或 workspace 范围。推断、含糊、临时、假设、第三方、引用内容及敏感断言直接跳过，不创建 review candidate backlog，也不把任意模型输出标为 active。助手文本只能在没有辅助来源时作为有界上下文，不能成为用户事实来源。重复断言可复用已有记忆；含糊冲突跳过。每条新断言保守关联整个输入批次，以涵盖跨轮指代。
 
-断言去重独立于尝试 ID。同一来源和同一规范化断言可复用已有记忆，不重复制造证据。语义 aspect 只用于冲突分组，不能授予授权；匹配时校验索引字段、规范元数据、来源和原证据的一致性。请求会带最多 32 条有界的现有有效记忆，模型可对同一 subject/aspect 的明确修订设置 `replacesIndex`。host 只在索引、旧记忆 revision、来源和发送策略仍匹配时以 CAS 自动 supersede；含糊或竞争变化跳过。用户修订后，旧提取元数据不能继续授权自动替换。
+断言去重独立于尝试 ID。同一来源和同一规范化断言可复用已有记忆，不重复制造证据。语义 aspect 只用于冲突分组，不能授予授权；匹配时校验索引字段、规范元数据、来源和原证据的一致性。请求会带最多 32 条有界的现有有效记忆，模型可对同一 subject/aspect 的明确修订设置 `replacesIndex`，或对同一明确实体的非冲突信息补充设置 `changeIntent = enrichment` 及明确目标。host 只在索引、旧记忆 revision、来源和发送策略仍匹配时以 CAS 自动 supersede；含糊或竞争变化跳过。用户修订后，旧提取元数据不能继续授权自动替换。
+
+### Explicit enrichment targets
+
+The v3 output contract includes `changeIntent = enrichment`. An enrichment must name exactly one target: `replacesIndex` into the frozen `existingMemories`, or `replacesProposalIndex` into an earlier raw output-item position. `inputIndex` still identifies the supporting user turn and must not be confused with either target index. Missing, mixed, forward, self, low-confidence or incompatible earlier-item targets are rejected. The model must identify the same entity, preserve all supported prior facts and validity bounds, and add only directly stated, non-conflicting information. Prefer one consolidated item for multiple turns about the same entity. Semantic confidence is a model judgment; host validation does not prove arbitrary natural-language entailment.
+
+The commit reducer resolves the target to its exact current ID and revision, checks compatible scope, subject, kind, disclosure policy and validity, then atomically creates the complete representation and supersedes the previous one. Enrichment never falls back to aspect grouping. Same, different and null aspect keys therefore have the same behavior when an explicit target is supplied. Similar independent items still use the independent path, and ambiguous conflicts remain conservative. Target revisions changed during the batch fail the transaction instead of producing competing current versions.
+
+Enrichment copies the target's evidence and binds the input batch evidence, deduplicating by complete source identity. Purged or suppressed inherited evidence cannot be copied; the existing 100-source evidence bound fails closed without dropping lineage. Forgetting the enriched memory therefore suppresses both its inherited and newly added sources. Old content remains available through the retained previous memory and revision history until explicitly forgotten. Exact duplicates among earlier committed items are reused even across different source turns and aspect keys. Decision indexes remain original output positions; skipped items cannot become targets. Model quality and candidate retrieval remain separate acceptance gates.
 
 遗忘的领域事务清除记忆正文、修订、摘录、提取 aspect 和受影响作业尝试中的请求／输出／thinking／错误正文，保留无正文出处、状态和计费事实，提升来源抑制强度。晚到工作器不能重建正文。完整遗忘仍需要库维护协调器排空相关工作组并完成其他领域清理；仅完成这里的事务不能报告跨领域遗忘已完成。会话日志保留其原始 inline 历史，不由记忆遗忘重写。
 
@@ -107,7 +115,7 @@ DeepSeek 根据相同前缀复用缓存，属于 best-effort；Mira 保证请求
 
 独立 `MemoryExtractionInspectionStore` 按作业、尝试序号和精确工作区读取已完成尝试的审核报告。未完成返回 nil；成功无提案返回空决定数组；已清理返回带清理时间且决定为 nil 的报告。不存在或其他工作区的尝试拒绝读取。它不暴露准备请求或 thinking，也不增加工作器的读取职责。遗忘将提案级明细连同模型正文一并清除，保留尝试身份和计费事实。
 
-自动提取不建立待审候选关系。显式人工修订仍可使用独立的确认和替代事务；它必须指定当前目标、候选修订和目标修订，并以 CAS 检查两者。自动提取的 `replacesIndex` 只允许批次中 bounded existingMemories 的明确直接修订，不能绕过当前状态、workspace、抑制或权限检查。
+自动提取不建立待审候选关系。显式人工修订仍可使用独立的确认和替代事务；它必须指定当前目标、候选修订和目标修订，并以 CAS 检查两者。自动提取的 `replacesIndex` 允许对 bounded existingMemories 的明确直接修订或非冲突补充，不能绕过当前状态、workspace、抑制或权限检查。
 
 ## 当前验收范围
 

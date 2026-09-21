@@ -42,6 +42,26 @@ struct MemoryExtractionWorkerTests {
         }
     }
 
+    @Test func enrichmentContextIncludesTargetValidityBounds() async throws {
+        let fixture = try await WorkerFixture.make()
+        try await fixture.withCleanup { fixture in
+            var claim = try await fixture.store.makeClaim()
+            let start = Date(timeIntervalSince1970: 1_700_000_000)
+            let end = start.addingTimeInterval(86_400)
+            claim.existingMemories = [Memory(draft: .init(content: "Synthetic active constraint", scope: .global,
+                validFrom: start, validUntil: end), scope: .global, subject: .user,
+                state: .active, createdAt: start, updatedAt: start)]
+            let input = try MemoryExtractionRequestBuilder.input(for: claim)
+            let payload = try #require(input.messages.last?.text.components(separatedBy: "Target input:\n").last)
+            let object = try #require(try JSONSerialization.jsonObject(with: Data(payload.utf8)) as? [String: Any])
+            let existing = try #require((object["existingMemories"] as? [[String: Any]])?.first)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            #expect(existing["validFrom"] as? String == formatter.string(from: start))
+            #expect(existing["validUntil"] as? String == formatter.string(from: end))
+        }
+    }
+
     @Test func untrackedOrOversizedHistoryKeepsOnlyStableInstructions() async throws {
         let fixture = try await WorkerFixture.make()
         try await fixture.withCleanup { fixture in

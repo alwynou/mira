@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [memory enrichment correction](engineering/MEMORY_ENRICHMENT_VERIFICATION.md) adds an explicit same-entity enrichment decision and atomic evolution with retained evidence, addressing duplicate current memories or lost added details. Synthetic verification and its limits are recorded separately; this increment does not close live-model memory-quality acceptance.
+
 **版本：** v1.0  
 **日期：** 2026-09-07
 
