@@ -167,6 +167,8 @@ private struct MiraComponentPreview: View {
                 HStack(spacing: MiraTheme.Spacing.md) {
                     Button("New conversation", systemImage: "square.and.pencil") {}
                         .buttonStyle(MiraPrimaryButtonStyle())
+                    Button("Edit wording") {}
+                        .buttonStyle(MiraSecondaryButtonStyle())
                     Button("Settings", systemImage: "gearshape") {}
                         .labelStyle(.iconOnly).buttonStyle(MiraIconButtonStyle())
                     Button("Send", systemImage: "arrow.up") {}

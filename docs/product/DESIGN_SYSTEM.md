@@ -50,7 +50,7 @@ The conversation transcript extends beneath the titlebar through one native `NSS
 
 ## Component anatomy and states
 
-`MiraSidebarRow` owns row padding, typography, width, height, and selected fill. Its parent owns the `Button`, action, label content, and accessibility label. `MiraRowButtonStyle` provides a neutral row hover and pressed treatment. `MiraIconButtonStyle` applies the same treatment to a 30 pt square. `MiraPrimaryButtonStyle` is a compact dark text button. `MiraCircleButtonStyle` is the 30 pt round primary action and visibly dims when disabled. `MiraGlassCircleButtonStyle` is the 36 pt neutral floating action (`Layout.floatingControlSize`), using interactive native Liquid Glass on macOS 26 and regular material on earlier systems. Reduce Transparency or Increase Contrast uses a solid shared surface and outline. `MiraSurface` supplies only a surface fill and border; callers own padding.
+`MiraSidebarRow` owns row padding, typography, width, height, and selected fill. Its parent owns the `Button`, action, label content, and accessibility label. `MiraRowButtonStyle` provides a neutral row hover and pressed treatment. `MiraIconButtonStyle` applies the same treatment to a 30 pt square. `MiraPrimaryButtonStyle` is a compact dark text button. `MiraSecondaryButtonStyle` is the bordered neutral action for secondary commands on the canvas. `MiraCircleButtonStyle` is the 30 pt round primary action and visibly dims when disabled. `MiraGlassCircleButtonStyle` is the 36 pt neutral floating action (`Layout.floatingControlSize`), using interactive native Liquid Glass on macOS 26 and regular material on earlier systems. Reduce Transparency or Increase Contrast uses a solid shared surface and outline. `MiraSurface` supplies only a surface fill and border; callers own padding.
 
 Hover and pressed states are immediate and have no animation, so Reduce Motion users receive the same clear state changes. Increased contrast outlines selected rows and interactive row/icon controls. The composer has a quiet 1 pt border and a small background shadow; neither intensifies on focus. Its text insertion caret and native controls retain focus feedback. Disabled controls lower opacity while preserving their shape and placement. Native `Button` focus and keyboard behavior remain owned by SwiftUI.
 
@@ -105,7 +105,7 @@ The provider page uses the shared `MiraSettingsLazyPage` to keep large model dir
 
 - `Apps/MiraMac/DesignSystem/MiraTheme.swift` is the source of truth.
 - `designs/mira-ui/tokens.json` is its portable export; regenerate with `python3 scripts/export_design_tokens.py` after changing tokens. Dimensions are desktop points, not source-image pixels. The JSON is a simple Mira interchange format, not an asserted third-party standard.
-- `MiraComponents.swift` contains the row, icon, primary, circle, and surface primitives.
+- `MiraComponents.swift` contains the row, icon, primary, secondary, circle, and surface primitives.
 - `MiraBrandMark.swift` uses appearance variants of the existing supplied vector identity.
 - `MiraComponentPreview.swift` provides self-contained light and dark Xcode previews. It opens no database or model provider.
 

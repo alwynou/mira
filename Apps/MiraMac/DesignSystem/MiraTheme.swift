@@ -127,6 +127,12 @@ enum MiraTheme {
         static let providerHeadingIconSize: CGFloat = 36
         static let providerModelIconSize: CGFloat = 36
         static let providerModelRowMinHeight: CGFloat = 64
+        static let memoryCompactBreakpoint: CGFloat = 790
+        static let memoryListMin: CGFloat = 280
+        static let memoryListMax: CGFloat = 400
+        static let memoryListProportion: CGFloat = 0.34
+        static let memoryDetailContentMax: CGFloat = 580
+        static let memoryMetadataLabelWidth: CGFloat = 90
     }
 
     enum Markdown {

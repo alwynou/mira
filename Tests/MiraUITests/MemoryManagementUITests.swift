@@ -21,6 +21,13 @@ final class MemoryManagementUITests: XCTestCase {
             "-app.language", language, "-app.displayMode", appearance, "-AppleLanguages", "(en)",
             "-NSAutomaticTextCompletionEnabled", "NO", "-NSAutomaticSpellingCorrectionEnabled", "NO"
         ]
+        if language != "en" {
+            // Demo windows open at a deterministic size; request the narrow fixture up
+            // front because gesture-based corner resizing is unreliable under some
+            // window managers. Native layout may exceed the content minimum; locally
+            // it settles at 850 x 672.
+            app.launchArguments += ["--window-size", "848x618"]
+        }
         defer {
             app.terminate()
             try? FileManager.default.removeItem(at: directory)
@@ -42,12 +49,8 @@ final class MemoryManagementUITests: XCTestCase {
             try require(waitUntil(timeout: 5) { window.frame.width >= 1100 && window.frame.height >= 740 },
                         "The English fixture requires a wide window for simultaneous list and detail.")
         } else {
-            // Native window/sheet layout may exceed the content minimum; locally it settles at 881 x 672.
-            let corner = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1))
-                .withOffset(CGVector(dx: -2, dy: -2))
-            let target = window.coordinate(withNormalizedOffset: .zero)
-                .withOffset(CGVector(dx: 848, dy: 618))
-            corner.press(forDuration: 0.1, thenDragTo: target)
+            try require(waitUntil(timeout: 10) { window.frame.width <= 900 && window.frame.height <= 700 },
+                        "The demo window did not settle at the requested narrow size.")
             XCTAssertGreaterThanOrEqual(window.frame.width, 850)
             XCTAssertLessThanOrEqual(window.frame.width, 900)
             XCTAssertGreaterThanOrEqual(window.frame.height, 620)
@@ -64,7 +67,7 @@ final class MemoryManagementUITests: XCTestCase {
                     "The memory management screen did not open.")
         capture(app, name: "Memory list - \(language) - \(appearance)")
 
-        app.buttons["memory.add"].click()
+        app.buttons["memory.new"].click()
         let content = app.descendants(matching: .any)["memory.editor.content"]
         try require(content.waitForExistence(timeout: 10), "The memory editor did not open.")
         let remoteUse = app.descendants(matching: .any)["memory.editor.remoteUse"]
