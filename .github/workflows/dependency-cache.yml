@@ -1,0 +1,57 @@
+name: Warm Swift dependency caches
+
+# PR caches belong to merge refs. Seed main only when dependency inputs change,
+# so later PRs can restore them without a second post-merge build/test run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/actions/swift-dependencies/**
+      - .github/workflows/dependency-cache.yml
+      - .github/workflows/ci.yml
+      - project.yml
+      - Packages/MiraKit/Package.swift
+      - Packages/MiraKit/Package.resolved
+      - Mira.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+      - Vendor/**/Package.swift
+      - Vendor/**/Package.resolved
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-dependency-cache-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependencies:
+    name: Warm ${{ matrix.target }} dependencies
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: package
+            runner: macos-15
+            developer-dir: /Applications/Xcode_26.3.app/Contents/Developer
+          - target: app
+            runner: macos-26
+            developer-dir: /Applications/Xcode_26.6.app/Contents/Developer
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    env:
+      DEVELOPER_DIR: ${{ matrix.developer-dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/swift-dependencies
+        id: dependencies
+        with:
+          target: ${{ matrix.target }}
+      - name: Resolve locked package dependencies
+        if: matrix.target == 'package' && steps.dependencies.outputs.cache-hit != 'true'
+        run: swift package --package-path Packages/MiraKit --force-resolved-versions resolve
+      - name: Resolve locked app dependencies
+        if: matrix.target == 'app' && steps.dependencies.outputs.cache-hit != 'true'
+        run: xcodebuild -resolvePackageDependencies -project Mira.xcodeproj -scheme Mira -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile
+      - name: Require unchanged dependency locks
+        run: git diff --exit-code -- Packages/MiraKit/Package.resolved Mira.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

@@ -1,0 +1,44 @@
+name: Swift dependency cache
+description: Cache pinned dependency sources and downloads, separately from build products and test data.
+inputs:
+  target:
+    description: The package or app dependency workspace.
+    required: true
+outputs:
+  cache-hit:
+    description: Whether an exact dependency cache was restored.
+    value: ${{ steps.cache.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - name: Identify the dependency workspace and toolchain
+      id: identity
+      shell: bash
+      env:
+        CACHE_TARGET: ${{ inputs.target }}
+      run: |
+        case "$CACHE_TARGET" in
+          package) workspace="Packages/MiraKit/.build" ;;
+          app) workspace=".build/xcode/SourcePackages" ;;
+          *) echo "Unsupported dependency workspace" >&2; exit 1 ;;
+        esac
+        echo "workspace=$workspace" >> "$GITHUB_OUTPUT"
+        echo "os=$(sw_vers -productVersion | cut -d . -f 1)" >> "$GITHUB_OUTPUT"
+        echo "toolchain=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+    - name: Restore dependency sources and downloads
+      id: cache
+      uses: actions/cache@v5
+      with:
+        path: |
+          ${{ steps.identity.outputs.workspace }}/repositories
+          ${{ steps.identity.outputs.workspace }}/checkouts
+          ${{ steps.identity.outputs.workspace }}/artifacts
+          ${{ steps.identity.outputs.workspace }}/workspace-state.json
+        key: mira-deps-v1-${{ inputs.target }}-${{ runner.os }}-${{ steps.identity.outputs.os }}-${{ runner.arch }}-${{ steps.identity.outputs.toolchain }}-${{ hashFiles('Packages/MiraKit/Package.swift', 'Packages/MiraKit/Package.resolved', 'project.yml', 'Mira.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Vendor/**/Package.swift', 'Vendor/**/Package.resolved') }}
+    - name: Report dependency cache outcome
+      shell: bash
+      env:
+        CACHE_TARGET: ${{ inputs.target }}
+        CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+      run: |
+        echo "Dependency cache ($CACHE_TARGET): exact hit=${CACHE_HIT:-false}. Build products and test results are not cached." >> "$GITHUB_STEP_SUMMARY"
