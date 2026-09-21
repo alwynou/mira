@@ -1,6 +1,6 @@
 # Memory management design proposal
 
-Status: **approved for native implementation** on 2026-09-20. Created 2026-09-20 against `main` at `0b70e14`.
+Status: **approved for native implementation** on 2026-09-20. Created 2026-09-20 against `main` at `0b70e14`. The native implementation was aligned to this proposal on 2026-09-21 (list-pane tools, result-count caption, rounded selected rows with hover and hairline separators, status pill, centered 580 pt detail column, source cards, timeline history).
 
 This is a browser-based, interactive design proposal. The user requested visual review before any native implementation. This artifact remains a browser proposal; native implementation and verification are tracked separately in `docs/engineering/MEMORY_MANAGEMENT_VERIFICATION.md`.
 

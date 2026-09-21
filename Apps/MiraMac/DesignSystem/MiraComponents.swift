@@ -206,6 +206,30 @@ struct MiraPrimaryButtonStyle: ButtonStyle {
     }
 }
 
+/// A quiet bordered action for secondary commands on the canvas.
+struct MiraSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(MiraTheme.Typography.body)
+            .foregroundStyle(MiraTheme.Colors.text)
+            .padding(.horizontal, MiraTheme.Spacing.md)
+            .frame(minHeight: MiraTheme.Layout.controlHeight)
+            .background(
+                RoundedRectangle(cornerRadius: MiraTheme.Radius.small, style: .continuous)
+                    .fill(isHovered || configuration.isPressed ? MiraTheme.Colors.inset : MiraTheme.Colors.surface)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: MiraTheme.Radius.small, style: .continuous)
+                    .strokeBorder(MiraTheme.Colors.border, lineWidth: 1)
+            }
+            .opacity(isEnabled ? 1 : 0.45)
+            .onHover { isHovered = $0 }
+    }
+}
+
 struct MiraCircleButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 

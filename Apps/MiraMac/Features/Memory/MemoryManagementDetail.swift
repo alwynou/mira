@@ -23,42 +23,21 @@ struct MemoryManagementDetail: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
-                HStack {
-                    Label(L10n.string(memoryManagementStatusKey(status), locale: locale),
-                          systemImage: status == .current ? "checkmark.circle" : "clock")
-                    Spacer()
-                    Text(memory.updatedAt, format: .dateTime.year().month().day())
-                }
-                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+                topline
 
                 if let draft = memory.draft, memory.forgottenAt == nil {
                     Text(verbatim: draft.content)
-                        .font(.system(size: 20, weight: .medium)).lineSpacing(5).textSelection(.enabled)
+                        .font(MiraTheme.Typography.title).lineSpacing(5).textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(draft.content)
                         .accessibilityIdentifier("memory.content")
                     actions
-                    if memory.state == .candidate {
-                        ForEach(relatedMemories.values.filter { $0.isCurrent }.sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }) { current in
-                            VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-                                Text("Previous memory").font(MiraTheme.Typography.section)
-                                Text(verbatim: current.draft?.content ?? "").font(MiraTheme.Typography.body)
-                                Button("Confirm replacement") { confirmsReplacement = current }.disabled(isWorking)
-                            }
-                        }
-                    }
-                    Divider()
+                    if memory.state == .candidate { candidateNotice }
                     properties(draft)
-                    Divider()
                     sources
                     history
-                    Divider()
-                    Button(role: .destructive, action: forget) { Label("Forget memory", systemImage: "trash") }
-                        .buttonStyle(.plain).foregroundStyle(MiraTheme.Colors.failure)
-                        .disabled(isWorking).accessibilityIdentifier("memory.forget")
-                    Text("Forgetting also clears earlier wording and source excerpts. The original conversation stays on this device.")
-                        .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+                    footer
                 } else {
                     Label("Forgotten memory", systemImage: "lock.slash").font(MiraTheme.Typography.title)
                     Text("The content and source excerpts have been cleared. This record prevents the same memory from being learned again.")
@@ -68,8 +47,8 @@ struct MemoryManagementDetail: View {
                 }
             }
             .padding(MiraTheme.Spacing.xl)
-            .frame(maxWidth: 720, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: MiraTheme.Layout.memoryDetailContentMax, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("memory.detail")
@@ -84,6 +63,29 @@ struct MemoryManagementDetail: View {
         } message: { Text("This pending memory will become current. The current memory will remain in history.") }
     }
 
+    private var topline: some View {
+        HStack(spacing: MiraTheme.Spacing.sm) {
+            Text(L10n.string(memoryManagementStatusKey(status), locale: locale))
+                .font(MiraTheme.Typography.caption)
+                .foregroundStyle(MiraTheme.Colors.secondaryText)
+                .padding(.horizontal, MiraTheme.Spacing.sm).padding(.vertical, 2)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(MiraTheme.Colors.border, lineWidth: 1)
+                }
+            if let kind = memory.draft?.kind {
+                Label("\(workspaceName) · \(L10n.string(memoryManagementKindKey(kind), locale: locale))",
+                      systemImage: "brain")
+                    .labelStyle(MemoryKickerLabelStyle())
+                    .font(MiraTheme.Typography.caption)
+                    .foregroundStyle(MiraTheme.Colors.tertiaryText)
+            }
+            Spacer(minLength: 0)
+            Text(memory.updatedAt, format: .dateTime.year().month().day())
+                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.tertiaryText)
+        }
+    }
+
     private var actions: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: MiraTheme.Spacing.sm) { actionButtons }
@@ -94,10 +96,14 @@ struct MemoryManagementDetail: View {
 
     @ViewBuilder private var actionButtons: some View {
         if memory.supersededBy == nil && memory.state != .removed && memory.state != .rejected {
-            Button("Edit wording", action: edit).accessibilityIdentifier("memory.edit")
+            Button("Edit wording", action: edit)
+                .buttonStyle(MiraSecondaryButtonStyle())
+                .accessibilityIdentifier("memory.edit")
         }
         if memory.isCurrent {
-            Button("Replace with new memory", action: replace).accessibilityIdentifier("memory.replace")
+            Button("Replace with new memory", action: replace)
+                .buttonStyle(MiraSecondaryButtonStyle())
+                .accessibilityIdentifier("memory.replace")
         }
         if memory.state == .active || memory.state == .candidate || (memory.state == .archived && memory.supersededBy == nil) {
         Menu {
@@ -111,13 +117,30 @@ struct MemoryManagementDetail: View {
         }
     }
 
+    private var candidateNotice: some View {
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+            Text("Previous memory").font(MiraTheme.Typography.section.weight(.semibold))
+            ForEach(relatedMemories.values.filter { $0.isCurrent }.sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }) { current in
+                Text(verbatim: current.draft?.content ?? "").font(MiraTheme.Typography.body)
+                Button("Confirm replacement") { confirmsReplacement = current }
+                    .buttonStyle(MiraSecondaryButtonStyle())
+                    .disabled(isWorking)
+            }
+        }
+        .padding(MiraTheme.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MiraTheme.Colors.inset, in: RoundedRectangle(cornerRadius: MiraTheme.Radius.row))
+    }
+
     private func properties(_ draft: MemoryDraft) -> some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
             metadataRow("Scope", value: workspaceName)
             metadataRow("Kind", value: L10n.string(memoryManagementKindKey(draft.kind), locale: locale))
             metadataRow("Subject", value: L10n.string(draft.subject == .user ? "User" : "Workspace", locale: locale))
             metadataRow("Remote use", value: L10n.string(draft.allowsRemoteUse ? "Allowed" : "Local only", locale: locale))
-            if draft.sensitivity == .sensitive { Label("Sensitive information", systemImage: "lock.shield") }
+            if draft.sensitivity == .sensitive {
+                Label("Sensitive information", systemImage: "lock.shield").font(MiraTheme.Typography.body)
+            }
             if draft.allowedConnectionIDs != nil {
                 Text("Remote use is restricted to selected connections.")
                     .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
@@ -125,22 +148,25 @@ struct MemoryManagementDetail: View {
             if let date = draft.validFrom { dateRow("Valid from", date: date) }
             if let date = draft.validUntil { dateRow("Valid until", date: date) }
             Text("Scope controls where this memory applies. Remote use also depends on workspace and source permissions.")
-                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.tertiaryText)
+                .padding(.top, MiraTheme.Spacing.xs)
         }
     }
 
     private func metadataRow(_ key: LocalizedStringKey, value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(key).foregroundStyle(MiraTheme.Colors.secondaryText).frame(width: 90, alignment: .leading)
+            Text(key).foregroundStyle(MiraTheme.Colors.tertiaryText)
+                .frame(width: MiraTheme.Layout.memoryMetadataLabelWidth, alignment: .leading)
             Text(verbatim: value).textSelection(.enabled)
             Spacer(minLength: 0)
-        }.font(MiraTheme.Typography.body)
+        }.font(MiraTheme.Typography.caption)
     }
     private func dateRow(_ key: LocalizedStringKey, date: Date) -> some View {
         HStack {
-            Text(key).foregroundStyle(MiraTheme.Colors.secondaryText).frame(width: 90, alignment: .leading)
+            Text(key).foregroundStyle(MiraTheme.Colors.tertiaryText)
+                .frame(width: MiraTheme.Layout.memoryMetadataLabelWidth, alignment: .leading)
             Text(date, format: .dateTime.year().month().day().hour().minute())
-        }.font(MiraTheme.Typography.body)
+        }.font(MiraTheme.Typography.caption)
     }
 
     private var sources: some View {
@@ -160,7 +186,7 @@ struct MemoryManagementDetail: View {
                         }
                         .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
                         if evidence.bodyPurgedAt == nil, let excerpt = evidence.excerpt {
-                            Text(verbatim: excerpt).font(MiraTheme.Typography.body).textSelection(.enabled)
+                            Text(verbatim: excerpt).font(MiraTheme.Typography.body).lineSpacing(4).textSelection(.enabled)
                         }
                     }
                     .padding(MiraTheme.Spacing.lg)
@@ -173,16 +199,22 @@ struct MemoryManagementDetail: View {
 
     private var history: some View {
         DisclosureGroup {
-            VStack(alignment: .leading, spacing: MiraTheme.Spacing.lg) {
-                ForEach(Array(detail.replacements.prefix(32))) { relation in
-                    relationship(relation)
+            VStack(alignment: .leading, spacing: 0) {
+                let replacements = Array(detail.replacements.prefix(32))
+                ForEach(Array(replacements.enumerated()), id: \.element.id) { index, relation in
+                    timelineItem(isLast: index == replacements.count - 1 && detail.revisions.isEmpty) {
+                        Text(L10n.string(relation.state == .proposed ? "Pending replacement" : relation.state == .confirmed ? "Replacement recorded" : "Rejected replacement", locale: locale))
+                            .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+                        relationshipContent(relation)
+                    }
                 }
                 if detail.replacements.count > 32 {
                     Text("Showing the 32 most recent replacement links.")
                         .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+                        .padding(.top, MiraTheme.Spacing.sm)
                 }
-                ForEach(detail.revisions) { revision in
-                    VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+                ForEach(Array(detail.revisions.enumerated()), id: \.element.id) { index, revision in
+                    timelineItem(isLast: index == detail.revisions.count - 1) {
                         HStack {
                             Text(L10n.format("Revision %lld", locale: locale, Int64(revision.revision)))
                             Spacer()
@@ -199,17 +231,55 @@ struct MemoryManagementDetail: View {
         } label: { Text("History").font(MiraTheme.Typography.section.weight(.semibold)) }
     }
 
-    private func relationship(_ relation: MemoryReplacement) -> some View {
+    private func timelineItem<Content: View>(isLast: Bool, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .top, spacing: MiraTheme.Spacing.md) {
+            VStack(spacing: 0) {
+                Circle().fill(MiraTheme.Colors.tertiaryText).frame(width: 5, height: 5)
+                    .padding(.top, 4)
+                Rectangle().fill(MiraTheme.Colors.border).frame(width: 1).frame(maxHeight: .infinity)
+                    .opacity(isLast ? 0 : 1)
+            }
+            .frame(width: 5)
+            VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) { content() }
+                .padding(.bottom, isLast ? 0 : MiraTheme.Spacing.lg)
+        }
+    }
+
+    private func relationshipContent(_ relation: MemoryReplacement) -> some View {
         let otherID = relation.replacementID == memory.id ? relation.previousID : relation.replacementID
         let other = relatedMemories[otherID]
-        return VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-            Text(L10n.string(relation.state == .proposed ? "Pending replacement" : relation.state == .confirmed ? "Replacement recorded" : "Rejected replacement", locale: locale))
-                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+        return Group {
             if let other {
                 Button { selectRelated(other) } label: {
                     Text(other.draft?.content ?? L10n.string("Forgotten memory", locale: locale)).lineLimit(3)
                 }.buttonStyle(.link)
             } else { Text("Related memory unavailable").font(MiraTheme.Typography.caption) }
+        }
+    }
+
+    private var footer: some View {
+        VStack(spacing: MiraTheme.Spacing.lg) {
+            Divider()
+            HStack(alignment: .top, spacing: MiraTheme.Spacing.lg) {
+                Button(role: .destructive, action: forget) { Label("Forget memory", systemImage: "trash") }
+                    .buttonStyle(.plain).foregroundStyle(MiraTheme.Colors.failure)
+                    .font(MiraTheme.Typography.body)
+                    .disabled(isWorking).accessibilityIdentifier("memory.forget")
+                Spacer(minLength: 0)
+                Text("Forgetting also clears earlier wording and source excerpts. The original conversation stays on this device.")
+                    .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.tertiaryText)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 320, alignment: .trailing)
+            }
+        }
+    }
+}
+
+private struct MemoryKickerLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: MiraTheme.Spacing.xs) {
+            configuration.icon
+            configuration.title
         }
     }
 }
@@ -227,19 +297,27 @@ private struct MemoryManagementSource: View {
     let evidenceID: UUID
     let reference: SessionEvidenceReference
     let openSource: (SessionEvidenceReference) -> Void
+    @Environment(\.locale) private var locale
     @State private var model = MacSessionReadModel<MemoryManagementSourceValue>()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
-            Label("Conversation", systemImage: "bubble.left.and.bubble.right")
-                .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
-            if let value = model.value {
-                Text(value.createdAt, format: .dateTime.year().month().day())
-                    .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
-                if let title = value.title, !title.isEmpty { Text(verbatim: title).font(MiraTheme.Typography.section.weight(.semibold)) }
-                Text(verbatim: value.excerpt).font(MiraTheme.Typography.body).textSelection(.enabled)
-                Button { openSource(reference) } label: { Label("View original message", systemImage: "arrow.up.forward") }
-                    .buttonStyle(.link).accessibilityIdentifier("memory.source")
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.md) {
+            HStack(spacing: MiraTheme.Spacing.xs) {
+                Label(value?.title.flatMap { $0.isEmpty ? nil : $0 } ?? L10n.string("Conversation", locale: locale),
+                      systemImage: "bubble.left.and.bubble.right")
+                    .labelStyle(MemoryKickerLabelStyle())
+                Spacer(minLength: 0)
+                if let value { Text(value.createdAt, format: .dateTime.year().month().day()) }
+            }
+            .font(MiraTheme.Typography.caption).foregroundStyle(MiraTheme.Colors.secondaryText)
+            if let value {
+                Text(verbatim: value.excerpt).font(MiraTheme.Typography.body).lineSpacing(4).textSelection(.enabled)
+                HStack {
+                    Spacer(minLength: 0)
+                    Button { openSource(reference) } label: { Label("View original message", systemImage: "arrow.up.forward") }
+                        .buttonStyle(MemorySourceLinkStyle())
+                        .accessibilityIdentifier("memory.source")
+                }
             } else if model.isLoading { ProgressView("Checking source").controlSize(.small) }
             else { Text("Source unavailable").font(MiraTheme.Typography.body).foregroundStyle(MiraTheme.Colors.secondaryText) }
         }
@@ -270,5 +348,19 @@ private struct MemoryManagementSource: View {
                 return MemoryManagementSourceValue(title: page.session?.title.text, excerpt: excerpt, createdAt: evidence.createdAt)
             }
         }
+    }
+
+    private var value: MemoryManagementSourceValue? { model.value }
+}
+
+private struct MemorySourceLinkStyle: ButtonStyle {
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(MiraTheme.Typography.caption)
+            .foregroundStyle(isHovered || configuration.isPressed
+                ? MiraTheme.Colors.text : MiraTheme.Colors.secondaryText)
+            .onHover { isHovered = $0 }
     }
 }
