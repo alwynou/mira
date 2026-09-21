@@ -19,7 +19,7 @@
 | 来源 | 当前事实的权威 | 检查内容 |
 |---|---|---|
 | `sessionExecution(sessionID, executionID)` | `JournalSessionReader` 与权威 JSONL | 已完成的合格执行、原始用户证据、隐藏重放、工作区、排除状态和失效保留组 |
-| `domain(namespace, id, revision)` | 该命名空间的 `AgentDomainSourceAuthority` | 当前对象版本、作用范围及领域自己的发送规则 |
+| `domain(namespace, id, revision)` | 该命名空间的 `AgentDomainSourceAuthority` | Exact retained revision under current scope and domain disclosure rules; current read/write freshness is checked separately |
 
 会话来源不能通过 SQL 会话投影授权；业务 SQLite 仍是当前业务对象和策略的事实源。模型请求记录其实际继承与贡献来源，完整历史交换的传递依赖继续进入后续请求。查询缓存不会成为第二份权限事实。
 
@@ -48,6 +48,8 @@
 工具执行器从持久请求构造完整上下文，核对冻结目的地与原始用户证据。读取工具自己的 prepare／execute 和业务事务校验仍负责其新选择的来源。任务列表只声明实际返回的任务版本，执行前重新检查；任务变更由共享业务事务核对当前路线、工作区、原始证据和目标版本。来源授权器不替代业务写权限或原子回执。
 
 Tool-owned reads and inherited model context are stored separately in the proposal. The executor authorizes their complete union at the tool dispatch and publication boundaries; domain validators receive only the tool-owned plan. See [tool source ownership](AGENT_TOOL_EXECUTION.md#tool-owned-and-inherited-sources). Task context references identify retained immutable revisions, subject to current task/workspace access; they do not authorize mutation of an obsolete revision. Task list freshness and mutation compare-and-swap checks still require the current revision.
+
+Memory context sources likewise identify exact retained revisions, under `validateMemoryContextSources`. An active superseded record may authorize its original unpurged revision as historical context, subject to both historical and current validity/disclosure, current scope, frozen destination, unpurged evidence, source suppression and source-workspace policy. Forgotten, deleted, archived, candidate and rejected records remain unavailable. Current-only `validateMemorySources`, `memory.search` / `memory.get` and memory mutation CAS remain separate freshness gates; historical authorization never grants stale writes or makes an old assertion current.
 
 终态结算对成功回合，以及任何将发布非空回答或思考的失败、取消、恢复回合，重新读取实际尝试的持久上下文，核对目的地、执行与工作区，取全部来源的去重并集再次授权。成功重放的来源还必须与持久请求一致。明确撤销时结算为无正文、无思考、无重放的中断状态；进程内未结算流不会绕过撤权继续发布。没有模型尝试的本地文本遵守本地驱动器的独立限制。
 

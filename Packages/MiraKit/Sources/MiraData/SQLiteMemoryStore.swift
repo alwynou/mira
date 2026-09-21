@@ -157,6 +157,9 @@ public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
     public func validateMemorySources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date) async throws {
         try await owner.read { try Self.validateMemorySources(sources, for: request, at: at, in: $0) }
     }
+    public func validateMemoryContextSources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date) async throws {
+        try await owner.read { try Self.validateMemoryContextSources(sources, for: request, at: at, in: $0) }
+    }
     static func validateMemorySources(_ sources: [AgentSourceReference], for request: AgentContextRequest,
                                      at: Date, in db: Database) throws {
         guard sources.count <= 8_192, Set(sources).count == sources.count else { throw Self.invalid }
@@ -167,6 +170,49 @@ public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
             let memory = try Self.recall(.init(id), request: request, at: at, in: db)
             guard memory.revision == revision else { throw Self.unauthorized }
         }
+    }
+    static func validateMemoryContextSources(_ sources: [AgentSourceReference], for request: AgentContextRequest,
+                                             at: Date, in db: Database) throws {
+        guard sources.count <= 8_192, Set(sources).count == sources.count else { throw Self.invalid }
+        try Self.date(at)
+        try Self.validateDestination(request, in: db)
+        let connectionID = request.destination.modelRoute?.connectionID
+        for source in sources {
+            guard case .domain(let namespace, let id, let revision) = source,
+                  namespace == "memories", revision > 0 else { throw Self.unauthorized }
+
+            let memory: Memory
+            do { memory = try Self.read(.init(id), workspaceID: request.workspaceID, in: db) }
+            catch let error as MiraError where error.code == .notFound || error.code == .unauthorized { throw Self.unauthorized }
+            guard memory.state == .active, memory.deletedAt == nil, memory.forgottenAt == nil,
+                  let currentDraft = memory.draft,
+                  currentDraft.scope == memory.scope, currentDraft.subject == memory.subject,
+                  currentDraft.validFrom.map({ $0 <= at }) ?? true,
+                  currentDraft.validUntil.map({ $0 > at }) ?? true,
+                  Self.permitsContextSend(currentDraft, connectionID: connectionID) else { throw Self.unauthorized }
+
+            guard let row = try Row.fetchOne(db, sql: "SELECT * FROM memory_revisions WHERE memory_id = ? AND revision = ?",
+                                             arguments: [Self.key(memory.id), revision]) else { throw Self.unauthorized }
+            let historical = try Self.revision(row, memoryID: memory.id)
+            guard historical.revision == revision, historical.revision <= memory.revision,
+                  let historicalDraft = historical.draft,
+                  historical.bodyPurgedAt == nil,
+                  historicalDraft.scope == memory.scope, historicalDraft.subject == memory.subject,
+                  historicalDraft.validFrom.map({ $0 <= at }) ?? true,
+                  historicalDraft.validUntil.map({ $0 > at }) ?? true,
+                  Self.permitsContextSend(historicalDraft, connectionID: connectionID) else { throw Self.unauthorized }
+
+            for evidence in try Self.evidence(memory.id, in: db) {
+                guard evidence.bodyPurgedAt == nil,
+                      try !Self.suppressedMemorySource(evidence.source, in: db) else { throw Self.unauthorized }
+                do { try SQLiteWorkspaceStore.validatePolicy(evidence.sourceWorkspaceID, connectionID: connectionID, in: db) }
+                catch let error as MiraError where error.code == .notFound || error.code == .unauthorized { throw Self.unauthorized }
+            }
+        }
+    }
+    private static func permitsContextSend(_ draft: MemoryDraft, connectionID: ConnectionID?) -> Bool {
+        guard let connectionID else { return true }
+        return draft.allowsRemoteUse && (draft.allowedConnectionIDs?.contains(connectionID) ?? true)
     }
     public func suppressedMemorySources() async throws -> [MemoryEvidenceSource] {
         try await owner.read { db in

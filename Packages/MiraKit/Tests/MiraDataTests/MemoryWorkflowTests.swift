@@ -38,6 +38,125 @@ struct MemoryWorkflowTests {
         }
     }
 
+    @Test func runtimeRememberEnrichesMultipleCurrentTargetsAndPreservesEvidenceHistoryAndRecall() async throws {
+        let firstText = "I have a shorthair cat named Miso."
+        let firstContent = "My cat is named Miso"
+        let firstCall = try CanonicalToolCall(id: "remember-first", name: "memory.remember",
+            arguments: rememberArguments(content: firstContent, quote: firstText).jsonString())
+        try await withTaskWorkflow(outputs: [modelToolStream([firstCall]), reply("Saved.")], memoryEnabled: true) { f in
+            let firstAddress = try await f.run(firstText)
+            let store = try #require(f.memory)
+            let firstEvidence = try await f.evidence(firstAddress)
+            let firstMemory = try #require(try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10)
+                .memories.first(where: { $0.draft?.content == firstContent }))
+            let authorization = try await f.authority.authorization()
+            await f.model.append([reply("Understood." )])
+            let secondAddress = try await f.run("Miso is a shorthair cat.", sessionID: firstAddress.sessionID)
+            let secondEvidence = try await f.evidence(secondAddress)
+            let secondMemory = try await store.createMemory(
+                draft: .init(content: "Miso is a shorthair cat", scope: .global),
+                source: .userMessage(evidence: secondEvidence, excerpt: "Miso is a shorthair cat."), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+
+            let search = try CanonicalToolCall(id: "search-targets", name: "memory.search",
+                arguments: JSONValue.object(["query": .string("Miso cat")]).jsonString())
+            await f.model.append([modelToolStream([search]), reply("You have a cat named Miso, a shorthair.")])
+            _ = try await f.run("What do you know about Miso?", sessionID: firstAddress.sessionID)
+
+            let enrichmentText = "Miso is a black shorthair cat."
+            let consolidated = "My cat Miso is a black shorthair."
+            let targets = [firstMemory, secondMemory].map {
+                AgentSourceReference.domain(namespace: "memories", id: $0.id.rawValue, revision: $0.revision)
+            }
+            let enrichCall = try CanonicalToolCall(id: "remember-enriched", name: "memory.remember",
+                arguments: rememberArguments(content: consolidated, quote: enrichmentText, enriches: targets).jsonString())
+            await f.model.append([modelToolStream([enrichCall]), reply("Updated memory.")])
+            let enrichedAddress = try await f.run(enrichmentText, sessionID: firstAddress.sessionID)
+            let state = try await f.runtime.sessionSnapshot(id: enrichedAddress.sessionID)
+            let execution = try #require(state.executions[enrichedAddress.executionID])
+            let invocation = try #require(execution.attemptIDs.compactMap { state.attempts[$0] }
+                .flatMap(\.invocationIDs).compactMap { state.invocations[$0] }
+                .last(where: { $0.invocation.toolName == "memory.remember" }))
+            #expect(invocation.resolution?.status == .succeeded)
+            #expect(invocation.resolution?.businessReceipt != nil)
+            #expect(state.executions[enrichedAddress.executionID]?.completion?.status == .completed)
+            let resultReference = try #require(invocation.resolution?.result)
+            let result = try SessionCodec.decode(JSONValue.self, from: await f.library.read(resultReference))
+            let enrichedID = try #require(result["memory_id"]?.stringValue.flatMap(UUID.init(uuidString:)))
+            let enrichedDetail = try await store.memoryDetail(.init(enrichedID), workspaceID: nil)
+            #expect(enrichedDetail.memory.draft?.content == consolidated)
+            #expect(enrichedDetail.evidence.contains(where: { $0.source == .userMessage(firstEvidence.reference) }))
+            #expect(enrichedDetail.evidence.contains(where: { $0.source == .userMessage(secondEvidence.reference) }))
+            let latestEvidence = try await f.evidence(enrichedAddress)
+            #expect(enrichedDetail.evidence.contains(where: {
+                if case .userMessage(let ref) = $0.source { return ref == latestEvidence.reference }
+                return false
+            }))
+            #expect(Set(enrichedDetail.replacements.map(\.previousID)) == Set([firstMemory.id, secondMemory.id]))
+            let currentPage = try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10)
+            #expect(currentPage.memories.filter(\.isCurrent).map(\.id) == [.init(enrichedID)])
+            for target in [firstMemory, secondMemory] {
+                let old = try await store.memoryDetail(target.id, workspaceID: nil)
+                #expect(old.memory.supersededBy?.rawValue == enrichedID)
+                #expect(old.revisions.count >= 2)
+            }
+            let request = try await context(f, enrichedAddress)
+            #expect(try await store.recallMemories(query: "black shorthair Miso", request: request, limit: 6,
+                at: TaskWorkflowFixture.now).memories.map(\.id) == [.init(enrichedID)])
+            let proposalReference = try #require(invocation.intent?.intent.proposal)
+            let proposal = try SessionCodec.decode(AgentToolProposal.self, from: await f.library.read(proposalReference))
+            #expect(proposal.plan.targets == targets)
+            #expect(proposal.plan.sources == targets)
+            #expect(targets.allSatisfy(proposal.sources.contains))
+
+            let proofData = try #require(try await f.database.read {
+                try Data.fetchOne($0, sql: "SELECT proof_json FROM business_receipts WHERE invocation_id = ?",
+                    arguments: [invocation.invocation.id.uuidString])
+            })
+            let proof = try SessionCodec.decode(AgentEffectProof.self, from: proofData)
+            let receipt: AgentBusinessReceipt
+            switch await f.business.receipt(for: proof) {
+            case .committed(let value): receipt = value
+            case .absent, .unavailable(_):
+                Issue.record("The remember receipt was unavailable for replay")
+                return
+            }
+            #expect(receipt.reference == invocation.resolution?.businessReceipt)
+            let countsBeforeReplay = try await f.database.read { db in
+                try ["memory_records", "memory_evidence", "memory_replacements", "business_receipts"].map {
+                    try Int.fetchOne(db, sql: "SELECT count(*) FROM \($0)")
+                }
+            }
+            #expect(await f.business.commit(proof) == .committed(receipt))
+            #expect(await f.business.commit(proof) == .committed(receipt))
+            let countsAfterReplay = try await f.database.read { db in
+                try ["memory_records", "memory_evidence", "memory_replacements", "business_receipts"].map {
+                    try Int.fetchOne(db, sql: "SELECT count(*) FROM \($0)")
+                }
+            }
+            #expect(countsAfterReplay == countsBeforeReplay)
+
+            // Replay authorization cannot carry forward a source that privacy maintenance has suppressed.
+            try await f.database.write { db in
+                try SQLiteMemoryStore.suppress(.userMessage(firstEvidence.reference), strength: 3, in: db)
+            }
+            let effect = try await JournalAgentEffectResolver(journal: f.library, payloads: f.library)
+                .resolve(proof, requireEligible: false)
+            let handler = SQLiteMemoryRememberHandler(now: { TaskWorkflowFixture.now })
+            await #expect(throws: MiraError.self) {
+                try await f.database.read { db in
+                    try handler.validate(effect: effect, isReplay: true, in: db)
+                }
+            }
+            let countsAfterSuppression = try await f.database.read { db in
+                try ["memory_records", "memory_evidence", "memory_replacements", "business_receipts"].map {
+                    try Int.fetchOne(db, sql: "SELECT count(*) FROM \($0)")
+                }
+            }
+            #expect(countsAfterSuppression == countsBeforeReplay)
+        }
+    }
+
     @Test func receiptInsertionFailureRollsBackMemoryAndEvidence() async throws {
         let call = try CanonicalToolCall(
             id: "remember", name: "memory.remember", arguments: arguments(content: "I prefer tea").jsonString())
@@ -60,6 +179,95 @@ struct MemoryWorkflowTests {
                 try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_evidence") } == 0)
             #expect(
                 try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_operations") } == 0)
+        }
+    }
+
+    @Test func enrichmentRelationFailureRollsBackNewMemoryAndKeepsTargetsCurrent() async throws {
+        let firstText = "I have a shorthair cat named Miso."
+        let firstCall = try CanonicalToolCall(id: "remember-first", name: "memory.remember",
+            arguments: rememberArguments(content: "My cat is named Miso", quote: firstText).jsonString())
+        try await withTaskWorkflow(outputs: [modelToolStream([firstCall]), reply("Saved.")], memoryEnabled: true) { f in
+            let address = try await f.run(firstText)
+            let store = try #require(f.memory)
+            let sourceEvidence = try await f.evidence(address)
+            let first = try #require(try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10)
+                .memories.first(where: { $0.draft?.content == "My cat is named Miso" }))
+            let authorization = try await f.authority.authorization()
+            let second = try await store.createMemory(
+                draft: .init(content: "Miso is a shorthair cat", scope: .global),
+                source: .userMessage(evidence: sourceEvidence, excerpt: firstText), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            let beforeEvidence = try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_evidence") }
+            try await f.database.write {
+                try $0.execute(sql: "CREATE TRIGGER reject_enrichment_relation BEFORE INSERT ON memory_replacements BEGIN SELECT RAISE(ABORT, 'Synthetic relation failure'); END")
+            }
+            let newText = "Miso is a black shorthair cat."
+            let refs = [first, second].map {
+                AgentSourceReference.domain(namespace: "memories", id: $0.id.rawValue, revision: $0.revision)
+            }
+            let call = try CanonicalToolCall(id: "remember-enriched", name: "memory.remember",
+                arguments: rememberArguments(content: "My cat Miso is a black shorthair", quote: newText, enriches: refs).jsonString())
+            await f.model.append([modelToolStream([call]), reply("I couldn't update that memory.")])
+            let resultAddress = try await f.run(newText, sessionID: address.sessionID)
+            let state = try await f.runtime.sessionSnapshot(id: resultAddress.sessionID)
+            #expect(state.executions[resultAddress.executionID]?.completion?.status == .completed)
+            let execution = try #require(state.executions[resultAddress.executionID])
+            let invocation = try #require(execution.attemptIDs.compactMap { state.attempts[$0] }
+                .flatMap(\.invocationIDs).compactMap { state.invocations[$0] }
+                .last(where: { $0.invocation.toolName == "memory.remember" }))
+            #expect(invocation.resolution?.status != .succeeded)
+            #expect(invocation.resolution?.businessReceipt == nil)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_records") } == 2)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_evidence") } == beforeEvidence)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_replacements") } == 0)
+            for target in [first, second] {
+                #expect(try await store.memoryDetail(target.id, workspaceID: nil).memory.isCurrent)
+            }
+        }
+    }
+
+    @Test func staleForeignAndPrivateTargetsCannotBeEnriched() async throws {
+        try await withTaskWorkflow(memoryEnabled: true) { f in
+            let store = try #require(f.memory)
+            let authorization = try await f.authority.authorization()
+            let stale = try await store.createMemory(draft: .init(content: "Stale cat fact", scope: .global),
+                source: .manualEntry(id: UUID(), statement: "Stale cat fact"), operationID: UUID(), replacing: nil,
+                expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            var foreignWorkspace = Workspace(id: .init(), name: "Foreign scope")
+            try await f.workspaces.saveWorkspace(foreignWorkspace, expectedRevision: nil, authorization: authorization)
+            let foreign = try await store.createMemory(draft: .init(content: "Foreign cat fact", scope: .workspace(foreignWorkspace.id)),
+                source: .manualEntry(id: UUID(), statement: "Foreign cat fact"), operationID: UUID(), replacing: nil,
+                expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            let privateMemory = try await store.createMemory(draft: .init(content: "Private cat fact", scope: .global,
+                sensitivity: .sensitive, allowsRemoteUse: false), source: .manualEntry(id: UUID(), statement: "Private cat fact"),
+                operationID: UUID(), replacing: nil, expectedRevision: nil, authorization: authorization,
+                at: TaskWorkflowFixture.now).memory
+            let beforeCount = try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_records") }
+            let targets: [(String, Memory, Bool, Int)] = [
+                ("stale", stale, false, stale.revision + 1),
+                ("foreign", foreign, false, foreign.revision),
+                ("private", privateMemory, true, privateMemory.revision),
+            ]
+            let sessionID = ConversationID()
+            for (label, memory, sensitive, revision) in targets {
+                let userText = "Remember this added cat detail for \(label)."
+                let ref = AgentSourceReference.domain(namespace: "memories", id: memory.id.rawValue, revision: revision)
+                let call = try CanonicalToolCall(id: "invalid-\(label)", name: "memory.remember",
+                    arguments: rememberArguments(content: "Combined cat fact \(label)", quote: userText,
+                        enriches: [ref], sensitive: sensitive).jsonString())
+                await f.model.append([modelToolStream([call]), reply("I couldn't update that memory.")])
+                let address = try await f.run(userText, sessionID: sessionID)
+                let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
+                #expect(state.executions[address.executionID]?.completion?.status == .completed)
+                let execution = try #require(state.executions[address.executionID])
+                let invocation = try #require(execution.attemptIDs.compactMap { state.attempts[$0] }
+                    .flatMap(\.invocationIDs).compactMap { state.invocations[$0] }
+                    .last(where: { $0.invocation.toolName == "memory.remember" }))
+                #expect(invocation.resolution?.status != .succeeded)
+                #expect(invocation.resolution?.businessReceipt == nil)
+            }
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_records") } == beforeCount)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_replacements") } == 0)
         }
     }
 
@@ -187,7 +395,7 @@ struct MemoryWorkflowTests {
         let content = "I prefer herbal tea"
         let input: JSONValue = .object([
             "content": .string(content), "quote": .string(content), "kind": .string("preference"),
-            "scope": .string("global"), "sensitive": .bool(true),
+            "scope": .string("global"), "sensitive": .bool(true), "enriches": .array([]),
         ])
         let call = try CanonicalToolCall(id: "remember", name: "memory.remember", arguments: input.jsonString())
         try await withTaskWorkflow(
@@ -210,7 +418,17 @@ struct MemoryWorkflowTests {
     private func arguments(content: String) -> JSONValue {
         .object([
             "content": .string(content), "quote": .string(content), "kind": .string("preference"),
-            "scope": .string("current"), "sensitive": .bool(false),
+            "scope": .string("current"), "sensitive": .bool(false), "enriches": .array([]),
+        ])
+    }
+    private func rememberArguments(content: String, quote: String, enriches: [AgentSourceReference] = [], sensitive: Bool = false) -> JSONValue {
+        .object([
+            "content": .string(content), "quote": .string(quote), "kind": .string("fact"),
+            "scope": .string("global"), "sensitive": .bool(sensitive),
+            "enriches": .array(enriches.compactMap { source in
+                guard case .domain("memories", let id, let revision) = source else { return nil }
+                return .object(["memory_id": .string(id.uuidString.lowercased()), "revision": .number(Double(revision))])
+            })
         ])
     }
     private func context(_ f: TaskWorkflowFixture, _ address: AgentExecutionAddress) async throws -> AgentContextRequest
@@ -220,5 +438,9 @@ struct MemoryWorkflowTests {
             sessionID: address.sessionID, executionID: address.executionID, workspaceID: evidence.workspaceID,
             userText: evidence.text, authorizationEpoch: evidence.sessionAuthorizationEpoch,
             destination: .model(f.route))
+    }
+
+    private func reply(_ text: String) -> [AgentModelStreamEvent] {
+        [.blockStarted(.init(id: "text", content: .text(text))), .blockFinished(id: "text"), .finished(.stop)]
     }
 }

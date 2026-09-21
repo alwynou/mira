@@ -16,14 +16,26 @@ public enum MemoryTools {
 
     public static var rememberDefinition: ToolDefinition {
         .init(name: "memory.remember",
-              description: "Save a memory when the user asks you to remember it. Ordinary statements are captured in the background. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
+              description: "Save a memory when the user asks you to remember it. Ordinary statements are captured in the background. For a clear, non-conflicting addition about the same entity as recalled memories, include every clearly same-entity current memory's exact memory_id and revision in enriches; use memory.search or memory.get first when needed. Preserve all supported facts from every target in content and add only the new stated detail. Do not guess or merge by similarity, and do not use enrichment for contradictions, corrections, or uncertain identity. Leave enriches empty for an independent memory. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
               inputSchema: object(properties: [
                   "content": string(maximum: 8_192),
                   "quote": string(maximum: 8_192),
                   "kind": .object(["type": .string("string"), "enum": .array(MemoryKind.allCases.map { .string($0.rawValue) })]),
                   "scope": .object(["type": .string("string"), "enum": .array([.string("current"), .string("global")])]),
-                  "sensitive": .object(["type": .string("boolean")])
-              ], required: ["content", "quote", "kind", "scope", "sensitive"]))
+                  "sensitive": .object(["type": .string("boolean")]),
+                  "enriches": .object([
+                      "type": .string("array"), "minItems": .number(0), "maxItems": .number(6),
+                      "items": .object([
+                          "type": .string("object"),
+                          "properties": .object([
+                              "memory_id": .object(["type": .string("string"), "minLength": .number(36), "maxLength": .number(36)]),
+                              "revision": .object(["type": .string("integer"), "minimum": .number(1), "maximum": .number(2_147_483_647)])
+                          ]),
+                          "required": .array([.string("memory_id"), .string("revision")]),
+                          "additionalProperties": .bool(false)
+                      ])
+                  ])
+              ], required: ["content", "quote", "kind", "scope", "sensitive", "enriches"]))
     }
 
     public static var searchResultSchema: JSONValue { resultSchema }
@@ -53,7 +65,8 @@ public enum MemoryTools {
               let kindValue = normalized["kind"]?.stringValue,
               let kind = MemoryKind(rawValue: kindValue),
               let scopeValue = normalized["scope"]?.stringValue,
-              let sensitive = normalized["sensitive"].flatMap({ if case .bool(let value) = $0 { value } else { nil } }) else {
+              let sensitive = normalized["sensitive"].flatMap({ if case .bool(let value) = $0 { value } else { nil } }),
+              case .array(let rawTargets)? = normalized["enriches"] else {
             throw MiraError(.invalidInput, "Memory arguments are incomplete.")
         }
         guard !quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -69,7 +82,26 @@ public enum MemoryTools {
         let draft = MemoryDraft(content: content, scope: scope, subject: .user, kind: kind,
                                 sensitivity: sensitive ? .sensitive : .standard, allowsRemoteUse: !sensitive)
         try draft.validate()
-        return .init(draft: draft, quote: quote)
+        let targets = try rawTargets.map(parseEnrichmentTarget)
+        guard Set(targets.map(\.memoryID)).count == targets.count else { throw evolutionTargetInvalid }
+        return .init(draft: draft, quote: quote, enrichmentTargets: targets)
+    }
+
+    private static func parseEnrichmentTarget(_ value: JSONValue) throws -> MemoryUsage {
+        guard case .object(let fields) = value,
+              Set(fields.keys) == ["memory_id", "revision"],
+              case .string(let idText)? = fields["memory_id"],
+              idText.utf8.count == 36,
+              let id = UUID(uuidString: idText),
+              case .number(let revisionValue)? = fields["revision"],
+              revisionValue.isFinite, revisionValue.rounded() == revisionValue,
+              (1...2_147_483_647).contains(revisionValue)
+        else { throw evolutionTargetInvalid }
+        return .init(memoryID: .init(id), revision: Int(revisionValue))
+    }
+
+    static var evolutionTargetInvalid: MiraError {
+        MiraError(.invalidInput, "The memory evolution target is invalid.")
     }
 
     public static func result(_ receipt: MemoryWriteReceipt) -> JSONValue {

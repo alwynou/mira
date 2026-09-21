@@ -22,7 +22,7 @@ public struct MemoryModule: RuntimeModule {
         let reads = MemoryTools.readOnly(store: store, now: now)
         try await registry.register(id: "memory.search", value: .tool(reads[0]), scope: scope, order: 0)
         try await registry.register(id: "memory.get", value: .tool(reads[1]), scope: scope, order: 1)
-        try await registry.register(id: "memory.remember", value: .tool(.localWrite(MemoryRememberTool(store: store))), scope: scope, order: 2)
+        try await registry.register(id: "memory.remember", value: .tool(.localWrite(MemoryRememberTool(store: store, now: now))), scope: scope, order: 2)
         try await registry.register(id: "memory.recall", value: .context(MemoryRecallContributor(store: store, now: now)), scope: scope, order: 3)
     }
 }
@@ -41,7 +41,7 @@ public struct MemorySourceAuthority: AgentDomainSourceAuthority {
         guard sources.allSatisfy({ if case .domain(let namespace, _, _) = $0 { namespace == self.namespace } else { false } }) else {
             throw MiraError(.unauthorized, "The memory context source is unavailable for this destination.")
         }
-        try await store.validateMemorySources(sources, for: request, at: now())
+        try await store.validateMemoryContextSources(sources, for: request, at: now())
     }
 }
 
@@ -76,6 +76,8 @@ private struct MemoryRecallContributor: AgentContextContributor {
                 throw MiraError(.storage, "The memory recall result is inconsistent.")
             }
             let value: JSONValue = .object([
+                "memory_id": .string(memory.id.rawValue.uuidString.lowercased()),
+                "revision": .number(Double(memory.revision)),
                 "reference": .string(memory.citation), "content": .string(draft.content),
                 "kind": .string(draft.kind.rawValue), "scope": .string(memory.scope.key),
                 "subject": .string(memory.subject.rawValue), "authority": .string(memory.authority.rawValue)
