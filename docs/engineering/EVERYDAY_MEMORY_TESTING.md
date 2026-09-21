@@ -34,40 +34,58 @@ This suite requires a functional graphical session and macOS automation permissi
 
 ## Live model evaluation
 
-Live runs are disabled by default and require explicit case selection and an existing configured conversation/extraction route. Each selected case uses a fresh temporary library; only provider configuration and credential references are reused. The runner reads credentials through Keychain and never serializes them. It does not read or seed real conversation history.
+Live runs are disabled by default. Each selected case opens a fresh temporary library and uses the production runtime, memory application, extraction worker and HTTP adapter. The evaluator does not open the selected personal library or system Keychain. Its endpoint, provider, model, limits and secret are supplied explicitly through the environment; the credential reader keeps the secret in memory. Never put a real key in a command, fixture, report, issue or commit. A local launcher can forward an existing secret environment variable without printing it.
 
-For each case, send the ordinary statement through the production runtime, wait for the reply and separate extraction, then send the follow-up in a new conversation. Capture is disabled before the follow-up to avoid charging for an unnecessary second extraction. Record active/candidate status, extraction outcome, actual memory references, and the synthetic response. Keyword observations help locate cases for review; they are not a semantic answer-quality judge. Preserve all failure cases and distinguish no capture, review-only capture, retrieval miss, and incorrect answer use.
+The ordinary `testOptInEverydayMemoryEvaluation` entry evaluates the 32-case single-statement corpus. The separate `testOptInStateEvolutionEvaluation` entry exercises sequential changes and writes a report after each case, including failures. These are two entries in the same evaluation harness, not independent transports. The state-evolution corpus also covers explicit saves; those scenarios intentionally ask the model to remember a synthetic statement, while automatic-capture scenarios use ordinary statements.
 
-The initial live sample is bounded to four selected cases and 12 provider request authorizations. It does not qualify the complete corpus, all model providers, Q04–Q06, or general memory quality. Broader runs require explicit selection and review; ordinary CI must never call a paid endpoint.
+Provider setup must match the requested protocol. Reports must describe the actual provider/dialect and embedding mode. `MIRA_EVAL_EMBEDDINGS` defaults to `offline`; selecting `local` requires the production local model to become ready before model requests. Background extraction uses the production output limit derived from the frozen conversation route; there is no separate evaluation extraction-output setting. A run using offline embeddings measures the HTTP model and lexical recall path, not local semantic-vector quality. A run using the local model still does not establish broad retrieval quality from a few authored questions.
 
 ### State-evolution coverage
 
-Single-statement cases are only the first layer of the memory evaluation. A release-quality run must also include versioned synthetic sequences that exercise memory state changes rather than evaluating isolated extraction labels:
+The versioned corpus in `Tests/Fixtures/EverydayMemory/state-evolution.json` covers:
 
-- **correction with replacement** — establish a durable preference, then explicitly replace it; the old revision must not remain independently active and a fresh conversation must use the replacement;
-- **correction without a stable replacement** — establish a durable fact, then narrow/retract it without asserting a new stable value; the runner must record review/unresolved behavior rather than silently creating a contradictory active fact;
-- **forget and reopen** — establish a memory, perform the production forget operation, close and reopen the temporary library, then verify that the forgotten body is unavailable and is not injected into a fresh model request;
-- **related but unanswered** — establish a memory whose topic overlaps a later question but does not answer it; the later request must not treat topical overlap as factual support.
+- **Automatic enrichment** — establish a fact about an identified entity, then add a non-conflicting detail through ordinary conversation. Require one current representation retaining the supported details and both source identities.
+- **Foreground enrichment** — explicitly save successive facts about the same entity through the production `memory.remember` tool. Inspect the foreground result before later background extraction can conceal a duplicate save.
+- **Correction with replacement** — establish a durable preference, then explicitly replace it. The predecessor remains historical and cannot be an independent current memory or a normal follow-up context source.
+- **Correction without a stable replacement** — retract or narrow a statement without inventing a new stable value. Record unresolved classification separately from a successful replacement and inspect whether the old statement still influences the follow-up.
+- **Forget and reopen** — submit production `memory.forget` library maintenance for the exact current revision, close and reopen the same temporary library, then check the body-free record and fresh follow-up context.
+- **Related but unanswered** — ask about an unstated preference sharing a topic with a saved fact. Inspect the actual answer for unsupported inference; retrieval overlap alone is not evidence for the missing fact.
 
-These scenarios must use synthetic data and the same production extraction, revision, maintenance, recall, and HTTP model paths as the application. Reports should record the model/provider identifier, extraction decision, memory IDs and revisions, later-context inclusion/exclusion, terminal outcome, and reported token usage when available. Deterministic host-policy tests remain separate so a live-model classification failure is distinguishable from a storage or application-rule failure.
+Reports distinguish effective lifecycle from persisted review state: a record can have raw state `active` while being superseded or forgotten. Record exact IDs/revisions, source lineage, historical relationships, per-attempt context memory references, citation resolution, foreground/background usage and safe error codes. Preserve failed cases and partial evidence. Keyword observations are review aids; they do not establish semantic entailment, answer quality or citation correctness by themselves.
 
-The current `EverydayMemoryLiveTests` runner already provides the opt-in provider boundary, fresh temporary library, request-authorization cap, extraction status, cross-conversation follow-up, citation verification, and incremental JSON report. Extend that runner for state-evolution cases rather than introducing a second evaluation transport or credential mechanism.
+Automatic extraction keeps the production batching rules, including the 120-second idle trigger. A foreground answer is not proof that capture has completed. Wait for persisted extraction status and record a terminal empty result separately from timeout or failure. The live evaluator must not shorten the production idle threshold or insert extra turns merely to make a case pass.
 
-After building the normal `Mira` test scheme, run only the opt-in test. `TEST_RUNNER_` forwards these variables to the macOS XCTest process; the test itself reads their unprefixed names. Supply a new report path, outside the configured library:
+### Running a bounded sample
+
+Build the normal `Mira` test scheme first. `TEST_RUNNER_` forwards configuration to the macOS XCTest process, which reads the unprefixed variable names. For state evolution, select IDs from the state corpus and supply a new absolute report path. Select an explicit request-authorization cap; this counts credential-read admissions before transport, not an exact count of completed HTTP requests. The cap is shared by all cases in that invocation. It is not a monetary budget or permission for repeated reruns.
+
+The launcher supplies `TEST_RUNNER_MIRA_EVAL_API_KEY` in its process environment, without writing or displaying it. Other required settings are:
+
+```text
+TEST_RUNNER_MIRA_RUN_LIVE_MEMORY_STATE_EVAL=1
+TEST_RUNNER_MIRA_EVAL_PROVIDER_ID=deepseek
+TEST_RUNNER_MIRA_EVAL_ENDPOINT=https://api.deepseek.com
+TEST_RUNNER_MIRA_EVAL_PROTOCOL=chat.completions
+TEST_RUNNER_MIRA_EVAL_CONVERSATION_MODEL=<explicit model ID>
+TEST_RUNNER_MIRA_EVAL_CONTEXT_WINDOW=<configured context limit>
+TEST_RUNNER_MIRA_EVAL_CONVERSATION_OUTPUT=<bounded output limit>
+TEST_RUNNER_MIRA_EVAL_EMBEDDINGS=local
+TEST_RUNNER_MIRA_EVAL_CORPUS=<absolute path to state-evolution.json>
+TEST_RUNNER_MIRA_EVAL_REPORT=<absolute path to a new JSON report>
+TEST_RUNNER_MIRA_EVAL_CASE_IDS=<comma-separated selected IDs>
+TEST_RUNNER_MIRA_EVAL_REQUEST_AUTHORIZATION_CAP=<explicit cap>
+```
+
+Then invoke only the selected live test:
 
 ```sh
-env TEST_RUNNER_MIRA_RUN_LIVE_MEMORY_EVAL=1 \
-  TEST_RUNNER_MIRA_EVAL_CONFIGURATION_DIRECTORY=/absolute/configured-library \
-  TEST_RUNNER_MIRA_EVAL_CORPUS=/absolute/mira/Tests/Fixtures/EverydayMemory/scenarios.json \
-  TEST_RUNNER_MIRA_EVAL_REPORT=/absolute/new-report.json \
-  TEST_RUNNER_MIRA_EVAL_CASE_IDS=zh-saturday-errand-batching,en-savory-breakfast,zh-hoarse-no-iced-drinks,en-partner-spicy-food \
-  xcodebuild -project Mira.xcodeproj -scheme Mira \
+xcodebuild -project Mira.xcodeproj -scheme Mira \
   -configuration Debug -destination 'platform=macOS' \
   -derivedDataPath .build/xcode \
-  -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation \
+  -onlyUsePackageVersionsFromResolvedFile \
   CODE_SIGNING_ALLOWED=NO \
-  -only-testing:MiraHostTests/EverydayMemoryLiveTests/testOptInEverydayMemoryEvaluation \
+  -only-testing:MiraHostTests/EverydayMemoryLiveTests/testOptInStateEvolutionEvaluation \
   test-without-building
 ```
 
-The JSON is written after each case and retained even when the test ends with mismatches. Report keyword checks are descriptive only; a reviewer must compare the synthetic answer and citations with the authored scenario. A candidate when an active capture is expected remains a failed capture rather than being reclassified as success.
+Ordinary CI validates corpus selection and evaluator failure boundaries with synthetic inputs and skips both live entries. Human review of the saved synthetic answers and citations remains necessary. A small sample, or deterministic host assertions passing, does not close Q04–Q06: their larger labeled datasets, repeated runs and per-model quality thresholds remain defined in [Quality](QUALITY.md#quality-gates). Record the selected configuration, request cap and count, usage, failures and remaining gaps in an engineering evidence document for each authorized live evaluation.

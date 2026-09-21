@@ -101,6 +101,7 @@
 		492AF9A961AB2054D36B2C41 /* ConversationModelPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B859E089EA49AABAE64F66A /* ConversationModelPreferences.swift */; };
 		4944654EF3D2A1135747ABC4 /* MemoryManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDE6E24F9B052EBE5B96237 /* MemoryManagementView.swift */; };
 		49F70C245913992C36B10EB2 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF55273DE92E33D4AE636F5 /* AppContainer.swift */; };
+		4A356252FDFA55A19D800979 /* EverydayMemoryWaitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A26D5F7EEB69C271FD6D5CB6 /* EverydayMemoryWaitTests.swift */; };
 		4A4E573F43AAC2545B903460 /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE219F5AD13AB33DDF639BD /* MessageRow.swift */; };
 		4B6A5168DDFC7823C27AE225 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */; };
 		4C127D0DB40AAD9530FF8370 /* MemoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03AC927AAD07459E44A6846 /* MemoryEditorView.swift */; };
@@ -171,6 +172,7 @@
 		8A1327807040E9AF07591E87 /* CompositionCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 972749C4E096725797904C8B /* CompositionCredentials.swift */; };
 		8A7C4DF5A1E12418B410A487 /* MacMemoryEmbeddingInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86447170C67063F4FA0B409A /* MacMemoryEmbeddingInstaller.swift */; };
 		8B79E4C8CDF8FD6D9EF1BBA1 /* MiraTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142B8CB1666AEFE507570C80 /* MiraTheme.swift */; };
+		8C2043D0C61ECF9A8D78DC9D /* MemoryEvaluationEmbedding.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D6C430848499779665857E /* MemoryEvaluationEmbedding.swift */; };
 		8C6DF438D3CF7A225A0AD53F /* LibraryRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF79F624B4A7FECA65E2512 /* LibraryRecoveryTests.swift */; };
 		8EA277E95C79A9519338636E /* MacCredentialSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2E9C2188EA0979083D6C95 /* MacCredentialSettings.swift */; };
 		8EDF1F9216F8DEA51A34D933 /* NativeTranscriptRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EF78762CCC9BA7ADD41DC8 /* NativeTranscriptRow.swift */; };
@@ -419,6 +421,7 @@
 		996150BE0E9829A046D0BAE6 /* MiraMarkdownViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraMarkdownViewTests.swift; sourceTree = "<group>"; };
 		9A9A727E7BAEE5684BCF70EF /* MemoryEmbeddingInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryEmbeddingInstallerTests.swift; sourceTree = "<group>"; };
 		9AB65D9798E0D8399C9CF0A7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A26D5F7EEB69C271FD6D5CB6 /* EverydayMemoryWaitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EverydayMemoryWaitTests.swift; sourceTree = "<group>"; };
 		A3C22B8BFEBFD7E113123B22 /* RuntimeApprovalPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeApprovalPresentationTests.swift; sourceTree = "<group>"; };
 		A5E88F8C3F9EE61D483E3D11 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		A75BD08B52A252803B4113AD /* MacLibraryWorkloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLibraryWorkloads.swift; sourceTree = "<group>"; };
@@ -469,6 +472,7 @@
 		F589C07CDD76EEF19F8AF909 /* ProviderConnectionTestModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderConnectionTestModelTests.swift; sourceTree = "<group>"; };
 		F58BCF7E09010D8B1961ABBC /* MiraCompositionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiraCompositionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F5ACE0CADB9F0139FAC53E9E /* TranscriptFollowSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFollowSchedulerTests.swift; sourceTree = "<group>"; };
+		F5D6C430848499779665857E /* MemoryEvaluationEmbedding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryEvaluationEmbedding.swift; sourceTree = "<group>"; };
 		F67334254D6F71699B44C65E /* LibraryStartupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStartupView.swift; sourceTree = "<group>"; };
 		F8F5D5EE06EC762F437235FC /* ProviderConnectionTestModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderConnectionTestModel.swift; sourceTree = "<group>"; };
 		FA139C52A05E4AEE89BCB12D /* MiraWindowShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraWindowShellTests.swift; sourceTree = "<group>"; };
@@ -563,9 +567,11 @@
 				8E3D702C61C5B91AA3209DB3 /* ConversationStreamBufferTests.swift */,
 				484D848A57F28E6E5850AC61 /* EverydayMemoryBaselineTests.swift */,
 				2ADFCF2A3B5335244EDE137D /* EverydayMemoryLiveTests.swift */,
+				A26D5F7EEB69C271FD6D5CB6 /* EverydayMemoryWaitTests.swift */,
 				D11374B4E3DEC7E42AAB40E3 /* KeychainTests.swift */,
 				9A9A727E7BAEE5684BCF70EF /* MemoryEmbeddingInstallerTests.swift */,
 				B8B19D02F005070B2B5232F1 /* MemoryEmbeddingRuntimeTests.swift */,
+				F5D6C430848499779665857E /* MemoryEvaluationEmbedding.swift */,
 				FFAAFC0E43209EB3F054F89C /* MiraComposerSurfaceTests.swift */,
 				996150BE0E9829A046D0BAE6 /* MiraMarkdownViewTests.swift */,
 				F5025D9E72A56E0318BB0555 /* MiraSettingsCredentialFieldTests.swift */,
@@ -1403,6 +1409,7 @@
 				9FE81D95B7B72B1598BDCBA5 /* CredentialCleanup.swift in Sources */,
 				1B64F75571681B007F4337E7 /* EverydayMemoryBaselineTests.swift in Sources */,
 				6785B31E34AD11F6042ED0A6 /* EverydayMemoryLiveTests.swift in Sources */,
+				4A356252FDFA55A19D800979 /* EverydayMemoryWaitTests.swift in Sources */,
 				183AEEB1883EE1B4B3C71D0D /* KeychainCredentials.swift in Sources */,
 				D050E36FA0D51F69F501CB77 /* KeychainTests.swift in Sources */,
 				46B8C3FF5956D7C40A0721F2 /* L10n.swift in Sources */,
@@ -1421,6 +1428,7 @@
 				1AC2B2E2B7D4BC914350EE6B /* MacSessionReadModel.swift in Sources */,
 				F55C53CFC0BFB098D46B3842 /* MemoryEmbeddingInstallerTests.swift in Sources */,
 				A83B32E5D34E6AE4720E6DBB /* MemoryEmbeddingRuntimeTests.swift in Sources */,
+				8C2043D0C61ECF9A8D78DC9D /* MemoryEvaluationEmbedding.swift in Sources */,
 				AB7F1E09B01C9793F855E60F /* MessageRow.swift in Sources */,
 				28A1CF6504681C2FA6D7AA58 /* MiraBrandMark.swift in Sources */,
 				4828D070341DE361A4994AF6 /* MiraComponents.swift in Sources */,
