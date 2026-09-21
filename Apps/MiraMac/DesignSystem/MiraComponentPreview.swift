@@ -437,11 +437,19 @@ private struct MiraSettingsNavigationPreview: View {
         MiraSettingsNavigation {
             List(selection: $selected) {
                 ForEach(SettingsCategory.allCases) { category in
-                    Label(category.title, systemImage: category.symbol).tag(category)
+                    Label {
+                        Text(category.title)
+                    } icon: {
+                        MiraSettingsCategoryIcon(systemName: category.symbol, color: category.iconColor)
+                    }
+                    .tag(category)
                 }
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .font(MiraTheme.Settings.body)
+            .tint(MiraTheme.Settings.accent)
+            .environment(\.defaultMinListRowHeight, MiraTheme.Settings.sidebarRowHeight)
         } detail: {
             MiraNativeSettingsPreview()
                 .modifier(MiraSettingsTitlebar(title: selected.title))

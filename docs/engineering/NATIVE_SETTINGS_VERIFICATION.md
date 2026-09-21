@@ -1,5 +1,20 @@
 # Native settings verification
 
+## Category icon clearance, 2026-09-21
+
+Issue [#30](https://github.com/alwynou/mira/issues/30) bounds each category symbol independently of its colored well. The shared component aspect-fits the symbol into 14 × 14 pt and centers it inside the existing 20 × 20 pt well. The fixed-sidebar previews now use this production component for all five categories.
+
+Native synthetic captures on macOS 27.0 (26A428), Apple Silicon, show visible clearance for all five symbols, including the wide cloud and brain. The General row is selected; the other rows are unselected. English/light and Chinese/dark screenshots were inspected at their original 2× resolution:
+
+- [English/light](evidence/settings-icon-insets/en-light.png)
+- [Chinese/dark](evidence/settings-icon-insets/zh-dark.png)
+
+The existing `SettingsLayoutUITests` built successfully but both cases failed before reaching category traversal: the drag-based resize left the window at 840 pt instead of 760 pt, and the expected Toolbar accessibility element was absent on this host. Result: `.build/settings-icon-insets.xcresult`; log: `/tmp/mira-settings-icon-tests.log`. These failures are recorded, not suppressed or represented as passing. The tests and window code were left unchanged. Minimum-size verification and the rest of these automated flows remain unverified for this run.
+
+The standalone Debug build passed with the documented `Mira` scheme, locked package versions and `CODE_SIGNING_ALLOWED=NO`; log: `/tmp/mira-settings-icon-build.log`. Token export and `git diff --check` also passed.
+
+A separate native accessibility check against `/tmp/mira-settings-icon-qa-20260921`, launched with `--demo`, confirmed that General, Providers, Models, Memory and Data & Privacy remain named, selectable rows and update the selected state and page title. No provider requests or real credentials were used. The change preserves native selection and icon-label spacing. Active accent selection, minimum-size rendering, macOS 15 runtime and VoiceOver remain unverified for this change.
+
 Date: 2026-09-12. Host: macOS 26.6.2 (25G83), Apple Silicon. Deployment target: macOS 15. This record supersedes the [same-window settings evidence](SETTINGS_LAYOUT_VERIFICATION.md). Product behavior and reference measurements belong to [Settings design](../product/SETTINGS_DESIGN.md).
 
 ## Current implementation
