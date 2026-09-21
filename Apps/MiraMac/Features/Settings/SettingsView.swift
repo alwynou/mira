@@ -162,11 +162,7 @@ struct SettingsSidebar: View {
                 Label {
                     Text(category.title)
                 } icon: {
-                    Image(systemName: category.symbol)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: MiraTheme.Settings.sidebarIconSize, height: MiraTheme.Settings.sidebarIconSize)
-                        .background(category.iconColor, in: .rect(cornerRadius: MiraTheme.Settings.iconRadius))
+                    MiraSettingsCategoryIcon(systemName: category.symbol, color: category.iconColor)
                 }
                 .tag(category)
                 .accessibilityIdentifier("settings.category.\(category.rawValue)")
@@ -182,7 +178,7 @@ struct SettingsSidebar: View {
 }
 
 extension SettingsCategory {
-    fileprivate var iconColor: Color {
+    var iconColor: Color {
         switch self {
         case .general: Color(nsColor: .systemGray)
         case .providers, .models: Color(nsColor: .systemBlue)

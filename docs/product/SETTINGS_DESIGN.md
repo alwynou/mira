@@ -22,6 +22,8 @@ The two 1670 × 1562 reference PNGs contain a `Color LCD` ICC profile and use ap
 
 Colored category symbols identify General, Providers, Models, Memory and Data & Privacy. They are decorative companions to localized text, not the only way to recognize a category. SF Symbols and standard system gray, blue, purple and green are used. Third-party provider/model marks keep their existing provenance and purpose.
 
+`MiraSettingsCategoryIcon` centers each white, medium-weight symbol in a separate 14 pt square inside the 20 pt colored well. Aspect-fit sizing preserves the symbol's proportions and at least 3 pt of internal clearance, including wide cloud and brain symbols. Native sidebar selection does not change this geometry. The decorative icon is hidden from accessibility; the category's localized label supplies its name.
+
 ## Typography and geometry
 
 Dimensions below are desktop points, assuming approximately two source pixels per point. Font glyph bounds do not reveal an exact point size. The selected system-font sizes below are implementation choices consistent with the reference. Native controls retain platform font metrics, baseline alignment, minimum sizes and localization behavior.
@@ -36,6 +38,7 @@ Dimensions below are desktop points, assuming approximately two source pixels pe
 | Sidebar content width | 200 pt | SwiftUI sidebar frame and column min/ideal/max are all 200 pt; native outer rim is additional |
 | Sidebar row | 32 pt minimum | Native List row |
 | Category icon | 20 × 20 pt | `Settings.sidebarIconSize` |
+| Category symbol maximum bounds | 14 × 14 pt | `Settings.sidebarSymbolSize` |
 | Icon well radius | 5 pt | `Settings.iconRadius` |
 | Sidebar row radius | approximately 9 pt | Native List selection |
 | Icon-label gap | approximately 8 pt | Native Label |

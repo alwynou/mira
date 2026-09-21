@@ -1,6 +1,25 @@
 import SwiftUI
 import AppKit
 
+/// Bounds the glyph separately from its well so wide symbols retain internal clearance.
+struct MiraSettingsCategoryIcon: View {
+    let systemName: String
+    let color: Color
+
+    var body: some View {
+        Image(systemName: systemName)
+            .resizable()
+            .scaledToFit()
+            .symbolRenderingMode(.monochrome)
+            .fontWeight(.medium)
+            .foregroundStyle(.white)
+            .frame(width: MiraTheme.Settings.sidebarSymbolSize, height: MiraTheme.Settings.sidebarSymbolSize)
+            .frame(width: MiraTheme.Settings.sidebarIconSize, height: MiraTheme.Settings.sidebarIconSize)
+            .background(color, in: .rect(cornerRadius: MiraTheme.Settings.iconRadius))
+            .accessibilityHidden(true)
+    }
+}
+
 struct MiraSettingsNavigation<Sidebar: View, Detail: View>: View {
     @ViewBuilder let sidebar: () -> Sidebar
     @ViewBuilder let detail: () -> Detail

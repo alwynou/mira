@@ -67,6 +67,7 @@ enum MiraTheme {
         static let sidebarWidth: CGFloat = 200
         static let sidebarRowHeight: CGFloat = 32
         static let sidebarIconSize: CGFloat = 20
+        static let sidebarSymbolSize: CGFloat = 14
         static let titleHorizontalInset: CGFloat = 20
         static let iconRadius: CGFloat = 5
         static let selectMinWidth: CGFloat = 0
