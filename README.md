@@ -1,132 +1,198 @@
-# Mira
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="designs/mira-app-icon/final/mira-logo-white.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="designs/mira-app-icon/final/mira-logo-black.svg" />
+    <img src="designs/mira-app-icon/final/mira-logo-black.svg" alt="Mira logo" width="160" />
+  </picture>
+</p>
 
-Mira 是一个面向个人的本地优先 AI 助理、Agent 工作空间与个人记忆知识系统。通过用户自带的模型访问能力（BYOK），它连接多个模型服务商，将对话、工具执行与长期知识组织为可追溯、可纠正的个人工作空间。
+<h1 align="center">Mira</h1>
 
-项目采用原生 Swift，面向 macOS 15 及后续版本，直接下载安装；未来考虑 iOS。
+<p align="center">
+  A local-first AI assistant for conversations, personal memory, and knowledge.
+</p>
 
-> 工作分支为 `dev`。对话、用途级模型配置、流式 Markdown、Agent 工具、可纠正记忆、默认关闭的自动提取、Markdown 资料检索、完整备份，以及 M6 的一次性本地 Task / Reminder 已有实现。M5 的规模查询、大资料库恢复与本机开发包验证已通过；完整 v0.1 的真实模型、原生交互和分发门槛仍待验收，任务原生流程已通过自动化，关闭专注模式时的本机授权与退出后通知送达也已通过用户配合验收；专注模式及正式分发暂缓。当前证据见 [MVP 执行记录](docs/engineering/MVP_EXECUTION.md)、[M5 验收记录](docs/engineering/M5_VERIFICATION.md) 和 [Task / Reminder 验收记录](docs/engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
+<p align="center">
+  <a href="https://github.com/alwynou/mira/actions/workflows/ci.yml"><img src="https://github.com/alwynou/mira/actions/workflows/ci.yml/badge.svg" alt="Swift checks" /></a>
+  <img src="https://img.shields.io/badge/macOS-15%2B-222222?logo=apple&logoColor=white" alt="macOS 15 or newer" />
+  <img src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white" alt="Swift 6" />
+  <img src="https://img.shields.io/badge/status-early%20development-888888" alt="Early development" />
+</p>
 
-## 构建与运行
+<p align="center">
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-使用 Xcode 26.3 或更高版本（Host 的 Markdown 依赖要求 Swift 6.2+），启用 Swift 6 语言模式，目标 macOS 15+。本机已验证 Xcode 26.6 / Apple Silicon；CI 固定 Xcode 26.3。
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#documentation">Documentation</a>
+</p>
+
+Mira is a native macOS workspace that connects your own model providers to conversations, tools, and reusable personal knowledge. It is built around a simple loop: remember something useful, recall it in a later conversation, inspect its source, and correct or forget it when it changes.
+
+Your library lives on your Mac. You bring your own API keys (BYOK), choose your models, and control which memories and knowledge may be sent to them. Mira requires no account or Mira-hosted backend.
+
+> **Early development.** Core functionality is implemented, but v0.1 release acceptance is still in progress. Build from source to try it. Development builds use disposable libraries and do not support older data formats. Knowledge and Tasks management screens remain deferred.
+
+## Features
+
+- **Native conversations** — workspaces, streaming Markdown, code and math rendering, separate thinking output, and cancellation, retry, and recovery.
+- **Your models, your settings** — OpenAI Chat Completions, OpenAI Responses, and Anthropic Messages adapters; compatible custom endpoints, model discovery, manual model IDs, and explicit context limits.
+- **Memory you can correct** — automatic capture of eligible user-stated facts and preferences, local semantic and text recall, and a native manager for inspecting sources, editing, replacing, archiving, and forgetting.
+- **Knowledge with provenance** — Markdown snapshot import, versioned sources, local retrieval, and verifiable references in the core. The management interface is still pending.
+- **Visible agent activity** — bounded tool execution, permission checks, inspectable results, and foreground/background usage and cost estimates when provider data is available.
+- **Local ownership** — on-device storage, Keychain credentials, scope and remote-use controls, and library backup and restore.
+- **English and Simplified Chinese** — switch the interface language in Settings without changing your content or the language of model replies.
+
+<p align="center">
+  <img src="docs/engineering/evidence/memory-management/en-light-wide-detail.png" alt="Mira's native memory manager showing a local-only memory, its scope, source, and editing actions" width="960" />
+</p>
+
+<p align="center">
+  <sub>Native memory management with synthetic demo data. Knowledge and Tasks screens are still pending.</sub>
+</p>
+
+## Roadmap
+
+Checked items mean the capability is implemented with scoped verification; they do not mean every release gate has passed. The [MVP plan](docs/MVP.md) owns detailed scope and acceptance status.
+
+### Implemented
+
+- [x] Native macOS conversation workspace and bilingual settings.
+- [x] BYOK connections, model pool, three model protocols, and thinking/tool continuation.
+- [x] Journal-backed agent runtime with cancellation, retry, and crash recovery.
+- [x] Automatic memory extraction and local hybrid semantic/text recall.
+- [x] Native memory management with current/history views, sources, corrections, and forgetting.
+- [x] Markdown import, versioned knowledge retrieval, and source validation in the core.
+- [x] Local library backup, restore, and unsigned development packaging.
+- [x] Task tools and one-time local reminder infrastructure; replacement management UI pending.
+
+### Next
+
+- [ ] Complete broader real-model evaluations for memory capture, correction, forgetting, and relevant recall.
+- [ ] Expand live provider coverage, including thinking and tool continuation.
+- [ ] Build the Knowledge and Tasks management interfaces.
+- [ ] Complete native macOS 15, Intel, accessibility, and interaction acceptance.
+- [ ] Meet remaining large-library, latency, and long-conversation performance gates.
+- [ ] Prepare signed, notarized downloads and verify installation and updates.
+
+### Later / deferred
+
+- [ ] Validate reminder delivery with Focus enabled.
+- [ ] Explore recurring reminders and Apple Calendar / Reminders publishing.
+- [ ] Expand structured records and explore an iOS app.
+
+These are development directions, not release-date commitments. See the [memory UI evidence](docs/engineering/MEMORY_MANAGEMENT_VERIFICATION.md), [memory integration limits](docs/engineering/LOCAL_MEMORY_IMPLEMENTATION.md), and [release acceptance record](docs/engineering/MVP_EXECUTION.md) for verified scope and remaining gaps.
+
+## Quick start
+
+### Prerequisites
+
+- macOS 15 or newer. Current native and local embedding evidence comes from Apple Silicon; Intel runtime acceptance remains open.
+- Xcode 26.3 or newer with its command-line tools selected. Host dependencies require Swift 6.2+; the project uses Swift 6 language mode.
+- Your own model-provider credentials for real conversations. The Debug demo below needs no API key.
+
+### Build and run
 
 ```sh
-swift test --package-path Packages/MiraKit
+git clone https://github.com/alwynou/mira.git
+cd mira
 xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
   -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build
 open .build/xcode/Build/Products/Debug/Mira.app
 ```
 
-也可打开 `Mira.xcodeproj`，选择共享 Scheme `Mira` 运行。工程已提交；修改 `project.yml` 或文件组织后，使用 XcodeGen 2.46.0 执行 `xcodegen generate`。
+You can also open `Mira.xcodeproj` and run the shared **Mira** scheme. The generated project is committed; XcodeGen is only needed when changing the project definition or file organization.
 
-## Local development artifact
+### Connect a model
 
-Build a ZIP from an exact committed revision with [the local packaging procedure](docs/engineering/LOCAL_DELIVERY.md). It includes checksum and resource verification. The artifact is unsigned/ad hoc and intended for local development; public download acceptance remains pending.
+1. Open **Settings → Providers**, add a built-in or compatible custom provider, and save and enable the connection with your endpoint and API key.
+2. Fetch its model list or enter a model ID manually, then enable the models you want in the model pool.
+3. Review the model's context window, output limit, and capabilities. Supply missing context limits before sending a request.
+4. Select a model in a conversation or configure a default, then start chatting.
 
-## Automatic memory
+API keys stay in Keychain. Discovery queries the selected provider's model catalog; explicit tests send synthetic prompts and may incur provider charges. An invalid model selection produces an error instead of silently switching providers.
 
-Automatic capture starts disabled. Configure a **Memory Extraction** purpose binding in **Settings → Providers → Default Models**, then explicitly save a capture mode and daily token budget in **Settings → Memory**. New committed user messages are processed after a successful reply; earlier conversation history is not backfilled. Candidates require review, and the conversation's extraction section opens each captured memory and source. Sensitive candidates remain local-only unless their disclosure is changed through the Memory editor.
+Memory capture runs automatically in batches after completed turns, using the batch's last completed conversation route. It makes additional provider requests and can incur usage charges; there is no separate extraction model or daily extraction quota. Per-request model limits still apply. **Settings → Memory** shows local embedding preparation and status. Semantic recall uses a locally downloaded Qwen embedding model through MLX. See [memory behavior](docs/product/MEMORY_AND_KNOWLEDGE.md) and [local model integration](docs/engineering/LOCAL_MEMORY_IMPLEMENTATION.md).
 
-The current development library uses schema v12. Development data is disposable: reset obsolete Mira libraries in place after schema changes, without migration or backup. Use isolated temporary directories for tests and delete them after verification. Broader model quality, Focus-mode notification behavior and other release gates remain pending. Local notification permission and delivery after app exit passed an attended check with Focus off.
+### Try the offline demo
 
-## Markdown knowledge
-
-Open **Knowledge** from a conversation to import Markdown snapshots. New imports stay local-only; explicitly save **Allow model use** to make their snippets and chunks available to the configured provider. Each update creates an immutable version. Search, inspect exact chunks, and open verified source references from replies. Importing never watches or modifies the original file.
-
-Library backups are directory bundles containing the database, referenced files, and a checksum manifest. Restore creates a new directory and leaves the current library open. **Settings → Data → Clean Up Unreferenced Files** collects file copies after a seven-day grace period; referenced historical versions are retained. See the [knowledge contract](docs/architecture/KNOWLEDGE_IMPLEMENTATION.md).
-
-## Tasks and local reminders
-
-Open **Tasks** from a conversation to create or edit a task in the current Inbox or Workspace. A task can have one exact-time reminder owned by Mira's local notification scheduler. Task changes retain source evidence and revision history; ambiguous requests or missing reminder times stay as proposals for review. Permission, pending, scheduled, failed, elapsed, paused, and cancelled delivery states remain visible. The current increment does not include recurring reminders, Apple Calendar / Reminders publishing, or a background helper. See the [Task / Reminder contract](docs/architecture/TASKS_AND_REMINDERS.md) and [verification record](docs/engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md).
-
-## Interface language
-
-Choose **Settings → General → Display Language** to switch between English (`en`) and Simplified Chinese (`zh-CN`). Mira updates its windows immediately and remembers your selection. User content and model response language are independent of this setting. macOS controls system menu and file dialog language.
-
-Implementation code, comments, and built-in prompts use English. Translations live in the string catalog; see [localization conventions](docs/engineering/LOCALIZATION.md). Run `python3 scripts/check_language_policy.py` and the `MiraHostTests` target when changing UI copy.
-
-在 **设置 → 服务商** 中添加 OpenAI、Anthropic 或自定义兼容服务商，填写端点和 API Key，保存后显式激活。随后获取该服务商的模型列表或手工填写私有 Model ID，选择要加入模型池的模型，并配置上下文窗口、输出上限与能力。最后从对话模型选择器或 **默认模型** 中选择模型池条目。添加模型会一并保存调用配置，无需另建路由；后台记忆提取仍须单独选择模型并开启。
-
-API Key 仅保存在本机 Keychain。获取模型仅查询所选服务商的模型目录，不自动启用模型，也不发送对话。文本和工具测试由用户主动触发，发送固定合成提示，可能产生 API 费用。停用服务商会保留其模型选择并从模型池隐藏，已有失效选择会报错，不自动换用其他模型。
-
-无密钥演示仅在 Debug 构建中显式启用，使用隔离目录，不发送网络请求：
+Quit any running Mira instance, then launch the Debug app with an isolated temporary library:
 
 ```sh
 open .build/xcode/Build/Products/Debug/Mira.app --args \
   --demo --data-directory /tmp/mira-demo
 ```
 
-切换运行模式或资料库前先退出当前 Mira。快捷键：`⌘ N` 新对话、`⌘ Return` 发送、`⌘ .` 停止、`⌘ ,` 设置。数据路径、恢复步骤和已知限制见 [开发约定](docs/engineering/DEVELOPMENT.md)。
+The demo uses synthetic responses, makes no provider requests, and does not access credentials. It previews the interface; real memory quality requires real-model evaluation. Demo mode is unavailable in Release builds.
 
-In **Memories**, add a reviewed entry or save a committed user message, then edit, replace, archive, remove, or forget it. Tool-created memories stay local-only until you enable remote use in the editor. Verified reference buttons open the version actually used by a reply.
+## Data and privacy
 
-## 核心方向
+- Conversations and execution history live in local session journals; domain records and search projections live in SQLite and managed files.
+- The default library is `~/Library/Application Support/Mira`. Use an absolute `--data-directory` path for an isolated development library, and quit Mira before switching libraries.
+- Remote models receive the context authorized for the selected connection. Local storage does not make provider requests offline.
+- Manually added memories start local-only, with remote-use settings you can inspect and change. Automatic capture skips content classified as sensitive.
+- Library backup and restore are implemented. Development schemas may change without migration support; use disposable data while evaluating the project.
 
-Mira 首先验证一条完整路径：用户形成值得记住的认知 → 保存来源与范围 → 在新对话中恰当召回 → 查看来源 → 编辑、撤销或遗忘。
+Read the [data and privacy contract](docs/product/DATA_AND_PRIVACY.md) for scope, disclosure, export, deletion, and forgetting behavior.
 
-本地数据库与文件保存规范数据，用户配置自己的 Provider 和凭据。Conversation 保存原始交流，Execution 记录如何执行，Memory 与 Knowledge 保存可复用的认知和资料；检索、摘要与索引具有明确的派生关系。
+## Architecture
 
-首个 v0.1 MVP 包含对话、可纠正记忆、Markdown 文件检索与最小 Agent 工具循环，首批支持 OpenAI Chat Completions 兼容接口与 Anthropic Messages。当前开发增量已加入 M6 的一次性本地 Task / Reminder；Apple 发布与完整结构化记录仍按后续范围推进，具体版本边界以 MVP 文档为准。
-
-## 阅读顺序
-
-| 入口 | 职责 |
-|---|---|
-| [产品总纲](docs/PRD.md) | 定位、目标用户、产品不变量与成功标准 |
-| [架构总览](docs/ARCHITECTURE.md) | 系统结构、模块依赖、架构不变量与并发所有权 |
-| [MVP 拆分](docs/MVP.md) | 首版范围、M0–M6 依赖、交付内容与退出条件 |
-| [开发约定](docs/engineering/DEVELOPMENT.md) | 平台、工具链、工程结构、直接分发与协作方式 |
-| [质量标准](docs/engineering/QUALITY.md) | Fixture、记忆评估、性能与发布门槛 |
-| [开发前评审](docs/reviews/2026-09-05-DOCUMENT_REVIEW.md) | 发现的问题、修正位置、已确认决策与待验证证据 |
-| [实施与验收记录](docs/engineering/IMPLEMENTATION_STATUS.md) | 已实现的增量、实际检查、剩余验收项 |
-| [参考资料](docs/REFERENCES.md) | 外部借鉴边界与官方依据 |
-
-详细规则按职责维护，同一状态机、字段表或验收阈值只在一个文件中完整定义。
-
-## 领域文档
-
-| 领域 | 产品行为 | 技术设计 |
-|---|---|---|
-| 工作空间与对话 | [用户场景与交互](docs/product/WORKSPACE_AND_CONVERSATION.md) | [Runtime](docs/architecture/RUNTIME.md) |
-| 记忆与知识 | [记忆、知识与纠正体验](docs/product/MEMORY_AND_KNOWLEDGE.md) | [领域模型与处理管线](docs/architecture/MEMORY_AND_KNOWLEDGE.md) |
-| Agent、Provider 与 Context | [用户可见行为](docs/product/AGENT_AND_CONTEXT.md) | [Provider](docs/architecture/PROVIDERS.md)、[Context](docs/architecture/CONTEXT.md) |
-| 任务、提醒与其他记录 | [记录语义](docs/product/RECORDS.md) | [Task / Reminder 实现契约](docs/architecture/TASKS_AND_REMINDERS.md)、[结构化数据与通知](docs/architecture/STRUCTURED_DATA.md) |
-| 数据与隐私 | [生命周期与隐私承诺](docs/product/DATA_AND_PRIVACY.md) | [存储与恢复](docs/architecture/DOMAIN_AND_STORAGE.md)、[平台与安全](docs/architecture/PLATFORM_AND_SECURITY.md) |
-| 本地检索 | 见记忆与知识规范 | [Search](docs/architecture/SEARCH.md) |
-
-## 技术基线
-
-`MiraMac` 负责 SwiftUI / AppKit 界面与平台适配；`MiraCore` 负责领域、用例、对话运行时与 Task / Reminder 契约；`MiraData` 实现 GRDB / SQLite 存储；`MiraProviders` 适配两类模型协议。记忆、知识和本地 Task / Reminder 契约由 Core 定义，Data 实现本地检索、托管文件、任务存储和完整备份。
-
-Assistant messages use pinned MarkdownView and MarkdownParser packages with ListViewKit's virtualized AppKit transcript. Remote images are not fetched; external links require HTTP(S). Dependency revisions and bundled notices are documented in [Third-party dependencies](docs/engineering/THIRD_PARTY.md).
-
-Core 定义接口，外层实现适配。UI 不直接访问数据库或调用 Provider，Core 不依赖 Apple UI 或 GRDB 实现。Mira 不建设自有业务后端。
-
-## 仓库结构
+Mira uses ports and adapters, with dependencies pointing toward a Foundation-only core:
 
 ```text
-mira/
-├── AGENTS.md
-├── README.md
-├── project.yml
-├── Mira.xcodeproj/
-├── Apps/MiraMac/
-├── Packages/MiraKit/
-│   ├── Package.swift
-│   ├── Package.resolved
-│   ├── Sources/{MiraCore,MiraData,MiraProviders}/
-│   └── Tests/
-├── .github/workflows/ci.yml
-└── docs/
-    ├── PRD.md
-    ├── ARCHITECTURE.md
-    ├── MVP.md
-    ├── REFERENCES.md
-    ├── product/
-    ├── architecture/
-    ├── engineering/
-    └── reviews/
+MiraMac (SwiftUI + AppKit, composition, platform services)
+  ├── MiraData      ──┐
+  ├── MiraProviders ──┼──> MiraCore (Foundation only)
+  └──────────────────┘
 ```
 
-架构文档包含后续目标，具体完成情况以实施记录为准。当前构建用于本机开发验证，尚未制作签名、公证的下载发行包。
+The application runtime owns long-running executions independently of views. Session journals are authoritative for conversation execution; SQLite projections can be rebuilt. Platform services such as Keychain, notifications, and MLX stay in the macOS host.
+
+| Path | Purpose |
+| --- | --- |
+| `Apps/MiraMac/` | Native app, presentation models, design system, and platform adapters |
+| `Packages/MiraKit/Sources/MiraCore/` | Domain values, use cases, agent runtime, and ports |
+| `Packages/MiraKit/Sources/MiraData/` | Persistence, search, managed files, and backup adapters |
+| `Packages/MiraKit/Sources/MiraProviders/` | Model protocols, discovery, and transport adapters |
+| `Tests/` | Host, composition, and native UI tests with synthetic fixtures |
+| `docs/` | Product scope, architecture contracts, and engineering evidence |
+| `designs/` | Brand assets, design explorations, and exported tokens |
+
+See the [architecture overview](docs/ARCHITECTURE.md) and [agent core design](docs/architecture/AGENT_CORE_PROPOSAL.md).
+
+## Development and contributing
+
+Bug reports and focused contributions are welcome. Start with a [GitHub issue](https://github.com/alwynou/mira/issues), describe the problem and acceptance criteria, and read the [contributor instructions](AGENTS.md) and [development guide](docs/engineering/DEVELOPMENT.md). Work from an updated `main` on a `codex/` task branch, use Conventional Commits, and submit a linked pull request. Required checks must pass before merge.
+
+| Command | Purpose |
+| --- | --- |
+| `swift test --package-path Packages/MiraKit` | Run package tests; add `--filter` for focused work |
+| `python3 scripts/check_language_policy.py` | Check English source and bilingual UI resources |
+| `python3 -m unittest discover -s scripts/tests` | Check catalog and supporting scripts |
+| `xcodegen generate` | Regenerate the project with XcodeGen 2.46.0 after project/file changes |
+
+Select tests for the behavior you change. App language changes also require `MiraHostTests`; native UI changes require actual interaction checks. CI uses synthetic fixtures and does not require paid model endpoints. Never include API keys, real conversations, or development libraries in contributions.
+
+For a ZIP built from a committed revision, follow the [local packaging procedure](docs/engineering/LOCAL_DELIVERY.md). Public distribution acceptance is still pending.
+
+## Documentation
+
+| Guide | Contents |
+| --- | --- |
+| [Product overview](docs/PRD.md) | Product intent, user control, and success criteria |
+| [MVP and milestones](docs/MVP.md) | Implemented scope, next increments, and acceptance gates |
+| [Architecture](docs/ARCHITECTURE.md) | Module boundaries and technical contracts |
+| [Memory and knowledge](docs/product/MEMORY_AND_KNOWLEDGE.md) | Capture, recall, sources, correction, and forgetting |
+| [Development](docs/engineering/DEVELOPMENT.md) | Toolchain, builds, tests, and contribution workflow |
+| [Quality standards](docs/engineering/QUALITY.md) | Evaluation methodology and release gates |
+| [Visual identity](docs/product/VISUAL_IDENTITY.md) | Contour Silver logo and app identity |
+
+Product and architecture documents currently include Chinese content; engineering evidence records each verification increment's scope.
+
+## License
+
+A project-wide license has not yet been declared. Bundled dependencies retain their respective licenses; see [third-party notices](Apps/MiraMac/Resources/ThirdPartyLicenses.txt).
