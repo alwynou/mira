@@ -66,7 +66,11 @@ flowchart TD
 
 新工具保存的标准记忆允许在所属范围内用于后续模型请求，敏感记忆仅本地保存。断言去重复用已有记忆时保留实际发送策略，回执必须反映真实结果。不得在提交前承诺已保存，也不得把本地专用结果描述为后续模型可召回。
 
-修订只改措辞和元数据，不变更记忆身份、主体和范围。自动提取只保存高置信度、直接、稳定的标准用户事实、偏好和约束，范围可以是 user 或 workspace。推断、含糊、临时、假设、第三方、引用及敏感断言跳过，不创建候选 backlog，也不把任意模型输出标为 active。明确直接修订可通过 `replacesIndex` 创建新记忆并以 CAS supersede 旧记忆；冲突、过期或权限不相容时跳过。显式人工替代继续使用独立确认事务。
+修订只改措辞和元数据，不变更记忆身份、主体和范围。自动提取只保存高置信度、直接、稳定的标准用户事实、偏好和约束，范围可以是 user 或 workspace。推断、含糊、临时、假设、第三方、引用及敏感断言跳过，不创建候选 backlog，也不把任意模型输出标为 active。明确直接修订可通过 `replacesIndex` 创建新记忆并以 CAS supersede 旧记忆；冲突、过期或权限不相容时跳过。
+
+Clear non-conflicting enrichment uses `changeIntent = enrichment` with one exact existing-memory or earlier-proposal target. It creates a complete current representation, retains the old representation in history, and inherits its evidence. The same CAS, scope and disclosure checks apply; enrichment also preserves validity bounds. Aspect equality and similarity cannot select or authorize an enrichment target.
+
+显式人工替代继续使用独立确认事务。
 
 ## 召回与引用
 

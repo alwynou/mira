@@ -114,6 +114,8 @@ Workspace 是检索与数据发送边界，标签和实体链接不会自动授�
 
 同类 Memory 只有在表达同一具体方面且用户自然表达了变化时才视为可能替代；不同方面的偏好可以同时保留。模型提供的方面标识只用于发现候选冲突，不是用户授权，也不能单独触发替代。
 
+Clear, non-conflicting additions about the same identified entity are enrichment, rather than a correction requiring the user to say “replace.” The extractor identifies the exact existing memory (or an earlier item in the same batch) and produces one complete statement retaining the supported prior facts and new detail. The new representation becomes current; the previous representation remains in history, with both sources traceable. Aspect labels and text similarity alone do not authorize this operation. Ambiguous entities, contradictions, incompatible disclosure policy, or changed target revisions do not merge automatically.
+
 这类记忆在后台自然生效，不逐条弹窗或要求确认，也不要求在回答中显示引用。内部来源可以关联整个会话批次，供纠正和遗忘时追踪依赖。已实现的记忆管理界面提供编辑、替代、归档与遗忘入口；后台处理结果的独立审核队列不在当前范围内。
 
 #### C. 推断、敏感、冲突或低置信内容

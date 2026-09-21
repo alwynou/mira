@@ -13,6 +13,9 @@ struct MemoryExtractionValidatorTests {
         #expect(schema["additionalProperties"] == .bool(false))
         #expect(schema["required"] == .array([.string("version"), .string("items")]))
         #expect(MemoryExtractionValidator.instructions.contains("aspectKey"))
+        #expect(MemoryExtractionValidator.instructions.contains("changeIntent to enrichment"))
+        #expect(MemoryExtractionValidator.instructions.contains("Preserve all supported facts"))
+        #expect(MemoryExtractionValidator.instructions.contains("replacesProposalIndex"))
     }
 
     @Test func directStableMetadataAllowsModelParaphraseAndRequiresValidAspectKey() throws {
@@ -39,6 +42,82 @@ struct MemoryExtractionValidatorTests {
         replacement["assertion"] = ["mode": "directStable", "aspectKey": "drink.preference", "changeIntent": "explicitReplacement"]
         let withCue = try validate(item: replacement, source: source("I now prefer coffee"))
         #expect(withCue[0].triage == .active)
+    }
+
+    @Test func enrichmentRequiresOneExplicitExistingMemoryOrEarlierProposalTarget() throws {
+        let first = "A blue touring bicycle is five years old"
+        let existingTarget = item(
+            content: "My blue touring bicycle is five years old and is named Comet", quote: first,
+            kind: "fact", aspectKey: "vehicle.name", changeIntent: "enrichment",
+            extra: ["replacesIndex": 3])
+        let existingResult = try validate(item: existingTarget, source: source(first))
+        #expect(existingResult[0].triage == .active)
+        #expect(existingResult[0].replacesIndex == 3)
+        #expect(existingResult[0].replacesProposalIndex == nil)
+
+        let earlierItem = item(content: "My blue touring bicycle is five years old", quote: first,
+                               kind: "fact", aspectKey: "vehicle.age")
+        let laterItem = item(content: "My blue touring bicycle is five years old and is named Comet",
+                             quote: first, kind: "fact", aspectKey: "vehicle.name", changeIntent: "enrichment",
+                             extra: ["replacesProposalIndex": 0])
+        let proposals = try validate(items: [
+            earlierItem,
+            laterItem
+        ], source: source(first + ". Its name is Comet"))
+        #expect(proposals.count == 2)
+        #expect(proposals[1].assertion.aspectKey == "vehicle.name")
+        #expect(proposals[1].replacesProposalIndex == 0)
+        #expect(proposals[1].replacesIndex == nil)
+    }
+
+    @Test func enrichmentRejectsMissingMultipleForwardAndIncompatibleTargets() {
+        let text = "My blue touring bicycle is named Comet"
+        let missingTarget = item(content: text, quote: text, kind: "fact", changeIntent: "enrichment")
+        assertError({ _ = try validate(item: missingTarget, source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+
+        let bothTargets = item(content: text, quote: text, kind: "fact", changeIntent: "enrichment",
+                               extra: ["replacesIndex": 0, "replacesProposalIndex": 0])
+        assertError({ _ = try validate(item: bothTargets, source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+
+        let forwardTarget = item(content: text, quote: text, kind: "fact", changeIntent: "enrichment",
+                                 extra: ["replacesProposalIndex": 1])
+        assertError({ _ = try validate(item: forwardTarget, source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+
+        let wrongIntent = item(content: text, quote: text, kind: "fact", changeIntent: "explicitReplacement",
+                               extra: ["replacesProposalIndex": 0])
+        assertError({ _ = try validate(item: wrongIntent, source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+
+        let incompatible = item(content: "My blue touring bicycle is named Comet", quote: text, kind: "preference",
+                                aspectKey: "vehicle.name", changeIntent: "enrichment",
+                                extra: ["replacesProposalIndex": 0])
+        let earlier = item(content: "My blue touring bicycle is five years old", quote: text, kind: "fact")
+        assertError({ _ = try validate(items: [earlier, incompatible], source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+
+        let candidate = item(content: "My bicycle might be five years old", quote: text, kind: "fact",
+                             inferred: true, stable: false)
+        let enrichment = item(content: "My blue touring bicycle is five years old and is named Comet", quote: text, kind: "fact",
+                              aspectKey: "vehicle.name", changeIntent: "enrichment",
+                              extra: ["replacesProposalIndex": 0])
+        assertError({ _ = try validate(items: [candidate, enrichment], source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+
+        assertError({ _ = try validate(item: enrichment, source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+        let independentTarget = item(content: text, quote: text, kind: "fact",
+                                     extra: ["replacesIndex": 0])
+        assertError({ _ = try validate(item: independentTarget, source: source(text)) }, code: .invalidInput,
+                    message: "The memory evolution target is invalid.")
+        for bound in ["validFrom", "validUntil"] {
+            var boundedTarget = earlier
+            boundedTarget[bound] = "2026-01-01T00:00:00Z"
+            assertError({ _ = try validate(items: [boundedTarget, enrichment], source: source(text)) }, code: .invalidInput,
+                        message: "The memory evolution target is invalid.")
+        }
     }
 
     @Test func directEnglishPreferenceIsActiveAndUsesHostDerivedScope() throws {

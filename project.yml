@@ -272,6 +272,8 @@ targets:
       - Tests/MiraUITests
       - path: Tests/Fixtures/EverydayMemory/scenarios.json
         buildPhase: resources
+      - path: Tests/Fixtures/EverydayMemory/state-evolution.json
+        buildPhase: resources
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "The memory evolution target is invalid.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "The memory evolution target is invalid."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "记忆更新目标无效。"}}}},
     "Chat Completions": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Chat Completions"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Chat Completions"}}}, "comment": "Protocol name; preserve the API name in both languages."},
     "Model Two": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Model Two"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Model Two"}}}, "comment": "Synthetic model name in the component gallery; preserve model identity in both languages."},
     "Thinking budget tokens": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Thinking budget tokens"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "思考预算 Token 数"}}}},

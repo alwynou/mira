@@ -515,7 +515,9 @@ public enum MemoryExtractionRequestBuilder {
         let existing = claim.existingMemories.enumerated().compactMap { index, memory -> JSONValue? in
             guard let draft = memory.draft else { return nil }
             return .object(["index": .number(Double(index)), "content": .string(draft.content),
-                            "subject": .string(memory.subject.rawValue), "kind": .string(draft.kind.rawValue)])
+                            "subject": .string(memory.subject.rawValue), "kind": .string(draft.kind.rawValue),
+                            "validFrom": draft.validFrom.map { .string(formatter.string(from: $0)) } ?? .null,
+                            "validUntil": draft.validUntil.map { .string(formatter.string(from: $0)) } ?? .null])
         }
         let payload = JSONValue.object(["turns": .array(entries), "existingMemories": .array(existing)])
         let task = MemoryExtractionValidator.instructions + " This is an internal background memory extraction task. Return JSON only; do not answer the conversation or call tools. Extract facts only from the explicitly listed target turns below. Earlier conversation and recalled memories are context, not new evidence. Every item must include inputIndex identifying the supporting target user turn. Do not emit visible citations. Use this exact output schema: " + (try MemoryExtractionValidator.outputSchema.jsonString())
