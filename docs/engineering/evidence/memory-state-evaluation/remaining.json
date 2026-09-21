@@ -1,0 +1,1431 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "paused",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "explicitUser",
+          "body" : "User prefers black tea in the afternoon now; this changed from a previous preference for green tea in the afternoon.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "3aa1719b-fcd1-4533-8501-1ca7eeea5543"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:fc6bf965-e7bb-4a08-be30-14ec0d5d2442\/execution:3aa1719b-fcd1-4533-8501-1ca7eeea5543\/message:2de44b4d-0fba-448b-a849-01d47bc996f7\/admission:b21eeec3-10d2-4dfd-97fa-3480aa3073d0@20"
+          ],
+          "id" : "8b9ece93-4574-40b1-bbf5-32bf53bb0c54",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        },
+        {
+          "authority" : "observedUser",
+          "body" : "User usually prefers green tea in the afternoon.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "15c74600-dd4d-4829-ba76-6d7149ed2331"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:fc6bf965-e7bb-4a08-be30-14ec0d5d2442\/execution:15c74600-dd4d-4829-ba76-6d7149ed2331\/message:a333c6d0-cd46-4974-af61-cd633d114171\/admission:3b790153-1098-4607-abd6-c87815c7aae2@2"
+          ],
+          "id" : "ead34b21-a9c0-4fd9-8442-07307dfb6fc9",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "Black tea would suit you this afternoon — that matches your current stated preference, which changed from your earlier green tea habit (memory:8b9ece93-4574-40b1-bbf5-32bf53bb0c54@1). If you'd like, I can also keep the earlier green tea option in mind as something you used to enjoy.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "black tea"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : true,
+            "term" : "green tea"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 1536,
+            "complete" : true,
+            "id" : "9c3039a6-14fa-4665-80be-3a28a40cdacb",
+            "inputTokens" : 2059,
+            "outputTokens" : 123,
+            "reasoningTokens" : 47
+          }
+        ],
+        "executionID" : "e0c57541-eabf-4f23-a174-90f090a18bea",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:8b9ece93-4574-40b1-bbf5-32bf53bb0c54@1",
+          "memory:ead34b21-a9c0-4fd9-8442-07307dfb6fc9@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "0402a10c-4b39-4987-bc08-934b4ca1b51c",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-tea-explicit-replacement",
+      "kind" : "replacement",
+      "mismatchReasons" : [
+        "automatic_case_used_foreground_remember",
+        "background_extraction_not_completed",
+        "replacement_successor_relation_mismatch",
+        "replacement_successor_missing_from_context"
+      ],
+      "stateChecks" : [
+
+      ],
+      "status" : "completed_with_state_mismatches",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2176,
+              "complete" : true,
+              "id" : "839025e4-19a3-4335-bf43-1b5bb2accae0",
+              "inputTokens" : 2340,
+              "outputTokens" : 221,
+              "reasoningTokens" : 168
+            },
+            {
+              "cacheReadTokens" : 1408,
+              "complete" : true,
+              "id" : "a7373424-1f56-478b-b194-84c5d1c551c8",
+              "inputTokens" : 1651,
+              "outputTokens" : 607,
+              "reasoningTokens" : 518
+            }
+          ],
+          "executionID" : "15c74600-dd4d-4829-ba76-6d7149ed2331",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "99e88c72-20fc-4ffa-bc6c-6841801c5aae",
+                "cacheReadTokens" : 0,
+                "chargedTokens" : 1579,
+                "dispatched" : true,
+                "inputTokens" : 1106,
+                "ordinal" : 1,
+                "outputTokens" : 473,
+                "reasoningTokens" : 370,
+                "reservedTokens" : 13507,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "9c858dab-aa6a-4050-851c-b60c0fc17996",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "15c74600-dd4d-4829-ba76-6d7149ed2331",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "I usually prefer green tea in the afternoon.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User usually prefers green tea in the afternoon.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "15c74600-dd4d-4829-ba76-6d7149ed2331"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:fc6bf965-e7bb-4a08-be30-14ec0d5d2442\/execution:15c74600-dd4d-4829-ba76-6d7149ed2331\/message:a333c6d0-cd46-4974-af61-cd633d114171\/admission:3b790153-1098-4607-abd6-c87815c7aae2@2"
+              ],
+              "id" : "ead34b21-a9c0-4fd9-8442-07307dfb6fc9",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "fc6bf965-e7bb-4a08-be30-14ec0d5d2442"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 3840,
+              "complete" : true,
+              "id" : "461e8541-26a8-4446-be88-2426f97b167d",
+              "inputTokens" : 4017,
+              "outputTokens" : 113,
+              "reasoningTokens" : 42
+            },
+            {
+              "cacheReadTokens" : 2560,
+              "complete" : true,
+              "id" : "d92f7ddf-82d6-4bf3-852e-00304ee2cb1d",
+              "inputTokens" : 2824,
+              "outputTokens" : 1060,
+              "reasoningTokens" : 907
+            }
+          ],
+          "executionID" : "3aa1719b-fcd1-4533-8501-1ca7eeea5543",
+          "executionOutcome" : "completed",
+          "expectation" : "replace",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "83ef8717-bfc9-427d-a264-0f416b530efc",
+                "chargedTokens" : 13525,
+                "dispatched" : true,
+                "ordinal" : 1,
+                "reservedTokens" : 13525,
+                "state" : "paused"
+              }
+            ],
+            "candidateCount" : 0,
+            "errorCode" : "paused",
+            "jobID" : "c3e8f654-dbe4-452a-862d-1201266f08cb",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "3aa1719b-fcd1-4533-8501-1ca7eeea5543",
+            "status" : "paused"
+          },
+          "index" : 1,
+          "input" : "That has changed: I prefer black tea in the afternoon now.",
+          "memories" : [
+            {
+              "authority" : "explicitUser",
+              "body" : "User prefers black tea in the afternoon now; this changed from a previous preference for green tea in the afternoon.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "3aa1719b-fcd1-4533-8501-1ca7eeea5543"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:fc6bf965-e7bb-4a08-be30-14ec0d5d2442\/execution:3aa1719b-fcd1-4533-8501-1ca7eeea5543\/message:2de44b4d-0fba-448b-a849-01d47bc996f7\/admission:b21eeec3-10d2-4dfd-97fa-3480aa3073d0@20"
+              ],
+              "id" : "8b9ece93-4574-40b1-bbf5-32bf53bb0c54",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            },
+            {
+              "authority" : "observedUser",
+              "body" : "User usually prefers green tea in the afternoon.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "15c74600-dd4d-4829-ba76-6d7149ed2331"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:fc6bf965-e7bb-4a08-be30-14ec0d5d2442\/execution:15c74600-dd4d-4829-ba76-6d7149ed2331\/message:a333c6d0-cd46-4974-af61-cd633d114171\/admission:3b790153-1098-4607-abd6-c87815c7aae2@2"
+              ],
+              "id" : "ead34b21-a9c0-4fd9-8442-07307dfb6fc9",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:ead34b21-a9c0-4fd9-8442-07307dfb6fc9@1"
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "fc6bf965-e7bb-4a08-be30-14ec0d5d2442"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    },
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "failed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "explicitUser",
+          "body" : "用户偏好的工作更新写法已更改：工作更新先给出结论，再补充背景（不再采用\"先写完整背景、再给结论\"的旧顺序）。",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "f130880f-3fd3-4b17-86d9-a6bbea8c051d"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:b2a2255d-09ff-4022-a610-171f81162f63\/execution:f130880f-3fd3-4b17-86d9-a6bbea8c051d\/message:d04d1c38-cf4d-4a9a-a4c4-9166c4a18c23\/admission:0d99a932-6069-4c77-b5b2-831c7b907d02@20"
+          ],
+          "id" : "e9bfe54a-6ac2-4dd3-bd45-9daec001fa53",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "按你目前的偏好，工作更新的顺序是：\n\n**1. 先给结论** —— 开头一两句直接说清这次更新最重要的信息（结果 \/ 状态 \/ 需要对方做什么）。\n**2. 再补背景** —— 之后再说明过程、原因、数据等支撑细节。\n\n注意：这已经取代了旧的\"先写完整背景、再给结论\"的顺序，别再按旧顺序写。\n\n一个可直接套用的骨架（结构是建议，细节按你实际情况填）：\n\n```\n结论：[当前状态 \/ 结果 \/ 需要对方决策或配合的事项]\n背景：[起因、关键过程、数据依据]\n后续：[下一步计划、时间点、风险]\n```\n\n如果你的每次更新还想固定包含别的内容（比如风险项、请求支持的具体人），告诉我，我可以帮你整理成一份固定模板。",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "先给结论"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : true,
+            "term" : "先写完整背景"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 2048,
+            "complete" : true,
+            "id" : "b6797643-a4ef-48a0-83d5-36f6c7144567",
+            "inputTokens" : 2429,
+            "outputTokens" : 255,
+            "reasoningTokens" : 85
+          },
+          {
+            "cacheReadTokens" : 1536,
+            "complete" : true,
+            "id" : "f114b02f-52fc-470f-b955-b4ba0473f1b0",
+            "inputTokens" : 1931,
+            "outputTokens" : 172,
+            "reasoningTokens" : 90
+          }
+        ],
+        "executionID" : "1ab29559-b48b-4f1a-82c0-63f0bbeb828d",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:e9bfe54a-6ac2-4dd3-bd45-9daec001fa53@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "df02709b-01c0-461d-9056-b1c7efb3a9a7",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "zh-update-style-explicit-replacement",
+      "kind" : "replacement",
+      "mismatchReasons" : [
+        "background_extraction_not_completed",
+        "established_memory_not_uniquely_source_linked",
+        "automatic_case_used_foreground_remember",
+        "background_extraction_not_completed",
+        "replacement_successor_relation_mismatch"
+      ],
+      "stateChecks" : [
+
+      ],
+      "status" : "completed_with_state_mismatches",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 1920,
+              "complete" : true,
+              "id" : "87dfd998-b8c1-4ceb-828d-450ca7380ca5",
+              "inputTokens" : 2144,
+              "outputTokens" : 190,
+              "reasoningTokens" : 99
+            },
+            {
+              "cacheReadTokens" : 1408,
+              "complete" : true,
+              "id" : "cc3e2192-e41c-425c-a2cf-b0e01839e7cb",
+              "inputTokens" : 1656,
+              "outputTokens" : 406,
+              "reasoningTokens" : 320
+            }
+          ],
+          "executionID" : "714b317c-5bfc-4f92-aad5-47027a26d527",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "01906a33-02f5-48f9-bd86-30833417ae43",
+                "chargedTokens" : 13812,
+                "dispatched" : true,
+                "ordinal" : 1,
+                "reservedTokens" : 13812,
+                "state" : "paused"
+              }
+            ],
+            "candidateCount" : 0,
+            "errorCode" : "paused",
+            "jobID" : "9a3f512f-70eb-4dea-b68c-f67a1f2f4479",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "714b317c-5bfc-4f92-aad5-47027a26d527",
+            "status" : "paused"
+          },
+          "index" : 0,
+          "input" : "工作更新我通常喜欢先写完整背景，再给结论。",
+          "memories" : [
+
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "b2a2255d-09ff-4022-a610-171f81162f63"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 3200,
+              "complete" : true,
+              "id" : "97118a5a-6403-4383-a4e4-77c517b0f2fe",
+              "inputTokens" : 3385,
+              "outputTokens" : 116,
+              "reasoningTokens" : 0
+            },
+            {
+              "cacheReadTokens" : 2688,
+              "complete" : true,
+              "id" : "aba8648f-f362-4811-85ed-3cbeb480173d",
+              "inputTokens" : 2948,
+              "outputTokens" : 303,
+              "reasoningTokens" : 133
+            },
+            {
+              "cacheReadTokens" : 2176,
+              "complete" : true,
+              "id" : "ca7bc524-cdc4-449e-acaa-00c5b82e5cc9",
+              "inputTokens" : 2354,
+              "outputTokens" : 512,
+              "reasoningTokens" : 429
+            }
+          ],
+          "executionID" : "f130880f-3fd3-4b17-86d9-a6bbea8c051d",
+          "executionOutcome" : "completed",
+          "expectation" : "replace",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "errorCode" : "invalidInput",
+            "memoryCount" : 0,
+            "status" : "failed"
+          },
+          "index" : 1,
+          "input" : "这个习惯改了，我现在希望工作更新先给结论，再补背景。",
+          "memories" : [
+            {
+              "authority" : "explicitUser",
+              "body" : "用户偏好的工作更新写法已更改：工作更新先给出结论，再补充背景（不再采用\"先写完整背景、再给结论\"的旧顺序）。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "f130880f-3fd3-4b17-86d9-a6bbea8c051d"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:b2a2255d-09ff-4022-a610-171f81162f63\/execution:f130880f-3fd3-4b17-86d9-a6bbea8c051d\/message:d04d1c38-cf4d-4a9a-a4c4-9166c4a18c23\/admission:0d99a932-6069-4c77-b5b2-831c7b907d02@20"
+              ],
+              "id" : "e9bfe54a-6ac2-4dd3-bd45-9daec001fa53",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "b2a2255d-09ff-4022-a610-171f81162f63"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    },
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "failed",
+      "finalMemorySnapshots" : [
+
+      ],
+      "followUp" : {
+        "answer" : "I don't have anything on record about your flight time preference — I checked both my saved memories and the available knowledge sources, and there's no mention of a preferred departure time or time of day for flying.\n\nIf you tell me what it is (e.g., early morning, midday, or red-eye), I can remember it for next time.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : false,
+            "term" : "prefer early flights"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 2048,
+            "complete" : true,
+            "id" : "4d691bae-9ad5-416c-8889-ea15fcfbb189",
+            "inputTokens" : 2200,
+            "outputTokens" : 71,
+            "reasoningTokens" : 0
+          },
+          {
+            "cacheReadTokens" : 1792,
+            "complete" : true,
+            "id" : "55297dc5-e81c-4bac-9d37-6cc193c3a05d",
+            "inputTokens" : 2002,
+            "outputTokens" : 116,
+            "reasoningTokens" : 40
+          },
+          {
+            "cacheReadTokens" : 1664,
+            "complete" : true,
+            "id" : "45ddba88-e5b9-4866-b502-4ebc5daaaad5",
+            "inputTokens" : 1821,
+            "outputTokens" : 99,
+            "reasoningTokens" : 27
+          },
+          {
+            "cacheReadTokens" : 1408,
+            "complete" : true,
+            "id" : "5f13304b-5ddb-4b1b-b69e-22a45df0e7ff",
+            "inputTokens" : 1650,
+            "outputTokens" : 89,
+            "reasoningTokens" : 15
+          }
+        ],
+        "executionID" : "add6a3df-666c-4e31-bf03-a5d873ab2b56",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "100d1900-df34-4698-9d7d-2795349e5633",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-early-flight-ambiguous-retraction",
+      "kind" : "ambiguousRetraction",
+      "mismatchReasons" : [
+        "background_extraction_not_completed",
+        "established_memory_not_uniquely_source_linked",
+        "background_extraction_not_completed"
+      ],
+      "stateChecks" : [
+
+      ],
+      "status" : "completed_with_state_mismatches",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 1408,
+              "complete" : true,
+              "id" : "be7f5aa1-cd14-49d8-92c0-9260ade481b9",
+              "inputTokens" : 1650,
+              "outputTokens" : 592,
+              "reasoningTokens" : 564
+            }
+          ],
+          "executionID" : "0b40dacc-4adb-4c61-a175-e9b5bf274262",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "4250c700-9c45-4b4e-8947-434d32203264",
+                "chargedTokens" : 13403,
+                "dispatched" : true,
+                "ordinal" : 1,
+                "reservedTokens" : 13403,
+                "state" : "paused"
+              }
+            ],
+            "candidateCount" : 0,
+            "errorCode" : "paused",
+            "jobID" : "2bf26d55-e1ab-4938-8254-53e9f60525cd",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "0b40dacc-4adb-4c61-a175-e9b5bf274262",
+            "status" : "paused"
+          },
+          "index" : 0,
+          "input" : "I prefer early flights when I travel.",
+          "memories" : [
+
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "c45dea0f-0886-4e3c-a849-3ba53b2ad281"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 3712,
+              "complete" : true,
+              "id" : "80f74cfc-09a4-4786-8591-75d584114b4f",
+              "inputTokens" : 3883,
+              "outputTokens" : 485,
+              "reasoningTokens" : 427
+            },
+            {
+              "cacheReadTokens" : 3456,
+              "complete" : true,
+              "id" : "9f86fed5-9929-4548-b114-45167c425de0",
+              "inputTokens" : 3675,
+              "outputTokens" : 126,
+              "reasoningTokens" : 53
+            },
+            {
+              "cacheReadTokens" : 2048,
+              "complete" : true,
+              "id" : "d3bc2fd2-cad4-4120-b46e-5a580ff8c5bd",
+              "inputTokens" : 2262,
+              "outputTokens" : 1370,
+              "reasoningTokens" : 1328
+            }
+          ],
+          "executionID" : "7c7c721a-9cd8-4314-a490-1322f98de483",
+          "executionOutcome" : "completed",
+          "expectation" : "retractWithoutReplacement",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "errorCode" : "invalidInput",
+            "memoryCount" : 0,
+            "status" : "failed"
+          },
+          "index" : 1,
+          "input" : "Actually, that was only true for one trip because there were no other options.",
+          "memories" : [
+
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "c45dea0f-0886-4e3c-a849-3ba53b2ad281"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    },
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 0,
+          "evidenceExecutionIDs" : [
+            "15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf"
+          ],
+          "evidenceHashCount" : 0,
+          "evidenceSourceReferences" : [
+            "session:ec688587-2033-47c7-a6a3-bf691fe17a16\/execution:15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf\/message:5cb73b3c-58ad-4dcc-bf24-510f1746b1cd\/admission:93c90668-583a-493a-bdca-9eb960b3b3d7@2"
+          ],
+          "forgottenAt" : "2026-09-21T13:06:58Z",
+          "id" : "9e427f91-9a09-45e6-bbed-06e5f2977f6f",
+          "isCurrent" : false,
+          "lifecycle" : "forgotten",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 2,
+          "revisionBodyCount" : 0,
+          "revisionNumbers" : [
+            1,
+            2
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "I don't have anything on file about your breakfast habits — a search of my saved memories and the available knowledge sources turned up nothing about food or breakfast preferences.\n\nIf you tell me what you usually go for in the morning, I can save it so I'll know next time.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : false,
+            "term" : "savory breakfast"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 1792,
+            "complete" : true,
+            "id" : "e6bbe67f-0c09-4390-809c-02f29ff0a351",
+            "inputTokens" : 2007,
+            "outputTokens" : 86,
+            "reasoningTokens" : 29
+          },
+          {
+            "cacheReadTokens" : 1664,
+            "complete" : true,
+            "id" : "fbbdd8fa-93b2-4e5a-8317-f52771a96f61",
+            "inputTokens" : 1824,
+            "outputTokens" : 101,
+            "reasoningTokens" : 28
+          },
+          {
+            "cacheReadTokens" : 1408,
+            "complete" : true,
+            "id" : "f7b9b265-3d8b-4de1-b21c-5441402e2ea0",
+            "inputTokens" : 1651,
+            "outputTokens" : 91,
+            "reasoningTokens" : 13
+          }
+        ],
+        "executionID" : "ff6be061-e75b-4b54-b151-6e381d443eb4",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "25c68402-c32f-40b9-ae56-76dc4ab9c553",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-forget-and-reopen-breakfast",
+      "kind" : "forgetReopen",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "forgotten_body_unavailable_after_close_reopen",
+        "forgotten_body_and_context_unavailable_after_reopen"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 1408,
+              "complete" : true,
+              "id" : "6cc66a35-3c95-4ee7-a0d9-5397e541b2ed",
+              "inputTokens" : 1649,
+              "outputTokens" : 300,
+              "reasoningTokens" : 252
+            }
+          ],
+          "executionID" : "15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "d886a7cd-44cc-4fe7-8c8d-b1433cb5da0d",
+                "cacheReadTokens" : 0,
+                "chargedTokens" : 1463,
+                "dispatched" : true,
+                "inputTokens" : 1097,
+                "ordinal" : 1,
+                "outputTokens" : 366,
+                "reasoningTokens" : 267,
+                "reservedTokens" : 13484,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "6efbe6a8-a17c-4065-a3ee-ce242943806d",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "I usually prefer a savory breakfast.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User usually prefers a savory breakfast.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:ec688587-2033-47c7-a6a3-bf691fe17a16\/execution:15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf\/message:5cb73b3c-58ad-4dcc-bf24-510f1746b1cd\/admission:93c90668-583a-493a-bdca-9eb960b3b3d7@2"
+              ],
+              "id" : "9e427f91-9a09-45e6-bbed-06e5f2977f6f",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "ec688587-2033-47c7-a6a3-bf691fe17a16"
+        },
+        {
+          "conversationUsage" : [
+
+          ],
+          "executionOutcome" : "maintenance_completed_library_reopened",
+          "expectation" : "forget",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "memoryCount" : 0,
+            "status" : "not_applicable"
+          },
+          "index" : 1,
+          "input" : "forget",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 0,
+              "evidenceExecutionIDs" : [
+                "15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf"
+              ],
+              "evidenceHashCount" : 0,
+              "evidenceSourceReferences" : [
+                "session:ec688587-2033-47c7-a6a3-bf691fe17a16\/execution:15ba0bc2-251e-481e-9d2e-c3cdcc8f19bf\/message:5cb73b3c-58ad-4dcc-bf24-510f1746b1cd\/admission:93c90668-583a-493a-bdca-9eb960b3b3d7@2"
+              ],
+              "forgottenAt" : "2026-09-21T13:06:58Z",
+              "id" : "9e427f91-9a09-45e6-bbed-06e5f2977f6f",
+              "isCurrent" : false,
+              "lifecycle" : "forgotten",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 2,
+              "revisionBodyCount" : 0,
+              "revisionNumbers" : [
+                1,
+                2
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    },
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "For city trips, prefers hotels in walkable neighborhoods.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "59846720-25e5-4b76-8b8a-185101eceaa2"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:9a483f54-bfc8-4195-8d51-18a7dfaefa01\/execution:59846720-25e5-4b76-8b8a-185101eceaa2\/message:5de2e618-27c4-4dc7-95c1-bff7692c40f1\/admission:f0774858-b430-4ba3-a4f5-13e67e7425b9@2"
+          ],
+          "id" : "3cfe1497-bd90-4404-bc6c-a22eaab76c9f",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "I don't have anything recorded about an airline preference — I couldn't find any note about a preferred airline, for city trips or otherwise.\n\nWhat I do have for city trips is a different one: you prefer hotels in walkable neighborhoods (memory:3cfe1497-bd90-4404-bc6c-a22eaab76c9f@1). If you tell me which airline you like, I can save that so it's on hand next time.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : true,
+            "term" : "airline preference"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 1920,
+            "complete" : true,
+            "id" : "b06fb205-6c30-42e3-887e-27ac8e52a447",
+            "inputTokens" : 2219,
+            "outputTokens" : 107,
+            "reasoningTokens" : 9
+          },
+          {
+            "cacheReadTokens" : 1536,
+            "complete" : true,
+            "id" : "e312a97f-0460-4453-8b10-b98de5182f47",
+            "inputTokens" : 1899,
+            "outputTokens" : 142,
+            "reasoningTokens" : 68
+          }
+        ],
+        "executionID" : "69a31ba0-d63f-4e35-8fe2-e46d234be845",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:3cfe1497-bd90-4404-bc6c-a22eaab76c9f@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "cfbc994f-66eb-4538-8491-b14572759f1a",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-related-but-unsupported",
+      "kind" : "relatedUnsupported",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "related_context_and_answer_left_for_human_review"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 1408,
+              "complete" : true,
+              "id" : "e3752bef-7a44-4bed-a06d-0e30278f185a",
+              "inputTokens" : 1653,
+              "outputTokens" : 224,
+              "reasoningTokens" : 196
+            }
+          ],
+          "executionID" : "59846720-25e5-4b76-8b8a-185101eceaa2",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "30352df8-80bd-4f8f-906f-c99875645358",
+                "cacheReadTokens" : 0,
+                "chargedTokens" : 1400,
+                "dispatched" : true,
+                "inputTokens" : 1085,
+                "ordinal" : 1,
+                "outputTokens" : 315,
+                "reasoningTokens" : 211,
+                "reservedTokens" : 13434,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "074acf24-9d80-46f3-9703-5bcb0022e75b",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "59846720-25e5-4b76-8b8a-185101eceaa2",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "For city trips I prefer hotels in walkable neighborhoods.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "For city trips, prefers hotels in walkable neighborhoods.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "59846720-25e5-4b76-8b8a-185101eceaa2"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:9a483f54-bfc8-4195-8d51-18a7dfaefa01\/execution:59846720-25e5-4b76-8b8a-185101eceaa2\/message:5de2e618-27c4-4dc7-95c1-bff7692c40f1\/admission:f0774858-b430-4ba3-a4f5-13e67e7425b9@2"
+              ],
+              "id" : "3cfe1497-bd90-4404-bc6c-a22eaab76c9f",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "9a483f54-bfc8-4195-8d51-18a7dfaefa01"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    },
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "errorCode" : "request_authorization_cap_reached",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "explicitUser",
+          "body" : "The user has a shorthair cat named Miso.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "f6e0279b-2bfa-4faa-be43-f061edb4c849"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:5b3aa651-5e77-45e6-bec2-d0428640e559\/execution:f6e0279b-2bfa-4faa-be43-f061edb4c849\/message:f2f6bdc4-a264-4ccf-91b4-97b03514d875\/admission:8ff86fd7-06cf-4b22-bc92-9ac4ef05a41a@2"
+          ],
+          "id" : "1f440ae1-f648-44c1-b36a-798ce1b060ba",
+          "isCurrent" : false,
+          "lifecycle" : "superseded",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 2,
+          "revisionBodyCount" : 2,
+          "revisionNumbers" : [
+            1,
+            2
+          ],
+          "state" : "active",
+          "supersededByID" : "a5cc59ef-3b7f-487b-8237-9d4ae24ff785"
+        },
+        {
+          "authority" : "explicitUser",
+          "body" : "The user has a shorthair cat named Miso. Miso is black.",
+          "detailAvailable" : true,
+          "evidenceCount" : 2,
+          "evidenceExcerptCount" : 2,
+          "evidenceExecutionIDs" : [
+            "ab02b831-c0d4-4830-98bd-9086932c401c",
+            "f6e0279b-2bfa-4faa-be43-f061edb4c849"
+          ],
+          "evidenceHashCount" : 2,
+          "evidenceSourceReferences" : [
+            "session:5b3aa651-5e77-45e6-bec2-d0428640e559\/execution:ab02b831-c0d4-4830-98bd-9086932c401c\/message:20d68181-1d03-45ad-bdc9-ef80cf4f5527\/admission:75dbdbcb-ace1-4580-bd3c-523314c7ce83@28",
+            "session:5b3aa651-5e77-45e6-bec2-d0428640e559\/execution:f6e0279b-2bfa-4faa-be43-f061edb4c849\/message:f2f6bdc4-a264-4ccf-91b4-97b03514d875\/admission:8ff86fd7-06cf-4b22-bc92-9ac4ef05a41a@2"
+          ],
+          "id" : "a5cc59ef-3b7f-487b-8237-9d4ae24ff785",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+            "1f440ae1-f648-44c1-b36a-798ce1b060ba"
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "id" : "en-cat-foreground-enrichment",
+      "kind" : "foregroundEnrichment",
+      "mismatchReasons" : [
+
+      ],
+      "postForegroundExtraction" : {
+        "attempts" : [
+          {
+            "attemptID" : "a5d48112-6b90-4508-a55a-94af64e22515",
+            "cacheReadTokens" : 768,
+            "chargedTokens" : 1535,
+            "dispatched" : true,
+            "inputTokens" : 1180,
+            "ordinal" : 1,
+            "outputTokens" : 355,
+            "reasoningTokens" : 345,
+            "reservedTokens" : 13621,
+            "state" : "completed"
+          }
+        ],
+        "candidateCount" : 0,
+        "jobID" : "ba7d192b-9440-4e4a-b664-e2a18af254b1",
+        "memoryCount" : 0,
+        "sourceExecutionID" : "ab02b831-c0d4-4830-98bd-9086932c401c",
+        "status" : "completed"
+      },
+      "stateChecks" : [
+        "foreground_memory_remember_receipt_and_explicit_origin_verified",
+        "foreground_memory_context_recorded",
+        "one_current_enriched_representation_with_lineage",
+        "foreground_enrichment_survives_background_extraction"
+      ],
+      "status" : "failed",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2048,
+              "complete" : true,
+              "id" : "a66c77b1-1112-425a-84a1-8372f99be470",
+              "inputTokens" : 2210,
+              "outputTokens" : 44,
+              "reasoningTokens" : 0
+            },
+            {
+              "cacheReadTokens" : 1664,
+              "complete" : true,
+              "id" : "bcc5f888-393f-4764-8caa-736c1dedb139",
+              "inputTokens" : 1861,
+              "outputTokens" : 220,
+              "reasoningTokens" : 62
+            },
+            {
+              "cacheReadTokens" : 1408,
+              "complete" : true,
+              "id" : "617ee684-7d33-49da-ace5-2f8e9c926fe9",
+              "inputTokens" : 1655,
+              "outputTokens" : 124,
+              "reasoningTokens" : 40
+            }
+          ],
+          "executionID" : "f6e0279b-2bfa-4faa-be43-f061edb4c849",
+          "executionOutcome" : "completed",
+          "expectation" : "remember",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "memoryCount" : 0,
+            "status" : "not_waited_foreground_route"
+          },
+          "index" : 0,
+          "input" : "Please remember that my shorthair cat is named Miso.",
+          "memories" : [
+            {
+              "authority" : "explicitUser",
+              "body" : "The user has a shorthair cat named Miso.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "f6e0279b-2bfa-4faa-be43-f061edb4c849"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:5b3aa651-5e77-45e6-bec2-d0428640e559\/execution:f6e0279b-2bfa-4faa-be43-f061edb4c849\/message:f2f6bdc4-a264-4ccf-91b4-97b03514d875\/admission:8ff86fd7-06cf-4b22-bc92-9ac4ef05a41a@2"
+              ],
+              "id" : "1f440ae1-f648-44c1-b36a-798ce1b060ba",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "5b3aa651-5e77-45e6-bec2-d0428640e559"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 3200,
+              "complete" : true,
+              "id" : "36386bab-f83f-46c6-96c5-21d61f6a404d",
+              "inputTokens" : 3352,
+              "outputTokens" : 120,
+              "reasoningTokens" : 65
+            },
+            {
+              "cacheReadTokens" : 2816,
+              "complete" : true,
+              "id" : "7835ddbb-9054-47cd-a71e-4f83d25fbeab",
+              "inputTokens" : 3015,
+              "outputTokens" : 284,
+              "reasoningTokens" : 225
+            },
+            {
+              "cacheReadTokens" : 2176,
+              "complete" : true,
+              "id" : "629f2e8c-711f-48da-9d35-731da40f8871",
+              "inputTokens" : 2508,
+              "outputTokens" : 373,
+              "reasoningTokens" : 197
+            }
+          ],
+          "executionID" : "ab02b831-c0d4-4830-98bd-9086932c401c",
+          "executionOutcome" : "completed",
+          "expectation" : "enrich",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "memoryCount" : 0,
+            "status" : "not_waited_foreground_route"
+          },
+          "index" : 1,
+          "input" : "Please remember that Miso is black.",
+          "memories" : [
+            {
+              "authority" : "explicitUser",
+              "body" : "The user has a shorthair cat named Miso.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "f6e0279b-2bfa-4faa-be43-f061edb4c849"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:5b3aa651-5e77-45e6-bec2-d0428640e559\/execution:f6e0279b-2bfa-4faa-be43-f061edb4c849\/message:f2f6bdc4-a264-4ccf-91b4-97b03514d875\/admission:8ff86fd7-06cf-4b22-bc92-9ac4ef05a41a@2"
+              ],
+              "id" : "1f440ae1-f648-44c1-b36a-798ce1b060ba",
+              "isCurrent" : false,
+              "lifecycle" : "superseded",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 2,
+              "revisionBodyCount" : 2,
+              "revisionNumbers" : [
+                1,
+                2
+              ],
+              "state" : "active",
+              "supersededByID" : "a5cc59ef-3b7f-487b-8237-9d4ae24ff785"
+            },
+            {
+              "authority" : "explicitUser",
+              "body" : "The user has a shorthair cat named Miso. Miso is black.",
+              "detailAvailable" : true,
+              "evidenceCount" : 2,
+              "evidenceExcerptCount" : 2,
+              "evidenceExecutionIDs" : [
+                "ab02b831-c0d4-4830-98bd-9086932c401c",
+                "f6e0279b-2bfa-4faa-be43-f061edb4c849"
+              ],
+              "evidenceHashCount" : 2,
+              "evidenceSourceReferences" : [
+                "session:5b3aa651-5e77-45e6-bec2-d0428640e559\/execution:ab02b831-c0d4-4830-98bd-9086932c401c\/message:20d68181-1d03-45ad-bdc9-ef80cf4f5527\/admission:75dbdbcb-ace1-4580-bd3c-523314c7ce83@28",
+                "session:5b3aa651-5e77-45e6-bec2-d0428640e559\/execution:f6e0279b-2bfa-4faa-be43-f061edb4c849\/message:f2f6bdc4-a264-4ccf-91b4-97b03514d875\/admission:8ff86fd7-06cf-4b22-bc92-9ac4ef05a41a@2"
+              ],
+              "id" : "a5cc59ef-3b7f-487b-8237-9d4ae24ff785",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+                "1f440ae1-f648-44c1-b36a-798ce1b060ba"
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:1f440ae1-f648-44c1-b36a-798ce1b060ba@1"
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "5b3aa651-5e77-45e6-bec2-d0428640e559"
+        }
+      ],
+      "terminalExtractionJobs" : [
+        {
+          "candidateCount" : 0,
+          "id" : "ba7d192b-9440-4e4a-b664-e2a18af254b1",
+          "memoryCount" : 0,
+          "state" : "completed"
+        }
+      ],
+      "terminalOutcome" : "request_authorization_cap_reached"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-21T12:53:38Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 2048,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "host\/state checks are deterministic; answer keywords require human review",
+  "requestAuthorizationCap" : 40,
+  "requestAuthorizationCount" : 40,
+  "selectedCaseIDs" : [
+    "en-tea-explicit-replacement",
+    "zh-update-style-explicit-replacement",
+    "en-early-flight-ambiguous-retraction",
+    "en-forget-and-reopen-breakfast",
+    "en-related-but-unsupported",
+    "en-cat-foreground-enrichment"
+  ],
+  "status" : "completed_with_failures_or_mismatches",
+  "updatedAt" : "2026-09-21T13:12:12Z",
+  "version" : 1
+}

@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [bounded memory state evaluation](engineering/MEMORY_STATE_EVALUATION.md) records seven synthetic scenarios with 47 request authorizations, verifies forget/reopen and unsupported-inference handling, and preserves correction conflicts, paused extraction and incomplete paths as open quality work in [#41](https://github.com/alwynou/mira/issues/41). Evaluator fixes prevent reply keywords, raw active state and stale global errors from masquerading as completed memory-state checks.
+
 The [foreground memory enrichment follow-up](engineering/FOREGROUND_MEMORY_ENRICHMENT_VERIFICATION.md) addresses the separate `memory.remember` tool path and preserves authorized historical context across the resulting supersession. It corrects the earlier investigation's incomplete attribution of the reported duplicates to background extraction alone.
 
 The [memory enrichment correction](engineering/MEMORY_ENRICHMENT_VERIFICATION.md) adds an explicit same-entity enrichment decision and atomic evolution with retained evidence, addressing duplicate current memories or lost added details. Synthetic verification and its limits are recorded separately; this increment does not close live-model memory-quality acceptance.
