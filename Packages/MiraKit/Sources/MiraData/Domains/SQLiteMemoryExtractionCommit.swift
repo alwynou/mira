@@ -95,17 +95,12 @@ extension SQLiteMemoryStore {
             // Enrichment inherits old evidence, not just the later statement that supplied the new detail.
             // A copied source remains subject to suppression, workspace and disclosure checks.
             if proposal.assertion.changeIntent == .enrichment, let previous {
-                for item in try evidence(previous.memory.id, in: db) {
-                    guard item.bodyPurgedAt == nil, try !suppressedMemorySource(item.source, in: db) else { throw unauthorized }
-                    try insertExtractionEvidence(.init(memoryID: memory.id, source: item.source,
-                        sourceWorkspaceID: item.sourceWorkspaceID, excerpt: item.excerpt,
-                        sourceHash: item.sourceHash, createdAt: item.createdAt), in: db)
-                }
+                try inheritMemoryEvidence(from: previous.memory.id, into: memory.id, in: db)
             }
             for context in sources {
                 let value = try resolve(.userMessage(evidence: context, excerpt: String(context.text.prefix(2_048))), draft: proposal.draft, in: db)
                 try bindSource(value, in: db)
-                try insertExtractionEvidence(.init(memoryID: memory.id, source: value.identity,
+                try insertBoundedMemoryEvidence(.init(memoryID: memory.id, source: value.identity,
                     sourceWorkspaceID: context.workspaceID, excerpt: value.excerpt, sourceHash: value.bodyHash, createdAt: at), in: db)
             }
             try db.execute(sql: "INSERT INTO memory_assertions(assertion_key, memory_id, source_key) VALUES (?, ?, ?)",
@@ -153,16 +148,6 @@ extension SQLiteMemoryStore {
         if intent == .enrichment {
             guard proposal.replacesIndex != nil || proposal.replacesProposalIndex != nil else { throw invalid }
         }
-    }
-
-    private static func insertExtractionEvidence(_ value: MemoryEvidence, in db: Database) throws {
-        let source = try sourceKey(value.source)
-        if try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_evidence WHERE memory_id = ? AND source_key = ?",
-            arguments: [key(value.memoryID), source]) == 1 { return }
-        guard try Int.fetchOne(db, sql: "SELECT count(*) FROM memory_evidence WHERE memory_id = ?",
-            arguments: [key(value.memoryID)]) ?? 0 < 100 else { throw limit }
-        try db.execute(sql: "INSERT INTO memory_evidence(id, memory_id, source_key, source_workspace_id, json) VALUES (?, ?, ?, ?, ?)",
-            arguments: [key(value.id), key(value.memoryID), source, value.sourceWorkspaceID.map(key), try encode(value)])
     }
 
     private static func validate(

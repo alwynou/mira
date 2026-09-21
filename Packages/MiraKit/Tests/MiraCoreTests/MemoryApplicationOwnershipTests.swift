@@ -282,6 +282,9 @@ private actor MemoryTestStore: MemoryStore, MemoryExtractionStatusReader {
     func validateMemorySources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date)
         async throws
     {}
+    func validateMemoryContextSources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date)
+        async throws
+    {}
     func suppressedMemorySources() async throws -> [MemoryEvidenceSource] { [] }
     func createMemory(
         draft: MemoryDraft, source: MemoryWriteSource, operationID: UUID, replacing: MemoryID?, expectedRevision: Int?,

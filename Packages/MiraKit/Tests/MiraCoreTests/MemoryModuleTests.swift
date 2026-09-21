@@ -12,7 +12,7 @@ struct MemoryModuleTests {
             AgentToolDescriptor(definition: MemoryTools.getDefinition, revision: 1,
                                 outputSchema: MemoryTools.getResultSchema, executionMode: .parallelSafe,
                                 timeoutMilliseconds: 30_000, maximumResultBytes: 32_768),
-            AgentToolDescriptor(definition: MemoryTools.rememberDefinition, revision: 1,
+            AgentToolDescriptor(definition: MemoryTools.rememberDefinition, revision: 2,
                                 outputSchema: MemoryTools.rememberResultSchema, executionMode: .exclusive,
                                 timeoutMilliseconds: 120_000, maximumResultBytes: 4_096)
         ]
@@ -58,5 +58,6 @@ private actor ModuleMemoryStore: MemoryReadStore {
     func recallMemories(query: String, request: AgentContextRequest, limit: Int, at: Date) async throws -> MemorySearchResult { .init(memories: []) }
     func recallMemory(_ id: MemoryID, request: AgentContextRequest, at: Date) async throws -> Memory { throw MiraError(.notFound, "Memory fixture has no records.") }
     func validateMemorySources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date) async throws {}
+    func validateMemoryContextSources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date) async throws {}
     func suppressedMemorySources() async throws -> [MemoryEvidenceSource] { [] }
 }

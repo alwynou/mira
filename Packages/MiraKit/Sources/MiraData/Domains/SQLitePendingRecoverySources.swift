@@ -26,7 +26,7 @@ extension SQLiteMemoryStore {
                 })
             else { throw PendingRecoveryDomainAuthority.unavailable }
             try await self.owner.recoveryRead(for: operation) { db in
-                try SQLiteMemoryStore.validateMemorySources(sources, for: request, at: now(), in: db)
+                try SQLiteMemoryStore.validateMemoryContextSources(sources, for: request, at: now(), in: db)
             }
         }
     }

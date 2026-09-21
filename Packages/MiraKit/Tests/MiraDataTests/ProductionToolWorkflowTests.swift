@@ -36,7 +36,8 @@ struct ProductionToolWorkflowTests {
             case "memory.get": arguments = .object(["memory_id": .string(memory.id.rawValue.uuidString)])
             case "memory.remember":
                 arguments = .object(["content": .string(content), "quote": .string(content),
-                    "kind": .string("preference"), "scope": .string("current"), "sensitive": .bool(false)])
+                    "kind": .string("preference"), "scope": .string("current"), "sensitive": .bool(false),
+                    "enriches": .array([])])
             case "source.open": arguments = .object(["source_id": .string(source.source.id.rawValue.uuidString)])
             case "source.read_chunk": arguments = .object(["chunk_id": .string(chunk.id.rawValue.uuidString)])
             case "task.list": arguments = .object([:])

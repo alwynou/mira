@@ -64,6 +64,10 @@ flowchart TD
 
 `memory.remember` 是 `AgentLocalWriteTool`，只准备提案，不自行执行 SQL 写入。标准非敏感记忆允许按 standard remote 发送策略执行，不增加一次性的额外审批；敏感记忆保持本地处理并遵守本地权限。其固有策略与宿主限制共同执行，不能被宿主允许策略绕过。自动捕获不通过该工具，也不把模型提案送入人工候选收件箱。
 
+The foreground `memory.remember` descriptor is revision 2. Its required `enriches` array is empty for an independent save, or contains up to six unique exact `{memory_id, revision}` targets for non-conflicting enrichment. The model selects the same entity and supplies one complete assertion preserving the supported prior facts; similarity alone is insufficient. The recall payload exposes structured `memory_id` and `revision` fields, and `memory.search` / `memory.get` can resolve additional concrete targets. The tool cannot use this operation for contradictory replacement.
+
+Preparation and policy load the targets through authorized current recall. Both plan sources and targets contain the exact references. The business handler repeats scope, subject, kind, sensitivity, disclosure, source-suppression and revision checks in the receipt transaction. All targets must have identical validity bounds, which the host preserves. The transaction creates one current memory, copies the deduplicated evidence from every target and the current source within the 100-source bound, supersedes all selected targets, and records operation dependencies and the business receipt atomically. A stale target, failed relation write or failed receipt insertion rolls back the whole operation. Target IDs/revisions are part of operation identity. Independent saves and local-only sensitive saves retain their existing behavior.
+
 新工具保存的标准记忆允许在所属范围内用于后续模型请求，敏感记忆仅本地保存。断言去重复用已有记忆时保留实际发送策略，回执必须反映真实结果。不得在提交前承诺已保存，也不得把本地专用结果描述为后续模型可召回。
 
 修订只改措辞和元数据，不变更记忆身份、主体和范围。自动提取只保存高置信度、直接、稳定的标准用户事实、偏好和约束，范围可以是 user 或 workspace。推断、含糊、临时、假设、第三方、引用及敏感断言跳过，不创建候选 backlog，也不把任意模型输出标为 active。明确直接修订可通过 `replacesIndex` 创建新记忆并以 CAS supersede 旧记忆；冲突、过期或权限不相容时跳过。
@@ -81,6 +85,8 @@ Clear non-conflicting enrichment uses `changeIntent = enrichment` with one exact
 语义索引由本地 Qwen 4-bit 模型和 macOS adapter 提供；向量身份包含模型 fingerprint、预处理版本和 1,024 维 Float32 空间。索引写入走 durable vector outbox，不能成为记忆提交的权限来源。召回以 semantic 结果为主，保留小的 lexical reserve 和 small-profile 结果以覆盖字面命中及未索引事实。derived index 属于可重建投影，归档时省略，不能改变原始记忆、证据或修订事实。
 
 读取工具在准备时冻结返回内容及精确 `.domain(namespace: "memories", id, revision)` 来源，执行和发布前重新核验。上下文贡献有条数和字节上限，实际进入请求的来源随 `AgentContextBuild` 持久化；读取工具不另写一套 SQL execution usage 表。
+
+Current recall, read-tool execution and mutation CAS remain current-only. In contrast, `MemorySourceAuthority` and pending recovery use `validateMemoryContextSources` for already-recorded context: the exact retained revision must still have its body, and the current record must remain active, undeleted and unforgotten. Supersession alone may preserve historical context authorization; it does not make the old memory current or redirect its reference. Current and historical validity/disclosure restrictions, source suppression, source-workspace policies and the frozen destination still apply. This lets a foreground enrichment finish its following model step without revoking the context it just read.
 
 Semantic top-K is an upper bound, not a minimum result count. Low-relevance vectors are filtered before selection under the [search admission contract](SEARCH.md); an unrelated query may return an empty result. `memory.search` does not append the automatic contributor's communication/language profile. Literal keyword recall remains available when vectors are absent or below the semantic floor.
 

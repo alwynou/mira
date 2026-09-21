@@ -19,6 +19,10 @@ public protocol MemoryReadStore: Sendable {
     func recallMemories(query: String, request: AgentContextRequest, limit: Int, at: Date) async throws -> MemorySearchResult
     func recallMemory(_ id: MemoryID, request: AgentContextRequest, at: Date) async throws -> Memory
     func validateMemorySources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date) async throws
+    /// Validates immutable sources already recorded in the current conversation history.
+    /// Unlike a tool result check, this may accept a superseded record while its exact
+    /// revision and current disclosure/privacy gates remain valid.
+    func validateMemoryContextSources(_ sources: [AgentSourceReference], for request: AgentContextRequest, at: Date) async throws
     func suppressedMemorySources() async throws -> [MemoryEvidenceSource]
 }
 

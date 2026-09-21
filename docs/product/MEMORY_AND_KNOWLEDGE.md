@@ -97,6 +97,8 @@ Workspace 是检索与数据发送边界，标签和实体链接不会自动授�
 
 明确要求记住敏感信息表示同意保存该条内容，不自动表示允许后续向任意远程 Provider 发送。范围不明确时先询问范围；普通文字修正可直接保存，涉及替代旧认知时展示明确替代对象。仅在用户已明确指明替代意图和对象时，才无需重复确认。
 
+Non-conflicting additions to the same clearly identified entity can enrich an explicitly saved memory without asking the user to repeat a replacement command. The foreground save tool names the exact current representations and consolidates their supported facts with the new detail. All selected old representations become history, with their source evidence retained. Contradictions and ambiguous entity matches do not qualify; this does not authorize a bulk cleanup of unrelated memories.
+
 #### B. 用户清晰表达稳定事实、偏好或决定
 
 例如：

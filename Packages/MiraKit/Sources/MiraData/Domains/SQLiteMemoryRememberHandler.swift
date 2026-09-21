@@ -13,10 +13,13 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
 
     public func businessKey(for effect: AgentResolvedEffect) throws -> String {
         let proposal = try parsed(effect)
-        return try SQLiteMemoryStore.assertionKey(
+        let assertion = try SQLiteMemoryStore.assertionKey(
             draft: proposal.draft,
             source: .userMessage(effect.context.evidence.reference)
         )
+        struct Identity: Encodable { let assertion: String; let targets: [MemoryUsage] }
+        return try SQLiteMemoryStore.digest(SQLiteMemoryStore.encode(
+            Identity(assertion: assertion, targets: proposal.enrichmentTargets)))
     }
 
     public func validate(effect: AgentResolvedEffect, isReplay: Bool, in db: Database) throws {
@@ -28,14 +31,29 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
             return
         }
         let proposal = try parsed(effect)
-        guard effect.proposal.plan.sources.isEmpty, effect.proposal.plan.targets.isEmpty else {
-            throw unauthorized
-        }
         let source = MemoryEvidenceSource.userMessage(effect.context.evidence.reference)
         if try SQLiteMemoryStore.suppressedMemorySource(source, in: db) {
             throw unauthorized
         }
-        _ = isReplay
+        if !proposal.enrichmentTargets.isEmpty {
+            let context = effect.context
+            let request = AgentContextRequest(sessionID: context.evidence.reference.sessionID, executionID: context.executionID,
+                workspaceID: context.evidence.workspaceID, userText: context.evidence.text,
+                authorizationEpoch: context.evidence.sessionAuthorizationEpoch, destination: .model(context.route))
+            if isReplay {
+                try SQLiteMemoryStore.validateMemoryContextSources(effect.proposal.plan.sources, for: request, at: now(), in: db)
+            } else {
+                let targets = try proposal.enrichmentTargets.map { target in
+                    let memory = try SQLiteMemoryStore.recall(target.memoryID, request: request, at: now(), in: db)
+                    guard memory.revision == target.revision else { throw SQLiteMemoryStore.conflict }
+                    for evidence in try SQLiteMemoryStore.evidence(memory.id, in: db) {
+                        guard try !SQLiteMemoryStore.suppressedMemorySource(evidence.source, in: db) else { throw unauthorized }
+                    }
+                    return memory
+                }
+                _ = try SQLiteMemoryStore.enrichmentDraft(proposal.draft, targets: targets, at: now())
+            }
+        }
     }
 
     private func validateRead(effect: AgentResolvedEffect, in db: Database) throws {
@@ -75,6 +93,12 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
         let proposal = try parsed(effect)
         let date = now()
         guard date.timeIntervalSince1970.isFinite else { throw invalidInput }
+        if !proposal.enrichmentTargets.isEmpty {
+            let receipt = try SQLiteMemoryStore.enrichRememberedMemory(
+                draft: proposal.draft, source: .userMessage(evidence: effect.context.evidence, excerpt: proposal.quote),
+                targets: proposal.enrichmentTargets, operationID: effect.context.invocationID, at: date, in: db)
+            return MemoryTools.result(receipt)
+        }
         let receipt = try SQLiteMemoryStore.createMemoryInTransaction(
             draft: proposal.draft,
             source: .userMessage(evidence: effect.context.evidence, excerpt: proposal.quote),
@@ -90,15 +114,18 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
     private func parsed(_ effect: AgentResolvedEffect) throws -> MemoryRememberProposal {
         guard effect.proposal.effect == .localWrite,
               effect.proposal.businessNamespace == namespace,
-              effect.proposal.descriptor.revision == 1,
+              effect.proposal.descriptor.revision == 2,
               effect.proposal.descriptor.definition == MemoryTools.rememberDefinition,
-              effect.proposal.descriptor.outputSchema == MemoryTools.rememberResultSchema,
-              effect.proposal.plan.sources.isEmpty,
-              effect.proposal.plan.targets.isEmpty else {
+              effect.proposal.descriptor.outputSchema == MemoryTools.rememberResultSchema else {
             throw unauthorized
         }
-        return try MemoryTools.parsedProposal(arguments: effect.proposal.plan.input,
-                                               evidence: effect.context.evidence)
+        let proposal = try MemoryTools.parsedProposal(arguments: effect.proposal.plan.input,
+                                                     evidence: effect.context.evidence)
+        let references = proposal.enrichmentTargets.map {
+            AgentSourceReference.domain(namespace: "memories", id: $0.memoryID.rawValue, revision: $0.revision)
+        }
+        guard effect.proposal.plan.sources == references, effect.proposal.plan.targets == references else { throw unauthorized }
+        return proposal
     }
 
     private var unauthorized: MiraError {
