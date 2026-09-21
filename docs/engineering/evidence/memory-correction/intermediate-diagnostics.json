@@ -1,0 +1,8 @@
+[
+  {
+    "jobID": "1997c8a4-e763-4570-8725-d5baff04460c",
+    "state": "paused",
+    "errorCode": "invalidInput",
+    "validatorDiagnostic": "Automatic memory assertion aspect key is invalid."
+  }
+]

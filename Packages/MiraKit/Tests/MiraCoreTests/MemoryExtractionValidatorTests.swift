@@ -16,6 +16,23 @@ struct MemoryExtractionValidatorTests {
         #expect(MemoryExtractionValidator.instructions.contains("changeIntent to enrichment"))
         #expect(MemoryExtractionValidator.instructions.contains("Preserve all supported facts"))
         #expect(MemoryExtractionValidator.instructions.contains("replacesProposalIndex"))
+        #expect(MemoryExtractionValidator.instructions.contains("Do not use underscores, spaces, uppercase letters, or non-ASCII characters"))
+        #expect(MemoryExtractionValidator.instructions.contains("Use null when no useful narrow aspect key fits"))
+
+        guard let aspectKeyValue = schema["properties"]?["items"]?["items"]?["properties"]?["assertion"]?["properties"]?["aspectKey"],
+              case .object(let aspectKeySchema) = aspectKeyValue else {
+            Issue.record("The validator schema must describe aspect-key formatting.")
+            return
+        }
+        #expect(aspectKeySchema["type"] == .array([.string("string"), .string("null")]))
+        #expect(aspectKeySchema["minLength"] == .number(3))
+        #expect(aspectKeySchema["maxLength"] == .number(96))
+        #expect(aspectKeySchema["not"] == .object(["enum": .array([
+            .string("fact"), .string("memory"), .string("preference"), .string("constraint"),
+            .string("general"), .string("other"), .string("misc"), .string("topic"),
+            .string("user"), .string("choice.default"),
+        ])]))
+        #expect(aspectKeySchema["description"]?.stringValue?.contains("Reserved whole-key values") == true)
     }
 
     @Test func directStableMetadataAllowsModelParaphraseAndRequiresValidAspectKey() throws {
@@ -31,6 +48,53 @@ struct MemoryExtractionValidatorTests {
         var malformed = item(content: text, quote: text, kind: "preference")
         malformed["assertion"] = ["mode": "directStable", "aspectKey": "preference", "changeIntent": "independent"]
         assertError({ _ = try validateJSONObject(["version": 3, "items": [malformed]], source: source(text)) }, code: .invalidInput, message: "Automatic memory assertion aspect key is invalid.")
+    }
+
+    @Test func aspectKeySchemaFormatMatchesValidatorWithoutRejectingGenericSegments() throws {
+        let text = "I prefer compact interfaces"
+        let schema = try #require(MemoryExtractionValidator.outputSchema["properties"]?["items"]?["items"]?["properties"]?["assertion"]?["properties"]?["aspectKey"])
+        let pattern = try #require(schema["pattern"]?.stringValue)
+        let expression = try NSRegularExpression(pattern: pattern)
+        guard case .number(let minimum)? = schema["minLength"],
+              case .number(let maximum)? = schema["maxLength"],
+              case .array(let reserved)? = schema["not"]?["enum"] else {
+            Issue.record("The aspect-key schema bounds are missing.")
+            return
+        }
+        func schemaAccepts(_ key: String) -> Bool {
+            (minimum...maximum).contains(Double(key.count)) && !reserved.contains(.string(key)) &&
+                expression.firstMatch(in: key, range: NSRange(key.startIndex..., in: key)) != nil
+        }
+        let maximumLengthKey = String(repeating: "a", count: 94) + ".b"
+        let validKeys = [
+            "a.b", "food.dairy", "food.coffee.origin", "travel.destination-2",
+            "general.preference", "unknown.foo", "choice.defaulted", maximumLengthKey,
+        ]
+        for key in validKeys {
+            #expect(schemaAccepts(key))
+            let result = try validate(item: item(content: text, quote: text, kind: "preference", aspectKey: key), source: source(text))
+            #expect(result[0].assertion.aspectKey == key)
+        }
+
+        let invalidKeys = [
+            "a", "a.b.c.d.e", ".food.type", "food.type.", "food..type",
+            // Escaped Unicode is synthetic input proving ASCII-only metadata validation.
+            "food_type.dairy", "food dairy", "Food.dairy", "caf\u{e9}.food", "food.dairy\n",
+            "2food.dairy", "-food.dairy", "choice.default",
+            "fact", "memory", "preference", "constraint", "general", "other", "misc", "topic", "user",
+            String(repeating: "a", count: 95) + ".b",
+        ]
+        for key in invalidKeys {
+            #expect(!schemaAccepts(key))
+            assertError({
+                _ = try validate(item: item(content: text, quote: text, kind: "preference", aspectKey: key), source: source(text))
+            }, code: .invalidInput, message: "Automatic memory assertion aspect key is invalid.")
+        }
+
+        var nullAspect = item(content: text, quote: text, kind: "preference")
+        nullAspect["assertion"] = ["mode": "directStable", "aspectKey": NSNull(), "changeIntent": "independent"]
+        let result = try validate(item: nullAspect, source: source(text))
+        #expect(result[0].assertion.aspectKey == nil)
     }
 
     @Test func replacementClassificationRequiresExplicitIntent() throws {

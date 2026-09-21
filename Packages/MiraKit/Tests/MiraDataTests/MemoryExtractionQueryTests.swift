@@ -21,15 +21,34 @@ struct MemoryExtractionQueryTests {
                 try await store.failMemoryExtraction(
                     first, error: .init(.configuration, "Synthetic unsent failure"),
                     authorization: auth, at: TaskWorkflowFixture.now)
+                let unsentFailure = try await store.memoryExtractionReport(
+                    job.id, sessionID: address.sessionID,
+                    executionID: address.executionID, workspaceID: nil)
+                #expect(unsentFailure.job.state == .failed)
+                #expect(unsentFailure.job.errorCode == .configuration)
+                #expect(try await store.memoryExtractionStatus(
+                    sessionID: address.sessionID, executionID: address.executionID,
+                    workspaceID: nil, before: nil, limit: 8).jobs.first?.errorCode == .configuration)
                 _ = try await store.retryMemoryExtraction(
                     job.id, source: source, authorization: auth, at: TaskWorkflowFixture.now)
+                #expect(try await store.memoryExtractionReport(
+                    job.id, sessionID: address.sessionID,
+                    executionID: address.executionID, workspaceID: nil).job.errorCode == nil)
                 let second = try await claim(job.id, ordinal: 2, source: source, store: store, f: f)
                 let ceiling = try await dispatch(second, source: source, store: store, f: f)
                 try await store.failMemoryExtraction(
                     second, error: .init(.interrupted, "Synthetic dispatched failure"),
                     authorization: auth, at: TaskWorkflowFixture.now)
+                let dispatchedFailure = try await store.memoryExtractionReport(
+                    job.id, sessionID: address.sessionID,
+                    executionID: address.executionID, workspaceID: nil)
+                #expect(dispatchedFailure.job.state == .paused)
+                #expect(dispatchedFailure.job.errorCode == .interrupted)
                 _ = try await store.retryMemoryExtraction(
                     job.id, source: source, authorization: auth, at: TaskWorkflowFixture.now)
+                #expect(try await store.memoryExtractionReport(
+                    job.id, sessionID: address.sessionID,
+                    executionID: address.executionID, workspaceID: nil).job.errorCode == nil)
                 let third = try await claim(job.id, ordinal: 3, source: source, store: store, f: f)
                 _ = try await dispatch(third, source: source, store: store, f: f)
                 let usage =
@@ -47,6 +66,7 @@ struct MemoryExtractionQueryTests {
                     job.id, sessionID: address.sessionID,
                     executionID: address.executionID, workspaceID: nil)
                 #expect(before.job.state == .completed && before.job.attemptCount == 3)
+                #expect(before.job.errorCode == nil)
                 #expect(before.attempts.map(\.state) == [.failed, .paused, .completed])
                 #expect(before.attempts.map(\.id) == [first.attemptID, second.attemptID, third.attemptID])
                 #expect(before.attempts.map(\.chargedTokens) == [0, ceiling, missingCounters ? ceiling : 12])
@@ -75,6 +95,7 @@ struct MemoryExtractionQueryTests {
                         job.id, sessionID: address.sessionID,
                         executionID: address.executionID, workspaceID: nil)
                     #expect(purged.job.state == .suppressed)
+                    #expect(purged.job.errorCode == nil)
                     #expect(purged.attempts.map(\.usage) == before.attempts.map(\.usage))
                     #expect(purged.attempts.map(\.chargedTokens) == before.attempts.map(\.chargedTokens))
                     #expect(purged.attempts.allSatisfy { $0.route == nil && $0.bodyPurgedAt != nil })
@@ -85,6 +106,39 @@ struct MemoryExtractionQueryTests {
                 }
                 await reopened.close()
                 try reopenedDB.close()
+            } catch {
+                await store.close()
+                throw error
+            }
+            await store.close()
+        }
+    }
+
+    @Test func purgingFailedSourceRemovesItsDiagnosticCode() async throws {
+        try await withTaskWorkflow(outputs: [[.blockStarted(.init(id: "text", content: .text("Done"))), .blockFinished(id: "text"), .finished(.stop)]], memoryEnabled: true) { f in
+            let address = try await f.run("Synthetic failed extraction source")
+            let source = try await f.evidence(address)
+            let job = try await enqueue(source, in: f)
+            let store = try SQLiteMemoryExtractionStore(database: f.database, libraryID: f.authority.libraryID)
+            do {
+                let claim = try await claim(job.id, ordinal: 1, source: source, store: store, f: f)
+                _ = try await dispatch(claim, source: source, store: store, f: f)
+                try await store.failMemoryExtraction(
+                    claim, error: .init(.invalidInput, "Synthetic invalid output"),
+                    authorization: f.authority.authorization(), at: TaskWorkflowFixture.now)
+                let before = try await store.memoryExtractionReport(
+                    job.id, sessionID: address.sessionID, executionID: address.executionID, workspaceID: nil)
+                #expect(before.job.errorCode == .invalidInput)
+                try await f.database.write { db in
+                    try SQLiteMemoryExtractionStore.purge(
+                        source: .userMessage(source.reference), at: TaskWorkflowFixture.now, in: db)
+                }
+                let after = try await store.memoryExtractionReport(
+                    job.id, sessionID: address.sessionID, executionID: address.executionID, workspaceID: nil)
+                #expect(after.job.state == .suppressed)
+                #expect(after.job.errorCode == nil)
+                #expect(after.attempts.first?.usage == nil)
+                #expect(after.attempts.first?.chargedTokens == before.attempts.first?.chargedTokens)
             } catch {
                 await store.close()
                 throw error

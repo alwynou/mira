@@ -12,7 +12,7 @@ struct MemoryModuleTests {
             AgentToolDescriptor(definition: MemoryTools.getDefinition, revision: 1,
                                 outputSchema: MemoryTools.getResultSchema, executionMode: .parallelSafe,
                                 timeoutMilliseconds: 30_000, maximumResultBytes: 32_768),
-            AgentToolDescriptor(definition: MemoryTools.rememberDefinition, revision: 2,
+            AgentToolDescriptor(definition: MemoryTools.rememberDefinition, revision: 3,
                                 outputSchema: MemoryTools.rememberResultSchema, executionMode: .exclusive,
                                 timeoutMilliseconds: 120_000, maximumResultBytes: 4_096)
         ]

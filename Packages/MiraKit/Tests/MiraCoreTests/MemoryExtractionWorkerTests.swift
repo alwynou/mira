@@ -22,6 +22,52 @@ struct MemoryExtractionWorkerTests {
         }
     }
 
+    @Test func requestBuilderUsesSharedOutputTokenTargetWhenNoAdapterLimitWasResolved() async throws {
+        let fixture = try await WorkerFixture.make(routeMaximumOutputTokens: 16_384)
+        try await fixture.withCleanup { fixture in
+            let claim = try await fixture.store.makeClaim()
+            let input = try MemoryExtractionRequestBuilder.input(for: claim)
+            #expect(claim.outputTokenLimit == nil)
+            #expect(input.outputTokenLimit == MemoryExtractionRequestBuilder.outputTokenTarget)
+        }
+    }
+
+    @Test func workerResolvesOutputTargetAgainstRouteAndAdapter() async throws {
+        let highProbe = WorkerProbe()
+        let highRoute = try await WorkerFixture.make(
+            adapter: .init(probe: highProbe), routeMaximumOutputTokens: 16_384)
+        try await highRoute.withCleanup { fixture in
+            await fixture.worker.wake()
+            try await fixture.store.wait { $0.completed == 1 }
+            #expect(highProbe.requestedOutputLimit == MemoryExtractionRequestBuilder.outputTokenTarget)
+            #expect(highProbe.resolvedOutputLimit == MemoryExtractionRequestBuilder.outputTokenTarget)
+            #expect(highProbe.lastInput?.outputTokenLimit == MemoryExtractionRequestBuilder.outputTokenTarget)
+        }
+
+        let lowProbe = WorkerProbe()
+        let lowRoute = try await WorkerFixture.make(
+            adapter: .init(probe: lowProbe), routeMaximumOutputTokens: 4_096)
+        try await lowRoute.withCleanup { fixture in
+            await fixture.worker.wake()
+            try await fixture.store.wait { $0.completed == 1 }
+            #expect(lowProbe.requestedOutputLimit == MemoryExtractionRequestBuilder.outputTokenTarget)
+            #expect(lowProbe.resolvedOutputLimit == 4_096)
+            #expect(lowProbe.lastInput?.outputTokenLimit == 4_096)
+        }
+
+        let overrideProbe = WorkerProbe()
+        let overrideRoute = try await WorkerFixture.make(
+            adapter: .init(probe: overrideProbe, outputTokenLimitOverride: 10_240),
+            routeMaximumOutputTokens: 16_384)
+        try await overrideRoute.withCleanup { fixture in
+            await fixture.worker.wake()
+            try await fixture.store.wait { $0.completed == 1 }
+            #expect(overrideProbe.requestedOutputLimit == MemoryExtractionRequestBuilder.outputTokenTarget)
+            #expect(overrideProbe.resolvedOutputLimit == 10_240)
+            #expect(overrideProbe.lastInput?.outputTokenLimit == 10_240)
+        }
+    }
+
     @Test func extractionPreservesForegroundPrefixAndDisablesTools() async throws {
         let fixture = try await WorkerFixture.make()
         try await fixture.withCleanup { fixture in
@@ -38,7 +84,7 @@ struct MemoryExtractionWorkerTests {
             #expect(input.messages.last?.text.contains("Target input:") == true)
             #expect(input.prefixMessageCount == original.messages.count)
             #expect(input.allowsToolCalls == false)
-            #expect(input.outputTokenLimit == min(2_048, claim.route.maximumOutputTokens))
+            #expect(input.outputTokenLimit == min(MemoryExtractionRequestBuilder.outputTokenTarget, claim.route.maximumOutputTokens))
         }
     }
 
@@ -132,8 +178,9 @@ struct MemoryExtractionWorkerTests {
                 probe: malformedProbe, events: [.usage(.init(inputTokens: -1, outputTokens: 2)), .finished(.stop)]))
         try await malformed.withCleanup { malformed in
             await malformed.worker.wake()
-            try await malformed.store.wait { $0.failed == 1 }
+            try await malformed.store.wait { $0.paused == 1 }
             #expect(await malformed.store.completed == 0)
+            #expect(await malformed.store.dispatched == 1)
             #expect(await malformed.store.lastError?.code == .malformedStream)
         }
 
@@ -146,6 +193,59 @@ struct MemoryExtractionWorkerTests {
             #expect(await capacity.store.dispatched == 0)
             #expect(capacityProbe.streamCount == 0)
             #expect(await capacity.store.lastError?.code == .unsupported)
+        }
+    }
+
+    @Test func wrappedAdapterFailuresPreserveCodesWithoutPersistingBodies() async throws {
+        let requestBodySentinel = "SYNTHETIC_PRIVATE_REQUEST_BODY"
+        let errorBodySentinel = "SYNTHETIC_PRIVATE_ERROR_BODY"
+        let failures: [(MiraError.Code, String)] = [
+            (.network, "The memory extraction model request failed."),
+            (.providerRejected, "The memory extraction model request failed."),
+            (.outputLimit, "The memory extraction model request failed."),
+            (.cancelled, "Memory extraction was cancelled."),
+        ]
+        for (code, expectedMessage) in failures {
+            let probe = WorkerProbe()
+            let fixture = try await WorkerFixture.make(adapter: .init(
+                probe: probe,
+                streamFailure: .init(error: .init(code, "\(errorBodySentinel) \(requestBodySentinel)"))))
+            try await fixture.withCleanup { fixture in
+                await fixture.worker.wake()
+                try await fixture.store.wait { $0.paused == 1 }
+
+                #expect(await fixture.store.dispatched == 1)
+                #expect(await fixture.store.failed == 0)
+                #expect(await fixture.store.completed == 0)
+                let error = try #require(await fixture.store.lastError)
+                #expect(error.code == code)
+                #expect(error.message == expectedMessage)
+                #expect(!error.message.contains(errorBodySentinel))
+                #expect(!error.message.contains(requestBodySentinel))
+                #expect(!error.message.contains("I prefer compact interfaces"))
+                #expect(probe.streamCount == 1)
+            }
+        }
+    }
+
+    @Test func outputLimitedStreamPausesWithOutputLimitWithoutCompleting() async throws {
+        let probe = WorkerProbe()
+        let fixture = try await WorkerFixture.make(adapter: .init(
+            probe: probe,
+            events: [
+                .blockStarted(.init(id: "text", content: .text("partial structured output"))),
+                .blockFinished(id: "text"),
+                .finished(.outputLimit),
+            ]))
+        try await fixture.withCleanup { fixture in
+            await fixture.worker.wake()
+            try await fixture.store.wait { $0.paused == 1 }
+
+            #expect(await fixture.store.dispatched == 1)
+            #expect(await fixture.store.completed == 0)
+            #expect(await fixture.store.lastError?.code == .outputLimit)
+            #expect(await fixture.store.output == nil)
+            #expect(probe.streamCount == 1)
         }
     }
 
@@ -233,13 +333,14 @@ private struct WorkerFixture: Sendable {
     let access: AgentLibraryAccess
     let scope: RuntimeScope
 
-    static func make(adapter: WorkerAdapter = .init(), backgroundCapacity: Int = 1, sourceAvailable: Bool = true)
+    static func make(adapter: WorkerAdapter = .init(), backgroundCapacity: Int = 1, sourceAvailable: Bool = true,
+                     routeMaximumOutputTokens: Int = 512)
         async throws -> WorkerFixture
     {
         let journal = WorkerJournal()
         let sessionID = ConversationID()
         let runtime = try await SessionRuntime.open(id: sessionID, journal: journal, payloads: journal)
-        let routeInfo = WorkerRoute.make()
+        let routeInfo = WorkerRoute.make(maximumOutputTokens: routeMaximumOutputTokens)
         let result = await runtime.commit(id: UUID()) { context in
             let title = try await context.stageBytes(Data("Memory worker".utf8), kind: .title)
             let user = try await context.stageBytes(
@@ -421,9 +522,14 @@ private actor WorkerStore: MemoryExtractionStore {
     func failMemoryExtraction(
         _ claim: MemoryExtractionClaim, error: MiraError, authorization: AgentLibraryAuthorization, at: Date
     ) async throws {
-        state.failed += 1
         state.lastError = error
-        job.state = .failed
+        if state.dispatched > 0 {
+            state.paused += 1
+            job.state = .paused
+        } else {
+            state.failed += 1
+            job.state = .failed
+        }
     }
     func pauseMemoryExtraction(
         _ id: MemoryExtractionJobID, expectedAttemptCount: Int, error: MiraError,
@@ -443,6 +549,8 @@ private struct WorkerAdapter: AgentModelAdapter {
     let identity = AgentAdapterIdentity(id: "memory.fixture", revision: 1)
     let probe: WorkerProbe
     let events: [AgentModelStreamEvent]
+    let streamFailure: AgentModelFailure?
+    let outputTokenLimitOverride: Int?
     let prepareGate: WorkerGate?
     let streamGate: WorkerGate?
     let mutateInput: Bool
@@ -450,14 +558,23 @@ private struct WorkerAdapter: AgentModelAdapter {
     init(
         probe: WorkerProbe = .init(),
         events: [AgentModelStreamEvent] = [.blockStarted(.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))), .blockFinished(id: "text"), .finished(.stop)],
+        streamFailure: AgentModelFailure? = nil,
+        outputTokenLimitOverride: Int? = nil,
         prepareGate: WorkerGate? = nil, streamGate: WorkerGate? = nil, mutateInput: Bool = false, requiresCompactInput: Bool = false
     ) {
         self.probe = probe
         self.events = events
+        self.streamFailure = streamFailure
+        self.outputTokenLimitOverride = outputTokenLimitOverride
         self.prepareGate = prepareGate
         self.streamGate = streamGate
         self.mutateInput = mutateInput
         self.requiresCompactInput = requiresCompactInput
+    }
+    func outputTokenLimit(for requested: Int, route: AgentModelRoute) throws -> Int {
+        let resolved = min(outputTokenLimitOverride ?? requested, route.maximumOutputTokens)
+        probe.resolvedOutputLimit(requested: requested, resolved: resolved)
+        return resolved
     }
     func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest {
         probe.prepared(input)
@@ -480,7 +597,14 @@ private struct WorkerAdapter: AgentModelAdapter {
         let task = Task {
             if let streamGate { await streamGate.wait() }
             for event in events { pair.continuation.yield(event) }
-            pair.continuation.finish()
+            if let streamFailure {
+                let requestText = request.input.messages.last?.text ?? ""
+                let failure = AgentModelFailure(error: .init(
+                    streamFailure.error.code, "\(streamFailure.error.message) \(requestText)"))
+                pair.continuation.finish(throwing: failure)
+            } else {
+                pair.continuation.finish()
+            }
             probe.finished()
         }
         return .init(
@@ -504,10 +628,17 @@ private final class WorkerProbe: @unchecked Sendable {
     var lastInput: AgentModelInput? { lock.withLock { capturedInput } }
     private var streamValue = 0
     private var closeValue = 0
+    private var requestedOutputLimitValue: Int?
+    private var resolvedOutputLimitValue: Int?
     var prepareCount: Int { lock.withLock { prepareValue } }
     var streamCount: Int { lock.withLock { streamValue } }
     var closeCount: Int { lock.withLock { closeValue } }
+    var requestedOutputLimit: Int? { lock.withLock { requestedOutputLimitValue } }
+    var resolvedOutputLimit: Int? { lock.withLock { resolvedOutputLimitValue } }
     func prepared(_ input: AgentModelInput) { lock.withLock { prepareValue += 1; capturedInput = input } }
+    func resolvedOutputLimit(requested: Int, resolved: Int) {
+        lock.withLock { requestedOutputLimitValue = requested; resolvedOutputLimitValue = resolved }
+    }
     func streamed() { lock.withLock { streamValue += 1 } }
     func finished() {}
     func closed() { lock.withLock { closeValue += 1 } }
@@ -583,16 +714,16 @@ private final class WorkerGate: @unchecked Sendable {
 private struct WorkerRoute {
     let candidate: AgentModelRouteCandidate
     let route: AgentModelRoute
-    static func make() -> WorkerRoute {
+    static func make(maximumOutputTokens: Int = 512) -> WorkerRoute {
         let identity = AgentAdapterIdentity(id: "memory.fixture", revision: 1)
         let connection = AgentConfiguredConnection(id: .init(), revision: 1, configurationRevision: 1, name: "Fixture", isEnabled: true, definitionID: nil, endpoints: [.init(id: "primary", configuration: .init(
                 schema: .init(id: "fixture.connection", revision: 1),
                 value: .object(["endpoint": .string("https://fixture.example")])), credential: nil)], discovery: nil, defaultInvocation: nil)
-        let model = AgentConfiguredModel(id: .init(), revision: 1, authorizationRevision: 1, reference: .init(connectionID: connection.id, modelID: "fixture"), displayName: nil, isEnabled: true, invocations: [AgentModelInvocationSpec(id: "default", revision: 1, adapter: identity, endpointID: "primary", contextWindow: 4_096, maximumOutputTokens: nil, capabilities: [
+        let model = AgentConfiguredModel(id: .init(), revision: 1, authorizationRevision: 1, reference: .init(connectionID: connection.id, modelID: "fixture"), displayName: nil, isEnabled: true, invocations: [AgentModelInvocationSpec(id: "default", revision: 1, adapter: identity, endpointID: "primary", contextWindow: max(4_096, maximumOutputTokens * 2), maximumOutputTokens: nil, capabilities: [
                 AgentModelCapabilityID.streamingText: .verified, AgentModelCapabilityID.jsonOutput: .verified,
                 AgentModelCapabilityID.thinking: .verified,
             ], configuration: .init(schema: .init(id: "test.invocation", revision: 1), value: .object([:])), parameterSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))], facts: [])
-        let preset = AgentRoutePreset(id: .init(), revision: 1, name: "Fixture", modelDescriptorID: model.id, invocationID: "default", maximumOutputTokens: 512, configuration: .init(schema: .init(id: "fixture.route", revision: 1), value: .object([:])))
+        let preset = AgentRoutePreset(id: .init(), revision: 1, name: "Fixture", modelDescriptorID: model.id, invocationID: "default", maximumOutputTokens: maximumOutputTokens, configuration: .init(schema: .init(id: "fixture.route", revision: 1), value: .object([:])))
         let candidate = AgentModelRouteCandidate(connection: connection, model: model, preset: preset)
         return .init(
             candidate: candidate, route: try! candidate.freeze(configuration: .object(["fixture": .bool(true)])))

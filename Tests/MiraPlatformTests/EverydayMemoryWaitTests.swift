@@ -43,6 +43,13 @@ final class EverydayMemoryWaitTests: XCTestCase {
             let staleFailure = await group.status().failures["extraction"]
             XCTAssertNotNil(staleFailure, "The first source must leave a visible extraction failure.")
 
+            let failed = try await EverydayMemoryLiveTests.waitForMemory(
+                in: group, sourceSession: sourceSession,
+                sourceExecution: executions[0], timeout: 1)
+            XCTAssertEqual(failed.state, "failed")
+            XCTAssertEqual(failed.errorCode, MiraError.Code.invalidInput.rawValue,
+                           "Report the source job's failure category, not its state label.")
+
             let unrelatedSession = ConversationID()
             let unrelated = Self.command(
                 sessionID: unrelatedSession, route: route, text: "A separate one-turn source.",

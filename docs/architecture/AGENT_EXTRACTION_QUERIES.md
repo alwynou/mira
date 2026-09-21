@@ -36,6 +36,8 @@ MiraCore 只拥有类型、验证和端口，不解析 HTTP 价格、不访问 S
 
 `MemoryExtractionJobSummary` 仅携带身份、状态、时间、尝试与结果数量。`MemoryExtractionAttemptUsage` 携带尝试身份、状态、时间、输入／输出估算与结算计数、可选实际 `TokenUsage`、仍保留的冻结路线和清理时间；不含原文、请求、输出、思考、候选内容或原始错误正文。
 
+The job summary may expose the existing `MiraError.Code` for a failed or paused job. This is a bounded classification only: it does not expose the error message or add stored fields. Retry, successful completion, and privacy suppression clear the job error, so their summaries return no error code. The code is read from the already-authorized job row under the same session, execution, and workspace checks as the rest of the summary.
+
 ## 写入与完整性
 
 当前格式直接增加 `execution_id` 查询索引、独立 `reportedUsage` 和有界 `accounting` 列，不添加旧格式解码或迁移。开发历史库可以删除后重建。

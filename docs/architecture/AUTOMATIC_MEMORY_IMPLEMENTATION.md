@@ -66,7 +66,9 @@ sequenceDiagram
 
 ## 会话前缀与缓存
 
-提取指令、输出 schema、待处理回合和现有记忆摘要追加到最后一个 user 消息。原系统提示词和工具定义保持与前台请求一致；不向前缀插入时间、任务 ID 或重新生成的系统提取提示。模型、连接和 thinking 设置沿用原路线。单次输出预算优先限制到 2,048 token；适配器保证不低于合法的显式 thinking 预算要求，不能通过关闭 thinking 获得低开销。
+提取指令、输出 schema、待处理回合和现有记忆摘要追加到最后一个 user 消息。原系统提示词和工具定义保持与前台请求一致；不向前缀插入时间、任务 ID 或重新生成的系统提取提示。模型、连接和 thinking 设置沿用原路线。
+
+The extraction output target is 8,192 tokens, bounded by the frozen route's configured maximum. This leaves room for provider-default thinking and the final structured result. The adapter may raise the target only to satisfy a legal explicit thinking budget within that same route maximum. Thinking is never disabled to fit a smaller extraction budget. Truncated output still pauses without committing memory or automatically retrying; a larger allowance does not guarantee completion.
 
 日志读取器不会持久化或声称重建旧前台请求的完整历史消息数组。提取准备从已提交日志派生最后一个批次的 turn、冻结路线、指令、工具定义、当前追加 context 和原始 user；稳定的 system／tool 前缀在规范值相同时可复用，批次 appendix 仍包含该批次选定的全部 user evidence。这个派生输入保持来源和顺序可审计，但不保证旧 HTTP body 或完整历史输入的字节级重建。
 
@@ -91,11 +93,15 @@ DeepSeek 根据相同前缀复用缓存，属于 best-effort；Mira 保证请求
 
 成功结果的输入与输出用量全部已知时记录实际计数；排除缓存的输入协议还必须给出缓存读写计数。缺失必要计数或已派发结果不确定时保留保守估算，但费用仍标为未知。重复失败不能重复结算，也不能覆盖已经成功提交的结果。
 
+Worker settlement preserves the typed code inside `AgentModelFailure`, using a fixed body-free diagnostic message instead of the adapter's error text. A dispatched attempt still pauses on failure; that state alone does not identify a transport, output-limit or validation cause. Authorized job queries expose the persisted error code separately from state. Failed attempts retain unknown measured usage and cost; conservative accounting is not converted into provider-reported usage.
+
 来源、库或模型配置撤权仍阻止派发与最终提交。关闭和维护等待实际准备、模型流和传输清理完成；调用方取消不会提前释放资源或使晚到结果恢复写入权限。
 
 ## 决定、演变与清理
 
 提取器使用 v3 JSON。每项必须包含有效的批次 `inputIndex`、模型改写后的 `content`、kind/subject/sensitivity；scope 由宿主确定，另包含、`confidence`、`stable` 和 assertion 分类；多个事实可以支持同一回合，host 按输出数组位置记录 proposalIndex。模型不提供 quote。host 依据 inputIndex 绑定整条对应 journal 来源，验证来源、workspace、权限和隐私后才提交。每批最多六个 item，输出最多 32 KiB。
+
+The advertised `aspectKey` schema and instructions state the same format the validator enforces: null, or 3–96 ASCII characters in two to four dot-separated segments, each starting with a lowercase letter and continuing with lowercase letters, digits or hyphens. Underscores, whitespace, uppercase and non-ASCII characters are invalid. The existing reserved whole-key values are also advertised; they are not a ban on those words appearing as individual segments. A missing useful narrow grouping hint can be represented as null. Invalid metadata still rejects the output; the host does not silently rewrite it or treat the key as semantic authorization.
 
 自动保存只接受高置信度、直接、稳定的标准用户事实、偏好和约束，并允许 user 或 workspace 范围。推断、含糊、临时、假设、第三方、引用内容及敏感断言直接跳过，不创建 review candidate backlog，也不把任意模型输出标为 active。助手文本只能在没有辅助来源时作为有界上下文，不能成为用户事实来源。重复断言可复用已有记忆；含糊冲突跳过。每条新断言保守关联整个输入批次，以涵盖跨轮指代。
 
