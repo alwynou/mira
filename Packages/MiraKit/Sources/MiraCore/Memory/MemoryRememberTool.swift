@@ -4,8 +4,9 @@ public struct MemoryRememberProposal: Sendable, Equatable {
     public let draft: MemoryDraft
     public let quote: String
     public let enrichmentTargets: [MemoryUsage]
-    public init(draft: MemoryDraft, quote: String, enrichmentTargets: [MemoryUsage] = []) {
-        self.draft = draft; self.quote = quote; self.enrichmentTargets = enrichmentTargets
+    public let replacementTarget: MemoryUsage?
+    public init(draft: MemoryDraft, quote: String, enrichmentTargets: [MemoryUsage] = [], replacementTarget: MemoryUsage? = nil) {
+        self.draft = draft; self.quote = quote; self.enrichmentTargets = enrichmentTargets; self.replacementTarget = replacementTarget
     }
 }
 
@@ -24,15 +25,16 @@ public struct MemoryRememberTool: AgentLocalWriteTool {
     }
     public var businessNamespace: String { "memory.remember" }
     public var descriptor: AgentToolDescriptor {
-        .init(definition: MemoryTools.rememberDefinition, revision: 2, outputSchema: MemoryTools.rememberResultSchema,
+        .init(definition: MemoryTools.rememberDefinition, revision: 3, outputSchema: MemoryTools.rememberResultSchema,
               executionMode: .exclusive, timeoutMilliseconds: 120_000, maximumResultBytes: 4_096)
     }
 
     public func prepare(_ arguments: JSONValue, context: AgentToolContext) async throws -> AgentToolPlan {
         let normalized = try ToolSchemaValidator.decode(try arguments.jsonString(), schema: descriptor.definition.inputSchema)
         let proposal = try MemoryTools.parsedProposal(arguments: normalized, evidence: context.evidence)
+        let targets = proposal.replacementTarget.map { [$0] } ?? proposal.enrichmentTargets
         let memories = try await MemoryRememberValidation.loadTargets(
-            proposal.enrichmentTargets, draft: proposal.draft, store: store, context: context, at: now())
+            targets, draft: proposal.draft, store: store, context: context, at: now())
         let references = memories.map {
             AgentSourceReference.domain(namespace: "memories", id: $0.id.rawValue, revision: $0.revision)
         }
@@ -60,8 +62,9 @@ private struct MemoryRememberPolicy: AgentToolPolicy {
 
     private func validatedTargets(_ proposal: AgentToolProposal, context: AgentToolContext) async throws -> MemoryRememberProposal {
         let parsed = try MemoryTools.parsedProposal(arguments: proposal.plan.input, evidence: context.evidence)
+        let targets = parsed.replacementTarget.map { [$0] } ?? parsed.enrichmentTargets
         let memories = try await MemoryRememberValidation.loadTargets(
-            parsed.enrichmentTargets, draft: parsed.draft, store: store, context: context, at: now())
+            targets, draft: parsed.draft, store: store, context: context, at: now())
         let references = memories.map {
             AgentSourceReference.domain(namespace: "memories", id: $0.id.rawValue, revision: $0.revision)
         }

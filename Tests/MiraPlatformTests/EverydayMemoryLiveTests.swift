@@ -103,6 +103,10 @@ final class EverydayMemoryLiveTests: XCTestCase {
         XCTAssertTrue(StateEvolutionAssertions.evolutionFailures(
             memories: [final, previous], expectedExecutionIDs: [firstID, "second-execution"],
             expectedPreviousMemoryIDs: ["previous-memory"], preservePreviousEvidence: true).isEmpty)
+        XCTAssertTrue(StateEvolutionAssertions.evolutionFailures(
+            memories: [final], expectedExecutionIDs: ["second-execution"],
+            expectedPreviousMemoryIDs: [], preservePreviousEvidence: false)
+            .contains("evolution_predecessor_not_established"))
 
         let duplicates = StateEvolutionAssertions.evolutionFailures(
             memories: [final, final, previous], expectedExecutionIDs: [firstID, "second-execution"],
@@ -215,6 +219,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
         try writer.write()
         var failed = StateEvolutionCaseReport.pending(id: "failed", kind: "automaticEnrichment", status: "failed")
         failed.errorCode = "network"
+        failed.failureStage = "step_audit"
+        failed.failureStepIndex = 1
         failed.mismatchReasons = ["background_extraction_not_completed"]
         try writer.replaceCase(failed, requestAuthorizationCount: 2)
         let decoder = JSONDecoder()
@@ -222,6 +228,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
         let partial = try decoder.decode(StateEvolutionLiveReport.self, from: Data(contentsOf: url))
         XCTAssertEqual(partial.status, "running")
         XCTAssertEqual(partial.cases[0].errorCode, "network")
+        XCTAssertEqual(partial.cases[0].failureStage, "step_audit")
+        XCTAssertEqual(partial.cases[0].failureStepIndex, 1)
         XCTAssertEqual(partial.cases[1].status, "pending")
         XCTAssertEqual(partial.extractionOutputTokenCap, 1024)
         try writer.replaceCase(.pending(id: "unrun", kind: "replacement", status: "not_run_request_cap_reached"),
@@ -256,7 +264,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         let counter = RequestAuthorizationCounter()
         let writer = StateEvolutionReportWriter(
             report: StateEvolutionLiveReport(
-                version: 1, status: "running", qualification: "host/state checks are deterministic; answer keywords require human review",
+                version: 1, status: "running", qualification: "completed means host/state checks passed; memory contents and answers require separate semantic review",
                 createdAt: .now, corpusVersion: corpus.version, selectedCaseIDs: configuration.caseIDs,
                 providerID: configuration.providerID, conversationModelID: configuration.conversationModelID,
                 protocolID: configuration.protocolID.rawValue, dialectProfileID: configuration.dialectProfileID.rawValue,
@@ -496,6 +504,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
         let approvalCounter = ApprovalCounter()
         var routes: EvaluationRoutes?
         var report = StateEvolutionCaseReport.pending(id: scenario.id, kind: scenario.kind, status: "running")
+        var failureStage = "setup"
+        var failureStepIndex: Int?
         var trackedMemoryIDs = Set<MemoryID>()
         var previousCurrentIDs = Set<String>()
         var establishedMemoryID: MemoryID?
@@ -528,19 +538,27 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     notifications: LiveNoopNotifications(), credentials: credentials,
                     modules: { [MacHTTPModule(registry: $0, credentials: credentials)] })
             }
+            failureStage = "library_open"
             let opened = try await openLibrary()
             library = opened
+            failureStage = "workloads_open"
             var workloads = try await opened.workloads()
             group = workloads
+            failureStage = "embeddings_prepare"
             try await configuration.embeddingsMode.prepare(in: workloads)
+            failureStage = "approval_pump_start"
             approvalTask = await startApprovalPump(workloads)
+            failureStage = "settings_install"
             routes = try await Self.installSettings(in: workloads, configuration: configuration)
             report.status = "running"
             report.terminalOutcome = "setup_ready"
+            failureStage = "report_publish"
             try publish()
 
             for (stepIndex, step) in scenario.steps.enumerated() {
+                failureStepIndex = stepIndex
                 if step.expect == "forget" {
+                    failureStage = "memory_capture"
                     guard let memoryID = establishedMemoryID,
                           let forgottenTarget = try? await workloads.memories.detail(memoryID, workspaceID: nil).memory else {
                         throw MiraError(.notFound, "The state evaluation has no established memory to forget.")
@@ -549,12 +567,14 @@ final class EverydayMemoryLiveTests: XCTestCase {
                         id: UUID(), namespace: "memory.forget", revision: 1,
                         scope: .sources([.domain(namespace: "memories", id: forgottenTarget.id.rawValue,
                                                   revision: forgottenTarget.revision)]), requestedAt: .now)
+                    failureStage = "maintenance"
                     let operation = try await opened.maintain(request)
                     guard operation.completedAt != nil else {
                         throw MiraError(.storage, "The memory forget maintenance operation did not complete.")
                     }
                     approvalTask?.cancel()
                     _ = await approvalTask?.result
+                    failureStage = "library_close_before_reopen"
                     let closure = await opened.close()
                     guard closure.isSettled else {
                         report.errorCode = closure.storageError?.code.rawValue ?? "library_close_not_settled"
@@ -562,16 +582,22 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     }
                     library = nil
                     group = nil
+                    failureStage = "library_reopen"
                     let reopened = try await openLibrary()
                     library = reopened
+                    failureStage = "workloads_open"
                     workloads = try await reopened.workloads()
                     group = workloads
+                    failureStage = "embeddings_prepare"
                     try await configuration.embeddingsMode.prepare(in: workloads)
+                    failureStage = "approval_pump_start"
                     approvalTask = await startApprovalPump(workloads)
+                    failureStage = "settings_resolve_after_reopen"
                     let reopenedConversation = try await workloads.modelSettings.resolve(
                         purpose: AgentModelPurposeID.conversation, explicitRouteID: nil,
                         sessionSelection: .inherit, workspaceID: nil, requiredCapabilities: []).route
                     routes = .init(conversation: reopenedConversation, extraction: routes?.extraction ?? reopenedConversation)
+                    failureStage = "memory_capture"
                     let postReopenSnapshots = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
                     let forgotten = postReopenSnapshots.first(where: { $0.id == forgottenTarget.id.rawValue.uuidString.lowercased() })
                     let stepReport = StateEvolutionStepSnapshot(
@@ -588,6 +614,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     report.stateChecks.append(contentsOf: forgottenFailures.isEmpty
                         ? ["forgotten_body_unavailable_after_close_reopen"] : [])
                     report.mismatchReasons.append(contentsOf: forgottenFailures)
+                    failureStage = "report_publish"
                     try publish()
                     continue
                 }
@@ -595,6 +622,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 guard let activeRoutes = routes else { throw MiraError(.configuration, "The evaluation route is unavailable.") }
                 let sessionID = sourceSessionID
                 let executionID = ExecutionID()
+                failureStage = "step_submit"
                 let admission = await workloads.application.submit(Self.command(
                     sessionID: sessionID, executionID: executionID, text: step.input,
                     route: activeRoutes.conversation,
@@ -608,7 +636,9 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     let code = Self.errorCode(admission) ?? "admission_failed"
                     throw MiraError(.storage, "State evaluation admission failed (\(code)).")
                 }
+                failureStage = "step_wait"
                 let completion = await workloads.application.waitForExecution(id: executionID, sessionID: sessionID)
+                failureStage = "step_status"
                 let status = try await Self.executionStatus(in: workloads, sessionID: sessionID, executionID: executionID)
                 guard case .committed = completion, status == .completed else {
                     let code = Self.errorCode(completion) ?? "execution_failed"
@@ -626,6 +656,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     throw MiraError(.storage, "State evaluation execution failed (\(code)).")
                 }
 
+                failureStage = "step_audit"
                 let audit = try await workloads.queries.executionAudit(
                     sessionID: sessionID, executionID: executionID, beforeSequence: nil, limit: 32)
                 let memoryReferences = Self.memoryReferences(in: audit)
@@ -637,6 +668,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 }
                 var extraction: StateEvolutionExtractionSnapshot
                 if scenario.kind == StateEvolutionKind.foregroundEnrichment.rawValue {
+                    failureStage = "foreground_capture_snapshot"
                     extraction = try await Self.extractionSnapshot(
                         in: workloads, sourceSession: sessionID, sourceExecution: executionID,
                         fallbackState: "not_waited_foreground_route", fallbackError: nil)
@@ -648,12 +680,31 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     }
                 } else {
                     if !rememberCalls.isEmpty {
-                        report.mismatchReasons.append("automatic_case_used_foreground_remember")
+                        if step.expect == "replace" {
+                            // A clear correction can use the exact foreground target.
+                            // Inspect it before extraction can repair or obscure the write.
+                            failureStage = "foreground_replacement_capture"
+                            let immediate = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
+                            let failures = StateEvolutionAssertions.evolutionFailures(
+                                memories: immediate,
+                                expectedExecutionIDs: [executionID.rawValue.uuidString.lowercased()],
+                                expectedPreviousMemoryIDs: previousCurrentIDs, preservePreviousEvidence: false)
+                            report.mismatchReasons.append(contentsOf: failures.map { "foreground_replacement_" + $0 })
+                            if rememberSucceeded.isEmpty {
+                                report.mismatchReasons.append("foreground_replacement_not_committed")
+                            } else if failures.isEmpty {
+                                report.stateChecks.append("foreground_replacement_committed_before_background")
+                            }
+                        } else {
+                            report.mismatchReasons.append("automatic_case_used_foreground_remember")
+                        }
                     }
                     await workloads.wake()
+                    failureStage = "extraction_wait"
                     let extractionResult = try await Self.waitForMemory(
                         in: workloads, sourceSession: sessionID, sourceExecution: executionID, timeout: 240)
                     lastExtractionState = extractionResult.state
+                    failureStage = "extraction_report"
                     extraction = try await Self.extractionSnapshot(
                         in: workloads, sourceSession: sessionID, sourceExecution: executionID,
                         fallbackState: extractionResult.state, fallbackError: extractionResult.errorCode)
@@ -661,6 +712,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                         report.mismatchReasons.append("background_extraction_not_completed")
                     }
                 }
+                failureStage = "memory_capture"
                 let memorySnapshots = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
                 for memory in memorySnapshots {
                     guard let uuid = UUID(uuidString: memory.id) else {
@@ -745,6 +797,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                         report.stateChecks.append("foreground_memory_remember_receipt_and_explicit_origin_verified")
                     }
                 }
+                failureStage = "report_publish"
                 try publish()
             }
 
@@ -754,12 +807,16 @@ final class EverydayMemoryLiveTests: XCTestCase {
                let executionID = lastExecutionID {
                 let immediateCurrentIDs = Set(report.finalMemorySnapshots.filter { $0.lifecycle == "active" }.map(\.id))
                 await workloads.wake()
+                failureStepIndex = nil
+                failureStage = "post_foreground_extraction_wait"
                 let observation = try await Self.waitForMemory(
                     in: workloads, sourceSession: sourceSessionID, sourceExecution: executionID, timeout: 240)
                 lastExtractionState = observation.state
+                failureStage = "post_foreground_extraction_report"
                 report.postForegroundExtraction = try await Self.extractionSnapshot(
                     in: workloads, sourceSession: sourceSessionID, sourceExecution: executionID,
                     fallbackState: observation.state, fallbackError: observation.errorCode)
+                failureStage = "post_foreground_memory_capture"
                 report.finalMemorySnapshots = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
                 if observation.state != "completed" {
                     report.mismatchReasons.append("post_foreground_extraction_not_completed")
@@ -774,12 +831,15 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 if observation.state == "completed" && failures.isEmpty {
                     report.stateChecks.append("foreground_enrichment_survives_background_extraction")
                 }
+                failureStage = "report_publish"
                 try publish()
             }
 
+            failureStepIndex = nil
             let currentIDsBeforeFollowUp = Set(report.finalMemorySnapshots.filter { $0.lifecycle == "active" }.map(\.id))
             guard let activeRoutes = routes else { throw MiraError(.configuration, "The evaluation route is unavailable.") }
             let followupSessionID = ConversationID(), followupExecutionID = ExecutionID()
+            failureStage = "followup_submit"
             let admission = await workloads.application.submit(Self.command(
                 sessionID: followupSessionID, executionID: followupExecutionID, text: scenario.followUp,
                 route: activeRoutes.conversation,
@@ -788,7 +848,9 @@ final class EverydayMemoryLiveTests: XCTestCase {
             guard case .committed = admission else {
                 throw MiraError(.storage, "State follow-up admission failed (\(Self.errorCode(admission) ?? "unknown")).")
             }
+            failureStage = "followup_wait"
             let completion = await workloads.application.waitForExecution(id: followupExecutionID, sessionID: followupSessionID)
+            failureStage = "followup_status"
             guard case .committed = completion,
                   try await Self.executionStatus(in: workloads, sessionID: followupSessionID,
                                                  executionID: followupExecutionID) == .completed else {
@@ -806,8 +868,10 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 }
                 throw MiraError(.storage, "State follow-up failed (\(code)).")
             }
+            failureStage = "followup_audit"
             let followupAudit = try await workloads.queries.executionAudit(
                 sessionID: followupSessionID, executionID: followupExecutionID, beforeSequence: nil, limit: 32)
+            failureStage = "followup_answer"
             guard let answer = try await Self.assistantAnswer(in: workloads, sessionID: followupSessionID),
                   !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 report.status = "failed"
@@ -818,6 +882,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
             let visibleCitations = MemoryCitationReference.references(in: answer)
             var verifiedCitations: [String] = []
             var rejectedCitations: [String] = []
+            failureStage = "citation_verification"
             for citation in visibleCitations {
                 do {
                     _ = try await workloads.memories.citation(
@@ -842,6 +907,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 answerKeywordObservations: answerKeywords,
                 conversationUsage: followupAudit.modelUsage.map(StateEvolutionTokenUsageSnapshot.init))
             report.followUp = followup
+            failureStage = "final_memory_capture"
             report.finalMemorySnapshots = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
             let currentIDsAfterFollowUp = Set(report.finalMemorySnapshots.filter { $0.lifecycle == "active" }.map(\.id))
             if currentIDsAfterFollowUp != currentIDsBeforeFollowUp {
@@ -889,9 +955,12 @@ final class EverydayMemoryLiveTests: XCTestCase {
             report.status = report.mismatchReasons.isEmpty ? "completed" : "completed_with_state_mismatches"
             report.backgroundExtractionState = lastExtractionState ?? "not_waited"
             report.approvalDenialCount = approvalCounter.value
+            failureStage = "report_publish"
             try publish()
         } catch {
             let safe = MiraError.safe(error)
+            report.failureStage = failureStage
+            report.failureStepIndex = failureStepIndex
             if report.terminalOutcome != "request_authorization_cap_reached" {
                 report.terminalOutcome = requestAuthorizationCounter.wasDenied
                     ? "request_authorization_cap_reached" : (report.errorCode ?? safe.code.rawValue)
@@ -916,6 +985,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         }
 
         approvalTask?.cancel()
+        failureStage = "cleanup"
         if let group { _ = await group.close() }
         _ = await approvalTask?.result
         if let library {
@@ -924,6 +994,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 report.status = "failed"
                 report.errorCode = report.errorCode ?? closure.storageError?.code.rawValue ?? "library_close_not_settled"
                 report.mismatchReasons.append("library_cleanup_not_settled")
+                report.failureStage = report.failureStage ?? failureStage
             }
         }
         return report
@@ -1037,11 +1108,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     let memories = try await captureMemories(in: group, sourceExecution: sourceExecution)
                     return .init(memories: memories, state: job.state.rawValue, errorCode: nil)
                 case .failed, .paused, .cancelled, .suppressed:
-                    let report = try? await group.memories.extractionReport(
-                        job.id, sessionID: sourceSession, executionID: sourceExecution, workspaceID: nil)
-                    let attemptError = report?.attempts.last.map { $0.state.rawValue }
                     return .init(memories: [], state: job.state.rawValue,
-                                 errorCode: attemptError ?? job.state.rawValue)
+                                 errorCode: job.errorCode?.rawValue)
                 case .queued, .running:
                     break
                 }
@@ -1169,7 +1237,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         }
         return .init(jobID: job.id.rawValue.uuidString.lowercased(),
                      sourceExecutionID: sourceExecution.rawValue.uuidString.lowercased(),
-                     status: job.state.rawValue, errorCode: fallbackError,
+                     status: detail.job.state.rawValue, errorCode: detail.job.errorCode?.rawValue,
                      memoryCount: job.memoryCount, candidateCount: job.candidateCount, attempts: attempts)
     }
 
@@ -1560,6 +1628,7 @@ private enum StateEvolutionAssertions {
                                    expectedPreviousMemoryIDs: Set<String>, preservePreviousEvidence: Bool) -> [String] {
         let current = memories.filter { $0.lifecycle == MemoryLifecycleStatus.active.rawValue }
         var failures: [String] = []
+        if expectedPreviousMemoryIDs.isEmpty { failures.append("evolution_predecessor_not_established") }
         if current.count != 1 { failures.append("current_representation_count_mismatch") }
         guard let final = current.first else { return failures }
         if !final.detailAvailable { failures.append("memory_details_unavailable") }
@@ -1695,6 +1764,8 @@ private struct StateEvolutionCaseReport: Codable, Sendable {
     var status: String
     var terminalOutcome: String?
     var errorCode: String?
+    var failureStage: String?
+    var failureStepIndex: Int?
     var stepSnapshots: [StateEvolutionStepSnapshot]
     var finalMemorySnapshots: [StateEvolutionMemorySnapshot]
     var followUp: StateEvolutionFollowUpSnapshot?
@@ -1707,6 +1778,7 @@ private struct StateEvolutionCaseReport: Codable, Sendable {
 
     static func pending(id: String, kind: String, status: String = "pending") -> Self {
         .init(id: id, kind: kind, status: status, terminalOutcome: nil, errorCode: nil,
+              failureStage: nil, failureStepIndex: nil,
               stepSnapshots: [], finalMemorySnapshots: [], followUp: nil,
               backgroundExtractionState: nil, postForegroundExtraction: nil, terminalExtractionJobs: [], approvalDenialCount: 0,
               stateChecks: [], mismatchReasons: [])
@@ -1756,7 +1828,7 @@ private struct StateEvolutionLiveReport: Codable, Sendable {
         self.conversationInstructions = "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations."
         self.contextWindow = contextWindow
         self.conversationOutputTokens = conversationOutputTokens
-        self.extractionOutputTokenCap = min(2_048, conversationOutputTokens)
+        self.extractionOutputTokenCap = min(MemoryExtractionRequestBuilder.outputTokenTarget, conversationOutputTokens)
         self.embeddingsMode = embeddingsMode
         self.requestAuthorizationCap = requestAuthorizationCap
         self.requestAuthorizationCount = requestAuthorizationCount; self.cases = cases

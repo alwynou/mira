@@ -90,6 +90,8 @@ public struct MemoryExtractionJobSummary: Identifiable, Equatable, Sendable {
     public let executionID: ExecutionID
     public let workspaceID: WorkspaceID?
     public let state: MemoryExtractionJobState
+    /// Safe classification for a failed or paused job; never exposes error text.
+    public let errorCode: MiraError.Code?
     public let attemptCount: Int
     public let createdAt: Date
     public let updatedAt: Date
@@ -102,6 +104,7 @@ public struct MemoryExtractionJobSummary: Identifiable, Equatable, Sendable {
         executionID = job.origin.completedExecutionID
         workspaceID = job.workspaceID
         state = job.state
+        errorCode = job.error?.code
         attemptCount = job.attemptCount
         createdAt = job.createdAt
         updatedAt = job.updatedAt

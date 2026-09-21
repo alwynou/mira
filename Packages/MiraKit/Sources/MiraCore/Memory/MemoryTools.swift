@@ -16,7 +16,7 @@ public enum MemoryTools {
 
     public static var rememberDefinition: ToolDefinition {
         .init(name: "memory.remember",
-              description: "Save a memory when the user asks you to remember it. Ordinary statements are captured in the background. For a clear, non-conflicting addition about the same entity as recalled memories, include every clearly same-entity current memory's exact memory_id and revision in enriches; use memory.search or memory.get first when needed. Preserve all supported facts from every target in content and add only the new stated detail. Do not guess or merge by similarity, and do not use enrichment for contradictions, corrections, or uncertain identity. Leave enriches empty for an independent memory. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
+              description: "Save a memory only when the user explicitly asks you to remember or save it, or clearly corrects one recalled fact. Do not call this tool for ordinary new facts or non-conflicting additions, even about an already remembered entity: background extraction captures and consolidates those statements. When asked to remember a clear, non-conflicting addition about the same entity as recalled memories, use memory.search or memory.get as needed, include every clearly same-entity current memory's exact memory_id and revision in enriches, preserve all supported facts and add only the new detail. For a clear correction of one recalled fact, set replaces to that exact memory_id and revision and save the corrected assertion as content. Never use replaces for additions or enriches for contradictions/corrections. Do not guess or merge by similarity; ask for clarification when target identity or correction intent is ambiguous. Leave enriches empty and omit replaces for an independent memory. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
               inputSchema: object(properties: [
                   "content": string(maximum: 8_192),
                   "quote": string(maximum: 8_192),
@@ -34,6 +34,15 @@ public enum MemoryTools {
                           "required": .array([.string("memory_id"), .string("revision")]),
                           "additionalProperties": .bool(false)
                       ])
+                  ]),
+                  "replaces": .object([
+                      "type": .string("object"),
+                      "properties": .object([
+                          "memory_id": .object(["type": .string("string"), "minLength": .number(36), "maxLength": .number(36)]),
+                          "revision": .object(["type": .string("integer"), "minimum": .number(1), "maximum": .number(2_147_483_647)])
+                      ]),
+                      "required": .array([.string("memory_id"), .string("revision")]),
+                      "additionalProperties": .bool(false)
                   ])
               ], required: ["content", "quote", "kind", "scope", "sensitive", "enriches"]))
     }
@@ -84,7 +93,11 @@ public enum MemoryTools {
         try draft.validate()
         let targets = try rawTargets.map(parseEnrichmentTarget)
         guard Set(targets.map(\.memoryID)).count == targets.count else { throw evolutionTargetInvalid }
-        return .init(draft: draft, quote: quote, enrichmentTargets: targets)
+        let replacementTarget: MemoryUsage?
+        if let replacementValue = normalized["replaces"] { replacementTarget = try parseEnrichmentTarget(replacementValue) }
+        else { replacementTarget = nil }
+        guard replacementTarget == nil || targets.isEmpty else { throw evolutionTargetInvalid }
+        return .init(draft: draft, quote: quote, enrichmentTargets: targets, replacementTarget: replacementTarget)
     }
 
     private static func parseEnrichmentTarget(_ value: JSONValue) throws -> MemoryUsage {

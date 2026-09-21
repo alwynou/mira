@@ -38,6 +38,143 @@ struct MemoryWorkflowTests {
         }
     }
 
+    @Test func explicitCorrectionReplacesOneExactCurrentMemoryWithoutCopyingOldEvidence() async throws {
+        let original = "I prefer green tea"
+        let corrected = "I prefer black tea"
+        let correctionText = "Correction: I prefer black tea now."
+        try await withTaskWorkflow(memoryEnabled: true) { f in
+            let store = try #require(f.memory)
+            let authorization = try await f.authority.authorization()
+            let old = try await store.createMemory(draft: .init(content: original, scope: .global),
+                source: .manualEntry(id: UUID(), statement: original), operationID: UUID(), replacing: nil,
+                expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            let target = AgentSourceReference.domain(namespace: "memories", id: old.id.rawValue, revision: old.revision)
+            let correctedCall = try CanonicalToolCall(id: "correct-memory", name: "memory.remember",
+                arguments: rememberArguments(content: corrected, quote: correctionText, replaces: target).jsonString())
+            await f.model.append([modelToolStream([correctedCall]), reply("Corrected and saved." )])
+            let address = try await f.run(correctionText)
+            let page = try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10)
+            let current = try #require(page.memories.first(where: { $0.isCurrent }))
+            #expect(page.memories.filter(\.isCurrent).count == 1)
+            #expect(current.id != old.id)
+            #expect(current.draft?.content == corrected)
+            let detail = try await store.memoryDetail(current.id, workspaceID: nil)
+            #expect(detail.evidence.count == 1)
+            #expect(detail.evidence.first?.source == .userMessage(try await f.evidence(address).reference))
+            #expect(detail.replacements.map(\.previousID) == [old.id])
+            let oldDetail = try await store.memoryDetail(old.id, workspaceID: nil)
+            #expect(oldDetail.memory.supersededBy == current.id)
+            #expect(oldDetail.memory.isCurrent == false)
+            #expect(oldDetail.memory.draft?.content == original)
+
+            let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
+            let invocation = try #require(state.invocations.values.first(where: { $0.invocation.toolName == "memory.remember" }))
+            #expect(invocation.resolution?.status == .succeeded)
+            let proofData = try #require(try await f.database.read {
+                try Data.fetchOne($0, sql: "SELECT proof_json FROM business_receipts WHERE invocation_id = ?",
+                    arguments: [invocation.invocation.id.uuidString])
+            })
+            let proof = try SessionCodec.decode(AgentEffectProof.self, from: proofData)
+            let receipt: AgentBusinessReceipt
+            switch await f.business.receipt(for: proof) {
+            case .committed(let value): receipt = value
+            case .absent, .unavailable:
+                Issue.record("Correction business receipt was unavailable for replay")
+                return
+            }
+            let counts = try await f.database.read { db in
+                try ["memory_records", "memory_evidence", "memory_replacements", "business_receipts"].map {
+                    try Int.fetchOne(db, sql: "SELECT count(*) FROM \($0)")
+                }
+            }
+            #expect(await f.business.commit(proof) == .committed(receipt))
+            #expect(await f.business.commit(proof) == .committed(receipt))
+            #expect(try await f.database.read { db in
+                try ["memory_records", "memory_evidence", "memory_replacements", "business_receipts"].map {
+                    try Int.fetchOne(db, sql: "SELECT count(*) FROM \($0)")
+                }
+            } == counts)
+        }
+    }
+
+    @Test func correctionRelationFailureRollsBackNewMemoryAndLeavesExactTargetCurrent() async throws {
+        let original = "I prefer green tea"
+        let correctionText = "Correction: I prefer black tea now."
+        try await withTaskWorkflow(memoryEnabled: true) { f in
+            let store = try #require(f.memory)
+            let authorization = try await f.authority.authorization()
+            let old = try await store.createMemory(draft: .init(content: original, scope: .global),
+                source: .manualEntry(id: UUID(), statement: original), operationID: UUID(), replacing: nil,
+                expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            try await f.database.write {
+                try $0.execute(sql: "CREATE TRIGGER reject_correction_relation BEFORE INSERT ON memory_replacements BEGIN SELECT RAISE(ABORT, 'Synthetic relation failure'); END")
+            }
+            let target = AgentSourceReference.domain(namespace: "memories", id: old.id.rawValue, revision: old.revision)
+            let call = try CanonicalToolCall(id: "failed-correction", name: "memory.remember",
+                arguments: rememberArguments(content: "I prefer black tea", quote: correctionText, replaces: target).jsonString())
+            await f.model.append([modelToolStream([call]), reply("I couldn't update the memory." )])
+            let address = try await f.run(correctionText)
+            let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
+            let invocation = try #require(state.invocations.values.first(where: { $0.invocation.toolName == "memory.remember" }))
+            #expect(invocation.resolution?.status != .succeeded)
+            #expect(invocation.resolution?.businessReceipt == nil)
+            #expect(try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10).memories.map(\.id) == [old.id])
+            #expect(try await store.memoryDetail(old.id, workspaceID: nil).memory.isCurrent)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_records") } == 1)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_replacements") } == 0)
+        }
+    }
+
+    @Test func correctionCommitRechecksExactRevisionAndCurrentSourceSuppression() async throws {
+        try await withTaskWorkflow(outputs: [reply("Holding the correction for a policy check.")], memoryEnabled: true) { f in
+            let store = try #require(f.memory)
+            let authorization = try await f.authority.authorization()
+            let original = "I prefer green tea"
+            let old = try await store.createMemory(draft: .init(content: original, scope: .global),
+                source: .manualEntry(id: UUID(), statement: original), operationID: UUID(), replacing: nil,
+                expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            let address = try await f.run("Correction: I prefer black tea now.")
+            let evidence = try await f.evidence(address)
+            let context = AgentToolContext(executionID: address.executionID, invocationID: UUID(), evidence: evidence, route: f.route)
+            let remember = MemoryRememberTool(store: store, now: { TaskWorkflowFixture.now })
+            func effect(plan: AgentToolPlan) -> AgentResolvedEffect {
+                let proposal = AgentToolProposal(descriptor: remember.descriptor, effect: .localWrite,
+                    businessNamespace: remember.businessNamespace, callDigest: String(repeating: "c", count: 64),
+                    inheritedSources: [], plan: plan)
+                return AgentResolvedEffect(proposal: proposal, context: context)
+            }
+            let target = AgentSourceReference.domain(namespace: "memories", id: old.id.rawValue, revision: old.revision)
+            let stalePlan = try await remember.prepare(
+                rememberArguments(content: "I prefer black tea", quote: evidence.text, replaces: target), context: context)
+            let staleEffect = effect(plan: stalePlan)
+            _ = try await store.reviseMemory(old.id, workspaceID: nil,
+                draft: .init(content: "I prefer matcha", scope: .global), expectedRevision: old.revision,
+                operationID: UUID(), authorization: authorization, at: TaskWorkflowFixture.now)
+            let handler = SQLiteMemoryRememberHandler(now: { TaskWorkflowFixture.now })
+            await #expect(throws: MiraError.self) {
+                try await f.database.read { db in try handler.validate(effect: staleEffect, isReplay: false, in: db) }
+            }
+
+            let current = try await store.memoryDetail(old.id, workspaceID: nil).memory
+            let currentTarget = AgentSourceReference.domain(namespace: "memories", id: current.id.rawValue, revision: current.revision)
+            let currentPlan = try await remember.prepare(
+                rememberArguments(content: "I prefer black tea", quote: evidence.text, replaces: currentTarget), context: context)
+            let currentEffect = effect(plan: currentPlan)
+            try await f.database.write { db in
+                let draft = MemoryDraft(content: "I prefer black tea", scope: .global)
+                let resolved = try SQLiteMemoryStore.resolve(
+                    .userMessage(evidence: evidence, excerpt: "Correction: I prefer black tea now."), draft: draft, in: db)
+                try SQLiteMemoryStore.bindSource(resolved, in: db)
+                try SQLiteMemoryStore.suppress(.userMessage(evidence.reference), strength: 3, in: db)
+            }
+            await #expect(throws: MiraError.self) {
+                try await f.database.read { db in try handler.validate(effect: currentEffect, isReplay: false, in: db) }
+            }
+            #expect(try await store.memoryDetail(old.id, workspaceID: nil).memory.isCurrent)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_replacements") } == 0)
+        }
+    }
+
     @Test func runtimeRememberEnrichesMultipleCurrentTargetsAndPreservesEvidenceHistoryAndRecall() async throws {
         let firstText = "I have a shorthair cat named Miso."
         let firstContent = "My cat is named Miso"
@@ -421,15 +558,20 @@ struct MemoryWorkflowTests {
             "scope": .string("current"), "sensitive": .bool(false), "enriches": .array([]),
         ])
     }
-    private func rememberArguments(content: String, quote: String, enriches: [AgentSourceReference] = [], sensitive: Bool = false) -> JSONValue {
-        .object([
+    private func rememberArguments(content: String, quote: String, enriches: [AgentSourceReference] = [],
+                                   replaces: AgentSourceReference? = nil, sensitive: Bool = false) -> JSONValue {
+        var fields: [String: JSONValue] = [
             "content": .string(content), "quote": .string(quote), "kind": .string("fact"),
             "scope": .string("global"), "sensitive": .bool(sensitive),
             "enriches": .array(enriches.compactMap { source in
                 guard case .domain("memories", let id, let revision) = source else { return nil }
                 return .object(["memory_id": .string(id.uuidString.lowercased()), "revision": .number(Double(revision))])
             })
-        ])
+        ]
+        if let replaces, case .domain("memories", let id, let revision) = replaces {
+            fields["replaces"] = .object(["memory_id": .string(id.uuidString.lowercased()), "revision": .number(Double(revision))])
+        }
+        return .object(fields)
     }
     private func context(_ f: TaskWorkflowFixture, _ address: AgentExecutionAddress) async throws -> AgentContextRequest
     {

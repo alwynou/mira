@@ -2,20 +2,43 @@ import Foundation
 import Testing
 @testable import MiraCore
 
-@Suite("Memory remember enrichment targets")
+@Suite("Memory remember evolution targets")
 struct MemoryRememberToolTests {
-    @Test func schemaRequiresBoundedTargetArrayAndDescriptorRevisionTwo() throws {
+    @Test func schemaRequiresBoundedTargetsAndDescriptorRevisionThree() throws {
         let tool = MemoryRememberTool(store: RememberFixtureStore())
         try tool.descriptor.validate()
-        #expect(tool.descriptor.revision == 2)
+        #expect(tool.descriptor.revision == 3)
         guard case .object(let schema) = MemoryTools.rememberDefinition.inputSchema,
               case .array(let required)? = schema["required"] else {
             Issue.record("Remember schema is malformed")
             return
         }
         #expect(required.contains(.string("enriches")))
+        #expect(!required.contains(.string("replaces")))
+        #expect(MemoryTools.rememberDefinition.description.contains("memory.get"))
         #expect(MemoryTools.rememberDefinition.description.contains("memory.search"))
         #expect(MemoryTools.rememberDefinition.description.contains("Do not guess or merge by similarity"))
+    }
+
+    @Test func prepareBindsExactReplacementTargetAndRejectsMixedEvolutionModes() async throws {
+        let memory = makeMemory(content: "I prefer green tea")
+        let context = makeContext()
+        let target = usage(memory)
+        let plan = try await MemoryRememberTool(store: RememberFixtureStore(memories: [memory]))
+            .prepare(arguments(for: [], replaces: target), context: context)
+        let reference = AgentSourceReference.domain(namespace: "memories", id: memory.id.rawValue, revision: memory.revision)
+        #expect(plan.sources == [reference])
+        #expect(plan.targets == [reference])
+        let parsed = try MemoryTools.parsedProposal(arguments: plan.input, evidence: context.evidence)
+        #expect(parsed.replacementTarget == target)
+        #expect(parsed.enrichmentTargets.isEmpty)
+
+        do {
+            _ = try MemoryTools.parsedProposal(arguments: arguments(for: [target], replaces: target), evidence: context.evidence)
+            Issue.record("Replacement and enrichment were accepted together")
+        } catch let error as MiraError {
+            #expect(error.code == .invalidInput)
+        }
     }
 
     @Test func prepareBindsEveryEnrichmentTargetAsBothSourceAndTarget() async throws {
@@ -53,6 +76,15 @@ struct MemoryRememberToolTests {
             _ = try await MemoryRememberTool(store: RememberFixtureStore(memories: [memory, other]))
                 .prepare(arguments(for: [usage(memory), usage(other)]), context: makeContext())
             Issue.record("Incompatible targets were accepted")
+        } catch let error as MiraError {
+            #expect(error.code == .invalidInput)
+        }
+
+        do {
+            _ = try await MemoryRememberTool(store: RememberFixtureStore(memories: [memory]))
+                .prepare(arguments(for: [], replaces: MemoryUsage(memoryID: memory.id, revision: memory.revision + 1)),
+                         context: makeContext())
+            Issue.record("A stale correction target was accepted")
         } catch let error as MiraError {
             #expect(error.code == .invalidInput)
         }
@@ -117,7 +149,9 @@ struct MemoryRememberToolTests {
             argumentsObject(enriches: [target, target]),
             argumentsObject(enriches: [.object(["memory_id": .string("not-a-uuid"), "revision": .number(1)])]),
             argumentsObject(enriches: [.object(["memory_id": .string(memory.id.rawValue.uuidString), "revision": .number(0)])]),
-            argumentsObject(enriches: [.object(["memory_id": .string(memory.id.rawValue.uuidString), "revision": .number(1), "extra": .bool(true)])])
+            argumentsObject(enriches: [.object(["memory_id": .string(memory.id.rawValue.uuidString), "revision": .number(1), "extra": .bool(true)])]),
+            argumentsObject(enriches: [], replaces: .null),
+            argumentsObject(enriches: [], replaces: .object(["memory_id": .string("not-a-uuid"), "revision": .number(1)]))
         ]
         for value in invalid {
             do {
@@ -135,6 +169,13 @@ struct MemoryRememberToolTests {
             _ = try await MemoryRememberTool(store: RememberFixtureStore(deniedIDs: [memory.id]))
                 .prepare(arguments(for: [usage(memory)]), context: makeContext())
             Issue.record("A target denied by recall policy was accepted")
+        } catch let error as MiraError {
+            #expect(error.code == .unauthorized)
+        }
+        do {
+            _ = try await MemoryRememberTool(store: RememberFixtureStore(memories: [memory], deniedIDs: [memory.id]))
+                .prepare(arguments(for: [], replaces: usage(memory)), context: makeContext())
+            Issue.record("A correction target denied by current recall policy was accepted")
         } catch let error as MiraError {
             #expect(error.code == .unauthorized)
         }
@@ -166,17 +207,18 @@ struct MemoryRememberToolTests {
         if case .deny = decision { } else { Issue.record("Policy accepted a suppressed source") }
     }
 
-    private func arguments(for usages: [MemoryUsage]) -> JSONValue {
-        argumentsObject(enriches: usages.map(targetJSON))
+    private func arguments(for usages: [MemoryUsage], replaces: MemoryUsage? = nil) -> JSONValue {
+        argumentsObject(enriches: usages.map(targetJSON), replaces: replaces.map(targetJSON))
     }
 
-    private func argumentsObject(enriches: [JSONValue]?) -> JSONValue {
+    private func argumentsObject(enriches: [JSONValue]?, replaces: JSONValue? = nil) -> JSONValue {
         var object: [String: JSONValue] = [
             "content": .string("I prefer green tea and loose leaf"),
             "quote": .string("remember this"), "kind": .string("preference"),
             "scope": .string("global"), "sensitive": .bool(false)
         ]
         if let enriches { object["enriches"] = .array(enriches) }
+        if let replaces { object["replaces"] = replaces }
         return .object(object)
     }
 

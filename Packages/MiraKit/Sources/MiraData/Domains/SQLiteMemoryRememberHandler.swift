@@ -17,9 +17,9 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
             draft: proposal.draft,
             source: .userMessage(effect.context.evidence.reference)
         )
-        struct Identity: Encodable { let assertion: String; let targets: [MemoryUsage] }
+        struct Identity: Encodable { let assertion: String; let targets: [MemoryUsage]; let replacement: MemoryUsage? }
         return try SQLiteMemoryStore.digest(SQLiteMemoryStore.encode(
-            Identity(assertion: assertion, targets: proposal.enrichmentTargets)))
+            Identity(assertion: assertion, targets: proposal.enrichmentTargets, replacement: proposal.replacementTarget)))
     }
 
     public func validate(effect: AgentResolvedEffect, isReplay: Bool, in db: Database) throws {
@@ -35,7 +35,8 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
         if try SQLiteMemoryStore.suppressedMemorySource(source, in: db) {
             throw unauthorized
         }
-        if !proposal.enrichmentTargets.isEmpty {
+        let targets = proposal.replacementTarget.map { [$0] } ?? proposal.enrichmentTargets
+        if !targets.isEmpty {
             let context = effect.context
             let request = AgentContextRequest(sessionID: context.evidence.reference.sessionID, executionID: context.executionID,
                 workspaceID: context.evidence.workspaceID, userText: context.evidence.text,
@@ -43,7 +44,7 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
             if isReplay {
                 try SQLiteMemoryStore.validateMemoryContextSources(effect.proposal.plan.sources, for: request, at: now(), in: db)
             } else {
-                let targets = try proposal.enrichmentTargets.map { target in
+                let memories = try targets.map { target in
                     let memory = try SQLiteMemoryStore.recall(target.memoryID, request: request, at: now(), in: db)
                     guard memory.revision == target.revision else { throw SQLiteMemoryStore.conflict }
                     for evidence in try SQLiteMemoryStore.evidence(memory.id, in: db) {
@@ -51,7 +52,17 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
                     }
                     return memory
                 }
-                _ = try SQLiteMemoryStore.enrichmentDraft(proposal.draft, targets: targets, at: now())
+                if proposal.replacementTarget != nil {
+                    guard let existing = memories.first?.draft,
+                          existing.scope == proposal.draft.scope,
+                          existing.subject == proposal.draft.subject,
+                          existing.kind == proposal.draft.kind,
+                          existing.sensitivity == proposal.draft.sensitivity,
+                          existing.allowsRemoteUse == proposal.draft.allowsRemoteUse,
+                          existing.allowedConnectionIDs == proposal.draft.allowedConnectionIDs else { throw unauthorized }
+                } else {
+                    _ = try SQLiteMemoryStore.enrichmentDraft(proposal.draft, targets: memories, at: now())
+                }
             }
         }
     }
@@ -93,6 +104,17 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
         let proposal = try parsed(effect)
         let date = now()
         guard date.timeIntervalSince1970.isFinite else { throw invalidInput }
+        if let target = proposal.replacementTarget {
+            let receipt = try SQLiteMemoryStore.createMemoryInTransaction(
+                draft: proposal.draft,
+                source: .userMessage(evidence: effect.context.evidence, excerpt: proposal.quote),
+                operationID: effect.context.invocationID,
+                replacing: target.memoryID,
+                expectedRevision: target.revision,
+                at: date,
+                in: db)
+            return MemoryTools.result(receipt)
+        }
         if !proposal.enrichmentTargets.isEmpty {
             let receipt = try SQLiteMemoryStore.enrichRememberedMemory(
                 draft: proposal.draft, source: .userMessage(evidence: effect.context.evidence, excerpt: proposal.quote),
@@ -114,14 +136,15 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
     private func parsed(_ effect: AgentResolvedEffect) throws -> MemoryRememberProposal {
         guard effect.proposal.effect == .localWrite,
               effect.proposal.businessNamespace == namespace,
-              effect.proposal.descriptor.revision == 2,
+              effect.proposal.descriptor.revision == 3,
               effect.proposal.descriptor.definition == MemoryTools.rememberDefinition,
               effect.proposal.descriptor.outputSchema == MemoryTools.rememberResultSchema else {
             throw unauthorized
         }
         let proposal = try MemoryTools.parsedProposal(arguments: effect.proposal.plan.input,
                                                      evidence: effect.context.evidence)
-        let references = proposal.enrichmentTargets.map {
+        let targets = proposal.replacementTarget.map { [$0] } ?? proposal.enrichmentTargets
+        let references = targets.map {
             AgentSourceReference.domain(namespace: "memories", id: $0.memoryID.rawValue, revision: $0.revision)
         }
         guard effect.proposal.plan.sources == references, effect.proposal.plan.targets == references else { throw unauthorized }

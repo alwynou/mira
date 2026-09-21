@@ -1,0 +1,359 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "explicitUser",
+          "body" : "The user's shorthair cat is named Miso.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "16bd991c-fd25-4c72-a413-8b67da6db5af"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:9e773eae-5cb1-4203-bdb7-81d75162be6c\/execution:16bd991c-fd25-4c72-a413-8b67da6db5af\/message:1187b774-3152-4613-ab97-2e9e1eba34d8\/admission:2d029df0-0df0-4fd5-b0e7-cc38563ec559@2"
+          ],
+          "id" : "33c0c6e7-9730-4c6e-a1d5-6b8020036567",
+          "isCurrent" : false,
+          "lifecycle" : "superseded",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 2,
+          "revisionBodyCount" : 2,
+          "revisionNumbers" : [
+            1,
+            2
+          ],
+          "state" : "active",
+          "supersededByID" : "4266b7b3-28a2-4fb5-bbd4-e168880261a4"
+        },
+        {
+          "authority" : "explicitUser",
+          "body" : "The user's shorthair cat is named Miso and is black.",
+          "detailAvailable" : true,
+          "evidenceCount" : 2,
+          "evidenceExcerptCount" : 2,
+          "evidenceExecutionIDs" : [
+            "16bd991c-fd25-4c72-a413-8b67da6db5af",
+            "304763c2-4d96-4f99-9e9c-e23c7732e332"
+          ],
+          "evidenceHashCount" : 2,
+          "evidenceSourceReferences" : [
+            "session:9e773eae-5cb1-4203-bdb7-81d75162be6c\/execution:16bd991c-fd25-4c72-a413-8b67da6db5af\/message:1187b774-3152-4613-ab97-2e9e1eba34d8\/admission:2d029df0-0df0-4fd5-b0e7-cc38563ec559@2",
+            "session:9e773eae-5cb1-4203-bdb7-81d75162be6c\/execution:304763c2-4d96-4f99-9e9c-e23c7732e332\/message:d6493944-f282-4b0a-ac51-cae27595abaa\/admission:330de11e-29e0-43f6-af44-e8a56f046800@28"
+          ],
+          "id" : "4266b7b3-28a2-4fb5-bbd4-e168880261a4",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+            "33c0c6e7-9730-4c6e-a1d5-6b8020036567"
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "Here's what I have on Miso: your cat is a **shorthair** and is **black**.\n\nThat's the only detail I have stored so far — no notes on age, personality, vet info, or anything else. If you'd like, tell me more about Miso and I can keep it on file.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "Miso"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "shorthair"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "black"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 2176,
+            "complete" : true,
+            "id" : "9a8031d1-203c-456c-8194-c16462740ef5",
+            "inputTokens" : 2343,
+            "outputTokens" : 88,
+            "reasoningTokens" : 20
+          },
+          {
+            "cacheReadTokens" : 1536,
+            "complete" : true,
+            "id" : "2ae38b77-a56f-402e-aaf3-326e2f52361b",
+            "inputTokens" : 2054,
+            "outputTokens" : 146,
+            "reasoningTokens" : 106
+          }
+        ],
+        "executionID" : "c1705172-576f-4f76-86c4-13e2db9ca573",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:4266b7b3-28a2-4fb5-bbd4-e168880261a4@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "a2333a27-862d-4faa-93da-12c5fd2b80df",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-cat-foreground-enrichment",
+      "kind" : "foregroundEnrichment",
+      "mismatchReasons" : [
+
+      ],
+      "postForegroundExtraction" : {
+        "attempts" : [
+          {
+            "attemptID" : "e95168aa-4933-411f-9041-4f39769f6971",
+            "cacheReadTokens" : 256,
+            "chargedTokens" : 2630,
+            "dispatched" : true,
+            "inputTokens" : 1451,
+            "ordinal" : 1,
+            "outputTokens" : 1179,
+            "reasoningTokens" : 1169,
+            "reservedTokens" : 21610,
+            "state" : "completed"
+          }
+        ],
+        "candidateCount" : 0,
+        "jobID" : "80ef119f-0b19-498a-9fe6-da611769b057",
+        "memoryCount" : 0,
+        "sourceExecutionID" : "304763c2-4d96-4f99-9e9c-e23c7732e332",
+        "status" : "completed"
+      },
+      "stateChecks" : [
+        "foreground_memory_remember_receipt_and_explicit_origin_verified",
+        "foreground_memory_context_recorded",
+        "one_current_enriched_representation_with_lineage",
+        "foreground_enrichment_survives_background_extraction"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2176,
+              "complete" : true,
+              "id" : "54f64e61-a5d3-46b3-86c3-a1990869aea4",
+              "inputTokens" : 2326,
+              "outputTokens" : 47,
+              "reasoningTokens" : 0
+            },
+            {
+              "cacheReadTokens" : 1792,
+              "complete" : true,
+              "id" : "a6714b64-26cf-4c53-ace2-d5057598d896",
+              "inputTokens" : 2028,
+              "outputTokens" : 159,
+              "reasoningTokens" : 17
+            },
+            {
+              "cacheReadTokens" : 256,
+              "complete" : true,
+              "id" : "7dd81455-cc3a-4fca-af4b-5d9a7693bbde",
+              "inputTokens" : 1806,
+              "outputTokens" : 140,
+              "reasoningTokens" : 55
+            }
+          ],
+          "executionID" : "16bd991c-fd25-4c72-a413-8b67da6db5af",
+          "executionOutcome" : "completed",
+          "expectation" : "remember",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "memoryCount" : 0,
+            "status" : "not_waited_foreground_route"
+          },
+          "index" : 0,
+          "input" : "Please remember that my shorthair cat is named Miso.",
+          "memories" : [
+            {
+              "authority" : "explicitUser",
+              "body" : "The user's shorthair cat is named Miso.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "16bd991c-fd25-4c72-a413-8b67da6db5af"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:9e773eae-5cb1-4203-bdb7-81d75162be6c\/execution:16bd991c-fd25-4c72-a413-8b67da6db5af\/message:1187b774-3152-4613-ab97-2e9e1eba34d8\/admission:2d029df0-0df0-4fd5-b0e7-cc38563ec559@2"
+              ],
+              "id" : "33c0c6e7-9730-4c6e-a1d5-6b8020036567",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "9e773eae-5cb1-4203-bdb7-81d75162be6c"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 3200,
+              "complete" : true,
+              "id" : "6d6ae472-324f-4e27-9115-7e298a2ca8e0",
+              "inputTokens" : 3360,
+              "outputTokens" : 27,
+              "reasoningTokens" : 0
+            },
+            {
+              "cacheReadTokens" : 2304,
+              "complete" : true,
+              "id" : "a0460062-62c9-40b2-b087-24c698a2d02f",
+              "inputTokens" : 2642,
+              "outputTokens" : 585,
+              "reasoningTokens" : 406
+            }
+          ],
+          "executionID" : "304763c2-4d96-4f99-9e9c-e23c7732e332",
+          "executionOutcome" : "completed",
+          "expectation" : "enrich",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "memoryCount" : 0,
+            "status" : "not_waited_foreground_route"
+          },
+          "index" : 1,
+          "input" : "Please remember that Miso is black.",
+          "memories" : [
+            {
+              "authority" : "explicitUser",
+              "body" : "The user's shorthair cat is named Miso.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "16bd991c-fd25-4c72-a413-8b67da6db5af"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:9e773eae-5cb1-4203-bdb7-81d75162be6c\/execution:16bd991c-fd25-4c72-a413-8b67da6db5af\/message:1187b774-3152-4613-ab97-2e9e1eba34d8\/admission:2d029df0-0df0-4fd5-b0e7-cc38563ec559@2"
+              ],
+              "id" : "33c0c6e7-9730-4c6e-a1d5-6b8020036567",
+              "isCurrent" : false,
+              "lifecycle" : "superseded",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 2,
+              "revisionBodyCount" : 2,
+              "revisionNumbers" : [
+                1,
+                2
+              ],
+              "state" : "active",
+              "supersededByID" : "4266b7b3-28a2-4fb5-bbd4-e168880261a4"
+            },
+            {
+              "authority" : "explicitUser",
+              "body" : "The user's shorthair cat is named Miso and is black.",
+              "detailAvailable" : true,
+              "evidenceCount" : 2,
+              "evidenceExcerptCount" : 2,
+              "evidenceExecutionIDs" : [
+                "16bd991c-fd25-4c72-a413-8b67da6db5af",
+                "304763c2-4d96-4f99-9e9c-e23c7732e332"
+              ],
+              "evidenceHashCount" : 2,
+              "evidenceSourceReferences" : [
+                "session:9e773eae-5cb1-4203-bdb7-81d75162be6c\/execution:16bd991c-fd25-4c72-a413-8b67da6db5af\/message:1187b774-3152-4613-ab97-2e9e1eba34d8\/admission:2d029df0-0df0-4fd5-b0e7-cc38563ec559@2",
+                "session:9e773eae-5cb1-4203-bdb7-81d75162be6c\/execution:304763c2-4d96-4f99-9e9c-e23c7732e332\/message:d6493944-f282-4b0a-ac51-cae27595abaa\/admission:330de11e-29e0-43f6-af44-e8a56f046800@28"
+              ],
+              "id" : "4266b7b3-28a2-4fb5-bbd4-e168880261a4",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+                "33c0c6e7-9730-4c6e-a1d5-6b8020036567"
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:33c0c6e7-9730-4c6e-a1d5-6b8020036567@1"
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "9e773eae-5cb1-4203-bdb7-81d75162be6c"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-21T14:24:14Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 8,
+  "requestAuthorizationCount" : 8,
+  "selectedCaseIDs" : [
+    "en-cat-foreground-enrichment"
+  ],
+  "status" : "completed",
+  "updatedAt" : "2026-09-21T14:26:53Z",
+  "version" : 1
+}

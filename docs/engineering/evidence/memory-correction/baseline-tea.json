@@ -1,0 +1,327 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "paused",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "User usually prefers green tea in the afternoon.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "330d77b6-032e-46b1-bb1a-9196ee335cd2"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:0ef7ee77-5cff-492d-bf5d-713be22a53e3\/execution:330d77b6-032e-46b1-bb1a-9196ee335cd2\/message:04198b12-7b89-40d2-9b2b-dc8992b0243f\/admission:33415ae1-7598-400f-b7e0-66588fb078a4@2"
+          ],
+          "id" : "60927d77-74b6-4565-bfa9-c73b8efd00dd",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        },
+        {
+          "authority" : "explicitUser",
+          "body" : "User now prefers black tea in the afternoon. This replaces the earlier stated preference for green tea in the afternoon, which no longer applies.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "27259318-ba91-4e5e-846e-8a70b61f5dda"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:0ef7ee77-5cff-492d-bf5d-713be22a53e3\/execution:27259318-ba91-4e5e-846e-8a70b61f5dda\/message:52d5fd9f-3066-424c-b458-7a2b763e7468\/admission:9ff23c30-901e-4705-b5f8-5b0463a57bdb@8"
+          ],
+          "id" : "a6e0478e-19f7-4201-8b77-2cfe7e37f033",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "Black tea would be the best fit this afternoon — you've updated your preference from green tea to black tea, so that earlier green-tea-afternoon habit no longer applies.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "black tea"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : true,
+            "term" : "green tea"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 1536,
+            "complete" : true,
+            "id" : "d46c1a7d-cf6e-477b-9e2f-6beabcfe20c2",
+            "inputTokens" : 2068,
+            "outputTokens" : 135,
+            "reasoningTokens" : 99
+          }
+        ],
+        "executionID" : "f27e853a-0b0a-4ae8-8d17-d2205d03dfc3",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:60927d77-74b6-4565-bfa9-c73b8efd00dd@1",
+          "memory:a6e0478e-19f7-4201-8b77-2cfe7e37f033@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "3250e23e-7871-4eac-9518-6a62a3d2824b",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-tea-explicit-replacement",
+      "kind" : "replacement",
+      "mismatchReasons" : [
+        "automatic_case_used_foreground_remember",
+        "background_extraction_not_completed",
+        "replacement_current_representation_count_mismatch",
+        "replacement_source_lineage_missing",
+        "replacement_evolution_relation_missing",
+        "replacement_evolution_target_not_superseded_by_final",
+        "replacement_successor_missing_from_context"
+      ],
+      "stateChecks" : [
+
+      ],
+      "status" : "completed_with_state_mismatches",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 1408,
+              "complete" : true,
+              "id" : "ebed026c-7947-4c1d-bce8-a39469b0bafa",
+              "inputTokens" : 1651,
+              "outputTokens" : 192,
+              "reasoningTokens" : 169
+            }
+          ],
+          "executionID" : "330d77b6-032e-46b1-bb1a-9196ee335cd2",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "683a7b4c-91d5-48bf-a560-78e7a689fa23",
+                "cacheReadTokens" : 768,
+                "chargedTokens" : 1471,
+                "dispatched" : true,
+                "inputTokens" : 1076,
+                "ordinal" : 1,
+                "outputTokens" : 395,
+                "reasoningTokens" : 304,
+                "reservedTokens" : 13370,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "477be609-35ff-48ab-949d-dce333e85cd4",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "330d77b6-032e-46b1-bb1a-9196ee335cd2",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "I usually prefer green tea in the afternoon.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User usually prefers green tea in the afternoon.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "330d77b6-032e-46b1-bb1a-9196ee335cd2"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:0ef7ee77-5cff-492d-bf5d-713be22a53e3\/execution:330d77b6-032e-46b1-bb1a-9196ee335cd2\/message:04198b12-7b89-40d2-9b2b-dc8992b0243f\/admission:33415ae1-7598-400f-b7e0-66588fb078a4@2"
+              ],
+              "id" : "60927d77-74b6-4565-bfa9-c73b8efd00dd",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "0ef7ee77-5cff-492d-bf5d-713be22a53e3"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2944,
+              "complete" : true,
+              "id" : "ec85dbc3-8265-41ff-81f8-e17f289b6fbb",
+              "inputTokens" : 3170,
+              "outputTokens" : 34,
+              "reasoningTokens" : 9
+            },
+            {
+              "cacheReadTokens" : 1792,
+              "complete" : true,
+              "id" : "2d0bdd90-b96d-4f37-bbd7-2f2544f63aeb",
+              "inputTokens" : 2102,
+              "outputTokens" : 930,
+              "reasoningTokens" : 772
+            }
+          ],
+          "executionID" : "27259318-ba91-4e5e-846e-8a70b61f5dda",
+          "executionOutcome" : "completed",
+          "expectation" : "replace",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "528cef54-80bc-456d-9cc0-1d811d1ca633",
+                "chargedTokens" : 13554,
+                "dispatched" : true,
+                "ordinal" : 1,
+                "reservedTokens" : 13554,
+                "state" : "paused"
+              }
+            ],
+            "candidateCount" : 0,
+            "errorCode" : "paused",
+            "jobID" : "ffeee474-2e24-4623-9552-aa8fe381e935",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "27259318-ba91-4e5e-846e-8a70b61f5dda",
+            "status" : "paused"
+          },
+          "index" : 1,
+          "input" : "That has changed: I prefer black tea in the afternoon now.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User usually prefers green tea in the afternoon.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "330d77b6-032e-46b1-bb1a-9196ee335cd2"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:0ef7ee77-5cff-492d-bf5d-713be22a53e3\/execution:330d77b6-032e-46b1-bb1a-9196ee335cd2\/message:04198b12-7b89-40d2-9b2b-dc8992b0243f\/admission:33415ae1-7598-400f-b7e0-66588fb078a4@2"
+              ],
+              "id" : "60927d77-74b6-4565-bfa9-c73b8efd00dd",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            },
+            {
+              "authority" : "explicitUser",
+              "body" : "User now prefers black tea in the afternoon. This replaces the earlier stated preference for green tea in the afternoon, which no longer applies.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "27259318-ba91-4e5e-846e-8a70b61f5dda"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:0ef7ee77-5cff-492d-bf5d-713be22a53e3\/execution:27259318-ba91-4e5e-846e-8a70b61f5dda\/message:52d5fd9f-3066-424c-b458-7a2b763e7468\/admission:9ff23c30-901e-4705-b5f8-5b0463a57bdb@8"
+              ],
+              "id" : "a6e0478e-19f7-4201-8b77-2cfe7e37f033",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:60927d77-74b6-4565-bfa9-c73b8efd00dd@1"
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "0ef7ee77-5cff-492d-bf5d-713be22a53e3"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-21T13:50:41Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 2048,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "host\/state checks are deterministic; answer keywords require human review",
+  "requestAuthorizationCap" : 8,
+  "requestAuthorizationCount" : 6,
+  "selectedCaseIDs" : [
+    "en-tea-explicit-replacement"
+  ],
+  "status" : "completed_with_failures_or_mismatches",
+  "updatedAt" : "2026-09-21T13:55:53Z",
+  "version" : 1
+}

@@ -207,7 +207,8 @@ public actor MemoryExtractionWorker {
         do {
             try claim.validate()
             let adapter = try catalog.model(identity: claim.route.adapter)
-            claim.outputTokenLimit = try adapter.outputTokenLimit(for: 2_048, route: claim.route)
+            claim.outputTokenLimit = try adapter.outputTokenLimit(
+                for: MemoryExtractionRequestBuilder.outputTokenTarget, route: claim.route)
             let preparation = try await prepare(claim, adapter: adapter, lease: lease)
             claim = preparation.claim
             let prepared = preparation.request
@@ -379,10 +380,14 @@ public actor MemoryExtractionWorker {
                     }
                     try Task.checkCancellation()
                     let result = try accumulator.finish()
-                    guard result.finishReason == .stop else {
+                    switch result.finishReason {
+                    case .stop:
+                        return result
+                    case .outputLimit:
                         throw MiraError(.outputLimit, "Memory extraction did not finish with a complete text result.")
+                    case .toolCalls:
+                        throw MiraError(.providerRejected, "Memory extraction does not permit tool calls.")
                     }
-                    return result
                 }
             } onCancel: {
                 Task { await resource.value.close() }
@@ -420,7 +425,19 @@ public actor MemoryExtractionWorker {
         return date
     }
     private static func safe(_ error: any Error) -> MiraError {
-        error is CancellationError ? .init(.cancelled, "Memory extraction was cancelled.") : MiraError.safe(error)
+        if error is CancellationError {
+            return .init(.cancelled, "Memory extraction was cancelled.")
+        }
+        if let failure = error as? AgentModelFailure {
+            if failure.error.code == .cancelled {
+                return .init(.cancelled, "Memory extraction was cancelled.")
+            }
+            // Adapter failures carry a safe classification as well as a message.
+            // Keep the classification for diagnosis, but do not persist adapter
+            // supplied text in the business job's durable error field.
+            return .init(failure.error.code, "The memory extraction model request failed.")
+        }
+        return MiraError.safe(error)
     }
     private func emit(_ event: MemoryExtractionWorkerEvent) {
         for observer in observers.values { observer.yield(event) }
@@ -467,6 +484,7 @@ public struct MemoryExtractionPrefix: Sendable, Equatable {
 /// the model sees original text and provenance dates, never authority-bearing IDs it could reuse.
 public enum MemoryExtractionRequestBuilder {
     public static let revision = 4
+    public static let outputTokenTarget = 8_192
     public static func validate(source: SessionUserEvidence) throws {
         try source.reference.validate()
         try source.observedHead.validate()
@@ -529,7 +547,7 @@ public enum MemoryExtractionRequestBuilder {
             messages: messages + [.init(role: .user, blocks: [.init(id: "memory-extraction", content: .text(task + "\nTarget input:\n" + (try payload.jsonString())))])],
             tools: prefix?.input.tools ?? [], allowsToolCalls: false,
             prefixMessageCount: messages.isEmpty ? nil : messages.count,
-            outputTokenLimit: claim.outputTokenLimit ?? min(2_048, claim.route.maximumOutputTokens))
+            outputTokenLimit: claim.outputTokenLimit ?? min(outputTokenTarget, claim.route.maximumOutputTokens))
         try input.validate(for: claim.route)
         return input
     }

@@ -26,6 +26,10 @@ struct MemoryRememberHandlerTests {
         let otherTarget = AgentSourceReference.domain(namespace: "memories", id: UUID(), revision: 1)
         let changedTarget = try effect(targets: [otherTarget], enriches: [otherTarget], quote: "Remember  This", evidence: fixedEvidence)
         #expect(try handler.businessKey(for: enriched) != handler.businessKey(for: changedTarget))
+        let replaced = try effect(targets: [target], replaces: target, quote: "Remember  This", evidence: fixedEvidence)
+        let repeatedReplacement = try effect(targets: [target], replaces: target, quote: "Remember  This", evidence: fixedEvidence)
+        #expect(try handler.businessKey(for: replaced) == handler.businessKey(for: repeatedReplacement))
+        #expect(try handler.businessKey(for: replaced) != handler.businessKey(for: enriched))
     }
 
     @Test func malformedDescriptorEffectNamespaceAndTargetsAreRejectedBeforeDatabaseWork() throws {
@@ -65,9 +69,10 @@ struct MemoryRememberHandlerTests {
     }
 
     private func effect(content: String = "Remember this", effectKind: SessionEffectKind = .localWrite,
-                        namespace: String = "memory.remember", descriptorRevision: Int = 2,
+                        namespace: String = "memory.remember", descriptorRevision: Int = 3,
                         targets: [AgentSourceReference] = [], input: JSONValue? = nil,
                         enriches: [AgentSourceReference] = [],
+                        replaces: AgentSourceReference? = nil,
                         sessionID: ConversationID? = nil, executionID: ExecutionID? = nil,
                         messageID: MessageID? = nil, batchID: UUID? = nil,
                         quote: String? = nil, evidence: SessionUserEvidence? = nil) throws -> AgentResolvedEffect {
@@ -88,12 +93,16 @@ struct MemoryRememberHandlerTests {
             guard case .domain(_, let id, let revision) = source else { return .null }
             return .object(["memory_id": .string(id.uuidString.lowercased()), "revision": .number(Double(revision))])
         })
+        if let replaces, case .domain(_, let id, let revision) = replaces {
+            argumentFields["replaces"] = .object(["memory_id": .string(id.uuidString.lowercased()), "revision": .number(Double(revision))])
+        }
         let arguments = input ?? .object(argumentFields)
         let descriptor = AgentToolDescriptor(definition: MemoryTools.rememberDefinition, revision: descriptorRevision,
             outputSchema: MemoryTools.rememberResultSchema, executionMode: .exclusive,
             timeoutMilliseconds: 120_000, maximumResultBytes: 4_096)
         let proposal = AgentToolProposal(descriptor: descriptor, effect: effectKind, businessNamespace: namespace,
-            callDigest: String(repeating: "b", count: 64), inheritedSources: [], plan: .init(input: arguments, sources: enriches, targets: targets))
+            callDigest: String(repeating: "b", count: 64), inheritedSources: [],
+            plan: .init(input: arguments, sources: replaces.map { [$0] } ?? enriches, targets: targets))
         return .init(proposal: proposal, context: .init(executionID: executionID, invocationID: invocationID,
             evidence: contextEvidence, route: route))
     }
