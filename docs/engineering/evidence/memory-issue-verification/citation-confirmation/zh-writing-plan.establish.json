@@ -1,0 +1,259 @@
+{
+  "after" : [
+    {
+      "authority" : "observedUser",
+      "body" : "我写计划时喜欢先列出三个最重要的事项。",
+      "detailAvailable" : true,
+      "evidenceCount" : 1,
+      "evidenceExcerptCount" : 1,
+      "evidenceExecutionIDs" : [
+        "31daabe4-4728-49a2-ac27-f3e4a889d43a"
+      ],
+      "evidenceHashCount" : 1,
+      "evidenceSourceReferences" : [
+        "session:8371cfc9-61f1-420e-be5d-9db48f135409\/execution:31daabe4-4728-49a2-ac27-f3e4a889d43a\/message:8047e4ee-3c89-447f-8a48-41170992d695\/admission:d27aa9d3-f8bd-4382-989a-8f19142c4985@2"
+      ],
+      "id" : "5512a255-30d4-41a1-8704-36b726f270ce",
+      "isCurrent" : true,
+      "lifecycle" : "active",
+      "origin" : "observedUserStatement",
+      "previousMemoryIDs" : [
+
+      ],
+      "revision" : 1,
+      "revisionBodyCount" : 1,
+      "revisionNumbers" : [
+        1
+      ],
+      "state" : "active"
+    }
+  ],
+  "afterMaterial" : {
+    "evidence" : [
+      {
+        "createdAt" : 1790067015912.991,
+        "excerpt" : "我平时写计划时喜欢先列出三个最重要的事项。",
+        "id" : "047833CA-3A17-43CB-9B64-4EEF80C84793",
+        "memoryID" : {
+          "rawValue" : "5512A255-30D4-41A1-8704-36B726F270CE"
+        },
+        "source" : {
+          "userMessage" : {
+            "_0" : {
+              "admissionEventID" : "D27AA9D3-F8BD-4382-989A-8F19142C4985",
+              "admissionSequence" : 2,
+              "originalExecutionID" : {
+                "rawValue" : "31DAABE4-4728-49A2-AC27-F3E4A889D43A"
+              },
+              "sessionID" : {
+                "rawValue" : "8371CFC9-61F1-420E-BE5D-9DB48F135409"
+              },
+              "userMessageID" : {
+                "rawValue" : "8047E4EE-3C89-447F-8A48-41170992D695"
+              }
+            }
+          }
+        },
+        "sourceHash" : "c38bbc62e3883f314fe71ff9057e7b289ab4ad96ce1ddac348d615c265453e7b"
+      }
+    ],
+    "memory" : {
+      "authority" : "observedUser",
+      "createdAt" : 1790067015912.991,
+      "draft" : {
+        "allowsRemoteUse" : true,
+        "content" : "我写计划时喜欢先列出三个最重要的事项。",
+        "kind" : "preference",
+        "scope" : {
+          "global" : {
+
+          }
+        },
+        "sensitivity" : "standard",
+        "subject" : "user"
+      },
+      "id" : {
+        "rawValue" : "5512A255-30D4-41A1-8704-36B726F270CE"
+      },
+      "origin" : "observedUserStatement",
+      "revision" : 1,
+      "scope" : {
+        "global" : {
+
+        }
+      },
+      "state" : "active",
+      "subject" : "user",
+      "updatedAt" : 1790067015912.991
+    },
+    "replacements" : [
+
+    ],
+    "revisions" : [
+      {
+        "actor" : "user",
+        "changedAt" : 1790067015912.991,
+        "draft" : {
+          "allowsRemoteUse" : true,
+          "content" : "我写计划时喜欢先列出三个最重要的事项。",
+          "kind" : "preference",
+          "scope" : {
+            "global" : {
+
+            }
+          },
+          "sensitivity" : "standard",
+          "subject" : "user"
+        },
+        "memoryID" : {
+          "rawValue" : "5512A255-30D4-41A1-8704-36B726F270CE"
+        },
+        "revision" : 1
+      }
+    ]
+  },
+  "approvalDenialCount" : 0,
+  "before" : [
+
+  ],
+  "checks" : [
+    "exact_source_and_memory_survive_completed_background_extraction"
+  ],
+  "closeSettled" : true,
+  "execution" : {
+    "answer" : "明白了，你写计划时习惯先列出三个最重要的事项。",
+    "executionID" : "31daabe4-4728-49a2-ac27-f3e4a889d43a",
+    "input" : "我平时写计划时喜欢先列出三个最重要的事项。",
+    "memoryReferences" : [
+
+    ],
+    "rounds" : [
+      {
+        "attemptID" : "82643AEF-8557-4748-8264-97799F9BC8F7",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 4,
+        "visibleText" : "明白了，你写计划时习惯先列出三个最重要的事项。"
+      }
+    ],
+    "sessionID" : "8371cfc9-61f1-420e-be5d-9db48f135409",
+    "sourceReference" : "session:8371cfc9-61f1-420e-be5d-9db48f135409\/execution:31daabe4-4728-49a2-ac27-f3e4a889d43a\/message:8047e4ee-3c89-447f-8a48-41170992d695\/admission:d27aa9d3-f8bd-4382-989a-8f19142c4985@2",
+    "tools" : [
+
+    ],
+    "usage" : [
+      {
+        "cacheReadTokens" : 2304,
+        "complete" : true,
+        "id" : "82643aef-8557-4748-8264-97799f9bc8f7",
+        "inputTokens" : 2506,
+        "outputTokens" : 171,
+        "reasoningTokens" : 157
+      }
+    ]
+  },
+  "extraction" : {
+    "attempts" : [
+      {
+        "attemptID" : "7ce59012-5cd2-4bf6-ac23-62a572adbced",
+        "cacheReadTokens" : 1792,
+        "chargedTokens" : 2300,
+        "dispatched" : true,
+        "inputTokens" : 2030,
+        "ordinal" : 1,
+        "outputTokens" : 270,
+        "reasoningTokens" : 176,
+        "reservedTokens" : 25947,
+        "state" : "completed"
+      }
+    ],
+    "candidateCount" : 0,
+    "jobID" : "71f80940-4eff-4bbe-abe0-44ddbd59958c",
+    "memoryCount" : 1,
+    "sourceExecutionID" : "31daabe4-4728-49a2-ac27-f3e4a889d43a",
+    "status" : "completed"
+  },
+  "finishedAt" : "2026-09-22T08:50:16Z",
+  "identity" : {
+    "caseID" : "zh-writing-plan",
+    "contextWindow" : 1000000,
+    "embeddings" : "local",
+    "endpoint" : "https:\/\/api.deepseek.com",
+    "followUp" : "我平时写计划时先做什么？请附上记忆来源引用。",
+    "input" : "我平时写计划时喜欢先列出三个最重要的事项。",
+    "instructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.\n\nDistinguish understanding information in this conversation from saving durable memory. For ordinary statements, acknowledge the information naturally and use it in the current conversation. Background memory extraction may run later; it is not evidence that a save has completed. Do not call memory.remember just to justify an acknowledgment, and do not wait for background extraction before replying.\n\nKeep ordinary preference acknowledgments about the user's information, not your future behavior. For example, acknowledge \"I prefer aisle seats\" with \"Understood, you prefer aisle seats\" in the user's language. Do not add \"I'll prioritize aisle seats next time\", \"I'll keep that in mind for future bookings\", or similar open-ended future-use promises. Merely replacing \"saved\" with \"understood\" does not make such a promise valid. Any offer to apply an unsaved preference must be explicitly limited to the current conversation.\n\nClaim that you saved or updated a memory only after the matching memory.remember call returns status succeeded with the committed memory content for that information. A proposed or pending call, a failed or refused result, an absent result, a previous assistant claim, or an unrelated earlier receipt is not confirmation. Without that result, do not say you have saved, recorded, or remembered the new information for later, or promise to recall or use it in future conversations. You may briefly acknowledge understanding without making a persistence claim. If an explicit save fails or is refused, explain that it was not saved; if its outcome is unknown, say that the save is unconfirmed.\n\nAfter a successful save, acknowledge only what the result confirms and respect its scope and remote-use policy. A local-only memory does not authorize future model use. Availability for future requests is not a guarantee of recall. Existing recalled memories support their stated facts, not a claim that you just saved the current message.\n\nVisible memory citations are optional unless the user requests sources. Cite only an exact memory reference supplied by recall context or a successful memory read in this execution, using [memory:<UUID>@<revision>] with square brackets around the actual reference. Never display a bare or parenthesized memory reference. A memory.remember receipt confirms a save but does not by itself authorize a source citation; acknowledge that save in natural language without including the receipt's memory ID or reference.",
+    "language" : "zh-CN",
+    "mode" : "automatic",
+    "modelID" : "deepseek-flash",
+    "outputTokens" : 8192,
+    "protocolID" : "chat.completions",
+    "providerID" : "deepseek",
+    "requiresCitation" : true,
+    "root" : "\/var\/folders\/hd\/vw9cr2s54879tqf2kphbkzlw0000gn\/T\/Mira-Continuity-9cidlx57",
+    "runID" : "18c4e320-050a-4445-a207-b1a0951a7fbd"
+  },
+  "immediate" : [
+
+  ],
+  "mismatches" : [
+
+  ],
+  "phase" : "establish",
+  "processID" : 63032,
+  "processInstanceID" : "25bc68ed-2a8c-4d4f-ad74-29fc383dacc1",
+  "qualification" : "host evidence only; reply and fact semantics require separate review",
+  "requestAuthorizationCap" : 2,
+  "requestAuthorizationCount" : 2,
+  "route" : {
+    "adapter" : {
+      "id" : "mira.http.chat-completions",
+      "revision" : 1
+    },
+    "capabilities" : {
+      "callsTools" : true,
+      "producesThinking" : true,
+      "streamsText" : true
+    },
+    "configuration" : {
+      "allowsLoopbackHTTP" : false,
+      "baseURL" : "https:\/\/api.deepseek.com",
+      "dialectProfileID" : "deepseek.chat",
+      "protocolID" : "chat.completions",
+      "requestsUsage" : true,
+      "storeResponses" : false,
+      "thinking" : {
+        "mode" : "providerDefault"
+      }
+    },
+    "connectionID" : {
+      "rawValue" : "DDE93B51-C091-4A7B-9657-151B31FE3831"
+    },
+    "connectionRevision" : 1,
+    "contextWindow" : 1000000,
+    "credential" : {
+      "reference" : "mira.credential.f4508debffe202f7b0349365f03ed7ae8ac572f6f9b9a898d5351f7591b7c07f.80fc31dc-fd50-4b68-af7f-195b503a5562",
+      "version" : 1
+    },
+    "endpointID" : "primary",
+    "id" : {
+      "rawValue" : "82B02C69-70EC-4682-B0B3-D164D339425E"
+    },
+    "invocationID" : "default",
+    "invocationRevision" : 1,
+    "maximumOutputTokens" : 8192,
+    "modelAuthorizationRevision" : 1,
+    "modelDescriptorID" : {
+      "rawValue" : "82B02C69-70EC-4682-B0B3-D164D339425E"
+    },
+    "modelID" : "deepseek-flash",
+    "modelRevision" : 1,
+    "revision" : 1
+  },
+  "startedAt" : "2026-09-22T08:47:43Z",
+  "status" : "completed",
+  "verifiedCitations" : [
+
+  ],
+  "version" : 1
+}

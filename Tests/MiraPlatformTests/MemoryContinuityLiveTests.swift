@@ -159,6 +159,12 @@ final class MemoryContinuityLiveTests: XCTestCase {
             checkpoint = nil
             report.immediate = try await EverydayMemoryLiveTests.captureState(in: workloads, knownIDs: [])
             report.immediateMaterial = try await memoryMaterial(in: workloads, snapshots: report.immediate)
+            let visibleCitationEvidence = await Self.visibleCitationEvidence(
+                in: workloads, answer: execution.answer,
+                requiresCitation: phase == .recall && scenario.requiresCitation,
+                sessionID: sessionID, executionID: executionID)
+            report.mismatches.append(contentsOf: visibleCitationEvidence.failures)
+            report.verifiedCitations = visibleCitationEvidence.verified
             if phase == .establish {
                 let writes = execution.tools.filter { ["memory.remember", "memory.retract"].contains($0.name) }
                 if scenario.mode == .automatic {
@@ -206,11 +212,6 @@ final class MemoryContinuityLiveTests: XCTestCase {
                     memories: report.after ?? [], baseline: prior?.after?.first,
                     mutationInvocationCount: execution.tools.filter { ["memory.remember", "memory.retract"].contains($0.name) }.count,
                     contextMemoryReferences: execution.memoryReferences)
-                for reference in MemoryCitationReference.references(in: execution.answer) {
-                    _ = try await workloads.memories.citation(reference, sessionID: sessionID,
-                        executionID: executionID, workspaceID: nil)
-                    report.verifiedCitations.append(reference.id)
-                }
                 if report.mismatches.isEmpty { report.checks.append("same_memory_in_fresh_session_after_process_restart") }
             }
             report.status = report.mismatches.isEmpty ? "completed" : "completed_with_mismatches"
@@ -262,6 +263,28 @@ final class MemoryContinuityLiveTests: XCTestCase {
             replacements: detail.replacements.sorted { $0.id.uuidString < $1.id.uuidString })
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
         return try JSONDecoder().decode(JSONValue.self, from: encoder.encode(material))
+    }
+
+    private static func visibleCitationEvidence(
+        in group: MacLibraryWorkloads, answer: String, requiresCitation: Bool,
+        sessionID: ConversationID, executionID: ExecutionID
+    ) async -> (failures: [String], verified: [String]) {
+        var failures = MemoryContinuityCitationAssertions.failures(
+            answer: answer, requiresCitation: requiresCitation)
+        var verified: [String] = []
+        for reference in MemoryCitationReference.references(in: answer) {
+            do {
+                _ = try await group.memories.citation(reference, sessionID: sessionID,
+                    executionID: executionID, workspaceID: nil)
+                verified.append(reference.id)
+            } catch {
+                failures.append("memory_citation_not_authorized")
+            }
+        }
+        if requiresCitation && verified.isEmpty {
+            failures.append("required_memory_citation_not_verified")
+        }
+        return (Array(Set(failures)).sorted(), verified)
     }
 
     private static func executionSnapshot(
@@ -343,6 +366,7 @@ struct MemoryContinuityIdentity: Codable, Equatable {
     let mode: MemoryContinuityMode
     let input: String
     let followUp: String
+    let requiresCitation: Bool
     let root: String
     let providerID: String
     let modelID: String
@@ -355,7 +379,7 @@ struct MemoryContinuityIdentity: Codable, Equatable {
 
     init(runID: String, scenario: MemoryContinuityScenario, root: String, configuration: LiveEvaluationConfiguration) {
         self.runID = runID; caseID = scenario.id; language = scenario.language; mode = scenario.mode
-        input = scenario.input; followUp = scenario.followUp; self.root = root
+        input = scenario.input; followUp = scenario.followUp; requiresCitation = scenario.requiresCitation; self.root = root
         providerID = configuration.providerID; modelID = configuration.conversationModelID
         endpoint = configuration.endpoint; protocolID = configuration.protocolID.rawValue
         contextWindow = configuration.contextWindow; outputTokens = configuration.conversationOutputTokens

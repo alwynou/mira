@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "caseID": "en-explicit-reading-room",
+      "log": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.establish.log",
+      "phase": "establish",
+      "report": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.establish.json",
+      "reserved": 6,
+      "reservedAt": "2026-09-22T08:30:16Z",
+      "runID": "893db3b6-f622-423b-8302-f98d2fe83fd7",
+      "settledAt": "2026-09-22T08:32:58Z",
+      "state": "settled",
+      "used": 4
+    },
+    {
+      "caseID": "en-explicit-reading-room",
+      "log": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.recall.log",
+      "phase": "recall",
+      "report": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.recall.json",
+      "reserved": 4,
+      "reservedAt": "2026-09-22T08:32:58Z",
+      "runID": "893db3b6-f622-423b-8302-f98d2fe83fd7",
+      "settledAt": "2026-09-22T08:33:10Z",
+      "state": "settled",
+      "used": 1
+    },
+    {
+      "caseID": "zh-explicit-meeting-time",
+      "log": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.establish.log",
+      "phase": "establish",
+      "report": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.establish.json",
+      "reserved": 6,
+      "reservedAt": "2026-09-22T08:33:10Z",
+      "runID": "57e8ff2f-be34-4dc2-83af-1828201f627d",
+      "settledAt": "2026-09-22T08:35:50Z",
+      "state": "settled",
+      "used": 4
+    },
+    {
+      "caseID": "zh-explicit-meeting-time",
+      "log": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.recall.log",
+      "phase": "recall",
+      "report": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.recall.json",
+      "reserved": 4,
+      "reservedAt": "2026-09-22T08:35:50Z",
+      "runID": "57e8ff2f-be34-4dc2-83af-1828201f627d",
+      "settledAt": "2026-09-22T08:36:03Z",
+      "state": "settled",
+      "used": 1
+    }
+  ],
+  "globalLimit": 32,
+  "version": 1
+}

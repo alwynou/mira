@@ -1,0 +1,61 @@
+{
+  "accountedAuthorizations": 4,
+  "caseAuthorizationCap": 4,
+  "cases": [
+    {
+      "caseAuthorizationCap": 4,
+      "caseID": "zh-writing-plan",
+      "phases": [
+        {
+          "caseID": "zh-writing-plan",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-open-issues-20260922/citation/zh-writing-plan.establish.log",
+          "observedRequestAuthorizationCount": 2,
+          "phase": "establish",
+          "processUUID": "8b42d1a6-7e3d-417d-9298-9594c33466e1",
+          "report": "/private/tmp/mira-open-issues-20260922/citation/zh-writing-plan.establish.json",
+          "reportFinished": true,
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 2,
+          "requestAuthorizationCount": 2,
+          "testPID": 61180,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 60986
+        },
+        {
+          "caseID": "zh-writing-plan",
+          "interrupted": false,
+          "invalidReason": "xcodebuild_failed_or_report_missing",
+          "log": "/private/tmp/mira-open-issues-20260922/citation/zh-writing-plan.recall.log",
+          "observedRequestAuthorizationCount": 0,
+          "phase": "recall",
+          "processUUID": "42d950c1-9fc1-4ff6-a521-abc49b910db6",
+          "report": "/private/tmp/mira-open-issues-20260922/citation/zh-writing-plan.recall.json",
+          "reportFinished": true,
+          "reportStatus": "failed",
+          "reportValid": false,
+          "requestAuthorizationCap": 2,
+          "requestAuthorizationCount": null,
+          "testPID": 61625,
+          "xcodebuildExitCode": 65,
+          "xcodebuildPID": 61440
+        }
+      ],
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-mhbyl7jh",
+      "runID": "b114b6f3-83c4-4691-abcf-321dfc120011"
+    }
+  ],
+  "corpus": "/Users/alwyn/dev/mira/Tests/Fixtures/EverydayMemory/continuity.json",
+  "finishedAt": "2026-09-22T08:40:30Z",
+  "globalAuthorizationLimit": 32,
+  "heldAuthorizations": 2,
+  "ledger": "/private/tmp/mira-open-issues-20260922/citation/budget-ledger.json",
+  "reportedAuthorizations": 2,
+  "reportedAuthorizationsComplete": true,
+  "settledAuthorizations": 2,
+  "startedAt": "2026-09-22T08:36:03Z",
+  "sumPhaseCaps": 4,
+  "version": 1
+}

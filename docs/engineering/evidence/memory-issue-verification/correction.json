@@ -1,0 +1,334 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "工作更新时，通常喜欢先写完整背景，再给结论。",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "6cdbe656-2988-44bc-b097-cb5eba86b4ba"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:b13f4c96-d6ce-495d-82f5-9b33ee5ea6c5\/execution:6cdbe656-2988-44bc-b097-cb5eba86b4ba\/message:3342174d-9683-4b62-abba-28b4664277bc\/admission:0932e719-d437-4e41-8b27-d2b95097797c@2"
+          ],
+          "id" : "1dcd1e09-70e7-4662-9a7c-8fd59675ade6",
+          "isCurrent" : false,
+          "lifecycle" : "superseded",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 2,
+          "revisionBodyCount" : 2,
+          "revisionNumbers" : [
+            1,
+            2
+          ],
+          "state" : "active",
+          "supersededByID" : "2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7"
+        },
+        {
+          "authority" : "explicitUser",
+          "body" : "工作更新时，希望先给结论，再补充背景。",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "d56f9e23-2eef-4a1f-abf0-1244a835f975"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:b13f4c96-d6ce-495d-82f5-9b33ee5ea6c5\/execution:d56f9e23-2eef-4a1f-abf0-1244a835f975\/message:45900fea-5850-4685-a224-2d3854dd5371\/admission:e5fe9d45-1da7-41c9-931b-213b95b98eb8@8"
+          ],
+          "id" : "2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+            "1dcd1e09-70e7-4662-9a7c-8fd59675ade6"
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "按你一贯的偏好（先结论、再背景），工作更新可以按这个顺序写：\n\n1. **结论先行**：一句话说清「现在是什么状态」——完成 \/ 未完成 \/ 需要决策。比如「A 项目本周已上线，进度符合预期」。\n2. **关键支撑**：2–3 条最能说明结论的事实或数据，不要罗列所有细节。\n3. **风险与阻碍**：目前卡在哪里、影响多大、有没有时间点压力。\n4. **下一步与需要的支持**：接下来做什么、什么时候有结果、需要谁配合或做什么决定。\n\n几条小建议：\n- 背景信息放到第 2 步之后，只保留「没它就看不懂结论」的部分；\n- 如果对方只看前两句，也应该能拿到最重要的信息；\n- 有多件事时，按重要性排，而不是按时间排。\n\n需要的话，把你的原始素材发我，我按这个顺序帮你重写成一条完整的工作更新。\n\n（依据你此前表达的偏好 [memory:2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7@1]）",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : false,
+            "term" : "先给结论"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : false,
+            "term" : "先写完整背景"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 2432,
+            "complete" : true,
+            "id" : "814804fa-d1a6-4247-9322-146a572bc4bc",
+            "inputTokens" : 2772,
+            "outputTokens" : 461,
+            "reasoningTokens" : 214
+          }
+        ],
+        "executionID" : "c592e2dd-d6d2-4f27-9b73-bf643a9acf13",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "56a8ac68-fd78-4e2f-bedf-ee021e9c02e9",
+        "verifiedCitationReferences" : [
+          "memory:2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7@1"
+        ],
+        "visibleCitationReferences" : [
+          "memory:2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7@1"
+        ]
+      },
+      "id" : "zh-update-style-explicit-replacement",
+      "kind" : "replacement",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "foreground_replacement_committed_before_background",
+        "one_current_replacement_with_superseded_predecessor"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "answer" : "明白，工作更新你通常喜欢先写完整背景、再给结论。",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2304,
+              "complete" : true,
+              "id" : "fb62a640-50de-41dd-acad-760829b2b7db",
+              "inputTokens" : 2508,
+              "outputTokens" : 168,
+              "reasoningTokens" : 151
+            }
+          ],
+          "executionID" : "6cdbe656-2988-44bc-b097-cb5eba86b4ba",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "0a61b70a-7de2-406d-bcd5-be3805477611",
+                "cacheReadTokens" : 384,
+                "chargedTokens" : 2314,
+                "dispatched" : true,
+                "inputTokens" : 2037,
+                "ordinal" : 1,
+                "outputTokens" : 277,
+                "reasoningTokens" : 166,
+                "reservedTokens" : 25950,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "db058ceb-1a6a-4438-bbc9-0eb5e7e14d98",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "6cdbe656-2988-44bc-b097-cb5eba86b4ba",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "工作更新我通常喜欢先写完整背景，再给结论。",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "工作更新时，通常喜欢先写完整背景，再给结论。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "6cdbe656-2988-44bc-b097-cb5eba86b4ba"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:b13f4c96-d6ce-495d-82f5-9b33ee5ea6c5\/execution:6cdbe656-2988-44bc-b097-cb5eba86b4ba\/message:3342174d-9683-4b62-abba-28b4664277bc\/admission:0932e719-d437-4e41-8b27-d2b95097797c@2"
+              ],
+              "id" : "1dcd1e09-70e7-4662-9a7c-8fd59675ade6",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "b13f4c96-d6ce-495d-82f5-9b33ee5ea6c5"
+        },
+        {
+          "answer" : "已更新：工作更新时先给结论，再补充背景。原先“先写完整背景、再给结论”的偏好已不再记录。",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 3328,
+              "complete" : true,
+              "id" : "9adcf637-0b12-403e-a649-23891d5ccad1",
+              "inputTokens" : 3488,
+              "outputTokens" : 58,
+              "reasoningTokens" : 26
+            },
+            {
+              "cacheReadTokens" : 2560,
+              "complete" : true,
+              "id" : "7e1be4d0-c7aa-4513-9ad2-8986c7355e39",
+              "inputTokens" : 2953,
+              "outputTokens" : 392,
+              "reasoningTokens" : 192
+            }
+          ],
+          "executionID" : "d56f9e23-2eef-4a1f-abf0-1244a835f975",
+          "executionOutcome" : "completed",
+          "expectation" : "replace",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "7d9dad9f-9a00-4dc4-9293-9cc557b6a041",
+                "cacheReadTokens" : 384,
+                "chargedTokens" : 2369,
+                "dispatched" : true,
+                "inputTokens" : 2033,
+                "ordinal" : 1,
+                "outputTokens" : 336,
+                "reasoningTokens" : 223,
+                "reservedTokens" : 25874,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "b535317b-f858-4f12-8bda-05897bae20a2",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "d56f9e23-2eef-4a1f-abf0-1244a835f975",
+            "status" : "completed"
+          },
+          "index" : 1,
+          "input" : "这个习惯改了，我现在希望工作更新先给结论，再补背景。",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "工作更新时，通常喜欢先写完整背景，再给结论。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "6cdbe656-2988-44bc-b097-cb5eba86b4ba"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:b13f4c96-d6ce-495d-82f5-9b33ee5ea6c5\/execution:6cdbe656-2988-44bc-b097-cb5eba86b4ba\/message:3342174d-9683-4b62-abba-28b4664277bc\/admission:0932e719-d437-4e41-8b27-d2b95097797c@2"
+              ],
+              "id" : "1dcd1e09-70e7-4662-9a7c-8fd59675ade6",
+              "isCurrent" : false,
+              "lifecycle" : "superseded",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 2,
+              "revisionBodyCount" : 2,
+              "revisionNumbers" : [
+                1,
+                2
+              ],
+              "state" : "active",
+              "supersededByID" : "2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7"
+            },
+            {
+              "authority" : "explicitUser",
+              "body" : "工作更新时，希望先给结论，再补充背景。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "d56f9e23-2eef-4a1f-abf0-1244a835f975"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:b13f4c96-d6ce-495d-82f5-9b33ee5ea6c5\/execution:d56f9e23-2eef-4a1f-abf0-1244a835f975\/message:45900fea-5850-4685-a224-2d3854dd5371\/admission:e5fe9d45-1da7-41c9-931b-213b95b98eb8@8"
+              ],
+              "id" : "2bb9a518-6c3f-4c9c-9f38-ba46a9f80aa7",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+                "1dcd1e09-70e7-4662-9a7c-8fd59675ade6"
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:1dcd1e09-70e7-4662-9a7c-8fd59675ade6@1"
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "b13f4c96-d6ce-495d-82f5-9b33ee5ea6c5"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.\n\nDistinguish understanding information in this conversation from saving durable memory. For ordinary statements, acknowledge the information naturally and use it in the current conversation. Background memory extraction may run later; it is not evidence that a save has completed. Do not call memory.remember just to justify an acknowledgment, and do not wait for background extraction before replying.\n\nKeep ordinary preference acknowledgments about the user's information, not your future behavior. For example, acknowledge \"I prefer aisle seats\" with \"Understood, you prefer aisle seats\" in the user's language. Do not add \"I'll prioritize aisle seats next time\", \"I'll keep that in mind for future bookings\", or similar open-ended future-use promises. Merely replacing \"saved\" with \"understood\" does not make such a promise valid. Any offer to apply an unsaved preference must be explicitly limited to the current conversation.\n\nClaim that you saved or updated a memory only after the matching memory.remember call returns status succeeded with the committed memory content for that information. A proposed or pending call, a failed or refused result, an absent result, a previous assistant claim, or an unrelated earlier receipt is not confirmation. Without that result, do not say you have saved, recorded, or remembered the new information for later, or promise to recall or use it in future conversations. You may briefly acknowledge understanding without making a persistence claim. If an explicit save fails or is refused, explain that it was not saved; if its outcome is unknown, say that the save is unconfirmed.\n\nAfter a successful save, acknowledge only what the result confirms and respect its scope and remote-use policy. A local-only memory does not authorize future model use. Availability for future requests is not a guarantee of recall. Existing recalled memories support their stated facts, not a claim that you just saved the current message.\n\nVisible memory citations are optional unless the user requests sources. Cite only an exact memory reference supplied by recall context or a successful memory read in this execution, using [memory:<UUID>@<revision>] with square brackets around the actual reference. Never display a bare or parenthesized memory reference. A memory.remember receipt confirms a save but does not by itself authorize a source citation; acknowledge that save in natural language without including the receipt's memory ID or reference.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-22T08:40:37Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 12,
+  "requestAuthorizationCount" : 6,
+  "selectedCaseIDs" : [
+    "zh-update-style-explicit-replacement"
+  ],
+  "status" : "completed",
+  "updatedAt" : "2026-09-22T08:45:43Z",
+  "version" : 1
+}

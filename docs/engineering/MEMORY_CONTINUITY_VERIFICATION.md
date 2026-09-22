@@ -1,5 +1,7 @@
 # Bilingual memory continuity across process restart
 
+Follow-up status: the [current issue verification](MEMORY_ISSUE_CLOSURE_VERIFICATION.md) completes the outstanding restart/citation checks and records closure of the historical correction issue as not reproduced under the user’s instruction. The outcomes and reports below are the unchanged earlier evidence.
+
 Issue: [#52](https://github.com/alwynou/mira/issues/52). Baseline: `f4bf05a`, after the shared acknowledgment guidance in PR #51.
 
 ## Scope and evidence
