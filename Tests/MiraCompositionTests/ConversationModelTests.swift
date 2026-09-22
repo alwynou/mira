@@ -7,6 +7,47 @@
     @MainActor
     struct ConversationModelTests {
         @Test
+        func defaultConversationInstructionsReachTheRecordedModelRequest() async throws {
+            try await withDirectory { directory in
+                let gate = SyntheticCompositionStreamGate()
+                let library = try await Self.openSyntheticLibrary(directory: directory, gate: gate)
+                let model = ConversationModel(library: library)
+                let observer = Task { await model.observe() }
+                do {
+                    try await eventually { model.isReady && !model.routes.isEmpty }
+                    let group = try #require(model.workgroup)
+                    model.activePage.composer = "I usually choose an aisle seat."
+                    await model.send()
+                    let sessionID = try #require(model.activePage.conversationID)
+                    try await Self.waitForExecution(group, sessionID: sessionID)
+                    let state = try await group.application.sessionSnapshot(id: sessionID)
+                    let executionID = try #require(state.executions.keys.first)
+                    let audit = try await group.queries.executionAudit(
+                        sessionID: sessionID, executionID: executionID, beforeSequence: nil, limit: 32)
+                    guard case .available(let plan) = audit.plan else {
+                        Issue.record("The default conversation plan was not retained.")
+                        observer.cancel(); await observer.value; _ = await library.close()
+                        return
+                    }
+                    #expect(plan.instructions == ConversationInstructions.default)
+                    #expect(!audit.attempts.isEmpty)
+                    for attempt in audit.attempts {
+                        guard case .available(let request) = attempt.request else {
+                            Issue.record("The default conversation request was not retained.")
+                            continue
+                        }
+                        #expect(request.instructions == ConversationInstructions.default)
+                        #expect(request.request.userText == "I usually choose an aisle seat.")
+                    }
+                    observer.cancel(); await observer.value
+                    #expect(await library.close().isSettled)
+                } catch {
+                    observer.cancel(); await observer.value; _ = await library.close(); throw error
+                }
+            }
+        }
+
+        @Test
         func memoryHistoryChangesRefreshRetainedPagesWithoutReloadingMessages() async throws {
             try await withDirectory { directory in
                 let library = try await Self.openDemoLibrary(directory: directory, stress: false)

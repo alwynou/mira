@@ -263,6 +263,8 @@ The management screen supports locating older memories through search, scope fil
 
 自动提取和本地索引不阻塞正常回复。新记忆先可通过词法搜索找回，本地索引完成后加入语义搜索；尚未落库的内容不冒充已保存。当前后台状态查看入口仍待设计。
 
+An ordinary conversational acknowledgment can confirm understanding and use information in the current conversation. It must not imply that a new durable memory has already been saved or promise use in future conversations. A proposed, pending, failed, refused or absent save result does not confirm persistence. Explicit successful saves may acknowledge the matching committed result and its scope; local-only storage does not authorize future model use, and availability does not guarantee recall. An earlier assistant claim or an unrelated saved memory is not evidence that the current statement was saved.
+
 <a id="s09-10"></a>
 
 ### 1.10 纠正、撤销与避免再次记住

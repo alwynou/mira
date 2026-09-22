@@ -50,8 +50,7 @@ final class ConversationModel {
     init(
         library: MacLibrary, pageLimit: Int = 3,
         modelPreferences: ConversationModelPreferences = .shared,
-        instructions: String =
-            "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations."
+        instructions: String = ConversationInstructions.default
     ) {
         self.library = library
         self.modelPreferences = modelPreferences

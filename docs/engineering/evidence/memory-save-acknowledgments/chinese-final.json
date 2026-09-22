@@ -1,0 +1,251 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "paused",
+      "errorCode" : "request_authorization_cap_reached",
+      "failureExecution" : {
+        "admissionOutcome" : "committed",
+        "auditAvailable" : true,
+        "auditHasMore" : false,
+        "completionOutcome" : "committed",
+        "conversationUsage" : [
+          {
+            "complete" : false,
+            "id" : "bf210993-11c6-4c73-973c-53cd3d231103"
+          }
+        ],
+        "executionErrorCode" : "credentialMissing",
+        "executionID" : "065e4922-7c64-4fa1-b743-552e110d3607",
+        "executionOutcome" : "failed",
+        "memoryContextReferences" : [
+          "memory:7b9b7b9c-3c5b-4748-9ffa-d5f3e83ec49c@1"
+        ],
+        "phase" : "followup",
+        "sessionID" : "8382e8f6-e84f-47bb-8800-ae294ebac4af"
+      },
+      "failureStage" : "followup_status",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "用户坐飞机时更喜欢靠过道的座位。",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "57d65204-ab53-4380-b5b0-8cc670723b0f"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:6b288648-f1b4-4a60-a441-7cca0d937cdc\/execution:57d65204-ab53-4380-b5b0-8cc670723b0f\/message:962154b8-ba21-40e4-847f-c7d95acb64af\/admission:edbf134b-48b7-4b71-8a6e-186f34576237@2"
+          ],
+          "id" : "7b9b7b9c-3c5b-4748-9ffa-d5f3e83ec49c",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "id" : "zh-hypothetical-withdrawal-unchanged",
+      "kind" : "retractionNearMiss",
+      "mismatchReasons" : [
+        "background_extraction_not_completed"
+      ],
+      "stateChecks" : [
+        "near_miss_preserves_memory_before_background",
+        "near_miss_preserves_memory_after_background",
+        "near_miss_preserves_memory_after_reopen"
+      ],
+      "status" : "failed",
+      "stepSnapshots" : [
+        {
+          "answer" : "好的，了解到你坐飞机时更喜欢靠过道的座位。",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 0,
+              "complete" : true,
+              "id" : "35d5ee09-9c91-4fa2-ba8c-a6282be03e1b",
+              "inputTokens" : 2409,
+              "outputTokens" : 93,
+              "reasoningTokens" : 79
+            }
+          ],
+          "executionID" : "57d65204-ab53-4380-b5b0-8cc670723b0f",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "3141028e-d9ee-4130-aa4d-ba7aca472933",
+                "cacheReadTokens" : 256,
+                "chargedTokens" : 2216,
+                "dispatched" : true,
+                "inputTokens" : 1931,
+                "ordinal" : 1,
+                "outputTokens" : 285,
+                "reasoningTokens" : 179,
+                "reservedTokens" : 25389,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "baf897ee-bd4a-480b-a6e0-eb947e6c7749",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "57d65204-ab53-4380-b5b0-8cc670723b0f",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "坐飞机时我更喜欢靠过道的座位。",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "用户坐飞机时更喜欢靠过道的座位。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "57d65204-ab53-4380-b5b0-8cc670723b0f"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:6b288648-f1b4-4a60-a441-7cca0d937cdc\/execution:57d65204-ab53-4380-b5b0-8cc670723b0f\/message:962154b8-ba21-40e4-847f-c7d95acb64af\/admission:edbf134b-48b7-4b71-8a6e-186f34576237@2"
+              ],
+              "id" : "7b9b7b9c-3c5b-4748-9ffa-d5f3e83ec49c",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "6b288648-f1b4-4a60-a441-7cca0d937cdc"
+        },
+        {
+          "answer" : "这只是一个假设，所以现在不需要改动——你坐飞机时更喜欢靠过道的座位这一点仍然适用。如果哪天你真的改选靠窗座位了，直接告诉我，我再按新的想法来。",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2432,
+              "complete" : true,
+              "id" : "79063b03-e2ab-4fd8-aa1f-2551c70c830f",
+              "inputTokens" : 2785,
+              "outputTokens" : 147,
+              "reasoningTokens" : 105
+            }
+          ],
+          "executionID" : "f8c0d057-91a9-495c-aa30-7a0cfc42a414",
+          "executionOutcome" : "completed",
+          "expectation" : "preserve",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "cbd77134-e132-4440-9685-d6cd9039b69c",
+                "chargedTokens" : 25334,
+                "dispatched" : true,
+                "ordinal" : 1,
+                "reservedTokens" : 25334,
+                "state" : "paused"
+              }
+            ],
+            "candidateCount" : 0,
+            "errorCode" : "credentialMissing",
+            "jobID" : "79238a17-5843-4815-abd3-ac48ac9bb5e5",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "f8c0d057-91a9-495c-aa30-7a0cfc42a414",
+            "status" : "paused"
+          },
+          "index" : 1,
+          "input" : "如果以后改变想法，我也许会改选靠窗的座位。",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "用户坐飞机时更喜欢靠过道的座位。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "57d65204-ab53-4380-b5b0-8cc670723b0f"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:6b288648-f1b4-4a60-a441-7cca0d937cdc\/execution:57d65204-ab53-4380-b5b0-8cc670723b0f\/message:962154b8-ba21-40e4-847f-c7d95acb64af\/admission:edbf134b-48b7-4b71-8a6e-186f34576237@2"
+              ],
+              "id" : "7b9b7b9c-3c5b-4748-9ffa-d5f3e83ec49c",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:7b9b7b9c-3c5b-4748-9ffa-d5f3e83ec49c@1"
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "6b288648-f1b4-4a60-a441-7cca0d937cdc"
+        }
+      ],
+      "terminalExtractionJobs" : [
+        {
+          "candidateCount" : 0,
+          "id" : "79238a17-5843-4815-abd3-ac48ac9bb5e5",
+          "memoryCount" : 0,
+          "state" : "paused"
+        }
+      ],
+      "terminalOutcome" : "request_authorization_cap_reached"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.\n\nDistinguish understanding information in this conversation from saving durable memory. For ordinary statements, acknowledge the information naturally and use it in the current conversation. Background memory extraction may run later; it is not evidence that a save has completed. Do not call memory.remember just to justify an acknowledgment, and do not wait for background extraction before replying.\n\nKeep ordinary preference acknowledgments about the user's information, not your future behavior. For example, acknowledge \"I prefer aisle seats\" with \"Understood, you prefer aisle seats\" in the user's language. Do not add \"I'll prioritize aisle seats next time\", \"I'll keep that in mind for future bookings\", or similar open-ended future-use promises. Merely replacing \"saved\" with \"understood\" does not make such a promise valid. Any offer to apply an unsaved preference must be explicitly limited to the current conversation.\n\nClaim that you saved or updated a memory only after the matching memory.remember call returns status succeeded with the committed memory content for that information. A proposed or pending call, a failed or refused result, an absent result, a previous assistant claim, or an unrelated earlier receipt is not confirmation. Without that result, do not say you have saved, recorded, or remembered the new information for later, or promise to recall or use it in future conversations. You may briefly acknowledge understanding without making a persistence claim. If an explicit save fails or is refused, explain that it was not saved; if its outcome is unknown, say that the save is unconfirmed.\n\nAfter a successful save, acknowledge only what the result confirms and respect its scope and remote-use policy. A local-only memory does not authorize future model use. Availability for future requests is not a guarantee of recall. Existing recalled memories support their stated facts, not a claim that you just saved the current message.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-22T06:15:02Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 3,
+  "requestAuthorizationCount" : 3,
+  "selectedCaseIDs" : [
+    "zh-hypothetical-withdrawal-unchanged"
+  ],
+  "status" : "completed_with_failures_or_mismatches",
+  "updatedAt" : "2026-09-22T06:20:05Z",
+  "version" : 1
+}
