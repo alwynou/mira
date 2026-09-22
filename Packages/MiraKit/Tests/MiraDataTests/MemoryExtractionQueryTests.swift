@@ -59,7 +59,7 @@ struct MemoryExtractionQueryTests {
                 _ = try await store.completeMemoryExtraction(
                     third, source: source,
                     output: .init(
-                        blocks: [.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))], continuation: nil, usage: usage,
+                        blocks: [.init(id: "text", content: .text("{\"version\":4,\"items\":[],\"retractions\":[]}"))], continuation: nil, usage: usage,
                         finishReason: .stop),
                     authorization: auth, at: TaskWorkflowFixture.now)
                 let before = try await store.memoryExtractionReport(

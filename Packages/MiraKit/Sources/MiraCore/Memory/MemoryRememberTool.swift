@@ -25,7 +25,7 @@ public struct MemoryRememberTool: AgentLocalWriteTool {
     }
     public var businessNamespace: String { "memory.remember" }
     public var descriptor: AgentToolDescriptor {
-        .init(definition: MemoryTools.rememberDefinition, revision: 3, outputSchema: MemoryTools.rememberResultSchema,
+        .init(definition: MemoryTools.rememberDefinition, revision: 4, outputSchema: MemoryTools.rememberResultSchema,
               executionMode: .exclusive, timeoutMilliseconds: 120_000, maximumResultBytes: 4_096)
     }
 

@@ -259,7 +259,7 @@ private struct NativeMemoryAdapter: AgentModelAdapter {
     }
     func stream(_ request: AgentPreparedModelRequest, route: AgentModelRoute) -> AgentModelOperation {
         let (stream, continuation) = AsyncThrowingStream<AgentModelStreamEvent, any Error>.makeStream()
-        let text = request.input.allowsToolCalls ? "Done" : #"{"version":3,"items":[{"content":"I prefer dairy-free breakfasts with fruit and oats.","inputIndex":0,"kind":"preference","subject":"user","sensitivity":"standard","inferred":false,"stable":true,"confidence":"high","validFrom":null,"validUntil":null,"assertion":{"mode":"directStable","aspectKey":"food.breakfast","changeIntent":"independent"}}]}"#
+        let text = request.input.allowsToolCalls ? "Done" : #"{"version":4,"retractions":[],"items":[{"content":"I prefer dairy-free breakfasts with fruit and oats.","inputIndex":0,"kind":"preference","subject":"user","sensitivity":"standard","inferred":false,"stable":true,"confidence":"high","validFrom":null,"validUntil":null,"assertion":{"mode":"directStable","aspectKey":"food.breakfast","changeIntent":"independent"}}]}"#
         continuation.yield(.blockStarted(.init(id: "text", content: .text(text))))
         continuation.yield(.blockFinished(id: "text"))
         continuation.yield(.usage(.init(inputTokens: 100, outputTokens: 10)))

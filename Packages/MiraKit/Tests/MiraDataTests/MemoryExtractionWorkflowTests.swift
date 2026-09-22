@@ -12,7 +12,7 @@ struct MemoryExtractionWorkflowTests {
         let text = "I prefer green tea"
         let turns = [text, "I prefer concise answers", "I work in the morning", "I prefer paper books"]
         let structured: JSONValue = .object([
-            "version": .number(3),
+            "version": .number(4), "retractions": .array([]),
             "items": .array([
                 .object([
                     "content": .string("I enjoy concise replies"), "inputIndex": .number(1), "kind": .string("preference"),

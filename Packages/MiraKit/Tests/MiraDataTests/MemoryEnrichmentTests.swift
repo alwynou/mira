@@ -335,7 +335,7 @@ struct MemoryEnrichmentTests {
                 content: "My bicycle is red and its nickname is Comet.", inputIndex: 0,
                 aspect: "identity.nickname", changeIntent: "enrichment", includeTargetFields: false)])
             #expect(throws: MiraError.self) {
-                try MemoryExtractionValidator.validate(output: missing, sources: [source])
+                try MemoryExtractionValidator.validate(output: missing, sources: [source], existingMemoryCount: 0)
             }
 
             // The JSON shape is valid, but index 1 is outside this claim's one-item existing-memory bound.
@@ -347,6 +347,109 @@ struct MemoryEnrichmentTests {
                 _ = try await commit(outsideBatch, sources: [source], claim: claim, fixture: fixture)
             }
             #expect(try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 20).memories.map(\.id) == [target.id])
+        }
+    }
+
+    @Test func automaticRetractionArchivesExactCurrentRecordAndKeepsWithdrawalEvidence() async throws {
+        try await withTaskWorkflow(outputs: Array(repeating: completion(), count: 2), memoryEnabled: true) { fixture in
+            let store = try #require(fixture.memory)
+            let firstAddress = try await fixture.run("I prefer green tea")
+            let firstSource = try await fixture.evidence(firstAddress)
+            let established = try await commit(
+                extractionOutput([item(content: firstSource.text, inputIndex: 0, aspect: "drink.preference")]),
+                sources: [firstSource], claim: makeClaim(sources: [firstSource], fixture: fixture), fixture: fixture)
+            let targetID = try #require(established.memoryIDs.first)
+            let target = try await store.memoryDetail(targetID, workspaceID: nil).memory
+
+            let withdrawalAddress = try await fixture.run(
+                "I no longer prefer green tea", sessionID: firstAddress.sessionID)
+            let withdrawalSource = try await fixture.evidence(withdrawalAddress)
+            let claim = try makeClaim(sources: [withdrawalSource], existingMemories: [target], fixture: fixture)
+            let output = extractionOutput([], retractions: [retraction(inputIndex: 0, targetIndex: 0)])
+            let result = try await commit(output, sources: [withdrawalSource], claim: claim, fixture: fixture)
+
+            #expect(result.decisions.map(\.disposition) == [.retracted])
+            #expect(result.memoryIDs == [targetID])
+            let detail = try await store.memoryDetail(targetID, workspaceID: nil)
+            #expect(detail.memory.state == .archived)
+            #expect(detail.memory.retraction?.priorRevision == target.revision)
+            #expect(detail.memory.draft?.content == target.draft?.content)
+            #expect(detail.evidence.contains {
+                $0.source == .userMessage(withdrawalSource.reference) && $0.retractionRevision == detail.memory.revision
+            })
+            #expect((try await store.memoryList(workspaceID: nil, states: [.active], query: "green tea", limit: 20).memories).isEmpty)
+        }
+    }
+
+    @Test func automaticRetractionSkipsManualTargetsAndRejectsStaleClaims() async throws {
+        try await withTaskWorkflow(outputs: Array(repeating: completion(), count: 3), memoryEnabled: true) { fixture in
+            let store = try #require(fixture.memory)
+            let manual = try await store.createMemory(
+                draft: .init(content: "I prefer green tea", scope: .global),
+                source: .manualEntry(id: UUID(), statement: "I prefer green tea"), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: try await fixture.authority.authorization(),
+                at: TaskWorkflowFixture.now).memory
+            let manualAddress = try await fixture.run("I no longer prefer green tea")
+            let manualSource = try await fixture.evidence(manualAddress)
+            let manualResult = try await commit(
+                extractionOutput([], retractions: [retraction(inputIndex: 0, targetIndex: 0)]),
+                sources: [manualSource], claim: makeClaim(sources: [manualSource], existingMemories: [manual], fixture: fixture), fixture: fixture)
+            #expect(manualResult.decisions.isEmpty)
+            #expect(try await store.memoryDetail(manual.id, workspaceID: nil).memory.state == .active)
+
+            let firstAddress = try await fixture.run("I prefer black tea")
+            let firstSource = try await fixture.evidence(firstAddress)
+            let established = try await commit(
+                extractionOutput([item(content: firstSource.text, inputIndex: 0, aspect: "drink.preference")]),
+                sources: [firstSource], claim: makeClaim(sources: [firstSource], fixture: fixture), fixture: fixture)
+            let targetID = try #require(established.memoryIDs.first)
+            let target = try await store.memoryDetail(targetID, workspaceID: nil).memory
+            let staleAddress = try await fixture.run("I no longer prefer black tea")
+            let staleSource = try await fixture.evidence(staleAddress)
+            let staleClaim = try makeClaim(sources: [staleSource], existingMemories: [target], fixture: fixture)
+            _ = try await store.changeMemoryState(
+                targetID, workspaceID: nil, state: .candidate, expectedRevision: target.revision,
+                operationID: UUID(), authorization: try await fixture.authority.authorization(), at: TaskWorkflowFixture.now)
+            await #expect(throws: MiraError.self) {
+                _ = try await commit(
+                    extractionOutput([], retractions: [retraction(inputIndex: 0, targetIndex: 0)]),
+                    sources: [staleSource], claim: staleClaim, fixture: fixture)
+            }
+        }
+    }
+
+    @Test func batchRetractionsShareOneSourceKeepRawIndexesAndDoNotCreateOppositeAssertions() async throws {
+        try await withTaskWorkflow(outputs: Array(repeating: completion(), count: 2), memoryEnabled: true) { fixture in
+            let store = try #require(fixture.memory)
+            let address = try await fixture.run("I prefer green tea and early flights.")
+            let source = try await fixture.evidence(address)
+            let established = try await commit(extractionOutput([
+                item(content: "I prefer green tea", inputIndex: 0, aspect: "drink.preference"),
+                item(content: "I prefer early flights", inputIndex: 0, aspect: "travel.flight")
+            ]), sources: [source], claim: makeClaim(sources: [source], fixture: fixture), fixture: fixture)
+            #expect(established.memoryIDs.count == 2)
+            var targets: [Memory] = []
+            for id in established.memoryIDs { targets.append(try await store.memoryDetail(id, workspaceID: nil).memory) }
+            let withdrawal = try await fixture.run("I withdraw both preferences without any replacement.")
+            let withdrawalSource = try await fixture.evidence(withdrawal)
+            let claim = try makeClaim(sources: [withdrawalSource], existingMemories: targets, fixture: fixture)
+            let quoted: JSONValue = .object([
+                "inputIndex": .number(0), "targetIndex": .number(0), "mode": .string("quoted"),
+                "inferred": .bool(false), "confidence": .string("high")
+            ])
+            let result = try await commit(extractionOutput([
+                item(content: "I prefer late flights", inputIndex: 0, aspect: "travel.flight")
+            ], retractions: [quoted, retraction(inputIndex: 0, targetIndex: 0), retraction(inputIndex: 0, targetIndex: 1)]),
+                sources: [withdrawalSource], claim: claim, fixture: fixture)
+            #expect(result.decisions.map(\.proposalIndex) == [2, 3])
+            #expect(result.decisions.map(\.disposition) == [.retracted, .retracted])
+            #expect(Set(result.memoryIDs) == Set(established.memoryIDs))
+            #expect(try await store.memoryManagementPage(.init(section: .current), at: TaskWorkflowFixture.now).memories.isEmpty)
+            for target in targets {
+                let detail = try await store.memoryDetail(target.id, workspaceID: nil)
+                #expect(detail.memory.state == .archived)
+                #expect(detail.evidence.filter { $0.retractionRevision != nil }.count == 1)
+            }
         }
     }
 
@@ -388,15 +491,22 @@ struct MemoryEnrichmentTests {
         _ output: String, sources: [SessionUserEvidence], claim: MemoryExtractionClaim,
         fixture: TaskWorkflowFixture
     ) async throws -> (memoryIDs: [MemoryID], candidateMemoryIDs: [MemoryID], decisions: [MemoryExtractionDecision]) {
-        let proposals = try MemoryExtractionValidator.validate(output: output, sources: sources)
+        let proposals = try MemoryExtractionValidator.validate(
+            output: output, sources: sources, existingMemoryCount: claim.existingMemories.count)
         return try await fixture.database.write { db in
             try SQLiteMemoryStore.commitExtractionBatchProposals(
-                proposals, claim: claim, sources: sources, at: TaskWorkflowFixture.now, in: db)
+                proposals, claim: claim, sources: sources,
+                at: TaskWorkflowFixture.now, in: db)
         }
     }
 
-    private func extractionOutput(_ items: [JSONValue]) -> String {
-        try! JSONValue.object(["version": .number(3), "items": .array(items)]).jsonString()
+    private func extractionOutput(_ items: [JSONValue], retractions: [JSONValue] = []) -> String {
+        try! JSONValue.object(["version": .number(4), "items": .array(items), "retractions": .array(retractions)]).jsonString()
+    }
+
+    private func retraction(inputIndex: Int, targetIndex: Int) -> JSONValue {
+        .object(["inputIndex": .number(Double(inputIndex)), "targetIndex": .number(Double(targetIndex)),
+                 "mode": .string("correction"), "inferred": .bool(false), "confidence": .string("high")])
     }
 
     private func item(

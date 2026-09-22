@@ -1,6 +1,6 @@
 import Foundation
 
-public enum MemoryExtractionDisposition: String, Codable, Sendable { case created, reused }
+public enum MemoryExtractionDisposition: String, Codable, Sendable { case created, reused, retracted }
 public enum MemoryExtractionConflictReason: String, Codable, Sendable {
     case currentMemoryRequiresReview, multipleCurrentMemories
 }
@@ -43,6 +43,13 @@ public struct MemoryExtractionDecision: Codable, Equatable, Sendable {
             Set(conflictingMemoryIDs).count == conflictingMemoryIDs.count,
             !conflictingMemoryIDs.contains(memoryID)
         else { throw Self.invalid }
+        if disposition == .retracted {
+            guard memoryState == .archived, conflictReason == nil,
+                  conflictingMemoryIDs.isEmpty, replacedMemoryID == nil else {
+                throw Self.invalid
+            }
+            return
+        }
         if disposition == .reused {
             guard conflictReason == nil, conflictingMemoryIDs.isEmpty, replacedMemoryID == nil else {
                 throw Self.invalid

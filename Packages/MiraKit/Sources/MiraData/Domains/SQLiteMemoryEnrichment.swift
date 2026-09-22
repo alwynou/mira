@@ -16,7 +16,7 @@ extension SQLiteMemoryStore {
             targets.allSatisfy({ $0.revision > 0 && $0.revision < Int.max })
         else { throw invalid }
         let resolved = try resolve(source, draft: draft, in: db)
-        guard try !suppressedMemorySource(resolved.identity, in: db) else { throw unauthorized }
+        guard try !memoryCaptureSuppressed(resolved.identity, in: db) else { throw unauthorized }
         struct Identity: Encodable { let draftAndSource: String; let targets: [MemoryUsage] }
         let request = try digest(encode(Identity(
             draftAndSource: fingerprint(kind: "enrich", draft: draft, source: resolved.input), targets: targets)))
@@ -72,7 +72,9 @@ extension SQLiteMemoryStore {
 
     static func inheritMemoryEvidence(from previous: MemoryID, into current: MemoryID, in db: Database) throws {
         for item in try evidence(previous, in: db) {
-            guard item.bodyPurgedAt == nil, try !suppressedMemorySource(item.source, in: db) else { throw unauthorized }
+            guard item.retractionRevision == nil else { continue }
+            guard item.bodyPurgedAt == nil,
+                  try !suppressedMemorySource(item.source, in: db) else { throw unauthorized }
             try insertBoundedMemoryEvidence(.init(memoryID: current, source: item.source,
                 sourceWorkspaceID: item.sourceWorkspaceID, excerpt: item.excerpt,
                 sourceHash: item.sourceHash, createdAt: item.createdAt), in: db)
@@ -87,5 +89,15 @@ extension SQLiteMemoryStore {
             arguments: [key(value.memoryID)]) ?? 0 < 100 else { throw limit }
         try db.execute(sql: "INSERT INTO memory_evidence(id, memory_id, source_key, source_workspace_id, json) VALUES (?, ?, ?, ?, ?)",
             arguments: [key(value.id), key(value.memoryID), source, value.sourceWorkspaceID.map(key), try encode(value)])
+    }
+
+    static func memoryCaptureSuppressed(_ source: MemoryEvidenceSource, in db: Database) throws -> Bool {
+        if try suppressedMemorySource(source, in: db) { return true }
+        return try Int.fetchOne(db, sql: """
+            SELECT count(*) FROM memory_evidence e
+            JOIN memory_records m ON m.id = e.memory_id
+            WHERE e.source_key = ?
+              AND json_extract(CAST(m.json AS TEXT), '$.retraction') IS NOT NULL
+            """, arguments: [try sourceKey(source)]) ?? 0 > 0
     }
 }

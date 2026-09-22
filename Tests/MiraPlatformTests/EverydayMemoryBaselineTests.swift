@@ -3,7 +3,7 @@ import Foundation
 import XCTest
 
 final class EverydayMemoryBaselineTests: XCTestCase {
-    /// Exercise v3 classification fields with authored labels, independently of language.
+    /// Exercise v4 classification fields with authored labels, independently of language.
     /// This tests structural policy only; semantic accuracy requires a real extractor eval.
     func testCorpusSafetyAndRecordCaptureCoverage() throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "scenarios", withExtension: "json"))
@@ -29,17 +29,17 @@ final class EverydayMemoryBaselineTests: XCTestCase {
                 "validFrom": NSNull(), "validUntil": NSNull(),
                 "assertion": ["mode": annotation?.assertionMode ?? "uncertain", "aspectKey": annotation?.aspectKey ?? "unannotated.preference", "changeIntent": annotation?.changeIntent ?? "independent"]
             ]
-            let data = try JSONSerialization.data(withJSONObject: ["version": 3, "items": [item]])
+            let data = try JSONSerialization.data(withJSONObject: ["version": 4, "items": [item], "retractions": []])
             let proposals = try MemoryExtractionValidator.validate(
-                output: String(decoding: data, as: UTF8.self), source: source)
-            let active = proposals.contains { $0.triage == .active }
+                output: String(decoding: data, as: UTF8.self), source: source, existingMemoryCount: 0)
+            let active = proposals.proposals.contains { $0.triage == .active }
             results.append(.init(id: scenario.id, expected: scenario.expectation, gate: active ? "active" : "candidate"))
             if scenario.expectation == "notActive" {
                 XCTAssertFalse(active, "Unsafe automatic activation for authored case: \(scenario.id)")
             }
         }
         let report = Report(
-            qualification: "none; authored semantic labels test v3 host policy, not extractor accuracy",
+            qualification: "none; authored semantic labels test v4 host policy, not extractor accuracy",
             expectedActive: results.filter { $0.expected == "active" }.count,
             acceptedActive: results.filter { $0.expected == "active" && $0.gate == "active" }.count,
             unsafeActive: results.filter { $0.expected == "notActive" && $0.gate == "active" }.count,

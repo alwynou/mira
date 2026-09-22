@@ -291,7 +291,7 @@ struct JournalMemoryExtractionCommitTests {
     ) async throws -> (memoryIDs: [MemoryID], candidateMemoryIDs: [MemoryID], decisions: [MemoryExtractionDecision]) {
         try await fixture.database.write { db in
             try SQLiteMemoryStore.commitExtractionBatchProposals(
-                proposals, claim: claim, sources: [source],
+                .init(proposals: proposals, retractions: []), claim: claim, sources: [source],
                 at: TaskWorkflowFixture.now, in: db)
         }
     }

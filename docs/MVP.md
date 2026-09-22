@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [clear memory withdrawal increment](engineering/MEMORY_RETRACTION_VERIFICATION.md) archives an exact assertion without inventing a replacement, retains separate withdrawal provenance and prevents old-source recapture. Focused transaction, privacy, replay and reopen checks passed; bounded model evidence and the local native-window test limitation are recorded in the verification note. This does not close broad M3 semantic quality or the unclassified failure in [#43](https://github.com/alwynou/mira/issues/43).
+
 The [Chinese memory correction follow-up](engineering/CHINESE_MEMORY_CORRECTION_VERIFICATION.md) preserves typed admission/completion errors in the evaluation harness. Two independent synthetic reruns completed with 14 of 24 allowed request authorizations, correct replacement history/source identity and fresh-session answers. The previous `storage` failure did not recur and remains unclassified in [#43](https://github.com/alwynou/mira/issues/43); these samples do not establish a general Chinese-memory success rate.
 
 The [memory correction and extraction diagnostics increment](engineering/MEMORY_CORRECTION_VERIFICATION.md) adds exact foreground replacement with atomic source/revision guards, safe extraction error categories, a bounded thinking-capable output allowance and the existing aspect-key grammar in the model schema. Focused checks passed. Four synthetic live runs used 46 request authorizations: English correction, explicit-save follow-up and pure-background enrichment have successful samples. That sample left Chinese correction unqualified after an unclassified failure before its first state snapshot, tracked in [#43](https://github.com/alwynou/mira/issues/43). This does not close general M3 quality or unresolved retraction acceptance.
@@ -113,6 +115,7 @@ The [appearance transition fix](engineering/APPEARANCE_TRANSITIONS.md) removes c
 | `memory.search` | query、受限数量与过滤；返回当前 Scope 内可发送的有界结果及引用 | 只读；M3 |
 | `memory.get` | Memory ID；返回通过 Scope / Privacy 校验的指定版本正文与来源 | 只读；M3 |
 | `memory.remember` | 当前用户原文引用、内容、主体和 Scope；返回已提交 Memory 或明确失败 | 内部写入；明确保存无需额外确认，M3 |
+| `memory.retract` | Exact current memory ID/revision and current-user quote; archives without a replacement | Internal write; clear withdrawal, M3 |
 | `knowledge.search` | query 与 Source 过滤；返回有界 Chunk 预览和证据句柄 | 只读；M4 |
 | `source.open` | Source ID / version；返回元数据、标题和有界目录 / 预览 | 只读；M4 |
 | `source.read_chunk` | Chunk ID；返回已授权版本正文与定位 | 只读；M4 |

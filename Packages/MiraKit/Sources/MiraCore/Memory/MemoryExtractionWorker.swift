@@ -483,7 +483,7 @@ public struct MemoryExtractionPrefix: Sendable, Equatable {
 /// Builds a bounded single-call model input. Evidence identity stays in the business attempt;
 /// the model sees original text and provenance dates, never authority-bearing IDs it could reuse.
 public enum MemoryExtractionRequestBuilder {
-    public static let revision = 4
+    public static let revision = 5
     public static let outputTokenTarget = 8_192
     public static func validate(source: SessionUserEvidence) throws {
         try source.reference.validate()

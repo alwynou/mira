@@ -184,7 +184,10 @@ public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
             let memory: Memory
             do { memory = try Self.read(.init(id), workspaceID: request.workspaceID, in: db) }
             catch let error as MiraError where error.code == .notFound || error.code == .unauthorized { throw Self.unauthorized }
-            guard memory.state == .active, memory.deletedAt == nil, memory.forgottenAt == nil,
+            let historicalRetraction = memory.retraction
+            guard (memory.state == .active ||
+                   (memory.state == .archived && historicalRetraction?.revision == memory.revision)),
+                  memory.deletedAt == nil, memory.forgottenAt == nil,
                   let currentDraft = memory.draft,
                   currentDraft.scope == memory.scope, currentDraft.subject == memory.subject,
                   currentDraft.validFrom.map({ $0 <= at }) ?? true,
@@ -194,7 +197,10 @@ public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
             guard let row = try Row.fetchOne(db, sql: "SELECT * FROM memory_revisions WHERE memory_id = ? AND revision = ?",
                                              arguments: [Self.key(memory.id), revision]) else { throw Self.unauthorized }
             let historical = try Self.revision(row, memoryID: memory.id)
-            guard historical.revision == revision, historical.revision <= memory.revision,
+            let historicalMaximum = memory.state == .archived && historicalRetraction?.revision == memory.revision
+                ? historicalRetraction!.priorRevision : memory.revision
+            guard historical.revision == revision,
+                  historical.revision <= historicalMaximum,
                   let historicalDraft = historical.draft,
                   historical.bodyPurgedAt == nil,
                   historicalDraft.scope == memory.scope, historicalDraft.subject == memory.subject,
@@ -216,7 +222,14 @@ public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
     }
     public func suppressedMemorySources() async throws -> [MemoryEvidenceSource] {
         try await owner.read { db in
-            let rows = try Row.fetchAll(db, sql: "SELECT * FROM memory_sources WHERE suppression > 0 ORDER BY source_key LIMIT 8193")
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT DISTINCT s.* FROM memory_sources s
+                LEFT JOIN memory_evidence e ON e.source_key = s.source_key
+                LEFT JOIN memory_records m ON m.id = e.memory_id
+                WHERE s.suppression > 0
+                   OR json_extract(CAST(m.json AS TEXT), '$.retraction') IS NOT NULL
+                ORDER BY s.source_key LIMIT 8193
+                """)
             guard rows.count <= 8_192 else { throw Self.limit }
             return try rows.map(Self.sourceIdentity)
         }
@@ -350,6 +363,7 @@ public final class SQLiteMemoryStore: MemoryStore, @unchecked Sendable {
     static func createMemoryInTransaction(draft: MemoryDraft, source: MemoryWriteSource, operationID: UUID, replacing: MemoryID?, expectedRevision: Int?, at: Date, in db: Database) throws -> MemoryWriteReceipt {
         try draft.validate(); try date(at)
         let resolved = try resolve(source, draft: draft, in: db)
+        guard try !memoryCaptureSuppressed(resolved.identity, in: db) else { throw unauthorized }
         let request = try fingerprint(kind: "create", draft: draft, source: resolved.input, replacing: replacing, expectedRevision: expectedRevision)
         if let prior = try operation(operationID, request: request, in: db) { return prior }
         guard (replacing == nil) == (expectedRevision == nil) else { throw invalid }

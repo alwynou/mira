@@ -12,8 +12,11 @@ struct MemoryModuleTests {
             AgentToolDescriptor(definition: MemoryTools.getDefinition, revision: 1,
                                 outputSchema: MemoryTools.getResultSchema, executionMode: .parallelSafe,
                                 timeoutMilliseconds: 30_000, maximumResultBytes: 32_768),
-            AgentToolDescriptor(definition: MemoryTools.rememberDefinition, revision: 3,
+            AgentToolDescriptor(definition: MemoryTools.rememberDefinition, revision: 4,
                                 outputSchema: MemoryTools.rememberResultSchema, executionMode: .exclusive,
+                                timeoutMilliseconds: 120_000, maximumResultBytes: 4_096),
+            AgentToolDescriptor(definition: MemoryTools.retractDefinition, revision: 1,
+                                outputSchema: MemoryTools.retractResultSchema, executionMode: .exclusive,
                                 timeoutMilliseconds: 120_000, maximumResultBytes: 4_096)
         ]
         for descriptor in descriptors { try descriptor.validate() }
@@ -34,7 +37,7 @@ struct MemoryModuleTests {
         let toolSnapshot = try await tools.freeze()
         let authoritySnapshot = try await authorities.freeze()
         do {
-            #expect(toolSnapshot.entries.map(\.id) == ["memory.search", "memory.get", "memory.remember", "memory.recall"])
+            #expect(toolSnapshot.entries.map(\.id) == ["memory.search", "memory.get", "memory.remember", "memory.retract", "memory.recall"])
             #expect(authoritySnapshot.entries.map(\.id) == ["memories"])
         }
         await toolSnapshot.release()

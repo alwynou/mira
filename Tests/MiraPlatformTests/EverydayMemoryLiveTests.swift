@@ -82,6 +82,47 @@ final class EverydayMemoryLiveTests: XCTestCase {
         XCTAssertThrowsError(try corpus.selected(ids: ["unknown-state-case"]))
     }
 
+    func testRetractionAssertionsRequireEstablishedTargetAndSeparateWithdrawalProvenance() {
+        let baseline = StateEvolutionMemorySnapshot(
+            id: "preference", revision: 1, state: "active", lifecycle: "active", isCurrent: true,
+            body: "I prefer early flights", origin: "observedUserStatement", authority: "observedUser",
+            forgottenAt: nil, supersededByID: nil, evidenceSourceReferences: ["original-source"],
+            evidenceExecutionIDs: ["original-execution"], revisionNumbers: [1], previousMemoryIDs: [],
+            evidenceCount: 1, evidenceExcerptCount: 1, evidenceHashCount: 1, revisionBodyCount: 1,
+            detailAvailable: true, detailErrorCode: nil)
+        var retired = StateEvolutionMemorySnapshot(
+            id: baseline.id, revision: 2, state: "archived", lifecycle: "archived", isCurrent: false,
+            body: baseline.body, origin: baseline.origin, authority: baseline.authority,
+            forgottenAt: nil, supersededByID: nil, evidenceSourceReferences: baseline.evidenceSourceReferences,
+            evidenceExecutionIDs: baseline.evidenceExecutionIDs, revisionNumbers: [1, 2], previousMemoryIDs: [],
+            evidenceCount: 2, evidenceExcerptCount: 2, evidenceHashCount: 2, revisionBodyCount: 2,
+            detailAvailable: true, detailErrorCode: nil,
+            retraction: .init(priorRevision: 1, revision: 2, evidence: [
+                .init(revision: 2, sourceReference: "withdrawal-source", executionID: "withdrawal-execution",
+                      hasExcerpt: true, hasHash: true)]))
+        func failures(_ memories: [StateEvolutionMemorySnapshot], context: [String] = []) -> [String] {
+            StateEvolutionAssertions.retractionFailures(
+                memories: memories, baseline: baseline, withdrawalExecutionID: "withdrawal-execution",
+                contextMemoryReferences: context)
+        }
+        XCTAssertTrue(failures([retired]).isEmpty)
+        XCTAssertTrue(StateEvolutionAssertions.retractionFailures(
+            memories: [], baseline: nil, withdrawalExecutionID: "withdrawal-execution", contextMemoryReferences: [])
+            .contains("retraction_predecessor_not_established"))
+        XCTAssertTrue(failures([]).contains("retraction_target_missing"))
+        XCTAssertTrue(failures([retired, baseline]).contains("retraction_created_replacement_or_current_fact"))
+        XCTAssertTrue(failures([retired.with(evidenceSourceReferences: ["withdrawal-source"])])
+            .contains("retraction_history_or_supporting_evidence_changed"))
+        XCTAssertTrue(failures([retired], context: ["memory:preference@1"])
+            .contains("retracted_memory_in_ordinary_context"))
+        retired.retraction = .init(priorRevision: 1, revision: 2, evidence: [])
+        XCTAssertTrue(failures([retired]).contains("retraction_withdrawal_provenance_missing"))
+        retired.retraction = .init(priorRevision: 2, revision: 3, evidence: [])
+        XCTAssertTrue(failures([retired]).contains("retraction_revision_not_bound_to_predecessor"))
+        retired.retraction = nil
+        XCTAssertTrue(failures([retired]).contains("retraction_marker_missing"))
+    }
+
     func testStateEvaluationAssertionsRejectDuplicatesMissingLineageForgottenLeakAndLifecycleConfusion() {
         let firstID = UUID().uuidString.lowercased()
         let final = StateEvolutionMemorySnapshot(
@@ -545,6 +586,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
         var trackedMemoryIDs = Set<MemoryID>()
         var previousCurrentIDs = Set<String>()
         var establishedMemoryID: MemoryID?
+        var establishedSnapshot: StateEvolutionMemorySnapshot?
+        var withdrawalExecutionID: String?
         var lastExecutionID: ExecutionID?
         var lastSessionID: ConversationID?
         var lastExtractionState: String?
@@ -709,8 +752,34 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 let rememberSucceeded = rememberCalls.filter {
                     $0.state.resolution?.status == .succeeded && $0.state.resolution?.businessReceipt != nil
                 }
+                let retractCalls = audit.attempts.flatMap(\.invocations).filter {
+                    $0.state.invocation.toolName == "memory.retract"
+                }
+                let retractSucceeded = retractCalls.filter {
+                    $0.state.resolution?.status == .succeeded && $0.state.resolution?.businessReceipt != nil
+                }
                 var extraction: StateEvolutionExtractionSnapshot
-                if scenario.kind == StateEvolutionKind.foregroundEnrichment.rawValue {
+                if step.expect == "retractWithoutReplacement", !retractCalls.isEmpty {
+                    failureStage = "foreground_retraction_capture"
+                    let immediate = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
+                    let failures = StateEvolutionAssertions.retractionFailures(
+                        memories: immediate, baseline: establishedSnapshot,
+                        withdrawalExecutionID: executionID.rawValue.uuidString.lowercased(), contextMemoryReferences: [])
+                    report.mismatchReasons.append(contentsOf: failures.map { "foreground_" + $0 })
+                    if retractSucceeded.isEmpty {
+                        report.mismatchReasons.append("foreground_retraction_not_committed")
+                    } else if failures.isEmpty {
+                        report.stateChecks.append("foreground_retraction_committed_before_background")
+                    }
+                    // A committed withdrawal source is intentionally excluded from capture.
+                    // This is a durable source barrier, not a completed extraction job.
+                    extraction = try await Self.extractionSnapshot(
+                        in: workloads, sourceSession: sessionID, sourceExecution: executionID,
+                        fallbackState: failures.isEmpty && !retractSucceeded.isEmpty
+                            ? "suppressed_retraction_source" : "not_waited_failed_retraction",
+                        fallbackError: nil)
+                    lastExtractionState = extraction.status
+                } else if scenario.kind == StateEvolutionKind.foregroundEnrichment.rawValue {
                     failureStage = "foreground_capture_snapshot"
                     extraction = try await Self.extractionSnapshot(
                         in: workloads, sourceSession: sessionID, sourceExecution: executionID,
@@ -779,6 +848,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                         report.mismatchReasons.append("established_memory_not_uniquely_source_linked")
                     } else if let uuid = UUID(uuidString: sourceLinked[0].id) {
                         establishedMemoryID = MemoryID(uuid)
+                        establishedSnapshot = sourceLinked[0]
                     }
                 }
                 if step.expect == "replace" {
@@ -789,21 +859,16 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     report.mismatchReasons.append(contentsOf: failures.map { "replacement_" + $0 })
                     if failures.isEmpty { report.stateChecks.append("one_current_replacement_with_superseded_predecessor") }
                 }
-                if step.expect == "retractWithoutReplacement",
-                   memorySnapshots.contains(where: {
-                       $0.lifecycle == MemoryLifecycleStatus.active.rawValue &&
-                       $0.evidenceExecutionIDs.contains(executionID.rawValue.uuidString.lowercased())
-                   }) {
-                    report.mismatchReasons.append("ambiguous_retraction_created_current_fact")
-                }
-                if step.expect == "retractWithoutReplacement",
-                   let establishedMemoryID,
-                   !memorySnapshots.contains(where: {
-                       $0.id == establishedMemoryID.rawValue.uuidString.lowercased() &&
-                       $0.lifecycle == MemoryLifecycleStatus.active.rawValue && $0.isCurrent &&
-                       $0.supersededByID == nil
-                   }) {
-                    report.mismatchReasons.append("ambiguous_retraction_destructively_replaced_original")
+                if step.expect == "retractWithoutReplacement" {
+                    withdrawalExecutionID = executionID.rawValue.uuidString.lowercased()
+                    let failures = StateEvolutionAssertions.retractionFailures(
+                        memories: memorySnapshots, baseline: establishedSnapshot,
+                        withdrawalExecutionID: withdrawalExecutionID, contextMemoryReferences: [])
+                    report.mismatchReasons.append(contentsOf: failures)
+                    if failures.isEmpty {
+                        report.stateChecks.append("established_memory_retracted_without_replacement_with_separate_provenance")
+                    }
+                    if !rememberCalls.isEmpty { report.mismatchReasons.append("retraction_used_assertion_write_tool") }
                 }
                 if step.expect == "enrich" {
                     let targetIDs = previousCurrentIDs
@@ -825,7 +890,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     rememberInvocationCount: rememberCalls.count,
                     rememberSucceededCount: rememberSucceeded.count,
                     conversationUsage: audit.modelUsage.map(StateEvolutionTokenUsageSnapshot.init),
-                    memories: memorySnapshots)
+                    memories: memorySnapshots, retractInvocationCount: retractCalls.count,
+                    retractSucceededCount: retractSucceeded.count)
                 report.stepSnapshots.append(stepSnapshot)
                 report.finalMemorySnapshots = memorySnapshots
                 if scenario.kind == StateEvolutionKind.foregroundEnrichment.rawValue && step.expect == "remember" {
@@ -875,6 +941,35 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     report.stateChecks.append("foreground_enrichment_survives_background_extraction")
                 }
                 failureStage = "report_publish"
+                try publish()
+            }
+
+            if scenario.kind == StateEvolutionKind.clearRetraction.rawValue {
+                approvalTask?.cancel()
+                _ = await approvalTask?.result
+                failureStage = "retraction_library_close"
+                guard let activeLibrary = library, await activeLibrary.close().isSettled else {
+                    throw MiraError(.storage, "The retraction library did not settle before reopening.")
+                }
+                library = nil
+                group = nil
+                failureStage = "retraction_library_reopen"
+                let reopened = try await openLibrary()
+                library = reopened
+                workloads = try await reopened.workloads()
+                group = workloads
+                try await configuration.embeddingsMode.prepare(in: workloads)
+                approvalTask = await startApprovalPump(workloads)
+                let conversation = try await workloads.modelSettings.resolve(
+                    purpose: AgentModelPurposeID.conversation, explicitRouteID: nil,
+                    sessionSelection: .inherit, workspaceID: nil, requiredCapabilities: []).route
+                routes = .init(conversation: conversation, extraction: routes?.extraction ?? conversation)
+                report.finalMemorySnapshots = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
+                let failures = StateEvolutionAssertions.retractionFailures(
+                    memories: report.finalMemorySnapshots, baseline: establishedSnapshot,
+                    withdrawalExecutionID: withdrawalExecutionID, contextMemoryReferences: [])
+                report.mismatchReasons.append(contentsOf: failures.map { "reopened_" + $0 })
+                if failures.isEmpty { report.stateChecks.append("retraction_and_provenance_survive_library_reopen") }
                 try publish()
             }
 
@@ -995,7 +1090,13 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 if followupReferences.contains(where: { reference in supersededIDs.contains { reference.contains($0) } }) {
                     report.mismatchReasons.append("superseded_memory_in_ordinary_context")
                 }
-            case .ambiguousRetraction, .none: break
+            case .clearRetraction:
+                let failures = StateEvolutionAssertions.retractionFailures(
+                    memories: report.finalMemorySnapshots, baseline: establishedSnapshot,
+                    withdrawalExecutionID: withdrawalExecutionID, contextMemoryReferences: followupReferences)
+                report.mismatchReasons.append(contentsOf: failures)
+                if failures.isEmpty { report.stateChecks.append("retracted_memory_excluded_from_fresh_session_after_reopen") }
+            case .none: break
             }
             report.terminalOutcome = "followup_completed"
             report.status = report.mismatchReasons.isEmpty ? "completed" : "completed_with_state_mismatches"
@@ -1208,8 +1309,16 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     return relation.previousID.rawValue.uuidString.lowercased()
                 }
                 let userEvidence = detail.evidence.compactMap { evidence -> (String, String)? in
-                    guard case .userMessage(let reference) = evidence.source else { return nil }
+                    guard evidence.retractionRevision == nil,
+                          case .userMessage(let reference) = evidence.source else { return nil }
                     return (Self.sourceReferenceString(reference), reference.originalExecutionID.rawValue.uuidString.lowercased())
+                }
+                let withdrawalEvidence = detail.evidence.compactMap { evidence -> StateEvolutionWithdrawalEvidence? in
+                    guard let revision = evidence.retractionRevision,
+                          case .userMessage(let reference) = evidence.source else { return nil }
+                    return .init(revision: revision, sourceReference: Self.sourceReferenceString(reference),
+                                 executionID: reference.originalExecutionID.rawValue.uuidString.lowercased(),
+                                 hasExcerpt: evidence.excerpt != nil, hasHash: evidence.sourceHash != nil)
                 }
                 snapshots.append(.init(
                     id: memory.id.rawValue.uuidString.lowercased(), revision: memory.revision,
@@ -1225,7 +1334,11 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     evidenceExcerptCount: detail.evidence.filter { $0.excerpt != nil }.count,
                     evidenceHashCount: detail.evidence.filter { $0.sourceHash != nil }.count,
                     revisionBodyCount: detail.revisions.filter { $0.draft != nil }.count,
-                    detailAvailable: true, detailErrorCode: nil))
+                    detailAvailable: true, detailErrorCode: nil,
+                    retraction: memory.retraction.map {
+                        .init(priorRevision: $0.priorRevision, revision: $0.revision,
+                              evidence: withdrawalEvidence)
+                    }))
             } catch {
                 snapshots.append(.init(
                     id: id.rawValue.uuidString.lowercased(), revision: 0, state: "unavailable",
@@ -1558,7 +1671,7 @@ private struct LiveEvaluationReport: Codable {
 
 private enum StateEvolutionKind: String, CaseIterable, Codable {
     case replacement
-    case ambiguousRetraction
+    case clearRetraction
     case forgetReopen
     case relatedUnsupported
     case automaticEnrichment
@@ -1620,7 +1733,7 @@ private struct StateEvolutionCorpus: Codable {
     private static func validExpectations(kind: String, steps: [String]) -> Bool {
         switch StateEvolutionKind(rawValue: kind) {
         case .replacement: steps == ["establish", "replace"]
-        case .ambiguousRetraction: steps == ["establish", "retractWithoutReplacement"]
+        case .clearRetraction: steps == ["establish", "retractWithoutReplacement"]
         case .forgetReopen: steps == ["establish", "forget"]
         case .relatedUnsupported: steps == ["establish"]
         case .automaticEnrichment: steps == ["establish", "enrich"]
@@ -1639,6 +1752,20 @@ private struct StateEvolutionScenario: Codable {
     let followUp: String
     let requiredTerms: [String]
     let forbiddenTerms: [String]
+}
+
+private struct StateEvolutionWithdrawalEvidence: Codable, Sendable {
+    let revision: Int
+    let sourceReference: String
+    let executionID: String
+    let hasExcerpt: Bool
+    let hasHash: Bool
+}
+
+private struct StateEvolutionRetractionSnapshot: Codable, Sendable {
+    let priorRevision: Int
+    let revision: Int
+    let evidence: [StateEvolutionWithdrawalEvidence]
 }
 
 private struct StateEvolutionMemorySnapshot: Codable, Sendable {
@@ -1662,6 +1789,7 @@ private struct StateEvolutionMemorySnapshot: Codable, Sendable {
     let revisionBodyCount: Int
     let detailAvailable: Bool
     let detailErrorCode: String?
+    var retraction: StateEvolutionRetractionSnapshot? = nil
 
     func with(evidenceExecutionIDs: [String]? = nil, evidenceSourceReferences: [String]? = nil,
               detailAvailable: Bool? = nil,
@@ -1674,11 +1802,52 @@ private struct StateEvolutionMemorySnapshot: Codable, Sendable {
               revisionNumbers: revisionNumbers, previousMemoryIDs: previousMemoryIDs,
               evidenceCount: evidenceCount, evidenceExcerptCount: evidenceExcerptCount,
               evidenceHashCount: evidenceHashCount, revisionBodyCount: revisionBodyCount,
-              detailAvailable: detailAvailable ?? self.detailAvailable, detailErrorCode: detailErrorCode)
+              detailAvailable: detailAvailable ?? self.detailAvailable, detailErrorCode: detailErrorCode,
+              retraction: retraction)
     }
 }
 
 private enum StateEvolutionAssertions {
+    static func retractionFailures(memories: [StateEvolutionMemorySnapshot], baseline: StateEvolutionMemorySnapshot?,
+                                   withdrawalExecutionID: String?, contextMemoryReferences: [String]) -> [String] {
+        guard let baseline, baseline.isCurrent, baseline.lifecycle == "active", baseline.body != nil,
+              !baseline.evidenceSourceReferences.isEmpty else { return ["retraction_predecessor_not_established"] }
+        var failures: [String] = []
+        if memories.count != 1 || memories.contains(where: { $0.id != baseline.id || $0.isCurrent }) {
+            failures.append("retraction_created_replacement_or_current_fact")
+        }
+        guard let retired = memories.first(where: { $0.id == baseline.id }) else {
+            return failures + ["retraction_target_missing"]
+        }
+        if retired.state != "archived" || retired.lifecycle != "archived" || retired.isCurrent ||
+            retired.supersededByID != nil || !retired.previousMemoryIDs.isEmpty {
+            failures.append("retraction_target_not_archived_without_successor")
+        }
+        if !retired.detailAvailable || retired.body != baseline.body || retired.forgottenAt != nil ||
+            !Set(baseline.revisionNumbers).isSubset(of: Set(retired.revisionNumbers)) ||
+            retired.revisionBodyCount < baseline.revisionBodyCount ||
+            Set(retired.evidenceSourceReferences) != Set(baseline.evidenceSourceReferences) {
+            failures.append("retraction_history_or_supporting_evidence_changed")
+        }
+        if let retraction = retired.retraction {
+            if retraction.priorRevision != baseline.revision || retraction.revision != baseline.revision + 1 ||
+                retired.revision != retraction.revision {
+                failures.append("retraction_revision_not_bound_to_predecessor")
+            }
+            let bound = retraction.evidence.filter {
+                $0.revision == retraction.revision && $0.executionID == withdrawalExecutionID &&
+                $0.hasExcerpt && $0.hasHash && !baseline.evidenceSourceReferences.contains($0.sourceReference)
+            }
+            if withdrawalExecutionID == nil || bound.count != 1 {
+                failures.append("retraction_withdrawal_provenance_missing")
+            }
+        } else { failures.append("retraction_marker_missing") }
+        if contextMemoryReferences.contains(where: { $0.hasPrefix("memory:\(baseline.id)@") }) {
+            failures.append("retracted_memory_in_ordinary_context")
+        }
+        return failures
+    }
+
     static func evolutionFailures(memories: [StateEvolutionMemorySnapshot], expectedExecutionIDs: Set<String>,
                                    expectedPreviousMemoryIDs: Set<String>, preservePreviousEvidence: Bool) -> [String] {
         let current = memories.filter { $0.lifecycle == MemoryLifecycleStatus.active.rawValue }
@@ -1791,6 +1960,8 @@ private struct StateEvolutionStepSnapshot: Codable, Sendable {
     let rememberSucceededCount: Int
     let conversationUsage: [StateEvolutionTokenUsageSnapshot]
     let memories: [StateEvolutionMemorySnapshot]
+    var retractInvocationCount: Int? = nil
+    var retractSucceededCount: Int? = nil
 }
 
 private struct StateEvolutionKeywordObservation: Codable, Sendable {

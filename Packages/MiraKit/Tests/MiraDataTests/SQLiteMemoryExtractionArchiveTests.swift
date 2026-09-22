@@ -42,7 +42,7 @@ struct SQLiteMemoryExtractionArchiveTests {
                     completedClaim, source: third, authorization: auth, at: TaskWorkflowFixture.now)
                 _ = try await store.completeMemoryExtraction(
                     completedClaim, source: third,
-                    output: .init(blocks: [.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))], continuation: nil, usage: .init(), finishReason: .stop),
+                    output: .init(blocks: [.init(id: "text", content: .text("{\"version\":4,\"items\":[],\"retractions\":[]}"))], continuation: nil, usage: .init(), finishReason: .stop),
                     authorization: auth, at: TaskWorkflowFixture.now)
 
                 let liveClaim = try #require(
