@@ -1,0 +1,270 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "坐飞机时更喜欢靠过道的座位。",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "144016ef-a1c8-4265-b7fe-7c4d50c417c9"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:c08f14d1-0be7-4ec5-8834-deb46dd41a7c\/execution:144016ef-a1c8-4265-b7fe-7c4d50c417c9\/message:d02b25b2-8e4b-488c-b0bd-9d092dcb215b\/admission:7232cb83-6ba5-4d6d-ab3b-a2e780887d29@2"
+          ],
+          "id" : "4c484024-195c-43e4-99b0-7a845ad71a8f",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "你坐飞机时通常更喜欢**靠过道的座位**（aisle seat）。\n\n— 参考：memory:4c484024-195c-43e4-99b0-7a845ad71a8f@1",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "靠过道的座位"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : false,
+            "term" : "靠窗的座位"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 1920,
+            "complete" : true,
+            "id" : "4de9df20-22c6-429d-bf24-f6dd05b23728",
+            "inputTokens" : 2286,
+            "outputTokens" : 68,
+            "reasoningTokens" : 18
+          }
+        ],
+        "executionID" : "9a651caa-a9a4-4bbf-aca2-f003a7ce236f",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:4c484024-195c-43e4-99b0-7a845ad71a8f@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "62cbff7e-ee00-4af7-afb0-5e436af17265",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "zh-hypothetical-withdrawal-unchanged",
+      "kind" : "retractionNearMiss",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "near_miss_preserves_memory_before_background",
+        "near_miss_preserves_memory_after_background",
+        "near_miss_preserves_memory_after_reopen",
+        "preserved_memory_in_fresh_session_after_reopen"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "answer" : "好的，记下了——坐飞机时你偏好靠过道的座位。以后帮你安排航班或选座时，我会优先考虑过道位。",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 1792,
+              "complete" : true,
+              "id" : "9680a470-fe50-48c7-bfa7-d28db437cffc",
+              "inputTokens" : 2039,
+              "outputTokens" : 380,
+              "reasoningTokens" : 348
+            }
+          ],
+          "executionID" : "144016ef-a1c8-4265-b7fe-7c4d50c417c9",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "64168a46-be54-4c4c-a1c4-51acc7929ddb",
+                "cacheReadTokens" : 0,
+                "chargedTokens" : 1779,
+                "dispatched" : true,
+                "inputTokens" : 1579,
+                "ordinal" : 1,
+                "outputTokens" : 200,
+                "reasoningTokens" : 93,
+                "reservedTokens" : 23475,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "7e720fd5-8d03-4deb-b15c-2bcb73f8cfff",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "144016ef-a1c8-4265-b7fe-7c4d50c417c9",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "坐飞机时我更喜欢靠过道的座位。",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "坐飞机时更喜欢靠过道的座位。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "144016ef-a1c8-4265-b7fe-7c4d50c417c9"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:c08f14d1-0be7-4ec5-8834-deb46dd41a7c\/execution:144016ef-a1c8-4265-b7fe-7c4d50c417c9\/message:d02b25b2-8e4b-488c-b0bd-9d092dcb215b\/admission:7232cb83-6ba5-4d6d-ab3b-a2e780887d29@2"
+              ],
+              "id" : "4c484024-195c-43e4-99b0-7a845ad71a8f",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "c08f14d1-0be7-4ec5-8834-deb46dd41a7c"
+        },
+        {
+          "answer" : "好的，记下了——坐飞机时你偏好靠过道的座位。以后帮你安排航班或选座时，我会优先考虑过道位。",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2304,
+              "complete" : true,
+              "id" : "4ba1ed61-50bb-4fc0-83d0-31419be3c196",
+              "inputTokens" : 2686,
+              "outputTokens" : 162,
+              "reasoningTokens" : 121
+            }
+          ],
+          "executionID" : "bc7f5100-d03f-44a5-94f8-b6a3ac06f983",
+          "executionOutcome" : "completed",
+          "expectation" : "preserve",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "0f4009df-a614-435b-bfa6-2659967fb925",
+                "cacheReadTokens" : 1280,
+                "chargedTokens" : 1725,
+                "dispatched" : true,
+                "inputTokens" : 1563,
+                "ordinal" : 1,
+                "outputTokens" : 162,
+                "reasoningTokens" : 147,
+                "reservedTokens" : 23342,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "00ac9b65-f934-4515-a4b2-482c3d11d375",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "bc7f5100-d03f-44a5-94f8-b6a3ac06f983",
+            "status" : "completed"
+          },
+          "index" : 1,
+          "input" : "如果以后改变想法，我也许会改选靠窗的座位。",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "坐飞机时更喜欢靠过道的座位。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "144016ef-a1c8-4265-b7fe-7c4d50c417c9"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:c08f14d1-0be7-4ec5-8834-deb46dd41a7c\/execution:144016ef-a1c8-4265-b7fe-7c4d50c417c9\/message:d02b25b2-8e4b-488c-b0bd-9d092dcb215b\/admission:7232cb83-6ba5-4d6d-ab3b-a2e780887d29@2"
+              ],
+              "id" : "4c484024-195c-43e4-99b0-7a845ad71a8f",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:4c484024-195c-43e4-99b0-7a845ad71a8f@1"
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "c08f14d1-0be7-4ec5-8834-deb46dd41a7c"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-22T03:45:16Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 12,
+  "requestAuthorizationCount" : 5,
+  "selectedCaseIDs" : [
+    "zh-hypothetical-withdrawal-unchanged"
+  ],
+  "status" : "completed",
+  "updatedAt" : "2026-09-22T03:50:21Z",
+  "version" : 1
+}

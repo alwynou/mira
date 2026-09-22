@@ -87,6 +87,138 @@
       ]
     },
     {
+      "id": "en-quoted-withdrawal-unchanged",
+      "language": "en",
+      "kind": "retractionNearMiss",
+      "steps": [
+        {
+          "input": "I usually choose quiet cafés for meetings.",
+          "expect": "establish"
+        },
+        {
+          "input": "Please translate this line from a script into French: \"I no longer prefer quiet cafés for meetings.\"",
+          "expect": "preserve"
+        }
+      ],
+      "followUp": "Where do I usually prefer to meet?",
+      "requiredTerms": [
+        "quiet cafés"
+      ],
+      "forbiddenTerms": [
+        "busy cafés"
+      ]
+    },
+    {
+      "id": "zh-quoted-withdrawal-unchanged",
+      "language": "zh-CN",
+      "kind": "retractionNearMiss",
+      "steps": [
+        {
+          "input": "我通常喜欢在安静的咖啡馆见面。",
+          "expect": "establish"
+        },
+        {
+          "input": "请把这句台词译成英文：“我不再喜欢在安静的咖啡馆见面了。”",
+          "expect": "preserve"
+        }
+      ],
+      "followUp": "我通常喜欢在哪里见面？",
+      "requiredTerms": [
+        "安静的咖啡馆"
+      ],
+      "forbiddenTerms": [
+        "嘈杂的咖啡馆"
+      ]
+    },
+    {
+      "id": "en-hypothetical-withdrawal-unchanged",
+      "language": "en",
+      "kind": "retractionNearMiss",
+      "steps": [
+        {
+          "input": "I prefer aisle seats on flights.",
+          "expect": "establish"
+        },
+        {
+          "input": "If I ever changed my mind, I might choose a window seat instead.",
+          "expect": "preserve"
+        }
+      ],
+      "followUp": "Which seat do I usually prefer on a flight?",
+      "requiredTerms": [
+        "aisle seats"
+      ],
+      "forbiddenTerms": [
+        "window seat"
+      ]
+    },
+    {
+      "id": "zh-hypothetical-withdrawal-unchanged",
+      "language": "zh-CN",
+      "kind": "retractionNearMiss",
+      "steps": [
+        {
+          "input": "坐飞机时我更喜欢靠过道的座位。",
+          "expect": "establish"
+        },
+        {
+          "input": "如果以后改变想法，我也许会改选靠窗的座位。",
+          "expect": "preserve"
+        }
+      ],
+      "followUp": "坐飞机时我通常更喜欢哪种座位？",
+      "requiredTerms": [
+        "靠过道的座位"
+      ],
+      "forbiddenTerms": [
+        "靠窗的座位"
+      ]
+    },
+    {
+      "id": "en-ambiguous-withdrawal-unchanged",
+      "language": "en",
+      "kind": "retractionNearMiss",
+      "steps": [
+        {
+          "input": "I prefer morning appointments.",
+          "expect": "establish"
+        },
+        {
+          "input": "I may be changing my mind about morning appointments.",
+          "expect": "preserve"
+        }
+      ],
+      "followUp": "When do I usually prefer appointments?",
+      "requiredTerms": [
+        "morning appointments"
+      ],
+      "forbiddenTerms": [
+        "evening appointments"
+      ]
+    },
+    {
+      "id": "zh-ambiguous-withdrawal-unchanged",
+      "language": "zh-CN",
+      "kind": "retractionNearMiss",
+      "steps": [
+        {
+          "input": "我更喜欢上午安排预约。",
+          "expect": "establish"
+        },
+        {
+          "input": "我可能正在考虑改变上午预约这个习惯。",
+          "expect": "preserve"
+        }
+      ],
+      "followUp": "我通常更喜欢在什么时候安排预约？",
+      "requiredTerms": [
+        "上午安排预约"
+      ],
+      "forbiddenTerms": [
+        "晚上安排预约"
+      ]
+    },
+    {
       "id": "en-forget-and-reopen-breakfast",
       "language": "en",
       "kind": "forgetReopen",

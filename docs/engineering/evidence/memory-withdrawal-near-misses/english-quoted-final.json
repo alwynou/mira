@@ -1,0 +1,270 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "The user usually chooses quiet cafés for meetings.",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "cf5d03f4-70ee-4bc4-825b-e243c67af0c8"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:5e27d54c-bb25-43ea-84ab-0a5b3b12cabb\/execution:cf5d03f4-70ee-4bc4-825b-e243c67af0c8\/message:00c1f933-bec3-46e6-8820-0ca8840ab716\/admission:a7a3528f-247a-4aeb-8ef7-0623bbeb2a43@2"
+          ],
+          "id" : "a5699fe3-e4dd-4d5f-8779-99ab836d876c",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        }
+      ],
+      "followUp" : {
+        "answer" : "You usually prefer quiet cafés for meetings.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "quiet cafés"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : false,
+            "term" : "busy cafés"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 1920,
+            "complete" : true,
+            "id" : "fab46359-e820-4c1f-9bd5-8e57e7996140",
+            "inputTokens" : 2282,
+            "outputTokens" : 58,
+            "reasoningTokens" : 48
+          }
+        ],
+        "executionID" : "02a2a384-9a25-42d4-be2a-53d0d69417d9",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:a5699fe3-e4dd-4d5f-8779-99ab836d876c@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "5da6687e-f46a-4d4e-9996-66c65bdf165e",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-quoted-withdrawal-unchanged",
+      "kind" : "retractionNearMiss",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "near_miss_preserves_memory_before_background",
+        "near_miss_preserves_memory_after_background",
+        "near_miss_preserves_memory_after_reopen",
+        "preserved_memory_in_fresh_session_after_reopen"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "answer" : "Got it — I'll keep that in mind: for meetings, quiet cafés are your default. Want me to note any specific ones you like (or avoid) for next time?",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 1792,
+              "complete" : true,
+              "id" : "c8d116ea-40a2-4dd2-a6db-55ef4c312eed",
+              "inputTokens" : 2038,
+              "outputTokens" : 219,
+              "reasoningTokens" : 181
+            }
+          ],
+          "executionID" : "cf5d03f4-70ee-4bc4-825b-e243c67af0c8",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "b6bdd743-237f-4159-b488-4e606482f4e7",
+                "cacheReadTokens" : 1280,
+                "chargedTokens" : 2637,
+                "dispatched" : true,
+                "inputTokens" : 1583,
+                "ordinal" : 1,
+                "outputTokens" : 1054,
+                "reasoningTokens" : 947,
+                "reservedTokens" : 23484,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "2cc54730-505a-42a5-9bc2-c2993da383ff",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "cf5d03f4-70ee-4bc4-825b-e243c67af0c8",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "I usually choose quiet cafés for meetings.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "The user usually chooses quiet cafés for meetings.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "cf5d03f4-70ee-4bc4-825b-e243c67af0c8"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:5e27d54c-bb25-43ea-84ab-0a5b3b12cabb\/execution:cf5d03f4-70ee-4bc4-825b-e243c67af0c8\/message:00c1f933-bec3-46e6-8820-0ca8840ab716\/admission:a7a3528f-247a-4aeb-8ef7-0623bbeb2a43@2"
+              ],
+              "id" : "a5699fe3-e4dd-4d5f-8779-99ab836d876c",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "5e27d54c-bb25-43ea-84ab-0a5b3b12cabb"
+        },
+        {
+          "answer" : "Here's the line in French:\n\n**« Je ne préfère plus les cafés calmes pour mes réunions. »**\n\nA couple of variations depending on the tone of the script:\n- More neutral\/formal: *« Je ne préfère plus les cafés tranquilles pour mes rendez-vous. »*\n- Slightly softer, conversational: *« Les cafés calmes, ce n'est plus ce que je préfère pour mes réunions. »*\n\nNote: *« réunions »* works for work meetings, while *« rendez-vous »* is more general. And *« calme »* vs. *« tranquille »* both translate \"quiet\" — *tranquille* is a bit more casual.\n\nAlso, since this is script dialogue, I've treated it as text to translate rather than a change to your own preference (you still usually choose quiet cafés for meetings). If you did mean it as a change for you, just say so and I'll update it.",
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2176,
+              "complete" : true,
+              "id" : "f91f5165-0c97-4fc7-a6dc-b1a1a87f83d1",
+              "inputTokens" : 2527,
+              "outputTokens" : 608,
+              "reasoningTokens" : 395
+            }
+          ],
+          "executionID" : "ced43762-3a7c-43aa-a1cf-30d8925426b7",
+          "executionOutcome" : "completed",
+          "expectation" : "preserve",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "671635d6-1773-4473-94d0-a8fcdd8e34f8",
+                "cacheReadTokens" : 1280,
+                "chargedTokens" : 1668,
+                "dispatched" : true,
+                "inputTokens" : 1571,
+                "ordinal" : 1,
+                "outputTokens" : 97,
+                "reasoningTokens" : 82,
+                "reservedTokens" : 23395,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "6842e9ec-9df6-4719-bdef-cde498a53a58",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "ced43762-3a7c-43aa-a1cf-30d8925426b7",
+            "status" : "completed"
+          },
+          "index" : 1,
+          "input" : "Please translate this line from a script into French: \"I no longer prefer quiet cafés for meetings.\"",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "The user usually chooses quiet cafés for meetings.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "cf5d03f4-70ee-4bc4-825b-e243c67af0c8"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:5e27d54c-bb25-43ea-84ab-0a5b3b12cabb\/execution:cf5d03f4-70ee-4bc4-825b-e243c67af0c8\/message:00c1f933-bec3-46e6-8820-0ca8840ab716\/admission:a7a3528f-247a-4aeb-8ef7-0623bbeb2a43@2"
+              ],
+              "id" : "a5699fe3-e4dd-4d5f-8779-99ab836d876c",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:a5699fe3-e4dd-4d5f-8779-99ab836d876c@1"
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "5e27d54c-bb25-43ea-84ab-0a5b3b12cabb"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-22T03:51:46Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 8,
+  "requestAuthorizationCount" : 5,
+  "selectedCaseIDs" : [
+    "en-quoted-withdrawal-unchanged"
+  ],
+  "status" : "completed",
+  "updatedAt" : "2026-09-22T03:56:52Z",
+  "version" : 1
+}
