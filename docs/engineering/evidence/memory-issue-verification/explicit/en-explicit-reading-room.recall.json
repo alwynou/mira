@@ -1,0 +1,560 @@
+{
+  "after" : [
+    {
+      "authority" : "explicitUser",
+      "body" : "Prefers a quiet room when doing focused reading.",
+      "detailAvailable" : true,
+      "evidenceCount" : 1,
+      "evidenceExcerptCount" : 1,
+      "evidenceExecutionIDs" : [
+        "0565186d-bdd5-4887-9b19-470e3cd0f8b7"
+      ],
+      "evidenceHashCount" : 1,
+      "evidenceSourceReferences" : [
+        "session:ae6a6be7-e38f-432f-b3b0-b2cf241bf554\/execution:0565186d-bdd5-4887-9b19-470e3cd0f8b7\/message:0d929f9d-32d4-45ef-b3d5-8f8fa0c1d0b0\/admission:1057777a-50b2-4bfd-ba8d-081bbd3c483e@2"
+      ],
+      "id" : "8e59ea89-c0b2-409c-9f52-711a0f17d704",
+      "isCurrent" : true,
+      "lifecycle" : "active",
+      "origin" : "explicitUser",
+      "previousMemoryIDs" : [
+
+      ],
+      "revision" : 1,
+      "revisionBodyCount" : 1,
+      "revisionNumbers" : [
+        1
+      ],
+      "state" : "active"
+    }
+  ],
+  "afterMaterial" : {
+    "evidence" : [
+      {
+        "createdAt" : 1790065831079.5488,
+        "excerpt" : "Please remember this preference: I like a quiet room when I do focused reading.",
+        "id" : "1A4FF312-427C-4D1E-90D3-794110562C91",
+        "memoryID" : {
+          "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+        },
+        "source" : {
+          "userMessage" : {
+            "_0" : {
+              "admissionEventID" : "1057777A-50B2-4BFD-BA8D-081BBD3C483E",
+              "admissionSequence" : 2,
+              "originalExecutionID" : {
+                "rawValue" : "0565186D-BDD5-4887-9B19-470E3CD0F8B7"
+              },
+              "sessionID" : {
+                "rawValue" : "AE6A6BE7-E38F-432F-B3B0-B2CF241BF554"
+              },
+              "userMessageID" : {
+                "rawValue" : "0D929F9D-32D4-45EF-B3D5-8F8FA0C1D0B0"
+              }
+            }
+          }
+        },
+        "sourceHash" : "26a195e96fca197f0456defa6111839eff1031ed4b33152707acfdecad1503ee"
+      }
+    ],
+    "memory" : {
+      "authority" : "explicitUser",
+      "createdAt" : 1790065831079.5488,
+      "draft" : {
+        "allowsRemoteUse" : true,
+        "content" : "Prefers a quiet room when doing focused reading.",
+        "kind" : "preference",
+        "scope" : {
+          "global" : {
+
+          }
+        },
+        "sensitivity" : "standard",
+        "subject" : "user"
+      },
+      "id" : {
+        "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+      },
+      "origin" : "explicitUser",
+      "revision" : 1,
+      "scope" : {
+        "global" : {
+
+        }
+      },
+      "state" : "active",
+      "subject" : "user",
+      "updatedAt" : 1790065831079.5488
+    },
+    "replacements" : [
+
+    ],
+    "revisions" : [
+      {
+        "actor" : "user",
+        "changedAt" : 1790065831079.5488,
+        "draft" : {
+          "allowsRemoteUse" : true,
+          "content" : "Prefers a quiet room when doing focused reading.",
+          "kind" : "preference",
+          "scope" : {
+            "global" : {
+
+            }
+          },
+          "sensitivity" : "standard",
+          "subject" : "user"
+        },
+        "memoryID" : {
+          "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+        },
+        "revision" : 1
+      }
+    ]
+  },
+  "approvalDenialCount" : 0,
+  "before" : [
+    {
+      "authority" : "explicitUser",
+      "body" : "Prefers a quiet room when doing focused reading.",
+      "detailAvailable" : true,
+      "evidenceCount" : 1,
+      "evidenceExcerptCount" : 1,
+      "evidenceExecutionIDs" : [
+        "0565186d-bdd5-4887-9b19-470e3cd0f8b7"
+      ],
+      "evidenceHashCount" : 1,
+      "evidenceSourceReferences" : [
+        "session:ae6a6be7-e38f-432f-b3b0-b2cf241bf554\/execution:0565186d-bdd5-4887-9b19-470e3cd0f8b7\/message:0d929f9d-32d4-45ef-b3d5-8f8fa0c1d0b0\/admission:1057777a-50b2-4bfd-ba8d-081bbd3c483e@2"
+      ],
+      "id" : "8e59ea89-c0b2-409c-9f52-711a0f17d704",
+      "isCurrent" : true,
+      "lifecycle" : "active",
+      "origin" : "explicitUser",
+      "previousMemoryIDs" : [
+
+      ],
+      "revision" : 1,
+      "revisionBodyCount" : 1,
+      "revisionNumbers" : [
+        1
+      ],
+      "state" : "active"
+    }
+  ],
+  "beforeMaterial" : {
+    "evidence" : [
+      {
+        "createdAt" : 1790065831079.5488,
+        "excerpt" : "Please remember this preference: I like a quiet room when I do focused reading.",
+        "id" : "1A4FF312-427C-4D1E-90D3-794110562C91",
+        "memoryID" : {
+          "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+        },
+        "source" : {
+          "userMessage" : {
+            "_0" : {
+              "admissionEventID" : "1057777A-50B2-4BFD-BA8D-081BBD3C483E",
+              "admissionSequence" : 2,
+              "originalExecutionID" : {
+                "rawValue" : "0565186D-BDD5-4887-9B19-470E3CD0F8B7"
+              },
+              "sessionID" : {
+                "rawValue" : "AE6A6BE7-E38F-432F-B3B0-B2CF241BF554"
+              },
+              "userMessageID" : {
+                "rawValue" : "0D929F9D-32D4-45EF-B3D5-8F8FA0C1D0B0"
+              }
+            }
+          }
+        },
+        "sourceHash" : "26a195e96fca197f0456defa6111839eff1031ed4b33152707acfdecad1503ee"
+      }
+    ],
+    "memory" : {
+      "authority" : "explicitUser",
+      "createdAt" : 1790065831079.5488,
+      "draft" : {
+        "allowsRemoteUse" : true,
+        "content" : "Prefers a quiet room when doing focused reading.",
+        "kind" : "preference",
+        "scope" : {
+          "global" : {
+
+          }
+        },
+        "sensitivity" : "standard",
+        "subject" : "user"
+      },
+      "id" : {
+        "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+      },
+      "origin" : "explicitUser",
+      "revision" : 1,
+      "scope" : {
+        "global" : {
+
+        }
+      },
+      "state" : "active",
+      "subject" : "user",
+      "updatedAt" : 1790065831079.5488
+    },
+    "replacements" : [
+
+    ],
+    "revisions" : [
+      {
+        "actor" : "user",
+        "changedAt" : 1790065831079.5488,
+        "draft" : {
+          "allowsRemoteUse" : true,
+          "content" : "Prefers a quiet room when doing focused reading.",
+          "kind" : "preference",
+          "scope" : {
+            "global" : {
+
+            }
+          },
+          "sensitivity" : "standard",
+          "subject" : "user"
+        },
+        "memoryID" : {
+          "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+        },
+        "revision" : 1
+      }
+    ]
+  },
+  "checks" : [
+    "source_receipt_and_memory_unchanged_in_new_process",
+    "same_memory_in_fresh_session_after_process_restart"
+  ],
+  "closeSettled" : true,
+  "execution" : {
+    "answer" : "You prefer a quiet room for focused reading [memory:8e59ea89-c0b2-409c-9f52-711a0f17d704@1].",
+    "executionID" : "ba736fb3-80af-46df-a5a6-76955d80653c",
+    "input" : "What kind of room do I prefer for focused reading?",
+    "memoryReferences" : [
+      "memory:8e59ea89-c0b2-409c-9f52-711a0f17d704@1"
+    ],
+    "rounds" : [
+      {
+        "attemptID" : "4B287B6C-4EDA-4A7A-A28E-719F36FC41D7",
+        "memoryReferences" : [
+          "memory:8e59ea89-c0b2-409c-9f52-711a0f17d704@1"
+        ],
+        "sequence" : 4,
+        "visibleText" : "You prefer a quiet room for focused reading [memory:8e59ea89-c0b2-409c-9f52-711a0f17d704@1]."
+      }
+    ],
+    "sessionID" : "ffb8399c-adcc-4421-b7ed-eba5c7502d33",
+    "sourceReference" : "session:ffb8399c-adcc-4421-b7ed-eba5c7502d33\/execution:ba736fb3-80af-46df-a5a6-76955d80653c\/message:93c9b5cb-c247-4583-b0c4-96a21f2001b0\/admission:e5bae317-f89b-40cb-bf23-a38f013b2228@2",
+    "tools" : [
+
+    ],
+    "usage" : [
+      {
+        "cacheReadTokens" : 2432,
+        "complete" : true,
+        "id" : "4b287b6c-4eda-4a7a-a28e-719f36fc41d7",
+        "inputTokens" : 2755,
+        "outputTokens" : 111,
+        "reasoningTokens" : 72
+      }
+    ]
+  },
+  "finishedAt" : "2026-09-22T08:33:10Z",
+  "identity" : {
+    "caseID" : "en-explicit-reading-room",
+    "contextWindow" : 1000000,
+    "embeddings" : "local",
+    "endpoint" : "https:\/\/api.deepseek.com",
+    "followUp" : "What kind of room do I prefer for focused reading?",
+    "input" : "Please remember this preference: I like a quiet room when I do focused reading.",
+    "instructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.\n\nDistinguish understanding information in this conversation from saving durable memory. For ordinary statements, acknowledge the information naturally and use it in the current conversation. Background memory extraction may run later; it is not evidence that a save has completed. Do not call memory.remember just to justify an acknowledgment, and do not wait for background extraction before replying.\n\nKeep ordinary preference acknowledgments about the user's information, not your future behavior. For example, acknowledge \"I prefer aisle seats\" with \"Understood, you prefer aisle seats\" in the user's language. Do not add \"I'll prioritize aisle seats next time\", \"I'll keep that in mind for future bookings\", or similar open-ended future-use promises. Merely replacing \"saved\" with \"understood\" does not make such a promise valid. Any offer to apply an unsaved preference must be explicitly limited to the current conversation.\n\nClaim that you saved or updated a memory only after the matching memory.remember call returns status succeeded with the committed memory content for that information. A proposed or pending call, a failed or refused result, an absent result, a previous assistant claim, or an unrelated earlier receipt is not confirmation. Without that result, do not say you have saved, recorded, or remembered the new information for later, or promise to recall or use it in future conversations. You may briefly acknowledge understanding without making a persistence claim. If an explicit save fails or is refused, explain that it was not saved; if its outcome is unknown, say that the save is unconfirmed.\n\nAfter a successful save, acknowledge only what the result confirms and respect its scope and remote-use policy. A local-only memory does not authorize future model use. Availability for future requests is not a guarantee of recall. Existing recalled memories support their stated facts, not a claim that you just saved the current message.\n\nVisible memory citations are optional unless the user requests sources. Cite only an exact memory reference supplied by recall context or a successful memory read in this execution, using [memory:<UUID>@<revision>] with square brackets around the actual reference. Never display a bare or parenthesized memory reference. A memory.remember receipt confirms a save but does not by itself authorize a source citation; acknowledge that save in natural language without including the receipt's memory ID or reference.",
+    "language" : "en",
+    "mode" : "explicitSave",
+    "modelID" : "deepseek-flash",
+    "outputTokens" : 8192,
+    "protocolID" : "chat.completions",
+    "providerID" : "deepseek",
+    "requiresCitation" : false,
+    "root" : "\/var\/folders\/hd\/vw9cr2s54879tqf2kphbkzlw0000gn\/T\/Mira-Continuity-bruqqyy3",
+    "runID" : "893db3b6-f622-423b-8302-f98d2fe83fd7"
+  },
+  "immediate" : [
+    {
+      "authority" : "explicitUser",
+      "body" : "Prefers a quiet room when doing focused reading.",
+      "detailAvailable" : true,
+      "evidenceCount" : 1,
+      "evidenceExcerptCount" : 1,
+      "evidenceExecutionIDs" : [
+        "0565186d-bdd5-4887-9b19-470e3cd0f8b7"
+      ],
+      "evidenceHashCount" : 1,
+      "evidenceSourceReferences" : [
+        "session:ae6a6be7-e38f-432f-b3b0-b2cf241bf554\/execution:0565186d-bdd5-4887-9b19-470e3cd0f8b7\/message:0d929f9d-32d4-45ef-b3d5-8f8fa0c1d0b0\/admission:1057777a-50b2-4bfd-ba8d-081bbd3c483e@2"
+      ],
+      "id" : "8e59ea89-c0b2-409c-9f52-711a0f17d704",
+      "isCurrent" : true,
+      "lifecycle" : "active",
+      "origin" : "explicitUser",
+      "previousMemoryIDs" : [
+
+      ],
+      "revision" : 1,
+      "revisionBodyCount" : 1,
+      "revisionNumbers" : [
+        1
+      ],
+      "state" : "active"
+    }
+  ],
+  "immediateMaterial" : {
+    "evidence" : [
+      {
+        "createdAt" : 1790065831079.5488,
+        "excerpt" : "Please remember this preference: I like a quiet room when I do focused reading.",
+        "id" : "1A4FF312-427C-4D1E-90D3-794110562C91",
+        "memoryID" : {
+          "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+        },
+        "source" : {
+          "userMessage" : {
+            "_0" : {
+              "admissionEventID" : "1057777A-50B2-4BFD-BA8D-081BBD3C483E",
+              "admissionSequence" : 2,
+              "originalExecutionID" : {
+                "rawValue" : "0565186D-BDD5-4887-9B19-470E3CD0F8B7"
+              },
+              "sessionID" : {
+                "rawValue" : "AE6A6BE7-E38F-432F-B3B0-B2CF241BF554"
+              },
+              "userMessageID" : {
+                "rawValue" : "0D929F9D-32D4-45EF-B3D5-8F8FA0C1D0B0"
+              }
+            }
+          }
+        },
+        "sourceHash" : "26a195e96fca197f0456defa6111839eff1031ed4b33152707acfdecad1503ee"
+      }
+    ],
+    "memory" : {
+      "authority" : "explicitUser",
+      "createdAt" : 1790065831079.5488,
+      "draft" : {
+        "allowsRemoteUse" : true,
+        "content" : "Prefers a quiet room when doing focused reading.",
+        "kind" : "preference",
+        "scope" : {
+          "global" : {
+
+          }
+        },
+        "sensitivity" : "standard",
+        "subject" : "user"
+      },
+      "id" : {
+        "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+      },
+      "origin" : "explicitUser",
+      "revision" : 1,
+      "scope" : {
+        "global" : {
+
+        }
+      },
+      "state" : "active",
+      "subject" : "user",
+      "updatedAt" : 1790065831079.5488
+    },
+    "replacements" : [
+
+    ],
+    "revisions" : [
+      {
+        "actor" : "user",
+        "changedAt" : 1790065831079.5488,
+        "draft" : {
+          "allowsRemoteUse" : true,
+          "content" : "Prefers a quiet room when doing focused reading.",
+          "kind" : "preference",
+          "scope" : {
+            "global" : {
+
+            }
+          },
+          "sensitivity" : "standard",
+          "subject" : "user"
+        },
+        "memoryID" : {
+          "rawValue" : "8E59EA89-C0B2-409C-9F52-711A0F17D704"
+        },
+        "revision" : 1
+      }
+    ]
+  },
+  "mismatches" : [
+
+  ],
+  "phase" : "recall",
+  "processID" : 60110,
+  "processInstanceID" : "6f4636a5-c054-48e5-b7a0-b22dbe65f8a4",
+  "qualification" : "host evidence only; reply and fact semantics require separate review",
+  "reopenedSource" : {
+    "answer" : "Saved — you prefer a quiet room when you do focused reading.",
+    "executionID" : "0565186d-bdd5-4887-9b19-470e3cd0f8b7",
+    "input" : "Please remember this preference: I like a quiet room when I do focused reading.",
+    "memoryReferences" : [
+
+    ],
+    "rounds" : [
+      {
+        "attemptID" : "81FFAB37-3292-470B-88F2-E9B1B39A5A77",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 4,
+        "visibleText" : ""
+      },
+      {
+        "attemptID" : "65849BA9-739B-4393-B2ED-B2A6C8422EFD",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 12,
+        "visibleText" : ""
+      },
+      {
+        "attemptID" : "B07DA6ED-3264-4ECB-A56E-5B498DED2DB3",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 20,
+        "visibleText" : "Saved — you prefer a quiet room when you do focused reading."
+      }
+    ],
+    "sessionID" : "ae6a6be7-e38f-432f-b3b0-b2cf241bf554",
+    "sourceReference" : "session:ae6a6be7-e38f-432f-b3b0-b2cf241bf554\/execution:0565186d-bdd5-4887-9b19-470e3cd0f8b7\/message:0d929f9d-32d4-45ef-b3d5-8f8fa0c1d0b0\/admission:1057777a-50b2-4bfd-ba8d-081bbd3c483e@2",
+    "tools" : [
+      {
+        "attemptID" : "65849BA9-739B-4393-B2ED-B2A6C8422EFD",
+        "id" : "8A2992DC-7B64-4AD7-A226-3C18DE46BDB3",
+        "name" : "memory.remember",
+        "receipt" : {
+          "authorization" : {
+            "epoch" : 0,
+            "libraryID" : "D6EBD54B-D08C-4661-86BD-670E0F17F218"
+          },
+          "id" : "696A849A-700E-464D-A533-12D00F1E3102",
+          "intentDigest" : "0c9e0380a220963f6e5260650560acaefd50e7d9dc54259599004bc3f158f60d",
+          "invocationID" : "8A2992DC-7B64-4AD7-A226-3C18DE46BDB3",
+          "resultDigest" : "ee91dcafef4f48d6f3418edbb054c051bf36203c413cbb75a99491ceef72e0ed"
+        },
+        "result" : {
+          "acknowledgment" : "Acknowledge that this committed memory is allowed for future model requests.",
+          "allows_remote_use" : true,
+          "memory_id" : "8e59ea89-c0b2-409c-9f52-711a0f17d704",
+          "policy" : "remote_allowed",
+          "reference" : "memory:8e59ea89-c0b2-409c-9f52-711a0f17d704@1",
+          "revision" : 1,
+          "state" : "active"
+        },
+        "status" : "succeeded"
+      },
+      {
+        "attemptID" : "81FFAB37-3292-470B-88F2-E9B1B39A5A77",
+        "id" : "951DE8B6-04CD-43B7-B3C7-1A8437FD3064",
+        "name" : "memory.search",
+        "result" : {
+          "memories" : [
+
+          ],
+          "truncated" : false
+        },
+        "status" : "succeeded"
+      }
+    ],
+    "usage" : [
+      {
+        "cacheReadTokens" : 2816,
+        "complete" : true,
+        "id" : "b07da6ed-3264-4ecb-a56e-5b498ded2db3",
+        "inputTokens" : 3007,
+        "outputTokens" : 14,
+        "reasoningTokens" : 0
+      },
+      {
+        "cacheReadTokens" : 2560,
+        "complete" : true,
+        "id" : "65849ba9-739b-4393-b2ed-b2a6c8422efd",
+        "inputTokens" : 2719,
+        "outputTokens" : 153,
+        "reasoningTokens" : 9
+      },
+      {
+        "cacheReadTokens" : 256,
+        "complete" : true,
+        "id" : "81ffab37-3292-470b-88f2-e9b1b39a5a77",
+        "inputTokens" : 2510,
+        "outputTokens" : 166,
+        "reasoningTokens" : 124
+      }
+    ]
+  },
+  "requestAuthorizationCap" : 4,
+  "requestAuthorizationCount" : 1,
+  "route" : {
+    "adapter" : {
+      "id" : "mira.http.chat-completions",
+      "revision" : 1
+    },
+    "capabilities" : {
+      "callsTools" : true,
+      "producesThinking" : true,
+      "streamsText" : true
+    },
+    "configuration" : {
+      "allowsLoopbackHTTP" : false,
+      "baseURL" : "https:\/\/api.deepseek.com",
+      "dialectProfileID" : "deepseek.chat",
+      "protocolID" : "chat.completions",
+      "requestsUsage" : true,
+      "storeResponses" : false,
+      "thinking" : {
+        "mode" : "providerDefault"
+      }
+    },
+    "connectionID" : {
+      "rawValue" : "F30CBDAD-FD52-41F2-BC9B-4F263C26991C"
+    },
+    "connectionRevision" : 1,
+    "contextWindow" : 1000000,
+    "credential" : {
+      "reference" : "mira.credential.1b2d7cd11dc2fdfae8552295512a00405500eb23c3c4fe5cf98a7c75623a13fc.25e949c0-a3bc-4d4f-a0fb-0dd081620d88",
+      "version" : 1
+    },
+    "endpointID" : "primary",
+    "id" : {
+      "rawValue" : "7E7C17E8-6B3F-4AB9-9015-93C922FBE07C"
+    },
+    "invocationID" : "default",
+    "invocationRevision" : 1,
+    "maximumOutputTokens" : 8192,
+    "modelAuthorizationRevision" : 1,
+    "modelDescriptorID" : {
+      "rawValue" : "7E7C17E8-6B3F-4AB9-9015-93C922FBE07C"
+    },
+    "modelID" : "deepseek-flash",
+    "modelRevision" : 1,
+    "revision" : 1
+  },
+  "startedAt" : "2026-09-22T08:33:06Z",
+  "status" : "completed",
+  "verifiedCitations" : [
+    "memory:8e59ea89-c0b2-409c-9f52-711a0f17d704@1"
+  ],
+  "version" : 1
+}

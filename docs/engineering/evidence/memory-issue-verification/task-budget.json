@@ -1,0 +1,48 @@
+{
+  "aggregateAuthorizationCap": 32,
+  "startedAt": "2026-09-22T08:30:16Z",
+  "stages": [
+    {
+      "name": "explicit",
+      "allocation": 16,
+      "caseCap": 8,
+      "caseIDs": [
+        "en-explicit-reading-room",
+        "zh-explicit-meeting-time"
+      ],
+      "state": "finished",
+      "exitCode": 0,
+      "report": "/tmp/mira-open-issues-20260922/explicit/run-report.json",
+      "reportedAuthorizations": 10,
+      "accountedAuthorizations": 10
+    },
+    {
+      "name": "citation",
+      "allocation": 4,
+      "caseCap": 4,
+      "caseIDs": [
+        "zh-writing-plan"
+      ],
+      "state": "finished",
+      "exitCode": 1,
+      "report": "/tmp/mira-open-issues-20260922/citation/run-report.json",
+      "reportedAuthorizations": 2,
+      "accountedAuthorizations": 4
+    },
+    {
+      "name": "correction",
+      "allocation": 12,
+      "caseIDs": [
+        "zh-update-style-explicit-replacement"
+      ],
+      "state": "finished",
+      "exitCode": 0,
+      "report": "/tmp/mira-open-issues-20260922/correction.json",
+      "reportedAuthorizations": 6,
+      "accountedAuthorizations": 6
+    }
+  ],
+  "finishedAt": "2026-09-22T08:45:43Z",
+  "reportedAuthorizations": 18,
+  "accountedAuthorizations": 20
+}

@@ -1,5 +1,7 @@
 # Chinese memory correction follow-up
 
+Follow-up status: the [current issue verification](MEMORY_ISSUE_CLOSURE_VERIFICATION.md) completes the outstanding restart/citation checks and records closure of the historical correction issue as not reproduced under the user’s instruction. The outcomes and reports below are the unchanged earlier evidence.
+
 Date: 2026-09-22. Issue: [#43](https://github.com/alwynou/mira/issues/43).
 Baseline: `29b1d7c`; branch: `codex/chinese-memory-diagnostics`.
 

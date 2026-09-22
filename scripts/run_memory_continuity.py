@@ -73,6 +73,8 @@ def load_scenarios(corpus_path: Path) -> list[dict[str, Any]]:
             raise LauncherError("continuity.json contains a non-object scenario")
         if not all(isinstance(scenario.get(key), str) and scenario[key].strip() for key in ("id", "language", "input", "followUp", "mode")):
             raise LauncherError("continuity.json contains an empty or malformed scenario field")
+        if type(scenario.get("requiresCitation")) is not bool:
+            raise LauncherError("continuity.json requires a boolean requiresCitation field")
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", scenario["id"]):
             raise LauncherError(f"continuity scenario ID is not a safe lowercase kebab ID: {scenario['id']}")
         if scenario["id"] in ids:
@@ -87,6 +89,17 @@ def load_scenarios(corpus_path: Path) -> list[dict[str, Any]]:
     if seen != required:
         raise LauncherError(f"continuity.json is missing language/mode pairs: {sorted(required - seen)}")
     return scenarios
+
+
+def select_scenarios(scenarios: Iterable[dict[str, Any]], case_ids: list[str] | None) -> list[dict[str, Any]]:
+    values = list(scenarios)
+    if case_ids is None:
+        return values
+    known = {scenario["id"] for scenario in values}
+    if not case_ids or len(set(case_ids)) != len(case_ids) or not set(case_ids).issubset(known):
+        raise LauncherError("--case-id contains an unknown or duplicate scenario ID")
+    selected = set(case_ids)
+    return [scenario for scenario in values if scenario["id"] in selected]
 
 
 def prepare_output_directory(path: Path) -> Path:
@@ -133,11 +146,15 @@ def ledger_committed(ledger: dict[str, Any]) -> int:
     return total
 
 
-def reserve_phase(ledger_path: Path, *, run_id: str, case_id: str, phase: str, cap: int, report: Path, log: Path) -> dict[str, Any]:
+def reserve_phase(ledger_path: Path, *, run_id: str, case_id: str, phase: str, cap: int, report: Path, log: Path, case_limit: int = PER_CASE_AUTHORIZATION_LIMIT) -> dict[str, Any]:
     if phase not in {"establish", "recall"}:
         raise LauncherError("A continuity phase must be establish or recall")
     if type(cap) is not int or not 1 <= cap <= PER_CASE_AUTHORIZATION_LIMIT:
         raise LauncherError("A phase authorization cap must be between 1 and 8")
+    if type(case_limit) is not int or not 4 <= case_limit <= PER_CASE_AUTHORIZATION_LIMIT:
+        raise LauncherError("A per-case authorization limit must be between 4 and 8")
+    if cap > case_limit:
+        raise LauncherError("The phase authorization cap exceeds the per-case authorization limit")
     if phase == "establish" and cap > ESTABLISHMENT_CAP:
         raise LauncherError("The establishment authorization cap must be at most 6")
     ledger = load_ledger(ledger_path)
@@ -151,7 +168,7 @@ def reserve_phase(ledger_path: Path, *, run_id: str, case_id: str, phase: str, c
         (entry.get("used") if entry.get("state") == "settled" else entry.get("reserved", 0)) or 0
         for entry in same_case
     )
-    if case_committed + cap > PER_CASE_AUTHORIZATION_LIMIT:
+    if case_committed + cap > case_limit:
         raise LauncherError(f"Per-case authorization limit would be exceeded by {case_id}/{phase}")
     if report.exists() or log.exists():
         raise LauncherError(f"The {case_id}/{phase} report or log path already exists")
@@ -350,7 +367,17 @@ def load_prior_establishments(prior_run: Path, scenarios: list[dict[str, Any]]) 
         raw = read_json(report_path)
         identity = raw.get("identity") if isinstance(raw, dict) else None
         scenario = expected[case_id]
-        if not isinstance(identity, dict) or identity.get("language") != scenario["language"] or identity.get("mode") != scenario["mode"] or identity.get("input") != scenario["input"] or identity.get("followUp") != scenario["followUp"]:
+        expected_requires_citation = scenario.get("requiresCitation")
+        if (
+            not isinstance(identity, dict)
+            or identity.get("language") != scenario["language"]
+            or identity.get("mode") != scenario["mode"]
+            or identity.get("input") != scenario["input"]
+            or identity.get("followUp") != scenario["followUp"]
+            or type(expected_requires_citation) is not bool
+            or type(identity.get("requiresCitation")) is not bool
+            or identity.get("requiresCitation") != expected_requires_citation
+        ):
             raise LauncherError(f"The prior establishment identity does not match the corpus for {case_id}")
         if identity.get("providerID") != "deepseek" or identity.get("modelID") != "deepseek-flash" or identity.get("endpoint") != "https://api.deepseek.com" or identity.get("protocolID") != "chat.completions" or identity.get("contextWindow") != 1_000_000 or identity.get("outputTokens") != 8_192 or identity.get("embeddings") != "local":
             raise LauncherError(f"The prior establishment configuration does not match the bounded continuity run for {case_id}")
@@ -412,10 +439,14 @@ def child_values(*, corpus: Path, report: Path, case_id: str, cap: int, root: Pa
     return values
 
 
-def run_cases(*, output_dir: Path, corpus_path: Path, scenarios: Iterable[dict[str, Any]], prior_run: Path | None = None, repository_root: Path = REPOSITORY_ROOT, run_phase_fn: Callable[..., dict[str, Any]] = run_phase) -> dict[str, Any]:
+def run_cases(*, output_dir: Path, corpus_path: Path, scenarios: Iterable[dict[str, Any]], case_cap: int = PER_CASE_AUTHORIZATION_LIMIT, prior_run: Path | None = None, repository_root: Path = REPOSITORY_ROOT, run_phase_fn: Callable[..., dict[str, Any]] = run_phase) -> dict[str, Any]:
     output_dir = output_dir.expanduser().resolve()
     if not output_dir.is_dir() or any(output_dir.iterdir()):
         raise LauncherError("run_cases requires a new, empty output directory")
+    if type(case_cap) is not int or not 4 <= case_cap <= PER_CASE_AUTHORIZATION_LIMIT:
+        raise LauncherError("The case authorization cap must be between 4 and 8")
+    if prior_run and case_cap != PER_CASE_AUTHORIZATION_LIMIT:
+        raise LauncherError("--prior-run requires the historical case cap of 8")
     secret = os.environ.get("DEEPSEEK_API_KEY", "")
     if not secret.strip():
         raise LauncherError("DEEPSEEK_API_KEY is required for an explicitly enabled live run")
@@ -436,6 +467,7 @@ def run_cases(*, output_dir: Path, corpus_path: Path, scenarios: Iterable[dict[s
         "startedAt": utc_timestamp(),
         "corpus": str(corpus_path),
         "globalAuthorizationLimit": GLOBAL_AUTHORIZATION_LIMIT,
+        "caseAuthorizationCap": case_cap,
         "cases": [],
     }
     if prior_run:
@@ -447,15 +479,17 @@ def run_cases(*, output_dir: Path, corpus_path: Path, scenarios: Iterable[dict[s
             if not isinstance(case_id, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", case_id):
                 raise LauncherError(f"continuity scenario ID is not a safe lowercase kebab ID: {case_id}")
             prior_used = prior_counts.get(case_id, 0)
-            establish_cap = recovery_caps(prior_used)[0] if prior_run else ESTABLISHMENT_CAP
+            establish_cap = min(ESTABLISHMENT_CAP, case_cap - prior_used - 1) if prior_run else min(ESTABLISHMENT_CAP, case_cap - 2)
+            if establish_cap < 1:
+                raise LauncherError(f"No establishment allowance remains for {case_id}")
             case_run_id = str(uuid.uuid4())
             root = Path(tempfile.mkdtemp(prefix="Mira-Continuity-")).resolve()
             interrupted_root = root
-            case_result: dict[str, Any] = {"caseID": case_id, "runID": case_run_id, "root": str(root), "phases": []}
+            case_result: dict[str, Any] = {"caseID": case_id, "runID": case_run_id, "root": str(root), "caseAuthorizationCap": case_cap, "phases": []}
             establish_report = output_dir / f"{case_id}.establish.json"
             establish_log = output_dir / f"{case_id}.establish.log"
             try:
-                establish_entry = reserve_phase(ledger_path, run_id=case_run_id, case_id=case_id, phase="establish", cap=establish_cap, report=establish_report, log=establish_log)
+                establish_entry = reserve_phase(ledger_path, run_id=case_run_id, case_id=case_id, phase="establish", cap=establish_cap, report=establish_report, log=establish_log, case_limit=case_cap)
             except LauncherError as error:
                 case_result["skipped"] = str(error)
                 run_report["cases"].append(case_result)
@@ -503,11 +537,11 @@ def run_cases(*, output_dir: Path, corpus_path: Path, scenarios: Iterable[dict[s
                 interrupted_root = None
                 continue
             establish_used = establishment["requestAuthorizationCount"]
-            recall_cap = PER_CASE_AUTHORIZATION_LIMIT - prior_used - establish_used
+            recall_cap = case_cap - prior_used - establish_used
             recall_report = output_dir / f"{case_id}.recall.json"
             recall_log = output_dir / f"{case_id}.recall.log"
             try:
-                recall_entry = reserve_phase(ledger_path, run_id=case_run_id, case_id=case_id, phase="recall", cap=recall_cap, report=recall_report, log=recall_log)
+                recall_entry = reserve_phase(ledger_path, run_id=case_run_id, case_id=case_id, phase="recall", cap=recall_cap, report=recall_report, log=recall_log, case_limit=case_cap)
             except LauncherError as error:
                 case_result["recallSkipped"] = str(error)
                 run_report["cases"].append(case_result)
@@ -573,14 +607,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, required=True, help="new directory for reports, logs, and the budget ledger")
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS)
     parser.add_argument("--prior-run", type=Path, help="recover only a finalized establishment handoff from this prior run directory")
+    parser.add_argument("--case-id", action="append", dest="case_ids", help="select one or more known scenario IDs; defaults to all four")
+    parser.add_argument("--case-cap", type=int, default=PER_CASE_AUTHORIZATION_LIMIT, help="per-case authorization cap from 4 through 8")
     args = parser.parse_args(argv)
     try:
         output_dir = prepare_output_directory(args.output_dir)
+        if type(args.case_cap) is not int or not 4 <= args.case_cap <= PER_CASE_AUTHORIZATION_LIMIT:
+            raise LauncherError("--case-cap must be between 4 and 8")
+        if args.prior_run and (args.case_ids or args.case_cap != PER_CASE_AUTHORIZATION_LIMIT):
+            raise LauncherError("--prior-run requires all four cases and --case-cap 8")
         corpus = args.corpus.expanduser().resolve(strict=True)
         scenarios = load_scenarios(corpus)
-        result = run_cases(output_dir=output_dir, corpus_path=corpus, scenarios=scenarios, prior_run=args.prior_run)
+        scenarios = select_scenarios(scenarios, args.case_ids)
+        result = run_cases(output_dir=output_dir, corpus_path=corpus, scenarios=scenarios, case_cap=args.case_cap, prior_run=args.prior_run)
         print(json.dumps({"report": str(output_dir / 'run-report.json'), "reportedAuthorizations": result["reportedAuthorizations"], "accountedAuthorizations": result["accountedAuthorizations"], "caseCount": len(result["cases"])}, sort_keys=True))
-        successful = len(result["cases"]) == 4 and all(
+        successful = len(result["cases"]) == len(scenarios) and all(
             len(case.get("phases", [])) == 2
             and not case.get("recallSkipped")
             and all(phase.get("reportValid") for phase in case["phases"])

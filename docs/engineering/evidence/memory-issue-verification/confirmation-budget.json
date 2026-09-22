@@ -1,0 +1,17 @@
+{
+  "aggregateAuthorizationCap": 32,
+  "priorTaskBudgetSHA256": "f611e4fd9ef94a568564eda0c3991218a66cdadb04e4f3b8b91aa56f03055698",
+  "priorAccountedAuthorizations": 20,
+  "priorReportedAuthorizations": 18,
+  "confirmationAuthorizationCap": 4,
+  "caseID": "zh-writing-plan",
+  "reason": "One manual confirmation after initial local-model preparation failure with zero recall authorizations; initial reports and held allowance retained.",
+  "state": "finished",
+  "reservedAt": "2026-09-22T08:47:32Z",
+  "exitCode": 0,
+  "confirmationReportedAuthorizations": 3,
+  "confirmationAccountedAuthorizations": 3,
+  "totalReportedAuthorizations": 21,
+  "totalAccountedAuthorizations": 23,
+  "finishedAt": "2026-09-22T08:50:30Z"
+}

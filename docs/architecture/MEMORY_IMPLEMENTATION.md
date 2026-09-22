@@ -98,6 +98,8 @@ Semantic top-K is an upper bound, not a minimum result count. Low-relevance vect
 
 普通回答不要求显示引用，内部仍保留真实会话/批次谱系。需要显式历史查看时，引用格式保持 `[memory:<UUID>@<revision>]`。语法有效不代表有权打开。应用必须从指定会话与已完成执行的 journal 请求证明实际使用了该精确版本，再读取对应本地历史修订。`JournalSessionReader.recordedContextEvidence` 提供冻结路线、工作区与来源，是跨领域的历史来源证明，不含 Memory 类型，也不授予当前领域或发送权限。失败执行、不存在的会话、被排除的执行、已清理正文及未记录来源均不能建立引用权限。后续措辞修订不能悄悄把旧引用重定向到新版本。
 
+Shared conversation instructions require square-bracket syntax whenever the assistant chooses to show a memory citation or the user requests sources. The exact reference must come from recall context or a successful memory read in that execution. A `memory.remember` receipt proves a committed save, but does not alone establish recorded source authority for that new memory; save acknowledgments omit the receipt's identifiers. These instructions do not rewrite historical model output or relax citation parsing and authorization.
+
 ## 遗忘与后台捕获
 
 遗忘必须经过库维护协调器：持久撤销旧库授权，停止并排空生产者，执行领域正文清理、会话依赖传递失效、工具与请求正文清理，并验证实际结果后完成维护。`MemoryStore.purgeMemory` 只承担领域事务，不是可直接暴露给用户的完整遗忘操作。完整维护处理器已接通；不能把单独的领域 purge 误报为已完成遗忘。

@@ -16,6 +16,27 @@ final class MemoryContinuityEvidenceTests: XCTestCase {
             !$0.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
             !$0.followUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         })
+        XCTAssertEqual(corpus.scenarios.filter(\.requiresCitation).map(\.id), ["zh-writing-plan"])
+    }
+
+    func testScenarioDecodingRequiresExplicitCitationFlag() throws {
+        let object: [String: Any] = [
+            "id": "ordinary-en", "language": "en", "input": "A preference.",
+            "followUp": "What do I prefer?", "mode": "automatic"
+        ]
+        let data = try JSONSerialization.data(withJSONObject: object)
+        XCTAssertThrowsError(try JSONDecoder().decode(MemoryContinuityScenario.self, from: data))
+    }
+
+    func testVisibleCitationShapeRejectsBareAndPartialReferencesWithoutChangingProductionParser() {
+        let id = "00000000-0000-0000-0000-000000000001"
+        let canonical = "[memory:\(id)@1]"
+        XCTAssertTrue(MemoryContinuityCitationAssertions.failures(answer: canonical, requiresCitation: true).isEmpty)
+        XCTAssertTrue(MemoryContinuityCitationAssertions.failures(answer: "memory:\(id)@1", requiresCitation: false).contains("memory_citation_not_bracketed"))
+        XCTAssertTrue(MemoryContinuityCitationAssertions.failures(answer: "[memory:\(id)@]", requiresCitation: false).contains("malformed_memory_citation"))
+        XCTAssertTrue(MemoryContinuityCitationAssertions.failures(answer: "[memory:]", requiresCitation: false).contains("malformed_memory_citation"))
+        XCTAssertTrue(MemoryContinuityCitationAssertions.failures(answer: "No source was included.", requiresCitation: true).contains("required_memory_citation_missing"))
+        XCTAssertTrue(MemoryContinuityCitationAssertions.failures(answer: "(memory:\(id)@1)", requiresCitation: false).contains("memory_citation_not_bracketed"))
     }
 
     func testCorpusValidationRejectsMalformedCoverageAndEmptyText() throws {

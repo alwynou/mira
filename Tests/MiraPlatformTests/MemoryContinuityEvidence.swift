@@ -1,4 +1,5 @@
 import Foundation
+import MiraCore
 
 enum MemoryContinuityMode: String, Codable, CaseIterable, Sendable {
     case automatic
@@ -11,6 +12,17 @@ struct MemoryContinuityScenario: Codable, Sendable {
     let input: String
     let followUp: String
     let mode: MemoryContinuityMode
+    let requiresCitation: Bool
+
+    init(id: String, language: String, input: String, followUp: String,
+         mode: MemoryContinuityMode, requiresCitation: Bool = false) {
+        self.id = id
+        self.language = language
+        self.input = input
+        self.followUp = followUp
+        self.mode = mode
+        self.requiresCitation = requiresCitation
+    }
 }
 
 struct MemoryContinuityCorpus: Codable {
@@ -158,5 +170,33 @@ enum MemoryContinuityAssertions {
             failures.append("continuity_revision_history_unavailable")
         }
         return failures
+    }
+}
+
+enum MemoryContinuityCitationAssertions {
+    static func failures(answer: String, requiresCitation: Bool) -> [String] {
+        let references = MemoryCitationReference.references(in: answer)
+        var failures = Set<String>()
+        if requiresCitation && references.isEmpty {
+            failures.insert("required_memory_citation_missing")
+        }
+
+        guard let expression = try? NSRegularExpression(pattern: #"memory:[^\s\[\](),]*"#) else {
+            return failures.sorted()
+        }
+        let range = NSRange(answer.startIndex..., in: answer)
+        expression.enumerateMatches(in: answer, range: range) { match, _, _ in
+            guard let match, let tokenRange = Range(match.range, in: answer) else { return }
+            let token = String(answer[tokenRange])
+            let before = tokenRange.lowerBound > answer.startIndex ? answer[answer.index(before: tokenRange.lowerBound)] : nil
+            let after = tokenRange.upperBound < answer.endIndex ? answer[tokenRange.upperBound] : nil
+            let isCanonical = MemoryCitationReference(rawValue: token) != nil
+            if !isCanonical {
+                failures.insert("malformed_memory_citation")
+            } else if before != "[" || after != "]" {
+                failures.insert("memory_citation_not_bracketed")
+            }
+        }
+        return failures.sorted()
     }
 }

@@ -1,0 +1,105 @@
+{
+  "accountedAuthorizations": 10,
+  "caseAuthorizationCap": 8,
+  "cases": [
+    {
+      "caseAuthorizationCap": 8,
+      "caseID": "en-explicit-reading-room",
+      "phases": [
+        {
+          "caseID": "en-explicit-reading-room",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.establish.log",
+          "observedRequestAuthorizationCount": 4,
+          "phase": "establish",
+          "processUUID": "44f7afb2-831b-4d4c-bc06-b3e0bbbb1942",
+          "report": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.establish.json",
+          "reportFinished": true,
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 6,
+          "requestAuthorizationCount": 4,
+          "testPID": 59764,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 59581
+        },
+        {
+          "caseID": "en-explicit-reading-room",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.recall.log",
+          "observedRequestAuthorizationCount": 1,
+          "phase": "recall",
+          "processUUID": "6f4636a5-c054-48e5-b7a0-b22dbe65f8a4",
+          "report": "/private/tmp/mira-open-issues-20260922/explicit/en-explicit-reading-room.recall.json",
+          "reportFinished": true,
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 4,
+          "requestAuthorizationCount": 1,
+          "testPID": 60110,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 59919
+        }
+      ],
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-bruqqyy3",
+      "runID": "893db3b6-f622-423b-8302-f98d2fe83fd7"
+    },
+    {
+      "caseAuthorizationCap": 8,
+      "caseID": "zh-explicit-meeting-time",
+      "phases": [
+        {
+          "caseID": "zh-explicit-meeting-time",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.establish.log",
+          "observedRequestAuthorizationCount": 4,
+          "phase": "establish",
+          "processUUID": "a36f5262-71dc-4fc2-972c-0cc33bc0aa7d",
+          "report": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.establish.json",
+          "reportFinished": true,
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 6,
+          "requestAuthorizationCount": 4,
+          "testPID": 60390,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 60115
+        },
+        {
+          "caseID": "zh-explicit-meeting-time",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.recall.log",
+          "observedRequestAuthorizationCount": 1,
+          "phase": "recall",
+          "processUUID": "ec1b1d61-1837-4dd9-ac20-541f5ab8ec90",
+          "report": "/private/tmp/mira-open-issues-20260922/explicit/zh-explicit-meeting-time.recall.json",
+          "reportFinished": true,
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 4,
+          "requestAuthorizationCount": 1,
+          "testPID": 60981,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 60788
+        }
+      ],
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-erthyl_k",
+      "runID": "57e8ff2f-be34-4dc2-83af-1828201f627d"
+    }
+  ],
+  "corpus": "/Users/alwyn/dev/mira/Tests/Fixtures/EverydayMemory/continuity.json",
+  "finishedAt": "2026-09-22T08:36:03Z",
+  "globalAuthorizationLimit": 32,
+  "heldAuthorizations": 0,
+  "ledger": "/private/tmp/mira-open-issues-20260922/explicit/budget-ledger.json",
+  "reportedAuthorizations": 10,
+  "reportedAuthorizationsComplete": true,
+  "settledAuthorizations": 10,
+  "startedAt": "2026-09-22T08:30:16Z",
+  "sumPhaseCaps": 20,
+  "version": 1
+}

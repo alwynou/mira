@@ -22,9 +22,11 @@ final class MemoryContinuityHandoffTests: XCTestCase {
         let identity = makeIdentity()
         let report = settledReport(identity: identity)
         let changedIdentity = makeIdentity(caseID: "different-case")
+        let changedCitationRequirement = makeIdentity(requiresCitation: true)
 
         XCTAssertTrue(handoffFailures(report: report, identity: changedIdentity).contains("handoff_identity_mismatch"))
         XCTAssertTrue(handoffFailures(report: report, identity: identity, marker: changedIdentity).contains("handoff_identity_mismatch"))
+        XCTAssertTrue(handoffFailures(report: report, identity: changedCitationRequirement).contains("handoff_identity_mismatch"))
     }
 
     func testHandoffRejectsFailedUnfinishedOrUnsettledReports() {
@@ -178,11 +180,12 @@ final class MemoryContinuityHandoffTests: XCTestCase {
               memoryReferences: [], rounds: [], tools: [], usage: [])
     }
 
-    private func makeIdentity(caseID: String = "ordinary-en") -> MemoryContinuityIdentity {
+    private func makeIdentity(caseID: String = "ordinary-en", requiresCitation: Bool = false) -> MemoryContinuityIdentity {
         let object: [String: Any] = [
             "runID": "00000000-0000-0000-0000-000000000001", "caseID": caseID,
             "language": "en", "mode": "automatic", "input": "I prefer tea.",
             "followUp": "What do I prefer?", "root": "/tmp/Mira-Continuity-fixture",
+            "requiresCitation": requiresCitation,
             "providerID": "synthetic", "modelID": "synthetic-model", "endpoint": "http://127.0.0.1:1",
             "protocolID": "openai.responses", "contextWindow": 4096, "outputTokens": 128,
             "embeddings": "offline", "instructions": ConversationInstructions.default

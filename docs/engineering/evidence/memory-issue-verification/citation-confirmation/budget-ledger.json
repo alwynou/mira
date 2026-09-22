@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "caseID": "zh-writing-plan",
+      "log": "/private/tmp/mira-open-issues-20260922/citation-confirmation/zh-writing-plan.establish.log",
+      "phase": "establish",
+      "report": "/private/tmp/mira-open-issues-20260922/citation-confirmation/zh-writing-plan.establish.json",
+      "reserved": 2,
+      "reservedAt": "2026-09-22T08:47:32Z",
+      "runID": "18c4e320-050a-4445-a207-b1a0951a7fbd",
+      "settledAt": "2026-09-22T08:50:16Z",
+      "state": "settled",
+      "used": 2
+    },
+    {
+      "caseID": "zh-writing-plan",
+      "log": "/private/tmp/mira-open-issues-20260922/citation-confirmation/zh-writing-plan.recall.log",
+      "phase": "recall",
+      "report": "/private/tmp/mira-open-issues-20260922/citation-confirmation/zh-writing-plan.recall.json",
+      "reserved": 2,
+      "reservedAt": "2026-09-22T08:50:16Z",
+      "runID": "18c4e320-050a-4445-a207-b1a0951a7fbd",
+      "settledAt": "2026-09-22T08:50:30Z",
+      "state": "settled",
+      "used": 1
+    }
+  ],
+  "globalLimit": 32,
+  "version": 1
+}

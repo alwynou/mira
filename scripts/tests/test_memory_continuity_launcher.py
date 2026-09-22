@@ -18,10 +18,25 @@ SPEC.loader.exec_module(launcher)
 
 
 def scenario(case_id="en-automatic-writing-plan"):
-    return {"id": case_id, "language": "en", "input": "A preference.", "followUp": "A question.", "mode": "automatic"}
+    return {"id": case_id, "language": "en", "input": "A preference.", "followUp": "A question.", "mode": "automatic", "requiresCitation": False}
 
 
 class CorpusAndBudgetTests(unittest.TestCase):
+    def test_case_selection_rejects_unknown_and_duplicate_ids(self):
+        values = [scenario("one"), scenario("two")]
+        self.assertEqual([item["id"] for item in launcher.select_scenarios(values, ["two"])], ["two"])
+        with self.assertRaises(launcher.LauncherError):
+            launcher.select_scenarios(values, ["unknown"])
+        with self.assertRaises(launcher.LauncherError):
+            launcher.select_scenarios(values, ["one", "one"])
+
+    def test_case_cap_must_be_between_four_and_eight(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(launcher.LauncherError):
+                launcher.run_cases(output_dir=Path(directory), corpus_path=Path("continuity.json"), scenarios=[scenario("case")], case_cap=3)
+            with self.assertRaises(launcher.LauncherError):
+                launcher.run_cases(output_dir=Path(directory), corpus_path=Path("continuity.json"), scenarios=[scenario("case")], case_cap=9)
+
     def test_output_directory_must_be_new(self):
         with tempfile.TemporaryDirectory() as directory:
             existing = Path(directory) / "run"
@@ -34,6 +49,20 @@ class CorpusAndBudgetTests(unittest.TestCase):
             path = Path(directory) / "continuity.json"
             scenarios = [scenario("one"), scenario("two"), scenario("three"), scenario("four")]
             path.write_text(json.dumps({"version": 1, "scenarios": scenarios}), encoding="utf-8")
+            with self.assertRaises(launcher.LauncherError):
+                launcher.load_scenarios(path)
+
+    def test_corpus_requires_boolean_citation_flag(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "continuity.json"
+            corpus = json.loads(launcher.DEFAULT_CORPUS.read_text(encoding="utf-8"))
+            del corpus["scenarios"][0]["requiresCitation"]
+            path.write_text(json.dumps(corpus), encoding="utf-8")
+            with self.assertRaises(launcher.LauncherError):
+                launcher.load_scenarios(path)
+
+            corpus["scenarios"][0]["requiresCitation"] = 0
+            path.write_text(json.dumps(corpus), encoding="utf-8")
             with self.assertRaises(launcher.LauncherError):
                 launcher.load_scenarios(path)
 
@@ -137,6 +166,16 @@ class ReportAndProcessGateTests(unittest.TestCase):
             with self.assertRaises(launcher.LauncherError):
                 launcher.reserve_phase(ledger, run_id="five", case_id="five", phase="establish", cap=1, report=root / "five", log=root / "five.log")
 
+    def test_case_cap_four_reserves_two_for_each_phase(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "budget.json"
+            establish = launcher.reserve_phase(ledger, run_id="run", case_id="case", phase="establish", cap=2, case_limit=4, report=root / "establish", log=root / "establish.log")
+            launcher.settle_phase(ledger, establish, report_valid=True, used=2)
+            recall = launcher.reserve_phase(ledger, run_id="run", case_id="case", phase="recall", cap=2, case_limit=4, report=root / "recall", log=root / "recall.log")
+            launcher.settle_phase(ledger, recall, report_valid=True, used=2)
+            self.assertEqual(launcher.ledger_committed(json.loads(ledger.read_text(encoding="utf-8"))), 4)
+
     def test_failed_final_report_keeps_observed_usage_separate_from_held_budget(self):
         with tempfile.TemporaryDirectory() as directory:
             def failed_phase(_command, *, environment, report_path, **_kwargs):
@@ -179,6 +218,7 @@ class ReportAndProcessGateTests(unittest.TestCase):
                     "version": 1, "phase": "establish", "identity": {
                         "caseID": case_id, "runID": run_id, "root": str(alias), "language": scenario_value["language"],
                         "mode": scenario_value["mode"], "input": scenario_value["input"], "followUp": scenario_value["followUp"],
+                        "requiresCitation": scenario_value["requiresCitation"],
                         "providerID": "deepseek", "modelID": "deepseek-flash", "endpoint": "https://api.deepseek.com",
                         "protocolID": "chat.completions", "contextWindow": 1000000, "outputTokens": 8192, "embeddings": "local",
                     }, "phase": "establish", "status": "completed", "closeSettled": True, "mismatches": [], "finishedAt": "now",
@@ -213,6 +253,18 @@ class ReportAndProcessGateTests(unittest.TestCase):
             self.assertTrue(result["reportedAuthorizationsComplete"])
             self.assertEqual(len(json.loads((output / "budget-ledger.json").read_text(encoding="utf-8"))["entries"]), 12)
             self.assertTrue(all(path.exists() for path in raw_paths))
+            original = json.loads(raw_paths[0].read_text(encoding="utf-8"))
+            missing_flag = json.loads(json.dumps(original))
+            del missing_flag["identity"]["requiresCitation"]
+            raw_paths[0].write_text(json.dumps(missing_flag), encoding="utf-8")
+            with self.assertRaises(launcher.LauncherError):
+                launcher.load_prior_establishments(prior, scenarios)
+            mismatched_flag = json.loads(json.dumps(original))
+            mismatched_flag["identity"]["requiresCitation"] = not original["identity"]["requiresCitation"]
+            raw_paths[0].write_text(json.dumps(mismatched_flag), encoding="utf-8")
+            with self.assertRaises(launcher.LauncherError):
+                launcher.load_prior_establishments(prior, scenarios)
+            raw_paths[0].write_text(json.dumps(original), encoding="utf-8")
             with patch.dict(launcher.os.environ, {"DEEPSEEK_API_KEY": "secret"}, clear=True):
                 second = base / "second-recovery"
                 second.mkdir()
