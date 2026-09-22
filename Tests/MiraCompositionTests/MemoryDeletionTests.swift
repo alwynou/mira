@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Conversational memory deletion", .timeLimit(.minutes(1)))
 struct MemoryDeletionTests {
-    @Test(arguments: [DeletionScenario.complete, .stale, .reopen])
+    @Test(arguments: [DeletionScenario.complete, .stale, .reopen, .maintenanceInterrupted, .purgeInterrupted])
     func libraryOwnsDeferredPurgeAndDurableOutcome(scenario: DeletionScenario) async throws {
         try await withDirectory { directory in
             let model = DeletionModel()
@@ -41,10 +41,26 @@ struct MemoryDeletionTests {
                         draft: .init(content: "An updated preference", scope: .global),
                         expectedRevision: memory.revision, operationID: UUID())
                 }
-                if scenario == .reopen {
+                if scenario == .reopen || scenario == .maintenanceInterrupted || scenario == .purgeInterrupted {
                     // Closing cancels the held reply and wakes its owner before draining
                     // the deletion processor. The committed request must survive.
                     #expect(await library.close().isSettled)
+                    if scenario == .maintenanceInterrupted || scenario == .purgeInterrupted {
+                        let interrupted = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
+                        do {
+                            let request = try #require(try await interrupted.memories.pendingMemoryDeletions(limit: 1).first)
+                            let operation = try await interrupted.authority.begin(request.maintenanceRequest,
+                                expected: interrupted.authority.state().authorization)
+                            if scenario == .purgeInterrupted {
+                                let handler = MemoryForgetHandler(memories: interrupted.memories)
+                                try await handler.apply(operation)
+                                try await handler.verify(operation)
+                            }
+                            // Simulate process loss before the durable completion fact,
+                            // both before and after the memory-domain purge commits.
+                            #expect(await interrupted.close() == nil)
+                        } catch { _ = await interrupted.close(); throw error }
+                    }
                     let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
                         notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules)
                     do {
@@ -98,7 +114,7 @@ struct MemoryDeletionTests {
     }
 }
 
-enum DeletionScenario: Sendable { case complete, stale, reopen }
+enum DeletionScenario: Sendable { case complete, stale, reopen, maintenanceInterrupted, purgeInterrupted }
 
 private struct DeletionModule: RuntimeModule {
     let id = "tests.deletion"
