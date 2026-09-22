@@ -130,6 +130,12 @@ extension SQLiteMemoryStore {
               memory.supersededBy != memory.id,
               (memory.draft == nil) == (memory.forgottenAt != nil),
               (memory.deletedAt != nil) == (memory.state == .removed) else { throw corrupt }
+        if let marker = memory.retraction {
+            guard marker.priorRevision > 0, marker.priorRevision < Int.max,
+                  marker.revision == marker.priorRevision + 1, marker.revision <= memory.revision,
+                  marker.revision < Int.max,
+                  marker.createdAt.timeIntervalSince1970.isFinite else { throw corrupt }
+        }
         if let draft = memory.draft {
             do { try draft.validate() } catch { throw corrupt }
             guard draft.scope == memory.scope, draft.subject == memory.subject else { throw corrupt }
@@ -181,6 +187,10 @@ extension SQLiteMemoryStore {
         return revision
     }
     static func evidence(_ id: MemoryID, in db: Database) throws -> [MemoryEvidence] {
+        guard let memoryRow = try Row.fetchOne(db, sql: "SELECT * FROM memory_records WHERE id = ?", arguments: [key(id)]) else {
+            throw unavailable
+        }
+        let memory = try record(memoryRow)
         let rows = try Row.fetchAll(db, sql: "SELECT * FROM memory_evidence WHERE memory_id = ? ORDER BY id LIMIT 101", arguments: [key(id)])
         guard !rows.isEmpty, rows.count <= 100 else { throw corrupt }
         return try rows.map { row in
@@ -190,10 +200,17 @@ extension SQLiteMemoryStore {
                   try sourceKey(value.source) == row["source_key"] as String,
                   value.createdAt.timeIntervalSince1970.isFinite,
                   value.bodyPurgedAt.map({ $0.timeIntervalSince1970.isFinite }) ?? true,
-                  (value.excerpt == nil) == (value.bodyPurgedAt != nil), (value.sourceHash == nil) == (value.bodyPurgedAt != nil),
+                  value.retractionRevision.map({ $0 > 0 }) ?? true,
+                  (value.excerpt == nil) == (value.bodyPurgedAt != nil),
+                  (value.sourceHash == nil) == (value.bodyPurgedAt != nil),
                   let source = try Row.fetchOne(db, sql: "SELECT * FROM memory_sources WHERE source_key = ?", arguments: [try sourceKey(value.source)]),
                   try sourceIdentity(source) == value.source,
                   source["workspace_id"] as String? == value.sourceWorkspaceID.map(key) else { throw corrupt }
+            if let markerRevision = value.retractionRevision {
+                guard let marker = memory.retraction, markerRevision <= marker.revision,
+                      try Row.fetchOne(db, sql: "SELECT 1 FROM memory_revisions WHERE memory_id = ? AND revision = ?",
+                                       arguments: [key(id), markerRevision]) != nil else { throw corrupt }
+            }
             return value
         }
     }

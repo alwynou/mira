@@ -4,10 +4,44 @@ import Testing
 
 @Suite("Memory remember evolution targets")
 struct MemoryRememberToolTests {
-    @Test func schemaRequiresBoundedTargetsAndDescriptorRevisionThree() throws {
+    @Test func retractionDescriptorBindsOneExactTarget() async throws {
+        let memory = makeMemory(content: "I prefer green tea")
+        let context = makeContext()
+        let tool = MemoryRetractTool(store: RememberFixtureStore(memories: [memory]))
+        try tool.descriptor.validate()
+        #expect(tool.descriptor.revision == 1)
+        let args: JSONValue = .object([
+            "memory_id": .string(memory.id.rawValue.uuidString.lowercased()),
+            "revision": .number(Double(memory.revision)),
+            "quote": .string("remember this")
+        ])
+        let plan = try await tool.prepare(args, context: context)
+        let reference = AgentSourceReference.domain(namespace: "memories", id: memory.id.rawValue, revision: memory.revision)
+        #expect(plan.sources == [reference])
+        #expect(plan.targets == [reference])
+    }
+
+    @Test func retractionRejectsQuoteOutsideCurrentEvidence() async throws {
+        let memory = makeMemory(content: "I prefer green tea")
+        let context = makeContext()
+        let args: JSONValue = .object([
+            "memory_id": .string(memory.id.rawValue.uuidString.lowercased()),
+            "revision": .number(Double(memory.revision)),
+            "quote": .string("unrelated claim")
+        ])
+        do {
+            _ = try await MemoryRetractTool(store: RememberFixtureStore(memories: [memory]))
+                .prepare(args, context: context)
+            Issue.record("A quote outside the current user evidence was accepted")
+        } catch let error as MiraError {
+            #expect(error.code == .invalidInput)
+        }
+    }
+
+    @Test func schemaRequiresBoundedTargetsAndDescriptorRevisionFour() throws {
         let tool = MemoryRememberTool(store: RememberFixtureStore())
         try tool.descriptor.validate()
-        #expect(tool.descriptor.revision == 3)
+        #expect(tool.descriptor.revision == 4)
         guard case .object(let schema) = MemoryTools.rememberDefinition.inputSchema,
               case .array(let required)? = schema["required"] else {
             Issue.record("Remember schema is malformed")

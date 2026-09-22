@@ -79,12 +79,22 @@ public struct MemoryEvidence: Identifiable, Codable, Equatable, Sendable {
     public var sourceHash: String?
     public let createdAt: Date
     public var bodyPurgedAt: Date?
+    public var retractionRevision: Int?
     public init(id: UUID = UUID(), memoryID: MemoryID, source: MemoryEvidenceSource,
                 sourceWorkspaceID: WorkspaceID?, excerpt: String?, sourceHash: String?,
-                createdAt: Date, bodyPurgedAt: Date? = nil) {
+                createdAt: Date, bodyPurgedAt: Date? = nil, retractionRevision: Int? = nil) {
         self.id = id; self.memoryID = memoryID; self.source = source
         self.sourceWorkspaceID = sourceWorkspaceID; self.excerpt = excerpt
-        self.sourceHash = sourceHash; self.createdAt = createdAt; self.bodyPurgedAt = bodyPurgedAt
+        self.sourceHash = sourceHash; self.createdAt = createdAt; self.bodyPurgedAt = bodyPurgedAt; self.retractionRevision = retractionRevision
+    }
+}
+
+public struct MemoryRetraction: Codable, Equatable, Sendable {
+    public let priorRevision: Int
+    public let revision: Int
+    public let createdAt: Date
+    public init(priorRevision: Int, revision: Int, createdAt: Date) {
+        self.priorRevision = priorRevision; self.revision = revision; self.createdAt = createdAt
     }
 }
 
@@ -103,11 +113,12 @@ public struct Memory: Identifiable, Codable, Equatable, Sendable {
     public var updatedAt: Date
     public var deletedAt: Date?
     public var forgottenAt: Date?
+    public var retraction: MemoryRetraction?
     public var isCurrent: Bool { supersededBy == nil && state == .active && forgottenAt == nil }
-    public init(id: MemoryID = .init(), draft: MemoryDraft?, scope: MemoryScope, subject: MemorySubject, state: MemoryState = .active, origin: MemoryOrigin = .explicitUser, authority: MemoryAuthority = .explicitUser, supersededBy: MemoryID? = nil, revision: Int = 1, createdAt: Date, updatedAt: Date, deletedAt: Date? = nil, forgottenAt: Date? = nil) {
+    public init(id: MemoryID = .init(), draft: MemoryDraft?, scope: MemoryScope, subject: MemorySubject, state: MemoryState = .active, origin: MemoryOrigin = .explicitUser, authority: MemoryAuthority = .explicitUser, supersededBy: MemoryID? = nil, revision: Int = 1, createdAt: Date, updatedAt: Date, deletedAt: Date? = nil, forgottenAt: Date? = nil, retraction: MemoryRetraction? = nil) {
         self.id = id; self.draft = draft; self.scope = scope; self.subject = subject; self.state = state
         self.origin = origin; self.authority = authority; self.supersededBy = supersededBy; self.revision = revision
-        self.createdAt = createdAt; self.updatedAt = updatedAt; self.deletedAt = deletedAt; self.forgottenAt = forgottenAt
+        self.createdAt = createdAt; self.updatedAt = updatedAt; self.deletedAt = deletedAt; self.forgottenAt = forgottenAt; self.retraction = retraction
     }
     public func canRecall(in workspaceID: WorkspaceID?, connectionID: ConnectionID, at: Date) -> Bool {
         guard isCurrent, deletedAt == nil, scope.isVisible(in: workspaceID), let draft,
@@ -153,7 +164,7 @@ public struct MemoryDetail: Sendable {
         self.memory = memory; self.evidence = evidence; self.revisions = revisions; self.replacements = replacements
     }
 }
-public enum MemoryWriteDisposition: String, Codable, Sendable { case created, existing, replacementProposed }
+public enum MemoryWriteDisposition: String, Codable, Sendable { case created, existing, replacementProposed, retracted }
 public struct MemoryWriteReceipt: Codable, Equatable, Sendable {
     public var memory: Memory
     public var disposition: MemoryWriteDisposition

@@ -32,7 +32,7 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
         }
         let proposal = try parsed(effect)
         let source = MemoryEvidenceSource.userMessage(effect.context.evidence.reference)
-        if try SQLiteMemoryStore.suppressedMemorySource(source, in: db) {
+        if try SQLiteMemoryStore.memoryCaptureSuppressed(source, in: db) {
             throw unauthorized
         }
         let targets = proposal.replacementTarget.map { [$0] } ?? proposal.enrichmentTargets
@@ -136,7 +136,7 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
     private func parsed(_ effect: AgentResolvedEffect) throws -> MemoryRememberProposal {
         guard effect.proposal.effect == .localWrite,
               effect.proposal.businessNamespace == namespace,
-              effect.proposal.descriptor.revision == 3,
+              effect.proposal.descriptor.revision == 4,
               effect.proposal.descriptor.definition == MemoryTools.rememberDefinition,
               effect.proposal.descriptor.outputSchema == MemoryTools.rememberResultSchema else {
             throw unauthorized

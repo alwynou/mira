@@ -16,7 +16,7 @@ public enum MemoryTools {
 
     public static var rememberDefinition: ToolDefinition {
         .init(name: "memory.remember",
-              description: "Save a memory only when the user explicitly asks you to remember or save it, or clearly corrects one recalled fact. Do not call this tool for ordinary new facts or non-conflicting additions, even about an already remembered entity: background extraction captures and consolidates those statements. When asked to remember a clear, non-conflicting addition about the same entity as recalled memories, use memory.search or memory.get as needed, include every clearly same-entity current memory's exact memory_id and revision in enriches, preserve all supported facts and add only the new detail. For a clear correction of one recalled fact, set replaces to that exact memory_id and revision and save the corrected assertion as content. Never use replaces for additions or enriches for contradictions/corrections. Do not guess or merge by similarity; ask for clarification when target identity or correction intent is ambiguous. Leave enriches empty and omit replaces for an independent memory. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
+              description: "Save a memory only when the user explicitly asks you to remember or save it, or clearly corrects one recalled fact. Do not call this tool for ordinary new facts or non-conflicting additions, even about an already remembered entity: background extraction captures and consolidates those statements. When asked to remember a clear, non-conflicting addition about the same entity as recalled memories, use memory.search or memory.get as needed, include every clearly same-entity current memory's exact memory_id and revision in enriches, preserve all supported facts and add only the new detail. For a clear correction of one recalled fact, set replaces to that exact memory_id and revision and save the corrected assertion as content. For a clear withdrawal without a replacement, use memory.retract with the exact target instead. Never use replaces for additions or withdrawals, or enriches for contradictions/corrections. Do not guess or merge by similarity; ask for clarification when target identity or correction intent is ambiguous. Leave enriches empty and omit replaces for an independent memory. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
               inputSchema: object(properties: [
                   "content": string(maximum: 8_192),
                   "quote": string(maximum: 8_192),
@@ -47,6 +47,16 @@ public enum MemoryTools {
               ], required: ["content", "quote", "kind", "scope", "sensitive", "enriches"]))
     }
 
+    public static var retractDefinition: ToolDefinition {
+        .init(name: "memory.retract",
+              description: "Withdraw one current memory when the user clearly says the recalled assertion is no longer true or applicable and provides no replacement. Use the exact memory_id and revision from the authorized recall and quote the user's exact correction. Do not invent an opposite assertion or use this for privacy forgetting. Ask for clarification when the target, scope, or withdrawal intent is ambiguous or hypothetical. Acknowledge only after the withdrawal commits; historical sends and citations may remain available under their own authorization.",
+              inputSchema: object(properties: [
+                  "memory_id": string(maximum: 36),
+                  "revision": .object(["type": .string("integer"), "minimum": .number(1), "maximum": .number(2_147_483_647)]),
+                  "quote": string(maximum: 8_192)
+              ], required: ["memory_id", "revision", "quote"]))
+    }
+
     public static var searchResultSchema: JSONValue { resultSchema }
     public static var getResultSchema: JSONValue { resultSchema }
     public static var rememberResultSchema: JSONValue {
@@ -56,6 +66,13 @@ public enum MemoryTools {
             "allows_remote_use": .object(["type": .string("boolean")]),
             "policy": string(maximum: 32), "acknowledgment": string(maximum: 512)
         ], required: ["memory_id", "revision", "reference", "state", "allows_remote_use", "policy", "acknowledgment"])
+    }
+    public static var retractResultSchema: JSONValue {
+        object(properties: [
+            "memory_id": string(maximum: 36), "revision": .object(["type": .string("integer"), "minimum": .number(1)]),
+            "state": string(maximum: 32),
+            "disposition": string(maximum: 32), "acknowledgment": string(maximum: 512)
+        ], required: ["memory_id", "revision", "state", "disposition", "acknowledgment"])
     }
 
     public static func readOnly(store: any MemoryReadStore, now: @escaping @Sendable () -> Date = Date.init) -> [AgentTool] {
@@ -130,6 +147,31 @@ public enum MemoryTools {
                 ? "Acknowledge that this committed memory is allowed for future model requests."
                 : "Acknowledge that this committed memory is saved locally only. Do not promise that future model requests will recall or use it; remote use requires a separate user choice.")
         ])
+    }
+
+    public static func retractionResult(_ receipt: MemoryWriteReceipt) -> JSONValue {
+        .object([
+            "memory_id": .string(receipt.memory.id.rawValue.uuidString.lowercased()),
+            "revision": .number(Double(receipt.memory.revision)),
+            "state": .string(receipt.memory.state.rawValue),
+            "disposition": .string(receipt.disposition.rawValue),
+            "acknowledgment": .string("Acknowledge that this memory was withdrawn and archived without creating a replacement. Historical context may remain available when separately authorized.")
+        ])
+    }
+
+    public static func parsedRetraction(arguments: JSONValue, evidence: SessionUserEvidence) throws -> MemoryRetractionProposal {
+        let normalized = try ToolSchemaValidator.decode(try arguments.jsonString(), schema: retractDefinition.inputSchema)
+        try evidence.reference.validate()
+        guard let idText = normalized["memory_id"]?.stringValue, idText.utf8.count == 36,
+              let id = UUID(uuidString: idText),
+              case .number(let revisionValue)? = normalized["revision"], revisionValue.isFinite,
+              revisionValue.rounded() == revisionValue, (1...2_147_483_647).contains(revisionValue),
+              let quote = normalized["quote"]?.stringValue,
+              !quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              evidence.text.range(of: quote) != nil else {
+            throw MiraError(.invalidInput, "The retraction target or quote is invalid.")
+        }
+        return .init(target: .init(memoryID: .init(id), revision: Int(revisionValue)), quote: quote)
     }
 
     static func request(_ context: AgentToolContext) throws -> AgentContextRequest {

@@ -1,0 +1,309 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "suppressed_retraction_source",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "User prefers early flights when traveling.",
+          "detailAvailable" : true,
+          "evidenceCount" : 2,
+          "evidenceExcerptCount" : 2,
+          "evidenceExecutionIDs" : [
+            "8952c7f1-7856-4077-ad6d-61214bbaa3dc"
+          ],
+          "evidenceHashCount" : 2,
+          "evidenceSourceReferences" : [
+            "session:eb7cf6a2-610d-4b38-83d3-f82c376f1213\/execution:8952c7f1-7856-4077-ad6d-61214bbaa3dc\/message:994638ba-a380-4c9c-b019-c23ecb536e37\/admission:e941ef56-a5bf-4715-914d-c623b2764f19@2"
+          ],
+          "id" : "60139be8-94c6-49c3-aca4-71504b417afe",
+          "isCurrent" : false,
+          "lifecycle" : "archived",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "retraction" : {
+            "evidence" : [
+              {
+                "executionID" : "251014ab-e16e-4dee-9848-1fe2c5e33ce2",
+                "hasExcerpt" : true,
+                "hasHash" : true,
+                "revision" : 2,
+                "sourceReference" : "session:eb7cf6a2-610d-4b38-83d3-f82c376f1213\/execution:251014ab-e16e-4dee-9848-1fe2c5e33ce2\/message:2d077e91-f626-459b-a550-646d224b0269\/admission:a9fd1eff-cd9b-4220-87fb-20af6127bcfa@8"
+              }
+            ],
+            "priorRevision" : 1,
+            "revision" : 2
+          },
+          "revision" : 2,
+          "revisionBodyCount" : 2,
+          "revisionNumbers" : [
+            1,
+            2
+          ],
+          "state" : "archived"
+        }
+      ],
+      "followUp" : {
+        "answer" : "I don't have any record of a flight-time preference for you — I checked my saved memories and the authorized knowledge sources, and nothing about preferred flight times came up.\n\nIf you'd like, tell me what you prefer (e.g., early-morning departures, avoiding red-eyes, midday flights) and I can save it for next time.",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : false,
+            "term" : "prefer early flights"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 2304,
+            "complete" : true,
+            "id" : "13a083f1-75e6-4397-9f49-ba4d04f7270c",
+            "inputTokens" : 2498,
+            "outputTokens" : 72,
+            "reasoningTokens" : 0
+          },
+          {
+            "cacheReadTokens" : 2048,
+            "complete" : true,
+            "id" : "5b5918bd-9e94-4c3c-9fd9-6ec6dc4bc90f",
+            "inputTokens" : 2292,
+            "outputTokens" : 124,
+            "reasoningTokens" : 47
+          },
+          {
+            "cacheReadTokens" : 1920,
+            "complete" : true,
+            "id" : "b09093a4-5817-4d93-a33a-0085b5aa4c3a",
+            "inputTokens" : 2131,
+            "outputTokens" : 79,
+            "reasoningTokens" : 7
+          },
+          {
+            "cacheReadTokens" : 1792,
+            "complete" : true,
+            "id" : "2b619b58-6345-4567-af90-c9240e4bdf65",
+            "inputTokens" : 2037,
+            "outputTokens" : 51,
+            "reasoningTokens" : 10
+          }
+        ],
+        "executionID" : "7d204b6f-3070-45ee-93d9-cfed96795f92",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "6ef977f5-32de-4580-8e7c-30a3be8194ab",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "en-early-flight-clear-retraction",
+      "kind" : "clearRetraction",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "foreground_retraction_committed_before_background",
+        "established_memory_retracted_without_replacement_with_separate_provenance",
+        "retraction_and_provenance_survive_library_reopen",
+        "retracted_memory_excluded_from_fresh_session_after_reopen"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 384,
+              "complete" : true,
+              "id" : "70a0c1db-5e48-4222-8e91-57c8fb7eaa05",
+              "inputTokens" : 2037,
+              "outputTokens" : 215,
+              "reasoningTokens" : 167
+            }
+          ],
+          "executionID" : "8952c7f1-7856-4077-ad6d-61214bbaa3dc",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "4ab22066-36ed-4715-8014-0085cd7a28f3",
+                "cacheReadTokens" : 0,
+                "chargedTokens" : 2274,
+                "dispatched" : true,
+                "inputTokens" : 1591,
+                "ordinal" : 1,
+                "outputTokens" : 683,
+                "reasoningTokens" : 579,
+                "reservedTokens" : 23523,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "a32e35db-4008-48e9-9819-d0231e82cbb2",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "8952c7f1-7856-4077-ad6d-61214bbaa3dc",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "I prefer early flights when I travel.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User prefers early flights when traveling.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "8952c7f1-7856-4077-ad6d-61214bbaa3dc"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:eb7cf6a2-610d-4b38-83d3-f82c376f1213\/execution:8952c7f1-7856-4077-ad6d-61214bbaa3dc\/message:994638ba-a380-4c9c-b019-c23ecb536e37\/admission:e941ef56-a5bf-4715-914d-c623b2764f19@2"
+              ],
+              "id" : "60139be8-94c6-49c3-aca4-71504b417afe",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "eb7cf6a2-610d-4b38-83d3-f82c376f1213"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2688,
+              "complete" : true,
+              "id" : "ee26f422-3a03-4eff-9e9f-033eb33096e5",
+              "inputTokens" : 2954,
+              "outputTokens" : 115,
+              "reasoningTokens" : 10
+            },
+            {
+              "cacheReadTokens" : 2176,
+              "complete" : true,
+              "id" : "765311ef-0495-49c9-9069-c2f3e8ad5cdb",
+              "inputTokens" : 2531,
+              "outputTokens" : 277,
+              "reasoningTokens" : 148
+            }
+          ],
+          "executionID" : "251014ab-e16e-4dee-9848-1fe2c5e33ce2",
+          "executionOutcome" : "completed",
+          "expectation" : "retractWithoutReplacement",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "memoryCount" : 0,
+            "status" : "suppressed_retraction_source"
+          },
+          "index" : 1,
+          "input" : "I retract my earlier statement that I generally prefer early flights. That was only true for one trip because there were no other options; I do not have a general flight-time preference.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User prefers early flights when traveling.",
+              "detailAvailable" : true,
+              "evidenceCount" : 2,
+              "evidenceExcerptCount" : 2,
+              "evidenceExecutionIDs" : [
+                "8952c7f1-7856-4077-ad6d-61214bbaa3dc"
+              ],
+              "evidenceHashCount" : 2,
+              "evidenceSourceReferences" : [
+                "session:eb7cf6a2-610d-4b38-83d3-f82c376f1213\/execution:8952c7f1-7856-4077-ad6d-61214bbaa3dc\/message:994638ba-a380-4c9c-b019-c23ecb536e37\/admission:e941ef56-a5bf-4715-914d-c623b2764f19@2"
+              ],
+              "id" : "60139be8-94c6-49c3-aca4-71504b417afe",
+              "isCurrent" : false,
+              "lifecycle" : "archived",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "retraction" : {
+                "evidence" : [
+                  {
+                    "executionID" : "251014ab-e16e-4dee-9848-1fe2c5e33ce2",
+                    "hasExcerpt" : true,
+                    "hasHash" : true,
+                    "revision" : 2,
+                    "sourceReference" : "session:eb7cf6a2-610d-4b38-83d3-f82c376f1213\/execution:251014ab-e16e-4dee-9848-1fe2c5e33ce2\/message:2d077e91-f626-459b-a550-646d224b0269\/admission:a9fd1eff-cd9b-4220-87fb-20af6127bcfa@8"
+                  }
+                ],
+                "priorRevision" : 1,
+                "revision" : 2
+              },
+              "revision" : 2,
+              "revisionBodyCount" : 2,
+              "revisionNumbers" : [
+                1,
+                2
+              ],
+              "state" : "archived"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:60139be8-94c6-49c3-aca4-71504b417afe@1"
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 1,
+          "retractSucceededCount" : 1,
+          "sessionID" : "eb7cf6a2-610d-4b38-83d3-f82c376f1213"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-22T02:59:45Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 12,
+  "requestAuthorizationCount" : 8,
+  "selectedCaseIDs" : [
+    "en-early-flight-clear-retraction"
+  ],
+  "status" : "completed",
+  "updatedAt" : "2026-09-22T03:02:29Z",
+  "version" : 1
+}

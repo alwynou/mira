@@ -79,7 +79,7 @@ private struct SyntheticCompositionModelAdapter: AgentModelAdapter {
                     continuation.yield(.blockFinished(id: "thinking"))
                 }
                 let reply = isExtraction
-                    ? #"{"version":3,"items":[]}"#
+                    ? #"{"version":4,"items":[],"retractions":[]}"#
                     : "Synthetic composition reply with a durable body."
                 continuation.yield(.blockStarted(.init(id: "answer", content: .text(""))))
                 continuation.yield(.blockDelta(id: "answer", text: reply))

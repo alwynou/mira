@@ -264,3 +264,32 @@ public struct MemoryExtractionProposal: Sendable {
         self.replacesProposalIndex = replacesProposalIndex
     }
 }
+
+/// A validated withdrawal action. It changes the exact frozen current memory
+/// selected by targetIndex and never creates a replacement assertion.
+public struct MemoryExtractionRetraction: Sendable, Equatable {
+    public let inputIndex: Int
+    public let targetIndex: Int
+    public let mode: MemoryAssertionMode
+    public let inferred: Bool
+    public let confidence: String
+    /// Position in the raw retractions array. Unsupported classifications are
+    /// omitted from the executable actions but retain this stable position.
+    public let rawIndex: Int
+
+    public init(inputIndex: Int, targetIndex: Int, mode: MemoryAssertionMode,
+                inferred: Bool, confidence: String, rawIndex: Int = 0) {
+        self.inputIndex = inputIndex; self.targetIndex = targetIndex
+        self.mode = mode; self.inferred = inferred; self.confidence = confidence; self.rawIndex = rawIndex
+    }
+}
+
+/// The complete validated v4 extraction response.
+public struct MemoryExtractionOutput: Sendable {
+    public let proposals: [MemoryExtractionProposal]
+    public let retractions: [MemoryExtractionRetraction]
+
+    public init(proposals: [MemoryExtractionProposal], retractions: [MemoryExtractionRetraction]) {
+        self.proposals = proposals; self.retractions = retractions
+    }
+}

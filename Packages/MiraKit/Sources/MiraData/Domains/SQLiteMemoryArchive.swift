@@ -95,6 +95,13 @@ extension SQLiteMemoryStore {
                 (value.excerpt == nil) == (value.bodyPurgedAt != nil),
                 (value.sourceHash == nil) == (value.bodyPurgedAt != nil)
             else { throw LibraryArchiveIO.invalid }
+            if let withdrawal = value.retractionRevision {
+                guard let memory = memories[key(value.memoryID)],
+                    withdrawal > 0, withdrawal <= memory.revision,
+                    try Row.fetchOne(db, sql: "SELECT 1 FROM memory_revisions WHERE memory_id = ? AND revision = ?",
+                    arguments: [key(value.memoryID), withdrawal]) != nil
+                else { throw LibraryArchiveIO.invalid }
+            }
             guard let sourceWorkspace = sourceWorkspaces[sourceKey], sourceWorkspace == value.sourceWorkspaceID,
                 value.bodyPurgedAt.map({ $0.timeIntervalSince1970.isFinite }) ?? true,
                 value.excerpt.map({ !$0.isEmpty && $0.utf8.count <= 8192 }) ?? true
@@ -128,6 +135,17 @@ extension SQLiteMemoryStore {
                 let suppression = try Int.fetchOne(
                     db, sql: "SELECT suppression FROM memory_sources WHERE source_key = ?", arguments: [sourceKey])
                 guard stored == hash || (stored == nil && suppression == 3) else { throw LibraryArchiveIO.invalid }
+            }
+        }
+        for memory in memories.values {
+            if let marker = memory.retraction {
+                guard try Int.fetchOne(db, sql: """
+                    SELECT count(*) FROM memory_evidence
+                    WHERE memory_id = ?
+                      AND json_extract(CAST(json AS TEXT), '$.retractionRevision') = ?
+                    """, arguments: [key(memory.id), marker.revision]) == 1 else {
+                    throw LibraryArchiveIO.invalid
+                }
             }
         }
     }

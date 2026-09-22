@@ -1,0 +1,258 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "suppressed_retraction_source",
+      "errorCode" : "request_authorization_cap_reached",
+      "failureStage" : "followup_status",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "observedUser",
+          "body" : "User prefers early flights when traveling.",
+          "detailAvailable" : true,
+          "evidenceCount" : 2,
+          "evidenceExcerptCount" : 2,
+          "evidenceExecutionIDs" : [
+            "c52cae66-60fa-44fd-a78c-227ddcae23ef"
+          ],
+          "evidenceHashCount" : 2,
+          "evidenceSourceReferences" : [
+            "session:125ab512-a861-44ad-a446-a90e8d49d22f\/execution:c52cae66-60fa-44fd-a78c-227ddcae23ef\/message:70028801-349a-416e-ad46-f764b41b6795\/admission:32052db1-42c0-48ad-ab10-00e785be4bd2@2"
+          ],
+          "id" : "d0223e03-9f92-470a-8b6c-e07bc4c86bc6",
+          "isCurrent" : false,
+          "lifecycle" : "archived",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "retraction" : {
+            "evidence" : [
+              {
+                "executionID" : "5fb3fd43-ac34-4a10-8542-e2c7d92d1eb3",
+                "hasExcerpt" : true,
+                "hasHash" : true,
+                "revision" : 2,
+                "sourceReference" : "session:125ab512-a861-44ad-a446-a90e8d49d22f\/execution:5fb3fd43-ac34-4a10-8542-e2c7d92d1eb3\/message:5b6d12e4-6229-4948-845c-5ebb31ee499d\/admission:11d36bbe-8570-45da-bf84-c2f5ba5c6658@16"
+              }
+            ],
+            "priorRevision" : 1,
+            "revision" : 2
+          },
+          "revision" : 2,
+          "revisionBodyCount" : 2,
+          "revisionNumbers" : [
+            1,
+            2
+          ],
+          "state" : "archived"
+        }
+      ],
+      "id" : "en-early-flight-clear-retraction",
+      "kind" : "clearRetraction",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "foreground_retraction_committed_before_background",
+        "established_memory_retracted_without_replacement_with_separate_provenance",
+        "retraction_and_provenance_survive_library_reopen"
+      ],
+      "status" : "failed",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2176,
+              "complete" : true,
+              "id" : "89fca809-5905-428c-ad47-7410cd6d57b3",
+              "inputTokens" : 2343,
+              "outputTokens" : 76,
+              "reasoningTokens" : 28
+            },
+            {
+              "cacheReadTokens" : 1792,
+              "complete" : true,
+              "id" : "b98d8c56-88fd-400c-9722-16f86a78069a",
+              "inputTokens" : 2037,
+              "outputTokens" : 263,
+              "reasoningTokens" : 221
+            }
+          ],
+          "executionID" : "c52cae66-60fa-44fd-a78c-227ddcae23ef",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "ed936f14-8de9-4841-a3e4-630f4332ea74",
+                "cacheReadTokens" : 1280,
+                "chargedTokens" : 2159,
+                "dispatched" : true,
+                "inputTokens" : 1591,
+                "ordinal" : 1,
+                "outputTokens" : 568,
+                "reasoningTokens" : 464,
+                "reservedTokens" : 23535,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "299ef6ae-6fcd-42fe-a0ef-57abd39636f8",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "c52cae66-60fa-44fd-a78c-227ddcae23ef",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "I prefer early flights when I travel.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User prefers early flights when traveling.",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "c52cae66-60fa-44fd-a78c-227ddcae23ef"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:125ab512-a861-44ad-a446-a90e8d49d22f\/execution:c52cae66-60fa-44fd-a78c-227ddcae23ef\/message:70028801-349a-416e-ad46-f764b41b6795\/admission:32052db1-42c0-48ad-ab10-00e785be4bd2@2"
+              ],
+              "id" : "d0223e03-9f92-470a-8b6c-e07bc4c86bc6",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 0,
+          "retractSucceededCount" : 0,
+          "sessionID" : "125ab512-a861-44ad-a446-a90e8d49d22f"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2944,
+              "complete" : true,
+              "id" : "199924b6-6e3c-44e5-9eef-41a2273cad16",
+              "inputTokens" : 3096,
+              "outputTokens" : 39,
+              "reasoningTokens" : 0
+            },
+            {
+              "cacheReadTokens" : 2304,
+              "complete" : true,
+              "id" : "f2e0ba45-a113-4a47-ba34-6b8467f905e5",
+              "inputTokens" : 2708,
+              "outputTokens" : 281,
+              "reasoningTokens" : 148
+            }
+          ],
+          "executionID" : "5fb3fd43-ac34-4a10-8542-e2c7d92d1eb3",
+          "executionOutcome" : "completed",
+          "expectation" : "retractWithoutReplacement",
+          "extraction" : {
+            "attempts" : [
+
+            ],
+            "candidateCount" : 0,
+            "memoryCount" : 0,
+            "status" : "suppressed_retraction_source"
+          },
+          "index" : 1,
+          "input" : "I retract my earlier statement that I generally prefer early flights. That was only true for one trip because there were no other options; I do not have a general flight-time preference.",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "User prefers early flights when traveling.",
+              "detailAvailable" : true,
+              "evidenceCount" : 2,
+              "evidenceExcerptCount" : 2,
+              "evidenceExecutionIDs" : [
+                "c52cae66-60fa-44fd-a78c-227ddcae23ef"
+              ],
+              "evidenceHashCount" : 2,
+              "evidenceSourceReferences" : [
+                "session:125ab512-a861-44ad-a446-a90e8d49d22f\/execution:c52cae66-60fa-44fd-a78c-227ddcae23ef\/message:70028801-349a-416e-ad46-f764b41b6795\/admission:32052db1-42c0-48ad-ab10-00e785be4bd2@2"
+              ],
+              "id" : "d0223e03-9f92-470a-8b6c-e07bc4c86bc6",
+              "isCurrent" : false,
+              "lifecycle" : "archived",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "retraction" : {
+                "evidence" : [
+                  {
+                    "executionID" : "5fb3fd43-ac34-4a10-8542-e2c7d92d1eb3",
+                    "hasExcerpt" : true,
+                    "hasHash" : true,
+                    "revision" : 2,
+                    "sourceReference" : "session:125ab512-a861-44ad-a446-a90e8d49d22f\/execution:5fb3fd43-ac34-4a10-8542-e2c7d92d1eb3\/message:5b6d12e4-6229-4948-845c-5ebb31ee499d\/admission:11d36bbe-8570-45da-bf84-c2f5ba5c6658@16"
+                  }
+                ],
+                "priorRevision" : 1,
+                "revision" : 2
+              },
+              "revision" : 2,
+              "revisionBodyCount" : 2,
+              "revisionNumbers" : [
+                1,
+                2
+              ],
+              "state" : "archived"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:d0223e03-9f92-470a-8b6c-e07bc4c86bc6@1"
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "retractInvocationCount" : 1,
+          "retractSucceededCount" : 1,
+          "sessionID" : "125ab512-a861-44ad-a446-a90e8d49d22f"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "request_authorization_cap_reached"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-22T03:07:22Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 8,
+  "requestAuthorizationCount" : 8,
+  "selectedCaseIDs" : [
+    "en-early-flight-clear-retraction"
+  ],
+  "status" : "completed_with_failures_or_mismatches",
+  "updatedAt" : "2026-09-22T03:10:04Z",
+  "version" : 1
+}

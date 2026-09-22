@@ -114,7 +114,9 @@ extension SQLiteMemoryExtractionStore {
                     try SQLiteMemoryExtractionStore.validate(output, route: identity.route)
                     let value = try SessionCodec.decode(JSONValue.self, from: Data(output.text.utf8))
                     guard case .object(let object) = value, case .array(let items) = object["items"],
-                        items.count <= 6, decisions?.allSatisfy({ items.indices.contains($0.proposalIndex) }) == true
+                        case .array(let retractions) = object["retractions"],
+                        items.count + retractions.count <= 6,
+                        decisions?.allSatisfy({ (0..<(items.count + retractions.count)).contains($0.proposalIndex) }) == true
                     else { throw Self.invalid }
                 }
             } else {
@@ -224,7 +226,7 @@ extension SQLiteMemoryExtractionStore {
         try MemoryExtractionRequestBuilder.validate(source: source)
         guard source.reference == job.origin.source, source.workspaceID == job.workspaceID,
             source.observedHead.cursor.sequence >= job.origin.completionHead.cursor.sequence,
-            try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(source.reference), in: db)
+            try !SQLiteMemoryStore.memoryCaptureSuppressed(.userMessage(source.reference), in: db)
         else { throw unauthorized }
         if let workspaceID = source.workspaceID { _ = try SQLiteWorkspaceStore.read(workspaceID, in: db) }
     }
@@ -259,7 +261,7 @@ extension SQLiteMemoryExtractionStore {
             guard evidence.workspaceID == job.workspaceID,
                   evidence.sessionAuthorizationEpoch == source.sessionAuthorizationEpoch,
                   evidence.admittedAt.timeIntervalSince1970.isFinite,
-                  try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(evidence.reference), in: db)
+                  try !SQLiteMemoryStore.memoryCaptureSuppressed(.userMessage(evidence.reference), in: db)
             else { throw unauthorized }
         }
         let request = AgentContextRequest(sessionID: source.reference.sessionID, executionID: claim.executionID,

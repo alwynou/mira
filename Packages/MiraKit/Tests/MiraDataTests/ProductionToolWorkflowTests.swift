@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Production tools with inherited context", .timeLimit(.minutes(1)))
 struct ProductionToolWorkflowTests {
-    @Test(arguments: ["memory.search", "memory.get", "memory.remember", "knowledge.search",
+    @Test(arguments: ["memory.search", "memory.get", "memory.remember", "memory.retract", "knowledge.search",
                       "source.open", "source.read_chunk", "task.list", "task.change"])
     func toolReturnsUsefulResultAfterHistoryAndRecall(name: String) async throws {
         try await withTaskWorkflow(memoryEnabled: true, knowledgeEnabled: true) { f in
@@ -29,7 +29,8 @@ struct ProductionToolWorkflowTests {
             let task = try await f.save(draft: .init(title: "brew green tea"))
             await f.model.append([Self.reply("Prior conversation")])
             let prior = try await f.run("Hello")
-            let text = name == "memory.remember" ? "Remember: I prefer green tea" : "Create a task to brew green tea"
+            let text = name == "memory.remember" ? "Remember: I prefer green tea" :
+                (name == "memory.retract" ? "Actually that preference was only for one trip." : "Create a task to brew green tea")
             let arguments: JSONValue
             switch name {
             case "memory.search", "knowledge.search": arguments = .object(["query": .string("green tea")])
@@ -38,6 +39,10 @@ struct ProductionToolWorkflowTests {
                 arguments = .object(["content": .string(content), "quote": .string(content),
                     "kind": .string("preference"), "scope": .string("current"), "sensitive": .bool(false),
                     "enriches": .array([])])
+            case "memory.retract":
+                arguments = .object(["memory_id": .string(memory.id.rawValue.uuidString.lowercased()),
+                    "revision": .number(Double(memory.revision)),
+                    "quote": .string("Actually that preference was only for one trip.")])
             case "source.open": arguments = .object(["source_id": .string(source.source.id.rawValue.uuidString)])
             case "source.read_chunk": arguments = .object(["chunk_id": .string(chunk.id.rawValue.uuidString)])
             case "task.list": arguments = .object([:])
@@ -61,6 +66,10 @@ struct ProductionToolWorkflowTests {
                 let saved = try await memoryStore.memoryDetail(.init(id), workspaceID: nil)
                 #expect(saved.memory.draft?.content == content)
                 #expect(result["allows_remote_use"] == .bool(true))
+                #expect(invocation.resolution?.businessReceipt != nil)
+            case "memory.retract":
+                #expect(result["state"] == .string("archived"))
+                #expect(result["disposition"] == .string("retracted"))
                 #expect(invocation.resolution?.businessReceipt != nil)
             case "knowledge.search": #expect(Self.first(result["hits"])?["chunk_id"]?.stringValue == chunk.id.rawValue.uuidString.lowercased())
             case "source.open": #expect(result["title"]?.stringValue == "Tea.md")

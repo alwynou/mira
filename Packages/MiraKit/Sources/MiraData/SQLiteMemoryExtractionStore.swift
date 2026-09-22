@@ -93,12 +93,13 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             let sessions = try String.fetchAll(db, sql: "SELECT DISTINCT session_id FROM memory_extraction_dirty ORDER BY session_id LIMIT 128")
             for session in sessions {
                 let rows = try Row.fetchAll(db, sql: "SELECT json, workspace_id FROM memory_extraction_dirty WHERE session_id = ? ORDER BY admission_sequence LIMIT ?", arguments: [session, MemoryExtractionBatching.maximumTurns])
-                let turns = try rows.map { try Self.decode(MemoryExtractionTurn.self, $0["json"]) }
+                let eligible = try Self.eligibleDirtyTurns(rows, in: db)
+                let turns = eligible.map(\.turn)
                 guard let trigger = MemoryExtractionBatching.trigger(turns: turns, now: at) else { continue }
                 let bounded = MemoryExtractionBatching.bounded(turns)
                 guard let first = bounded.first else { continue }
                 let origin = MemoryExtractionOrigin(source: first.source, completedExecutionID: first.completedExecutionID, completionEventID: first.completionEventID, completionHead: first.completionHead)
-                let workspace: WorkspaceID? = (rows.first?["workspace_id"] as String?)
+                let workspace: WorkspaceID? = (eligible.first?.workspaceID)
                     .flatMap { UUID(uuidString: $0) }.map { WorkspaceID($0) }
                 let job = MemoryExtractionJob(id: .init(), origin: origin, workspaceID: workspace,
                     createdAt: at, updatedAt: at, turns: bounded)
@@ -222,9 +223,11 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             guard attempt.status == .dispatched else { throw Self.conflict }
             try Self.validate(output, route: claim.route)
             let batchSources = claim.batchSources
-            let proposals = try MemoryExtractionValidator.validate(output: output.text, sources: batchSources)
+            let extraction = try MemoryExtractionValidator.validate(
+                output: output.text, sources: batchSources,
+                existingMemoryCount: claim.existingMemories.count)
             let result = try SQLiteMemoryStore.commitExtractionBatchProposals(
-                proposals, claim: claim, sources: batchSources, at: at, in: db)
+                extraction, claim: claim, sources: batchSources, at: at, in: db)
             let charge: Int
             if let input = output.usage.totalInputTokens, let count = output.usage.outputTokens {
                 let (sum, overflow) = input.addingReportingOverflow(count)
@@ -336,7 +339,7 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
         try date(at)
         try MemoryExtractionRequestBuilder.validate(source: source)
         guard origin.source == source.reference else { throw conflict }
-        guard try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(source.reference), in: db)
+        guard try !SQLiteMemoryStore.memoryCaptureSuppressed(.userMessage(source.reference), in: db)
         else { return nil }
         let sourceKey = try sourceKey(source.reference)
         if let row = try Row.fetchOne(
@@ -371,7 +374,7 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             guard item.origin.source == item.source.reference,
                   item.source.admittedAt.timeIntervalSince1970.isFinite,
                   !item.source.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  try !SQLiteMemoryStore.suppressedMemorySource(.userMessage(item.source.reference), in: db) else { continue }
+                  try !SQLiteMemoryStore.memoryCaptureSuppressed(.userMessage(item.source.reference), in: db) else { continue }
             let durableSourceKey = try sourceKey(item.source.reference)
             guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM memory_extraction_sources WHERE source_key=?)", arguments: [durableSourceKey]) != true else { continue }
             let tokenEstimate = max(1, (item.source.text.utf8.count + 3) / 4)
@@ -386,8 +389,9 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
             try db.execute(sql: "INSERT OR IGNORE INTO memory_extraction_dirty(source_key, session_id, workspace_id, json, created_at, admission_sequence) VALUES (?, ?, ?, ?, ?, ?)", arguments: [try sourceKey(item.source.reference), key(item.source.reference.sessionID), item.source.workspaceID.map(key), bytes, item.completedAt.timeIntervalSince1970, item.source.reference.admissionSequence])
         }
         guard let session = turns.first?.source.reference.sessionID else { return nil }
-        let rows = try Row.fetchAll(db, sql: "SELECT json FROM memory_extraction_dirty WHERE session_id = ? ORDER BY admission_sequence LIMIT ?", arguments: [key(session), MemoryExtractionBatching.maximumTurns])
-        let pending = try rows.map { try decode(MemoryExtractionTurn.self, $0["json"]) }
+        let rows = try Row.fetchAll(db, sql: "SELECT json, workspace_id FROM memory_extraction_dirty WHERE session_id = ? ORDER BY admission_sequence LIMIT ?", arguments: [key(session), MemoryExtractionBatching.maximumTurns])
+        let eligible = try eligibleDirtyTurns(rows, in: db)
+        let pending = eligible.map(\.turn)
         guard let trigger = MemoryExtractionBatching.trigger(turns: pending, now: at) else { return nil }
         let bounded = MemoryExtractionBatching.bounded(pending)
         guard let first = bounded.first,
@@ -395,11 +399,30 @@ public final class SQLiteMemoryExtractionStore: MemoryExtractionStore, MemoryExt
         _ = trigger // persisted by the job's deterministic turn set; no model triage is performed.
         let originTurn = try decode(MemoryExtractionTurn.self, originRow["json"])
         let origin = MemoryExtractionOrigin(source: originTurn.source, completedExecutionID: originTurn.completedExecutionID, completionEventID: originTurn.completionEventID, completionHead: originTurn.completionHead)
-        let job = MemoryExtractionJob(id: .init(), origin: origin, workspaceID: turns.first?.source.workspaceID,
+        let job = MemoryExtractionJob(id: .init(), origin: origin, workspaceID: eligible.first?.workspaceID
+            .flatMap { UUID(uuidString: $0) }.map { WorkspaceID($0) },
             createdAt: at, updatedAt: at, turns: bounded)
         try write(job, insert: true, in: db)
         for turn in bounded { try db.execute(sql: "DELETE FROM memory_extraction_dirty WHERE source_key = ?", arguments: [try sourceKey(turn.source)]) }
         return job
+    }
+
+    /// Dirty turns can outlive a foreground withdrawal. Remove those turns
+    /// before applying batching so a stale source cannot create a queued job
+    /// after its capture barrier was written.
+    private static func eligibleDirtyTurns(_ rows: [Row], in db: Database) throws
+        -> [(turn: MemoryExtractionTurn, workspaceID: String?)] {
+        var eligible: [(turn: MemoryExtractionTurn, workspaceID: String?)] = []
+        for row in rows {
+            let turn = try decode(MemoryExtractionTurn.self, row["json"])
+            if try SQLiteMemoryStore.memoryCaptureSuppressed(.userMessage(turn.source), in: db) {
+                try db.execute(sql: "DELETE FROM memory_extraction_dirty WHERE source_key = ?",
+                               arguments: [try sourceKey(turn.source)])
+            } else {
+                eligible.append((turn, row["workspace_id"] as String?))
+            }
+        }
+        return eligible
     }
 
 

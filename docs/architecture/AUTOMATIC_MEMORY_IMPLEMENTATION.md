@@ -99,7 +99,7 @@ Worker settlement preserves the typed code inside `AgentModelFailure`, using a f
 
 ## 决定、演变与清理
 
-提取器使用 v3 JSON。每项必须包含有效的批次 `inputIndex`、模型改写后的 `content`、kind/subject/sensitivity；scope 由宿主确定，另包含、`confidence`、`stable` 和 assertion 分类；多个事实可以支持同一回合，host 按输出数组位置记录 proposalIndex。模型不提供 quote。host 依据 inputIndex 绑定整条对应 journal 来源，验证来源、workspace、权限和隐私后才提交。每批最多六个 item，输出最多 32 KiB。
+提取器使用 v4 JSON（request builder revision 5）。顶层必须有 `version`、`items` 和 `retractions`；items 与 retractions 合计最多六项。每项必须包含有效的批次 `inputIndex`、模型改写后的 `content`、kind/subject/sensitivity；scope 由宿主确定，另包含、`confidence`、`stable` 和 assertion 分类；多个事实可以支持同一回合，host 按输出数组位置记录 proposalIndex。模型不提供 quote。host 依据 inputIndex 绑定整条对应 journal 来源，验证来源、workspace、权限和隐私后才提交。每批最多六个 item，输出最多 32 KiB。
 
 The advertised `aspectKey` schema and instructions state the same format the validator enforces: null, or 3–96 ASCII characters in two to four dot-separated segments, each starting with a lowercase letter and continuing with lowercase letters, digits or hyphens. Underscores, whitespace, uppercase and non-ASCII characters are invalid. The existing reserved whole-key values are also advertised; they are not a ban on those words appearing as individual segments. A missing useful narrow grouping hint can be represented as null. Invalid metadata still rejects the output; the host does not silently rewrite it or treat the key as semantic authorization.
 
@@ -107,9 +107,15 @@ The advertised `aspectKey` schema and instructions state the same format the val
 
 断言去重独立于尝试 ID。同一来源和同一规范化断言可复用已有记忆，不重复制造证据。语义 aspect 只用于冲突分组，不能授予授权；匹配时校验索引字段、规范元数据、来源和原证据的一致性。请求会带最多 32 条有界的现有有效记忆，模型可对同一 subject/aspect 的明确修订设置 `replacesIndex`，或对同一明确实体的非冲突信息补充设置 `changeIntent = enrichment` 及明确目标。host 只在索引、旧记忆 revision、来源和发送策略仍匹配时以 CAS 自动 supersede；含糊或竞争变化跳过。用户修订后，旧提取元数据不能继续授权自动替换。
 
+### Withdrawal without a replacement
+
+A `retractions` entry names `inputIndex` and `targetIndex` into the frozen existing-memory list, plus `mode`, `inferred` and `confidence`. Only high-confidence, uninferred correction intent can retire an assertion. Quoted, hypothetical and uncertain output is skipped. Targets must be unique and cannot also be replaced or enriched by an item in the same output. Retraction has no content field and cannot manufacture a replacement assertion. When an initial assertion is withdrawn within the same batch and no prior current target exists, the model should emit neither assertion.
+
+The commit reducer checks the frozen ID/revision, current observed-user origin/authority, standard disclosure, source authorization and extraction metadata revision. User-edited or manually saved targets are excluded from automatic withdrawal. It archives eligible targets with the shared retraction transaction, then settles decisions and the attempt in the same outer transaction. After a withdrawal commits, ordinary assertion items from that output are conservatively skipped because their whole-batch supporting sources now cross the capture barrier. Distinct withdrawal targets may share a source that was validated before the first mutation under the same writer transaction; each target and its privacy authorization are still checked separately. A retracted decision names the original ID and new archived revision with no replacement relation. The capture barrier is checked before any action, not reapplied against the transaction's own newly committed withdrawal; completed-attempt replay returns its original settlement. Stale or revoked input cannot revive an old assertion.
+
 ### Explicit enrichment targets
 
-The v3 output contract includes `changeIntent = enrichment`. An enrichment must name exactly one target: `replacesIndex` into the frozen `existingMemories`, or `replacesProposalIndex` into an earlier raw output-item position. `inputIndex` still identifies the supporting user turn and must not be confused with either target index. Missing, mixed, forward, self, low-confidence or incompatible earlier-item targets are rejected. The model must identify the same entity, preserve all supported prior facts and validity bounds, and add only directly stated, non-conflicting information. Prefer one consolidated item for multiple turns about the same entity. Semantic confidence is a model judgment; host validation does not prove arbitrary natural-language entailment.
+The v4 output contract includes `changeIntent = enrichment`. An enrichment must name exactly one target: `replacesIndex` into the frozen `existingMemories`, or `replacesProposalIndex` into an earlier raw output-item position. `inputIndex` still identifies the supporting user turn and must not be confused with either target index. Missing, mixed, forward, self, low-confidence or incompatible earlier-item targets are rejected. The model must identify the same entity, preserve all supported prior facts and validity bounds, and add only directly stated, non-conflicting information. Prefer one consolidated item for multiple turns about the same entity. Semantic confidence is a model judgment; host validation does not prove arbitrary natural-language entailment.
 
 The commit reducer resolves the target to its exact current ID and revision, checks compatible scope, subject, kind, disclosure policy and validity, then atomically creates the complete representation and supersedes the previous one. Enrichment never falls back to aspect grouping. Same, different and null aspect keys therefore have the same behavior when an explicit target is supplied. Similar independent items still use the independent path, and ambiguous conflicts remain conservative. Target revisions changed during the batch fail the transaction instead of producing competing current versions.
 
@@ -117,7 +123,7 @@ Enrichment copies the target's evidence and binds the input batch evidence, dedu
 
 遗忘的领域事务清除记忆正文、修订、摘录、提取 aspect 和受影响作业尝试中的请求／输出／thinking／错误正文，保留无正文出处、状态和计费事实，提升来源抑制强度。晚到工作器不能重建正文。完整遗忘仍需要库维护协调器排空相关工作组并完成其他领域清理；仅完成这里的事务不能报告跨领域遗忘已完成。会话日志保留其原始 inline 历史，不由记忆遗忘重写。
 
-每条创建或复用的 item 与成功尝试同事务保存 `MemoryExtractionDecision`：输出 proposalIndex、创建／复用、结果记忆及当时修订／状态，以及替代目标 ID。跳过的项目不写决定行，因此决定索引可以不连续；输出数组仍保存在受管尝试正文中。创建记忆、决定、费用、尝试及作业成功状态要么一起提交，要么全部回滚。决定是历史事实，不能授权当前召回或写入。
+每条创建、复用或撤回动作与成功尝试同事务保存 `MemoryExtractionDecision`：输出 proposalIndex（先 items，再 retractions 的原始位置）、创建／复用／撤回、结果记忆及当时修订／状态，以及替代目标 ID。跳过的项目不写决定行，因此决定索引可以不连续；输出数组仍保存在受管尝试正文中。创建记忆、决定、费用、尝试及作业成功状态要么一起提交，要么全部回滚。决定是历史事实，不能授权当前召回或写入。
 
 独立 `MemoryExtractionInspectionStore` 按作业、尝试序号和精确工作区读取已完成尝试的审核报告。未完成返回 nil；成功无提案返回空决定数组；已清理返回带清理时间且决定为 nil 的报告。不存在或其他工作区的尝试拒绝读取。它不暴露准备请求或 thinking，也不增加工作器的读取职责。遗忘将提案级明细连同模型正文一并清除，保留尝试身份和计费事实。
 

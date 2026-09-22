@@ -136,7 +136,7 @@ struct MemoryExtractionWorkerTests {
                 probe: probe,
                 events: [
                     .blockStarted(.init(id: "thinking", content: .thinking("classify"))), .continuation(continuation), .blockFinished(id: "thinking"),
-                    .blockStarted(.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))), .blockFinished(id: "text"),
+                    .blockStarted(.init(id: "text", content: .text("{\"version\":4,\"items\":[],\"retractions\":[]}"))), .blockFinished(id: "text"),
                     .usage(.init(inputTokens: 10, outputTokens: 4)), .finished(.stop),
                 ]))
         try await fixture.withCleanup { fixture in
@@ -557,7 +557,7 @@ private struct WorkerAdapter: AgentModelAdapter {
     let requiresCompactInput: Bool
     init(
         probe: WorkerProbe = .init(),
-        events: [AgentModelStreamEvent] = [.blockStarted(.init(id: "text", content: .text("{\"version\":3,\"items\":[]}"))), .blockFinished(id: "text"), .finished(.stop)],
+        events: [AgentModelStreamEvent] = [.blockStarted(.init(id: "text", content: .text("{\"version\":4,\"items\":[],\"retractions\":[]}"))), .blockFinished(id: "text"), .finished(.stop)],
         streamFailure: AgentModelFailure? = nil,
         outputTokenLimitOverride: Int? = nil,
         prepareGate: WorkerGate? = nil, streamGate: WorkerGate? = nil, mutateInput: Bool = false, requiresCompactInput: Bool = false

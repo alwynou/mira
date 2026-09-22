@@ -101,6 +101,11 @@ When the user asks to save a non-conflicting addition to the same clearly identi
 
 A clear correction of a recalled assertion can use the foreground tool's separate replacement target. The user's correction must identify both the changed assertion and its subject; the model names the exact current memory and revision and acknowledges what was replaced after the transaction commits. Unclear intent or an ambiguous target requires clarification. Replacement keeps the predecessor in history and attaches the new statement's evidence to the new memory; it does not treat the contradicted statement as supporting evidence or create an independent competing preference. This is distinct from non-conflicting enrichment.
 
+A clear withdrawal without a new value uses `memory.retract` to identify one exact current assertion and revision. For example, retracting a general early-flight preference because it applied only to one trip archives that assertion; it does not establish a late-flight preference or a new negative preference. The assistant acknowledges withdrawal only after the transaction commits. An ambiguous target, a quotation, a hypothetical statement or uncertain intent requires clarification or no mutation. Privacy forgetting remains a separate operation.
+
+Withdrawal retains the original ID, assertion body, revisions and supporting evidence. Its later user source is recorded separately as withdrawal provenance, never as support for the old assertion. Ordinary recall excludes the archived memory, including after reopening the library. Earlier authorized historical references remain inspectable under current privacy rules. Original and withdrawal sources cannot create new memories through delayed extraction or replay; unrelated existing facts sharing those sources remain usable. A fresh later user statement can establish a new preference, and an explicit manual reactivation follows the existing lifecycle controls.
+
+
 #### B. 用户清晰表达稳定事实、偏好或决定
 
 例如：

@@ -11,7 +11,7 @@ struct MemoryExtractionValidatorTests {
             return
         }
         #expect(schema["additionalProperties"] == .bool(false))
-        #expect(schema["required"] == .array([.string("version"), .string("items")]))
+        #expect(schema["required"] == .array([.string("version"), .string("items"), .string("retractions")]))
         #expect(MemoryExtractionValidator.instructions.contains("aspectKey"))
         #expect(MemoryExtractionValidator.instructions.contains("changeIntent to enrichment"))
         #expect(MemoryExtractionValidator.instructions.contains("Preserve all supported facts"))
@@ -47,7 +47,7 @@ struct MemoryExtractionValidatorTests {
 
         var malformed = item(content: text, quote: text, kind: "preference")
         malformed["assertion"] = ["mode": "directStable", "aspectKey": "preference", "changeIntent": "independent"]
-        assertError({ _ = try validateJSONObject(["version": 3, "items": [malformed]], source: source(text)) }, code: .invalidInput, message: "Automatic memory assertion aspect key is invalid.")
+        assertError({ _ = try validateJSONObject(["version": 4, "items": [malformed]], source: source(text)) }, code: .invalidInput, message: "Automatic memory assertion aspect key is invalid.")
     }
 
     @Test func aspectKeySchemaFormatMatchesValidatorWithoutRejectingGenericSegments() throws {
@@ -100,12 +100,48 @@ struct MemoryExtractionValidatorTests {
     @Test func replacementClassificationRequiresExplicitIntent() throws {
         let text = "I prefer coffee"
         var replacement = item(content: text, quote: text, kind: "preference", aspectKey: "drink.preference", changeIntent: "uncertain")
-        let noCue = try validateJSONObject(["version": 3, "items": [replacement]], source: source(text))
+        let noCue = try validateJSONObject(["version": 4, "items": [replacement]], source: source(text))
         #expect(noCue[0].triage == .candidate)
         replacement["content"] = "I now prefer coffee"
         replacement["assertion"] = ["mode": "directStable", "aspectKey": "drink.preference", "changeIntent": "explicitReplacement"]
         let withCue = try validate(item: replacement, source: source("I now prefer coffee"))
         #expect(withCue[0].triage == .active)
+    }
+
+    @Test func retractionsAreStrictTargetedActionsAndUnsupportedOnesAreSkipped() throws {
+        let text = "I no longer prefer green tea"
+        let sourceValue = source(text)
+        assertError({ _ = try MemoryExtractionValidator.validate(
+            output: json(["version": 4, "items": []]), source: sourceValue, existingMemoryCount: 1)
+        }, code: .invalidInput, message: "Automatic memory output must use version 4 and only its required top-level keys.")
+        func retraction(_ target: Int, mode: String = "correction", inferred: Bool = false,
+                        confidence: String = "high") -> [String: Any] {
+            ["inputIndex": 0, "targetIndex": target, "mode": mode,
+             "inferred": inferred, "confidence": confidence]
+        }
+        let accepted = try MemoryExtractionValidator.validate(
+            output: json(["version": 4, "items": [], "retractions": [retraction(0)]]),
+            source: sourceValue, existingMemoryCount: 1)
+        #expect(accepted.proposals.isEmpty)
+        #expect(accepted.retractions.count == 1)
+        #expect(accepted.retractions[0].targetIndex == 0)
+        #expect(accepted.retractions[0].rawIndex == 0)
+
+        let skipped = try MemoryExtractionValidator.validate(
+            output: json(["version": 4, "items": [], "retractions": [
+                retraction(0, mode: "quoted"), retraction(0, inferred: true),
+                retraction(0, confidence: "low")
+            ]]), source: sourceValue, existingMemoryCount: 1)
+        #expect(skipped.retractions.isEmpty)
+
+        assertError({ _ = try MemoryExtractionValidator.validate(
+            output: json(["version": 4, "items": [], "retractions": [retraction(1)]]),
+            source: sourceValue, existingMemoryCount: 1)
+        }, code: .invalidInput, message: "Automatic memory retraction has missing or invalid fields.")
+        assertError({ _ = try MemoryExtractionValidator.validate(
+            output: json(["version": 4, "items": [], "retractions": [retraction(0), retraction(0)]]),
+            source: sourceValue, existingMemoryCount: 1)
+        }, code: .invalidInput, message: "Automatic memory retraction targets must be unique.")
     }
 
     @Test func enrichmentRequiresOneExplicitExistingMemoryOrEarlierProposalTarget() throws {
@@ -344,12 +380,12 @@ struct MemoryExtractionValidatorTests {
 
     @Test func malformedAndUnknownShapesAreRejected() throws {
         let validSource = source("I prefer compact interfaces")
-        assertError({ _ = try MemoryExtractionValidator.validate(output: "```json\n{}\n```", source: validSource) }, code: .invalidInput, message: "Automatic memory output must be a JSON object without Markdown.")
-        assertError({ _ = try validateJSONObject(["version": 3, "items": [], "extra": true], source: validSource) }, code: .invalidInput, message: "Automatic memory output must use version 3 and only its required top-level keys.")
-        assertError({ _ = try validateJSONObject(["version": 3, "items": [["bad": true]]], source: validSource) }, code: .invalidInput, message: "Automatic memory item keys are invalid.")
-        assertError({ _ = try validateJSONObject(["version": 3, "items": [item(content: validSource.text, quote: validSource.text, kind: "preference", extra: ["unexpected": true])]], source: validSource) }, code: .invalidInput, message: "Automatic memory item keys are invalid.")
-        assertError({ _ = try validateJSONObject(["version": 3, "items": Array(repeating: item(content: validSource.text, quote: validSource.text, kind: "preference"), count: 7)], source: validSource) }, code: .invalidInput, message: "Automatic memory output must contain at most 6 items.")
-        assertError({ _ = try MemoryExtractionValidator.validate(output: String(repeating: "x", count: 32_769), source: validSource) }, code: .invalidInput, message: "Automatic memory output must be at most 32 KiB.")
+        assertError({ _ = try MemoryExtractionValidator.validate(output: "```json\n{}\n```", source: validSource, existingMemoryCount: 32) }, code: .invalidInput, message: "Automatic memory output must be a JSON object without Markdown.")
+        assertError({ _ = try validateJSONObject(["version": 4, "items": [], "extra": true], source: validSource) }, code: .invalidInput, message: "Automatic memory output must use version 4 and only its required top-level keys.")
+        assertError({ _ = try validateJSONObject(["version": 4, "items": [["bad": true]]], source: validSource) }, code: .invalidInput, message: "Automatic memory item keys are invalid.")
+        assertError({ _ = try validateJSONObject(["version": 4, "items": [item(content: validSource.text, quote: validSource.text, kind: "preference", extra: ["unexpected": true])]], source: validSource) }, code: .invalidInput, message: "Automatic memory item keys are invalid.")
+        assertError({ _ = try validateJSONObject(["version": 4, "items": Array(repeating: item(content: validSource.text, quote: validSource.text, kind: "preference"), count: 7)], source: validSource) }, code: .invalidInput, message: "Automatic memory output must contain at most 6 items.")
+        assertError({ _ = try MemoryExtractionValidator.validate(output: String(repeating: "x", count: 32_769), source: validSource, existingMemoryCount: 32) }, code: .invalidInput, message: "Automatic memory output must be at most 32 KiB.")
     }
 
     @Test func forgedQuotesDatesAndTypesAreRejected() throws {
@@ -360,9 +396,9 @@ struct MemoryExtractionValidatorTests {
         assertError({ _ = try validate(item: item(content: text, quote: text, kind: "preference", validFrom: "2025-01-02T00:00:00Z", validUntil: "2025-01-01T00:00:00Z"), source: source(text)) }, code: .invalidInput, message: "Automatic memory item validity must end after it starts.")
         var wrongType = item(content: text, quote: text, kind: "preference")
         wrongType["inferred"] = "false"
-        assertError({ _ = try validateJSONObject(["version": 3, "items": [wrongType]], source: source(text)) }, code: .invalidInput, message: "Automatic memory item has a missing or invalid field.")
+        assertError({ _ = try validateJSONObject(["version": 4, "items": [wrongType]], source: source(text)) }, code: .invalidInput, message: "Automatic memory item has a missing or invalid field.")
         let wrongEnum = item(content: text, quote: text, kind: "unknown")
-        assertError({ _ = try validateJSONObject(["version": 3, "items": [wrongEnum]], source: source(text)) }, code: .invalidInput, message: "Automatic memory item contains an invalid enum value.")
+        assertError({ _ = try validateJSONObject(["version": 4, "items": [wrongEnum]], source: source(text)) }, code: .invalidInput, message: "Automatic memory item contains an invalid enum value.")
     }
 
     @Test func invalidSourcesFailClosed() throws {
@@ -429,11 +465,13 @@ private func validate(item: [String: Any], source: SessionUserEvidence) throws -
 }
 
 private func validate(items: [[String: Any]], source: SessionUserEvidence) throws -> [MemoryExtractionProposal] {
-    try MemoryExtractionValidator.validate(output: json(["version": 3, "items": items]), source: source)
+    try MemoryExtractionValidator.validate(output: json(["version": 4, "items": items, "retractions": []]), source: source, existingMemoryCount: 32).proposals
 }
 
 private func validateJSONObject(_ object: [String: Any], source: SessionUserEvidence) throws -> [MemoryExtractionProposal] {
-    try MemoryExtractionValidator.validate(output: json(object), source: source)
+    var object = object
+    if object["retractions"] == nil { object["retractions"] = [] }
+    return try MemoryExtractionValidator.validate(output: json(object), source: source, existingMemoryCount: 32).proposals
 }
 
 private func json(_ object: [String: Any]) -> String {

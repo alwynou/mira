@@ -7,12 +7,22 @@ import MiraCore
 /// authority remain host-owned. Similarity and aspect keys never authorize enrichment.
 extension SQLiteMemoryStore {
     static func commitExtractionBatchProposals(
-        _ proposals: [MemoryExtractionProposal], claim: MemoryExtractionClaim,
+        _ extraction: MemoryExtractionOutput, claim: MemoryExtractionClaim,
         sources: [SessionUserEvidence], at: Date, in db: Database
     ) throws -> (memoryIDs: [MemoryID], candidateMemoryIDs: [MemoryID], decisions: [MemoryExtractionDecision]) {
         try claim.validate()
         try date(at)
-        guard !sources.isEmpty, sources.count == claim.batchSources.count, proposals.count <= 6 else { throw invalid }
+        guard !sources.isEmpty, sources.count == claim.batchSources.count,
+              extraction.proposals.count + extraction.retractions.count <= 6 else { throw invalid }
+        let targetIndexes = extraction.retractions.map(\.targetIndex)
+        let rawIndexes = extraction.retractions.map(\.rawIndex)
+        guard Set(targetIndexes).count == targetIndexes.count,
+              Set(rawIndexes).count == rawIndexes.count,
+              extraction.retractions.allSatisfy({ retraction in
+                  (0..<(6 - extraction.proposals.count)).contains(retraction.rawIndex) &&
+                  retraction.mode == .correction && !retraction.inferred && retraction.confidence == "high" &&
+                  !extraction.proposals.contains(where: { $0.replacesIndex == retraction.targetIndex })
+              }) else { throw invalid }
         for (source, expected) in zip(sources, claim.batchSources) {
             try MemoryExtractionRequestBuilder.validate(source: source)
             guard source.reference == expected.reference, source.text == expected.text,
@@ -23,15 +33,60 @@ extension SQLiteMemoryStore {
                 source.workspaceID == claim.job.workspaceID,
                 source.reference == claim.source.reference || claim.job.turns.contains(where: { $0.source == source.reference })
             else { throw invalid }
-            guard try !suppressedMemorySource(.userMessage(source.reference), in: db) else { throw unauthorized }
+            guard try !memoryCaptureSuppressed(.userMessage(source.reference), in: db) else { throw unauthorized }
         }
 
         var decisions: [MemoryExtractionDecision] = []
+        var withdrawnInputs = Set<Int>()
+        var retractionCommitted = false
+        // Retractions are resolved against the frozen claim and committed before
+        // assertions. An ineligible target is ignored; an indexed but stale target
+        // fails the outer transaction so no assertion can race it into existence.
+        for retraction in extraction.retractions {
+            guard sources.indices.contains(retraction.inputIndex),
+                  claim.existingMemories.indices.contains(retraction.targetIndex) else { throw invalid }
+            let target = claim.existingMemories[retraction.targetIndex]
+            let current = try read(target.id, workspaceID: sources[retraction.inputIndex].workspaceID, in: db)
+            guard current.revision == target.revision else { throw conflict }
+            guard current.origin == .observedUserStatement, current.authority == .observedUser,
+                  current.state == .active, current.supersededBy == nil,
+                  current.retraction == nil,
+                  current.lifecycleStatus(at: at) == .active,
+                  try currentAspectIsAuthorized(target: current, in: db) else {
+                withdrawnInputs.insert(retraction.inputIndex)
+                continue
+            }
+            let source = sources[retraction.inputIndex]
+            let request = AgentContextRequest(
+                sessionID: source.reference.sessionID, executionID: claim.executionID,
+                workspaceID: source.workspaceID, userText: source.text,
+                authorizationEpoch: source.sessionAuthorizationEpoch, destination: .model(claim.route))
+            let receipt = try SQLiteMemoryStore.retractMemoryInTransaction(
+                target: .init(memoryID: target.id, revision: target.revision),
+                source: .userMessage(evidence: source, excerpt: String(source.text.prefix(2_048))),
+                operationID: UUID(), request: request, at: at, in: db,
+                captureWasValidatedInTransaction: true)
+            guard receipt.disposition == .retracted else { throw conflict }
+            retractionCommitted = true
+            withdrawnInputs.insert(retraction.inputIndex)
+            decisions.append(.init(
+                proposalIndex: extraction.proposals.count + retraction.rawIndex,
+                memoryID: receipt.memory.id, memoryRevision: receipt.memory.revision,
+                memoryState: receipt.memory.state, disposition: .retracted,
+                validationReviewReason: nil))
+        }
         // Raw output positions stay stable even when an item is skipped.
         var committed: [Int: Memory] = [:]
-        for (index, proposal) in proposals.enumerated() {
+        for (index, proposal) in extraction.proposals.enumerated() {
+            // A withdrawal marks the batch's source set as having crossed the
+            // capture barrier. Keep this transaction conservative: a model
+            // response cannot also establish ordinary assertions from the same
+            // batch after that barrier has been written.
+            guard !retractionCommitted else { continue }
             guard sources.indices.contains(proposal.inputIndex) else { throw invalid }
+            guard !withdrawnInputs.contains(proposal.inputIndex) else { continue }
             let source = sources[proposal.inputIndex]
+            guard try !memoryCaptureSuppressed(.userMessage(source.reference), in: db) else { continue }
             try validate(proposal, source: source)
             try validateEvolutionTarget(proposal, index: index, existingCount: claim.existingMemories.count)
             guard proposal.triage == .active else { continue }
@@ -120,12 +175,40 @@ extension SQLiteMemoryStore {
                 conflictingMemoryIDs: matches.map { $0.memory.id }, replacedMemoryID: evolves ? previous?.memory.id : nil))
             committed[index] = memory
         }
+        decisions.sort { $0.proposalIndex < $1.proposalIndex }
         for decision in decisions { try decision.validate() }
         let ids = decisions.reduce(into: [MemoryID]()) { if !$0.contains($1.memoryID) { $0.append($1.memoryID) } }
         let candidateIDs = decisions.filter { $0.memoryState == .candidate }.reduce(into: [MemoryID]()) {
             if !$0.contains($1.memoryID) { $0.append($1.memoryID) }
         }
         return (ids, candidateIDs, decisions)
+    }
+
+    /// Automatic retraction requires the current extraction aspect row. This is
+    /// deliberately narrower than recall authorization: it excludes memories
+    /// created manually or edited in the foreground while retaining the exact
+    /// revision CAS supplied by the claim.
+    private static func currentAspectIsAuthorized(target: Memory, in db: Database) throws -> Bool {
+        guard target.origin == .observedUserStatement, target.authority == .observedUser,
+              target.draft?.sensitivity == .standard else { return false }
+        guard let row = try Row.fetchOne(
+            db,
+            sql: """
+                SELECT m.*, a.memory_revision AS aspect_memory_revision,
+                       a.source_json AS aspect_source_json, a.source_hash AS aspect_source_hash,
+                       a.semantic_key AS aspect_semantic_key, a.assertion_mode AS aspect_assertion_mode,
+                       a.change_intent AS aspect_change_intent, a.metadata_json AS aspect_metadata_json,
+                       a.created_at AS aspect_created_at, a.body_purged_at AS aspect_body_purged_at,
+                       a.source_key AS aspect_source_key
+                FROM memory_records m JOIN memory_extraction_aspects a ON a.memory_id = m.id
+                WHERE m.id = ? AND a.memory_revision = ? AND a.body_purged_at IS NULL
+                """,
+            arguments: [key(target.id), target.revision]) else { return false }
+        let stored: Memory
+        do { stored = try record(row) } catch { return false }
+        guard stored == target else { return false }
+        let metadata = try validatedAspect(row, memory: target, in: db)
+        return metadata.memoryRevision == target.revision
     }
 
     private static func sameAssertion(_ memory: Memory, draft: MemoryDraft) -> Bool {

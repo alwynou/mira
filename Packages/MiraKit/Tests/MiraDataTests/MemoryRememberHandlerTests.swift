@@ -69,7 +69,7 @@ struct MemoryRememberHandlerTests {
     }
 
     private func effect(content: String = "Remember this", effectKind: SessionEffectKind = .localWrite,
-                        namespace: String = "memory.remember", descriptorRevision: Int = 3,
+                        namespace: String = "memory.remember", descriptorRevision: Int = 4,
                         targets: [AgentSourceReference] = [], input: JSONValue? = nil,
                         enriches: [AgentSourceReference] = [],
                         replaces: AgentSourceReference? = nil,
