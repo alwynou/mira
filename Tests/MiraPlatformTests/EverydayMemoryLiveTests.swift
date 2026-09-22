@@ -61,6 +61,11 @@ final class EverydayMemoryLiveTests: XCTestCase {
         XCTAssertEqual(Set(corpus.scenarios.map(\.kind)), Set(StateEvolutionKind.allCases.map(\.rawValue)))
         XCTAssertTrue(corpus.scenarios.contains { $0.kind == StateEvolutionKind.automaticEnrichment.rawValue })
         XCTAssertTrue(corpus.scenarios.contains { $0.kind == StateEvolutionKind.foregroundEnrichment.rawValue })
+        let nearMisses = corpus.scenarios.filter { $0.kind == StateEvolutionKind.retractionNearMiss.rawValue }
+        XCTAssertEqual(nearMisses.count, 6)
+        for language in ["en", "zh-CN"] {
+            XCTAssertEqual(nearMisses.filter { $0.language == language }.count, 3)
+        }
 
         var duplicate = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         var scenarios = try XCTUnwrap(duplicate["scenarios"] as? [[String: Any]])
@@ -80,6 +85,58 @@ final class EverydayMemoryLiveTests: XCTestCase {
         missingLineageStep["scenarios"] = missingLineageScenarios
         XCTAssertThrowsError(try StateEvolutionCorpus.load(data: JSONSerialization.data(withJSONObject: missingLineageStep)))
         XCTAssertThrowsError(try corpus.selected(ids: ["unknown-state-case"]))
+    }
+
+    func testNearMissRequiresUnchangedEstablishedMemoryAndRejectsMutationAttempts() throws {
+        let baseline = StateEvolutionMemorySnapshot(
+            id: "preference", revision: 1, state: "active", lifecycle: "active", isCurrent: true,
+            body: "I prefer aisle seats", origin: "observedUserStatement", authority: "observedUser",
+            forgottenAt: nil, supersededByID: nil, evidenceSourceReferences: ["original-source"],
+            evidenceExecutionIDs: ["original-execution"], revisionNumbers: [1], previousMemoryIDs: [],
+            evidenceCount: 1, evidenceExcerptCount: 1, evidenceHashCount: 1, revisionBodyCount: 1,
+            detailAvailable: true, detailErrorCode: nil)
+        func failures(_ memories: [StateEvolutionMemorySnapshot], mutations: Int = 0,
+                      context: [String]? = nil) -> [String] {
+            StateEvolutionAssertions.preservationFailures(
+                memories: memories, baseline: baseline, mutationInvocationCount: mutations,
+                contextMemoryReferences: context)
+        }
+        XCTAssertTrue(failures([baseline], context: ["memory:preference@1"]).isEmpty)
+        XCTAssertTrue(StateEvolutionAssertions.preservationFailures(memories: [], baseline: nil)
+            .contains("preservation_predecessor_not_established"))
+        XCTAssertTrue(StateEvolutionAssertions.preservationFailures(
+            memories: [baseline], baseline: baseline.with(detailAvailable: false))
+            .contains("preservation_predecessor_not_established"))
+        XCTAssertTrue(failures([]).contains("preservation_target_missing"))
+        XCTAssertTrue(failures([baseline, baseline]).contains("preservation_memory_count_changed"))
+        XCTAssertTrue(failures([baseline], mutations: 1).contains("preservation_attempted_memory_mutation"))
+        XCTAssertTrue(failures([baseline], context: []).contains("preserved_memory_missing_from_fresh_context"))
+        XCTAssertTrue(failures([baseline], context: ["memory:preference@2"])
+            .contains("preserved_memory_missing_from_fresh_context"))
+
+        let mutations: [(String, Any, String)] = [
+            ("revision", 2, "preservation_assertion_changed"),
+            ("state", "archived", "preservation_assertion_changed"),
+            ("isCurrent", false, "preservation_assertion_changed"),
+            ("body", "I prefer window seats", "preservation_assertion_changed"),
+            ("detailAvailable", false, "preservation_assertion_changed"),
+            ("evidenceSourceReferences", ["near-miss-source"], "preservation_history_or_evidence_changed"),
+            ("evidenceExecutionIDs", ["near-miss-execution"], "preservation_history_or_evidence_changed"),
+            ("revisionNumbers", [1, 2], "preservation_history_or_evidence_changed"),
+            ("revisionBodyCount", 0, "preservation_history_or_evidence_changed"),
+            ("evidenceExcerptCount", 0, "preservation_history_or_evidence_changed"),
+            ("previousMemoryIDs", ["another-memory"], "preservation_history_or_evidence_changed"),
+        ]
+        for (key, value, expected) in mutations {
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(baseline)) as? [String: Any])
+            json[key] = value
+            let altered = try JSONDecoder().decode(StateEvolutionMemorySnapshot.self,
+                from: JSONSerialization.data(withJSONObject: json))
+            XCTAssertTrue(failures([altered]).contains(expected), "Changed \(key) must fail preservation.")
+        }
+        var retired = baseline
+        retired.retraction = .init(priorRevision: 1, revision: 2, evidence: [])
+        XCTAssertTrue(failures([retired]).contains("preservation_assertion_changed"))
     }
 
     func testRetractionAssertionsRequireEstablishedTargetAndSeparateWithdrawalProvenance() {
@@ -330,6 +387,106 @@ final class EverydayMemoryLiveTests: XCTestCase {
         XCTAssertEqual(counter.value, 1)
     }
 
+    func testFailureExecutionRetainsSettledUsageWithoutQualifyingCappedFollowUp() async throws {
+        let sessionID = ConversationID(), executionID = ExecutionID(), attemptID = UUID()
+        let checkpoint = StateEvolutionExecutionCheckpoint(
+            phase: "followup", stepIndex: nil, sessionID: sessionID, executionID: executionID,
+            admissionOutcome: "committed", completionOutcome: "committed")
+        let admission = SessionAdmission(
+            executionID: executionID, userMessageID: MessageID(), userBody: nil,
+            plan: .init(kind: .executionPlan, bytes: Data()), hasModelRoute: true,
+            authorizationEpoch: 1, timeZoneIdentifier: "UTC")
+        let audit = SessionExecutionAuditPage(
+            head: .init(cursor: .init(sessionID: sessionID, sequence: 10), batchID: nil), workspaceID: nil,
+            execution: .init(sessionID: sessionID, admission: admission, sequence: 1, admittedAt: .now,
+                             phase: .settling, completion: .init(executionID: executionID, status: .failed)),
+            plan: .absent, error: .available(MiraError(.outputLimit, "Synthetic raw failure body")),
+            attempts: [], modelUsage: [
+                .init(id: attemptID, startedAt: .now, usage: .init(inputTokens: 40, outputTokens: 12, reasoningTokens: 7),
+                      isComplete: true),
+                .init(id: UUID(), startedAt: .now, usage: .init(), isComplete: false)
+            ], hasMore: true)
+        var report = StateEvolutionCaseReport.pending(id: "capped-followup", kind: "retractionNearMiss", status: "failed")
+        report.errorCode = "request_authorization_cap_reached"
+        report.failureStage = "followup_status"
+        report.failureExecution = await Self.captureFailureExecution(checkpoint) { audit }
+        let snapshot = try XCTUnwrap(report.failureExecution)
+        XCTAssertEqual(snapshot.sessionID, sessionID.rawValue.uuidString.lowercased())
+        XCTAssertEqual(snapshot.executionID, executionID.rawValue.uuidString.lowercased())
+        XCTAssertEqual(snapshot.executionOutcome, "failed")
+        XCTAssertEqual(snapshot.executionErrorCode, "outputLimit")
+        XCTAssertEqual(snapshot.auditHasMore, true)
+        XCTAssertEqual(snapshot.memoryContextReferences, [])
+        XCTAssertEqual(snapshot.conversationUsage?.count, 2)
+        XCTAssertEqual(snapshot.conversationUsage?.first?.id, attemptID.uuidString.lowercased())
+        XCTAssertEqual(snapshot.conversationUsage?.first?.reasoningTokens, 7)
+        XCTAssertEqual(snapshot.conversationUsage?.last?.complete, false)
+        XCTAssertNil(snapshot.conversationUsage?.last?.inputTokens)
+        XCTAssertNil(report.followUp)
+        XCTAssertEqual(report.status, "failed")
+        XCTAssertEqual(report.errorCode, "request_authorization_cap_reached")
+        XCTAssertEqual(report.failureStage, "followup_status")
+        let encoded = try JSONEncoder().encode(report)
+        let decoded = try JSONDecoder().decode(StateEvolutionCaseReport.self, from: encoded)
+        XCTAssertEqual(decoded.failureExecution?.conversationUsage?.count, 2)
+        XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("Synthetic raw failure body"))
+        let differentExecution = StateEvolutionExecutionCheckpoint(
+            phase: "followup", stepIndex: nil, sessionID: sessionID, executionID: ExecutionID())
+        let mismatched = await Self.captureFailureExecution(differentExecution) { audit }
+        XCTAssertFalse(mismatched.auditAvailable)
+        XCTAssertEqual(mismatched.auditReadErrorCode, "audit_identity_mismatch")
+        XCTAssertNil(mismatched.conversationUsage)
+    }
+
+    func testFailureExecutionKeepsUnknownAuditSeparateFromPrimaryAdmissionFailure() async throws {
+        let checkpoint = StateEvolutionExecutionCheckpoint(
+            phase: "step", stepIndex: 1, sessionID: ConversationID(), executionID: ExecutionID(),
+            admissionOutcome: "notCommitted")
+        var report = StateEvolutionCaseReport.pending(id: "failed-admission", kind: "retractionNearMiss", status: "failed")
+        report.errorCode = "unauthorized"
+        report.failureStage = "step_submit"
+        report.failureExecution = await Self.captureFailureExecution(checkpoint) {
+            throw MiraError(.notFound, "Synthetic raw query failure")
+        }
+        let snapshot = try XCTUnwrap(report.failureExecution)
+        XCTAssertEqual(snapshot.admissionOutcome, "notCommitted")
+        XCTAssertNil(snapshot.completionOutcome)
+        XCTAssertFalse(snapshot.auditAvailable)
+        XCTAssertEqual(snapshot.auditReadErrorCode, "notFound")
+        XCTAssertNil(snapshot.executionOutcome)
+        XCTAssertNil(snapshot.memoryContextReferences)
+        XCTAssertNil(snapshot.conversationUsage)
+        XCTAssertEqual(report.errorCode, "unauthorized")
+        XCTAssertEqual(report.failureStage, "step_submit")
+        let encoded = try JSONEncoder().encode(report)
+        XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("Synthetic raw query failure"))
+    }
+
+    func testEvaluationAnswerIsBoundToExactSessionAndExecutionRegardlessOfPageOrder() throws {
+        let sessionID = ConversationID(), oldExecution = ExecutionID(), currentExecution = ExecutionID()
+        func message(_ executionID: ExecutionID, role: SessionMessageRole, sequence: Int64,
+                     text: String?, session: ConversationID? = nil) -> SessionQueryMessage {
+            .init(summary: .init(
+                id: MessageID(), sessionID: session ?? sessionID, executionID: executionID,
+                role: role, sequence: sequence, occurredAt: .now, body: nil, thinking: nil),
+                body: text.map(SessionTextContent.available) ?? .absent, thinking: .absent)
+        }
+        let previous = message(oldExecution, role: .assistant, sequence: 2, text: "Previous preference acknowledgment")
+        let input = message(currentExecution, role: .user, sequence: 3, text: "Translate a quoted withdrawal")
+        let current = message(currentExecution, role: .assistant, sequence: 4, text: "Translation of the quoted line")
+        func answer(_ messages: [SessionQueryMessage]) throws -> String? {
+            try Self.assistantAnswer(in: .init(session: nil, messages: messages, executions: [], hasMore: false),
+                                     sessionID: sessionID, executionID: currentExecution)
+        }
+        XCTAssertEqual(try answer([current, input, previous]), "Translation of the quoted line")
+        XCTAssertEqual(try answer([previous, input, current]), "Translation of the quoted line")
+        XCTAssertNil(try answer([previous, input]))
+        XCTAssertNil(try answer([previous, message(currentExecution, role: .assistant, sequence: 4, text: nil)]))
+        XCTAssertNil(try answer([message(currentExecution, role: .assistant, sequence: 4,
+                                        text: "Another session", session: ConversationID())]))
+        XCTAssertThrowsError(try answer([current, current]))
+    }
+
     func testOptInStateEvolutionEvaluation() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["MIRA_RUN_LIVE_MEMORY_STATE_EVAL"] == "1" else {
@@ -515,7 +672,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
             if case .committed = followupCompletion,
                try await Self.executionStatus(
                    in: workloads, sessionID: followupSessionID, executionID: followupExecutionID) == .completed {
-                answer = try await Self.assistantAnswer(in: workloads, sessionID: followupSessionID)
+                answer = try await Self.assistantAnswer(
+                    in: workloads, sessionID: followupSessionID, executionID: followupExecutionID)
                 let parsed = MemoryCitationReference.references(in: answer ?? "")
                 references = parsed.count
                 for reference in parsed {
@@ -591,6 +749,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         var lastExecutionID: ExecutionID?
         var lastSessionID: ConversationID?
         var lastExtractionState: String?
+        var executionCheckpoint: StateEvolutionExecutionCheckpoint?
         let sourceSessionID = ConversationID()
 
         func publish() throws { try onProgress(report) }
@@ -702,6 +861,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 let sessionID = sourceSessionID
                 let executionID = ExecutionID()
                 failureStage = "step_submit"
+                executionCheckpoint = .init(phase: "step", stepIndex: stepIndex,
+                                             sessionID: sessionID, executionID: executionID)
                 let admission = await workloads.application.submit(Self.command(
                     sessionID: sessionID, executionID: executionID, text: step.input,
                     route: activeRoutes.conversation,
@@ -709,6 +870,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                         ? .init(title: "Memory state evaluation \(scenario.id)", workspaceID: nil)
                         : nil,
                     instructions: Self.stateEvaluationInstructions))
+                executionCheckpoint?.admissionOutcome = Self.commitOutcome(admission)
                 lastExecutionID = executionID
                 lastSessionID = sessionID
                 guard case .committed = admission else {
@@ -718,6 +880,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 }
                 failureStage = "step_wait"
                 let completion = await workloads.application.waitForExecution(id: executionID, sessionID: sessionID)
+                executionCheckpoint?.completionOutcome = Self.commitOutcome(completion)
                 failureStage = "step_completion"
                 let status: ExecutionStatus?
                 if case .committed = completion {
@@ -757,6 +920,22 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 }
                 let retractSucceeded = retractCalls.filter {
                     $0.state.resolution?.status == .succeeded && $0.state.resolution?.businessReceipt != nil
+                }
+                failureStage = "step_answer"
+                guard let stepAnswer = try await Self.assistantAnswer(
+                    in: workloads, sessionID: sessionID, executionID: executionID),
+                    !stepAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    report.errorCode = "step_answer_missing"
+                    throw MiraError(.storage, "The completed evaluation step has no visible assistant answer.")
+                }
+                if step.expect == "preserve" {
+                    failureStage = "foreground_preservation_capture"
+                    let immediate = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
+                    let failures = StateEvolutionAssertions.preservationFailures(
+                        memories: immediate, baseline: establishedSnapshot,
+                        mutationInvocationCount: rememberCalls.count + retractCalls.count)
+                    report.mismatchReasons.append(contentsOf: failures.map { "foreground_" + $0 })
+                    if failures.isEmpty { report.stateChecks.append("near_miss_preserves_memory_before_background") }
                 }
                 var extraction: StateEvolutionExtractionSnapshot
                 if step.expect == "retractWithoutReplacement", !retractCalls.isEmpty {
@@ -880,6 +1059,13 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     report.mismatchReasons.append(contentsOf: failures)
                     if failures.isEmpty { report.stateChecks.append("one_current_enriched_representation_with_lineage") }
                 }
+                if step.expect == "preserve" {
+                    let failures = StateEvolutionAssertions.preservationFailures(
+                        memories: memorySnapshots, baseline: establishedSnapshot,
+                        mutationInvocationCount: rememberCalls.count + retractCalls.count)
+                    report.mismatchReasons.append(contentsOf: failures)
+                    if failures.isEmpty { report.stateChecks.append("near_miss_preserves_memory_after_background") }
+                }
 
                 let stepSnapshot = StateEvolutionStepSnapshot(
                     index: stepIndex, expectation: step.expect, input: step.input,
@@ -891,8 +1077,9 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     rememberSucceededCount: rememberSucceeded.count,
                     conversationUsage: audit.modelUsage.map(StateEvolutionTokenUsageSnapshot.init),
                     memories: memorySnapshots, retractInvocationCount: retractCalls.count,
-                    retractSucceededCount: retractSucceeded.count)
+                    retractSucceededCount: retractSucceeded.count, answer: stepAnswer)
                 report.stepSnapshots.append(stepSnapshot)
+                executionCheckpoint = nil
                 report.finalMemorySnapshots = memorySnapshots
                 if scenario.kind == StateEvolutionKind.foregroundEnrichment.rawValue && step.expect == "remember" {
                     let committed = memorySnapshots.filter {
@@ -944,7 +1131,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 try publish()
             }
 
-            if scenario.kind == StateEvolutionKind.clearRetraction.rawValue {
+            if [StateEvolutionKind.clearRetraction.rawValue, StateEvolutionKind.retractionNearMiss.rawValue]
+                .contains(scenario.kind) {
                 approvalTask?.cancel()
                 _ = await approvalTask?.result
                 failureStage = "retraction_library_close"
@@ -965,11 +1153,19 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     sessionSelection: .inherit, workspaceID: nil, requiredCapabilities: []).route
                 routes = .init(conversation: conversation, extraction: routes?.extraction ?? conversation)
                 report.finalMemorySnapshots = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
-                let failures = StateEvolutionAssertions.retractionFailures(
-                    memories: report.finalMemorySnapshots, baseline: establishedSnapshot,
-                    withdrawalExecutionID: withdrawalExecutionID, contextMemoryReferences: [])
+                let isNearMiss = scenario.kind == StateEvolutionKind.retractionNearMiss.rawValue
+                let failures = isNearMiss
+                    ? StateEvolutionAssertions.preservationFailures(
+                        memories: report.finalMemorySnapshots, baseline: establishedSnapshot)
+                    : StateEvolutionAssertions.retractionFailures(
+                        memories: report.finalMemorySnapshots, baseline: establishedSnapshot,
+                        withdrawalExecutionID: withdrawalExecutionID, contextMemoryReferences: [])
                 report.mismatchReasons.append(contentsOf: failures.map { "reopened_" + $0 })
-                if failures.isEmpty { report.stateChecks.append("retraction_and_provenance_survive_library_reopen") }
+                if failures.isEmpty {
+                    report.stateChecks.append(isNearMiss
+                        ? "near_miss_preserves_memory_after_reopen"
+                        : "retraction_and_provenance_survive_library_reopen")
+                }
                 try publish()
             }
 
@@ -978,11 +1174,14 @@ final class EverydayMemoryLiveTests: XCTestCase {
             guard let activeRoutes = routes else { throw MiraError(.configuration, "The evaluation route is unavailable.") }
             let followupSessionID = ConversationID(), followupExecutionID = ExecutionID()
             failureStage = "followup_submit"
+            executionCheckpoint = .init(phase: "followup", stepIndex: nil,
+                                         sessionID: followupSessionID, executionID: followupExecutionID)
             let admission = await workloads.application.submit(Self.command(
                 sessionID: followupSessionID, executionID: followupExecutionID, text: scenario.followUp,
                 route: activeRoutes.conversation,
                 opening: .init(title: "Memory state follow-up \(scenario.id)", workspaceID: nil),
                 instructions: Self.stateEvaluationInstructions))
+            executionCheckpoint?.admissionOutcome = Self.commitOutcome(admission)
             guard case .committed = admission else {
                 let code = Self.recordStateFailureCode(
                     in: &report, result: admission, fallback: "admission_failed")
@@ -990,6 +1189,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
             }
             failureStage = "followup_wait"
             let completion = await workloads.application.waitForExecution(id: followupExecutionID, sessionID: followupSessionID)
+            executionCheckpoint?.completionOutcome = Self.commitOutcome(completion)
             failureStage = "followup_completion"
             if case .committed = completion { failureStage = "followup_status" }
             guard case .committed = completion,
@@ -1013,7 +1213,8 @@ final class EverydayMemoryLiveTests: XCTestCase {
             let followupAudit = try await workloads.queries.executionAudit(
                 sessionID: followupSessionID, executionID: followupExecutionID, beforeSequence: nil, limit: 32)
             failureStage = "followup_answer"
-            guard let answer = try await Self.assistantAnswer(in: workloads, sessionID: followupSessionID),
+            guard let answer = try await Self.assistantAnswer(
+                in: workloads, sessionID: followupSessionID, executionID: followupExecutionID),
                   !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 report.status = "failed"
                 report.terminalOutcome = "followup_answer_missing"
@@ -1048,6 +1249,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 answerKeywordObservations: answerKeywords,
                 conversationUsage: followupAudit.modelUsage.map(StateEvolutionTokenUsageSnapshot.init))
             report.followUp = followup
+            executionCheckpoint = nil
             failureStage = "final_memory_capture"
             report.finalMemorySnapshots = try await Self.captureState(in: workloads, knownIDs: trackedMemoryIDs)
             let currentIDsAfterFollowUp = Set(report.finalMemorySnapshots.filter { $0.lifecycle == "active" }.map(\.id))
@@ -1096,6 +1298,15 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     withdrawalExecutionID: withdrawalExecutionID, contextMemoryReferences: followupReferences)
                 report.mismatchReasons.append(contentsOf: failures)
                 if failures.isEmpty { report.stateChecks.append("retracted_memory_excluded_from_fresh_session_after_reopen") }
+            case .retractionNearMiss:
+                let mutationCalls = followupAudit.attempts.flatMap(\.invocations).filter {
+                    ["memory.remember", "memory.retract"].contains($0.state.invocation.toolName)
+                }
+                let failures = StateEvolutionAssertions.preservationFailures(
+                    memories: report.finalMemorySnapshots, baseline: establishedSnapshot,
+                    mutationInvocationCount: mutationCalls.count, contextMemoryReferences: followupReferences)
+                report.mismatchReasons.append(contentsOf: failures)
+                if failures.isEmpty { report.stateChecks.append("preserved_memory_in_fresh_session_after_reopen") }
             case .none: break
             }
             report.terminalOutcome = "followup_completed"
@@ -1119,6 +1330,15 @@ final class EverydayMemoryLiveTests: XCTestCase {
             }
             report.backgroundExtractionState = lastExtractionState ?? "not_waited"
             report.approvalDenialCount = approvalCounter.value
+            if let checkpoint = executionCheckpoint, let workloads = group {
+                // Preserve whatever the failed execution actually settled. The
+                // evidence read must never replace the primary failure or retry work.
+                report.failureExecution = await Self.captureFailureExecution(checkpoint) {
+                    try await workloads.queries.executionAudit(
+                        sessionID: checkpoint.sessionID, executionID: checkpoint.executionID,
+                        beforeSequence: nil, limit: 32)
+                }
+            }
             if let workloads = group, let sourceExecution = lastExecutionID, let sourceSession = lastSessionID {
                 let page = try? await workloads.memories.extractionStatus(
                     sessionID: sourceSession, executionID: sourceExecution, workspaceID: nil,
@@ -1400,10 +1620,24 @@ final class EverydayMemoryLiveTests: XCTestCase {
                      memoryCount: job.memoryCount, candidateCount: job.candidateCount, attempts: attempts)
     }
 
-    private static func assistantAnswer(in group: MacLibraryWorkloads, sessionID: ConversationID) async throws -> String? {
+    private static func assistantAnswer(
+        in group: MacLibraryWorkloads, sessionID: ConversationID, executionID: ExecutionID
+    ) async throws -> String? {
         _ = try await group.queries.synchronize(sessionID: sessionID)
         let page = try await group.queries.messagePage(sessionID: sessionID, beforeSequence: nil, limit: 128)
-        return page.messages.reversed().first(where: { $0.summary.role == .assistant })?.body.text
+        return try Self.assistantAnswer(in: page, sessionID: sessionID, executionID: executionID)
+    }
+
+    private static func assistantAnswer(
+        in page: SessionQueryMessagePage, sessionID: ConversationID, executionID: ExecutionID
+    ) throws -> String? {
+        let matching = page.messages.filter {
+            $0.summary.sessionID == sessionID && $0.summary.executionID == executionID && $0.summary.role == .assistant
+        }
+        guard matching.count <= 1 else {
+            throw MiraError(.storage, "The evaluated execution has multiple assistant messages.")
+        }
+        return matching.first?.body.text
     }
 
     private static func executionStatus(
@@ -1476,6 +1710,44 @@ final class EverydayMemoryLiveTests: XCTestCase {
         let code = auditError?.code.rawValue ?? Self.errorCode(result) ?? fallback
         report.errorCode = code
         return code
+    }
+
+    private static func commitOutcome(_ result: SessionCommitResult) -> String {
+        switch result {
+        case .committed: "committed"
+        case .notCommitted: "notCommitted"
+        case .indeterminate: "indeterminate"
+        }
+    }
+
+    private static func captureFailureExecution(
+        _ checkpoint: StateEvolutionExecutionCheckpoint,
+        readAudit: () async throws -> SessionExecutionAuditPage
+    ) async -> StateEvolutionFailureExecutionSnapshot {
+        var snapshot = StateEvolutionFailureExecutionSnapshot(
+            phase: checkpoint.phase, stepIndex: checkpoint.stepIndex,
+            sessionID: checkpoint.sessionID.rawValue.uuidString.lowercased(),
+            executionID: checkpoint.executionID.rawValue.uuidString.lowercased(),
+            admissionOutcome: checkpoint.admissionOutcome, completionOutcome: checkpoint.completionOutcome,
+            auditAvailable: false)
+        do {
+            let audit = try await readAudit()
+            guard audit.head.cursor.sessionID == checkpoint.sessionID,
+                  audit.execution.sessionID == checkpoint.sessionID,
+                  audit.execution.id == checkpoint.executionID else {
+                snapshot.auditReadErrorCode = "audit_identity_mismatch"
+                return snapshot
+            }
+            snapshot.auditAvailable = true
+            snapshot.auditHasMore = audit.hasMore
+            snapshot.executionOutcome = audit.execution.completion?.status.rawValue
+            if case .available(let error) = audit.error { snapshot.executionErrorCode = error.code.rawValue }
+            snapshot.memoryContextReferences = Self.memoryReferences(in: audit)
+            snapshot.conversationUsage = audit.modelUsage.map(StateEvolutionTokenUsageSnapshot.init)
+        } catch {
+            snapshot.auditReadErrorCode = MiraError.safe(error).code.rawValue
+        }
+        return snapshot
     }
 
     private static func loadCorpus(at url: URL) throws -> EverydayMemoryCorpus {
@@ -1672,6 +1944,7 @@ private struct LiveEvaluationReport: Codable {
 private enum StateEvolutionKind: String, CaseIterable, Codable {
     case replacement
     case clearRetraction
+    case retractionNearMiss
     case forgetReopen
     case relatedUnsupported
     case automaticEnrichment
@@ -1734,6 +2007,7 @@ private struct StateEvolutionCorpus: Codable {
         switch StateEvolutionKind(rawValue: kind) {
         case .replacement: steps == ["establish", "replace"]
         case .clearRetraction: steps == ["establish", "retractWithoutReplacement"]
+        case .retractionNearMiss: steps == ["establish", "preserve"]
         case .forgetReopen: steps == ["establish", "forget"]
         case .relatedUnsupported: steps == ["establish"]
         case .automaticEnrichment: steps == ["establish", "enrich"]
@@ -1808,6 +2082,44 @@ private struct StateEvolutionMemorySnapshot: Codable, Sendable {
 }
 
 private enum StateEvolutionAssertions {
+    static func preservationFailures(
+        memories: [StateEvolutionMemorySnapshot], baseline: StateEvolutionMemorySnapshot?,
+        mutationInvocationCount: Int = 0, contextMemoryReferences: [String]? = nil
+    ) -> [String] {
+        guard let baseline, baseline.detailAvailable, baseline.isCurrent, baseline.state == "active",
+              baseline.lifecycle == "active", baseline.body != nil, baseline.retraction == nil,
+              !baseline.evidenceSourceReferences.isEmpty, baseline.evidenceCount > 0 else {
+            return ["preservation_predecessor_not_established"]
+        }
+        var failures: [String] = []
+        if mutationInvocationCount != 0 { failures.append("preservation_attempted_memory_mutation") }
+        if memories.count != 1 { failures.append("preservation_memory_count_changed") }
+        guard let current = memories.first(where: { $0.id == baseline.id }) else {
+            return failures + ["preservation_target_missing"]
+        }
+        if !current.detailAvailable || !current.isCurrent || current.state != baseline.state ||
+            current.lifecycle != baseline.lifecycle || current.revision != baseline.revision ||
+            current.body != baseline.body || current.origin != baseline.origin || current.authority != baseline.authority ||
+            current.forgottenAt != nil || current.supersededByID != nil || current.retraction != nil {
+            failures.append("preservation_assertion_changed")
+        }
+        if Set(current.evidenceSourceReferences) != Set(baseline.evidenceSourceReferences) ||
+            Set(current.evidenceExecutionIDs) != Set(baseline.evidenceExecutionIDs) ||
+            current.evidenceCount != baseline.evidenceCount ||
+            current.evidenceExcerptCount != baseline.evidenceExcerptCount ||
+            current.evidenceHashCount != baseline.evidenceHashCount ||
+            current.revisionNumbers != baseline.revisionNumbers ||
+            current.revisionBodyCount != baseline.revisionBodyCount ||
+            Set(current.previousMemoryIDs) != Set(baseline.previousMemoryIDs) {
+            failures.append("preservation_history_or_evidence_changed")
+        }
+        if let contextMemoryReferences,
+           !contextMemoryReferences.contains("memory:\(baseline.id)@\(baseline.revision)") {
+            failures.append("preserved_memory_missing_from_fresh_context")
+        }
+        return failures
+    }
+
     static func retractionFailures(memories: [StateEvolutionMemorySnapshot], baseline: StateEvolutionMemorySnapshot?,
                                    withdrawalExecutionID: String?, contextMemoryReferences: [String]) -> [String] {
         guard let baseline, baseline.isCurrent, baseline.lifecycle == "active", baseline.body != nil,
@@ -1962,6 +2274,7 @@ private struct StateEvolutionStepSnapshot: Codable, Sendable {
     let memories: [StateEvolutionMemorySnapshot]
     var retractInvocationCount: Int? = nil
     var retractSucceededCount: Int? = nil
+    var answer: String? = nil
 }
 
 private struct StateEvolutionKeywordObservation: Codable, Sendable {
@@ -1984,6 +2297,33 @@ private struct StateEvolutionFollowUpSnapshot: Codable, Sendable {
     let conversationUsage: [StateEvolutionTokenUsageSnapshot]
 }
 
+private struct StateEvolutionExecutionCheckpoint: Sendable {
+    let phase: String
+    let stepIndex: Int?
+    let sessionID: ConversationID
+    let executionID: ExecutionID
+    var admissionOutcome: String? = nil
+    var completionOutcome: String? = nil
+}
+
+/// Nullable audit fields distinguish unavailable evidence from an observed empty result.
+/// Usage retains attempt identity and completeness; it does not infer HTTP dispatch.
+private struct StateEvolutionFailureExecutionSnapshot: Codable, Sendable {
+    let phase: String
+    let stepIndex: Int?
+    let sessionID: String
+    let executionID: String
+    let admissionOutcome: String?
+    let completionOutcome: String?
+    var auditAvailable: Bool
+    var auditHasMore: Bool? = nil
+    var auditReadErrorCode: String? = nil
+    var executionOutcome: String? = nil
+    var executionErrorCode: String? = nil
+    var memoryContextReferences: [String]? = nil
+    var conversationUsage: [StateEvolutionTokenUsageSnapshot]? = nil
+}
+
 private struct StateEvolutionCaseReport: Codable, Sendable {
     let id: String
     let kind: String
@@ -1992,6 +2332,7 @@ private struct StateEvolutionCaseReport: Codable, Sendable {
     var errorCode: String?
     var failureStage: String?
     var failureStepIndex: Int?
+    var failureExecution: StateEvolutionFailureExecutionSnapshot? = nil
     var stepSnapshots: [StateEvolutionStepSnapshot]
     var finalMemorySnapshots: [StateEvolutionMemorySnapshot]
     var followUp: StateEvolutionFollowUpSnapshot?
