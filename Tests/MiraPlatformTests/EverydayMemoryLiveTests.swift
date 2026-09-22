@@ -869,7 +869,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                     opening: stepIndex == 0
                         ? .init(title: "Memory state evaluation \(scenario.id)", workspaceID: nil)
                         : nil,
-                    instructions: Self.stateEvaluationInstructions))
+                    instructions: ConversationInstructions.default))
                 executionCheckpoint?.admissionOutcome = Self.commitOutcome(admission)
                 lastExecutionID = executionID
                 lastSessionID = sessionID
@@ -1180,7 +1180,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 sessionID: followupSessionID, executionID: followupExecutionID, text: scenario.followUp,
                 route: activeRoutes.conversation,
                 opening: .init(title: "Memory state follow-up \(scenario.id)", workspaceID: nil),
-                instructions: Self.stateEvaluationInstructions))
+                instructions: ConversationInstructions.default))
             executionCheckpoint?.admissionOutcome = Self.commitOutcome(admission)
             guard case .committed = admission else {
                 let code = Self.recordStateFailureCode(
@@ -1443,7 +1443,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
     private static func command(
         sessionID: ConversationID, executionID: ExecutionID, text: String,
         route: AgentModelRoute, opening: AgentSessionOpening?,
-        instructions: String = "Answer naturally using relevant memories. Visible citations are optional."
+        instructions: String = ConversationInstructions.default
     ) -> AgentSubmitCommand {
         .init(id: UUID(), sessionID: sessionID, executionID: executionID,
               input: .message(id: MessageID(), text: text, timeZoneIdentifier: "UTC"),
@@ -1451,9 +1451,6 @@ final class EverydayMemoryLiveTests: XCTestCase {
                   instructions: instructions,
                   limits: .init(modelTimeoutMilliseconds: 300_000), route: route), opening: opening)
     }
-
-    private static let stateEvaluationInstructions =
-        "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations."
 
     static func waitForMemory(
         in group: MacLibraryWorkloads, sourceSession: ConversationID,
@@ -2392,7 +2389,7 @@ private struct StateEvolutionLiveReport: Codable, Sendable {
         self.selectedCaseIDs = selectedCaseIDs; self.providerID = providerID
         self.conversationModelID = conversationModelID; self.protocolID = protocolID
         self.dialectProfileID = dialectProfileID; self.adapterID = adapterID
-        self.conversationInstructions = "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations."
+        self.conversationInstructions = ConversationInstructions.default
         self.contextWindow = contextWindow
         self.conversationOutputTokens = conversationOutputTokens
         self.extractionOutputTokenCap = min(MemoryExtractionRequestBuilder.outputTokenTarget, conversationOutputTokens)

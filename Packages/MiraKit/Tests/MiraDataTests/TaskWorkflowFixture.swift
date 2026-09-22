@@ -30,13 +30,14 @@ struct TaskWorkflowFixture: Sendable {
     static let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     func run(_ text: String, sessionID: ConversationID = .init(), messageID: MessageID = .init(),
-             workspaceID: WorkspaceID? = nil, timeZone: String = "Asia/Shanghai", expectedStatus: ExecutionStatus = .completed) async throws -> AgentExecutionAddress {
+             workspaceID: WorkspaceID? = nil, timeZone: String = "Asia/Shanghai", expectedStatus: ExecutionStatus = .completed,
+             instructions: String = "Use the available task tools.") async throws -> AgentExecutionAddress {
         let executionID = ExecutionID()
         let opening: AgentSessionOpening? = try await runtime.sessionSnapshot(id: sessionID).header == nil
             ? .init(title: "Synthetic task workflow", workspaceID: workspaceID) : nil
         let command = AgentSubmitCommand(id: UUID(), sessionID: sessionID, executionID: executionID,
             input: .message(id: messageID, text: text, timeZoneIdentifier: timeZone),
-            options: .init(instructions: "Use the available task tools.", route: route),
+            options: .init(instructions: instructions, route: route),
             opening: opening)
         try taskRequireCommitted(await runtime.submit(command))
         try taskRequireCommitted(await runtime.waitForExecution(id: executionID, sessionID: sessionID))
