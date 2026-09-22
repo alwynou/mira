@@ -92,3 +92,19 @@ xcodebuild -project Mira.xcodeproj -scheme Mira \
 ```
 
 Ordinary CI validates corpus selection and evaluator failure boundaries with synthetic inputs and skips both live entries. Human review of the saved synthetic answers and citations remains necessary. A small sample, or deterministic host assertions passing, does not close Q04–Q06: their larger labeled datasets, repeated runs and per-model quality thresholds remain defined in [Quality](QUALITY.md#quality-gates). Record the selected configuration, request cap and count, usage, failures and remaining gaps in an engineering evidence document for each authorized live evaluation.
+
+### Cross-process continuity
+
+`MemoryContinuityLiveTests/testOptInContinuityPhase` is a separately gated entry for `continuity.json`. Ordinary CI skips it unless `MIRA_RUN_LIVE_MEMORY_CONTINUITY_EVAL=1`. The reproducible launcher uses two separate `xcodebuild test-without-building` processes per case, waiting for the establishing process to exit before recall. This qualifies a process restart; the older state runner's close/reopen is a same-process operation.
+
+Build the current normal `Mira` test scheme first, including the continuity tests. With the already-authorized provider credential present only in `DEEPSEEK_API_KEY`, run:
+
+```sh
+python3 scripts/run_memory_continuity.py --output-dir /tmp/mira-continuity-new-run
+```
+
+The output directory must not exist. The fixed configuration is DeepSeek `deepseek-flash`, `chat.completions`, local embeddings, provider-default thinking, context 1,000,000 and output 8,192. Each case has eight credential authorizations across its two processes; establishment may use at most six. The parent reserves the phase cap before launching and only releases unused allowance after a valid final report. Missing or unfinished evidence keeps the reservation. No automatic retry, cross-case borrowing or implicit rerun authorization is provided. Process return codes, test process IDs, per-process UUIDs, phase reports and a budget ledger are retained. The launcher deletes only its own disposable library after the child has exited.
+
+Host assertions require the ordinary path to make no foreground write and the explicit path to retain a successful matching receipt before its continuation. Both await the normal extraction job before process exit. Reports compare exact memory/evidence/revision material across restart, re-read the original source and receipt from its journal, and verify the same memory revision in the fresh request. Reports retain synthetic replies and facts for separate semantic review. They omit opaque thinking continuation and full wire requests. A completed host report is not a semantic pass, and headless process restart does not qualify native relaunch interaction or macOS 15 runtime behavior.
+
+The launcher compares canonical filesystem paths, because Foundation can represent macOS `/private/var` paths as `/var`. The first continuity run exposed this alias mismatch after successful establishment. For an explicitly authorized correction of that launcher failure, `--prior-run <directory>` accepts only four finalized, clean establishment reports with matching corpus/configuration and successful child exits. It imports all actual counts into the new ledger before doing any work, claims the prior run once, and re-establishes fresh disposable libraries. Its establishment cap is at most the remaining per-case allowance minus one; the last authorization is reserved for recall. Missing, unfinished or previously recovered runs cannot reset the allowance. This option does not recover a deleted library or qualify the earlier run as a restart pass.

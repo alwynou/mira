@@ -1,0 +1,258 @@
+{
+  "after" : [
+    {
+      "authority" : "observedUser",
+      "body" : "User usually starts a writing plan by listing the three most important tasks.",
+      "detailAvailable" : true,
+      "evidenceCount" : 1,
+      "evidenceExcerptCount" : 1,
+      "evidenceExecutionIDs" : [
+        "2f3afc5d-bec4-49d8-9732-02ffa2160ae8"
+      ],
+      "evidenceHashCount" : 1,
+      "evidenceSourceReferences" : [
+        "session:5787b21d-eff4-45b6-81ba-7647709283c2\/execution:2f3afc5d-bec4-49d8-9732-02ffa2160ae8\/message:8f737503-d8b1-4142-9f7c-d9a674587170\/admission:ff15859d-5e2a-4f5e-bb0f-9deb040ce8ac@2"
+      ],
+      "id" : "2edc17bc-823b-47dc-a231-79d43085743f",
+      "isCurrent" : true,
+      "lifecycle" : "active",
+      "origin" : "observedUserStatement",
+      "previousMemoryIDs" : [
+
+      ],
+      "revision" : 1,
+      "revisionBodyCount" : 1,
+      "revisionNumbers" : [
+        1
+      ],
+      "state" : "active"
+    }
+  ],
+  "afterMaterial" : {
+    "evidence" : [
+      {
+        "createdAt" : 1790062663474.308,
+        "excerpt" : "I usually start a writing plan by listing the three most important tasks.",
+        "id" : "1CCF82A9-D077-48CB-9253-6212F2354A40",
+        "memoryID" : {
+          "rawValue" : "2EDC17BC-823B-47DC-A231-79D43085743F"
+        },
+        "source" : {
+          "userMessage" : {
+            "_0" : {
+              "admissionEventID" : "FF15859D-5E2A-4F5E-BB0F-9DEB040CE8AC",
+              "admissionSequence" : 2,
+              "originalExecutionID" : {
+                "rawValue" : "2F3AFC5D-BEC4-49D8-9732-02FFA2160AE8"
+              },
+              "sessionID" : {
+                "rawValue" : "5787B21D-EFF4-45B6-81BA-7647709283C2"
+              },
+              "userMessageID" : {
+                "rawValue" : "8F737503-D8B1-4142-9F7C-D9A674587170"
+              }
+            }
+          }
+        },
+        "sourceHash" : "2346add428bb4eb69f9a17980e4c3bc6e73c28673cf739dc8c7e72bca7f1a787"
+      }
+    ],
+    "memory" : {
+      "authority" : "observedUser",
+      "createdAt" : 1790062663474.308,
+      "draft" : {
+        "allowsRemoteUse" : true,
+        "content" : "User usually starts a writing plan by listing the three most important tasks.",
+        "kind" : "procedure",
+        "scope" : {
+          "global" : {
+
+          }
+        },
+        "sensitivity" : "standard",
+        "subject" : "user"
+      },
+      "id" : {
+        "rawValue" : "2EDC17BC-823B-47DC-A231-79D43085743F"
+      },
+      "origin" : "observedUserStatement",
+      "revision" : 1,
+      "scope" : {
+        "global" : {
+
+        }
+      },
+      "state" : "active",
+      "subject" : "user",
+      "updatedAt" : 1790062663474.308
+    },
+    "replacements" : [
+
+    ],
+    "revisions" : [
+      {
+        "actor" : "user",
+        "changedAt" : 1790062663474.308,
+        "draft" : {
+          "allowsRemoteUse" : true,
+          "content" : "User usually starts a writing plan by listing the three most important tasks.",
+          "kind" : "procedure",
+          "scope" : {
+            "global" : {
+
+            }
+          },
+          "sensitivity" : "standard",
+          "subject" : "user"
+        },
+        "memoryID" : {
+          "rawValue" : "2EDC17BC-823B-47DC-A231-79D43085743F"
+        },
+        "revision" : 1
+      }
+    ]
+  },
+  "approvalDenialCount" : 0,
+  "before" : [
+
+  ],
+  "checks" : [
+    "exact_source_and_memory_survive_completed_background_extraction"
+  ],
+  "closeSettled" : true,
+  "execution" : {
+    "answer" : "Understood — when you start a writing plan, you like to begin by listing your three most important tasks.",
+    "executionID" : "2f3afc5d-bec4-49d8-9732-02ffa2160ae8",
+    "input" : "I usually start a writing plan by listing the three most important tasks.",
+    "memoryReferences" : [
+
+    ],
+    "rounds" : [
+      {
+        "attemptID" : "27557154-3BC0-4169-86C1-FB5B2F2CDF84",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 4,
+        "visibleText" : "Understood — when you start a writing plan, you like to begin by listing your three most important tasks."
+      }
+    ],
+    "sessionID" : "5787b21d-eff4-45b6-81ba-7647709283c2",
+    "sourceReference" : "session:5787b21d-eff4-45b6-81ba-7647709283c2\/execution:2f3afc5d-bec4-49d8-9732-02ffa2160ae8\/message:8f737503-d8b1-4142-9f7c-d9a674587170\/admission:ff15859d-5e2a-4f5e-bb0f-9deb040ce8ac@2",
+    "tools" : [
+
+    ],
+    "usage" : [
+      {
+        "cacheReadTokens" : 2176,
+        "complete" : true,
+        "id" : "27557154-3bc0-4169-86c1-fb5b2f2cdf84",
+        "inputTokens" : 2413,
+        "outputTokens" : 83,
+        "reasoningTokens" : 60
+      }
+    ]
+  },
+  "extraction" : {
+    "attempts" : [
+      {
+        "attemptID" : "e064b5b1-8350-4eb7-919a-95b27660304c",
+        "cacheReadTokens" : 256,
+        "chargedTokens" : 2616,
+        "dispatched" : true,
+        "inputTokens" : 1948,
+        "ordinal" : 1,
+        "outputTokens" : 668,
+        "reasoningTokens" : 572,
+        "reservedTokens" : 25489,
+        "state" : "completed"
+      }
+    ],
+    "candidateCount" : 0,
+    "jobID" : "913e09dd-b2af-43fb-bd6e-983f6fc39553",
+    "memoryCount" : 1,
+    "sourceExecutionID" : "2f3afc5d-bec4-49d8-9732-02ffa2160ae8",
+    "status" : "completed"
+  },
+  "finishedAt" : "2026-09-22T07:37:43Z",
+  "identity" : {
+    "caseID" : "en-automatic-writing-plan",
+    "contextWindow" : 1000000,
+    "embeddings" : "local",
+    "endpoint" : "https:\/\/api.deepseek.com",
+    "followUp" : "How do I usually begin a writing plan?",
+    "input" : "I usually start a writing plan by listing the three most important tasks.",
+    "instructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.\n\nDistinguish understanding information in this conversation from saving durable memory. For ordinary statements, acknowledge the information naturally and use it in the current conversation. Background memory extraction may run later; it is not evidence that a save has completed. Do not call memory.remember just to justify an acknowledgment, and do not wait for background extraction before replying.\n\nKeep ordinary preference acknowledgments about the user's information, not your future behavior. For example, acknowledge \"I prefer aisle seats\" with \"Understood, you prefer aisle seats\" in the user's language. Do not add \"I'll prioritize aisle seats next time\", \"I'll keep that in mind for future bookings\", or similar open-ended future-use promises. Merely replacing \"saved\" with \"understood\" does not make such a promise valid. Any offer to apply an unsaved preference must be explicitly limited to the current conversation.\n\nClaim that you saved or updated a memory only after the matching memory.remember call returns status succeeded with the committed memory content for that information. A proposed or pending call, a failed or refused result, an absent result, a previous assistant claim, or an unrelated earlier receipt is not confirmation. Without that result, do not say you have saved, recorded, or remembered the new information for later, or promise to recall or use it in future conversations. You may briefly acknowledge understanding without making a persistence claim. If an explicit save fails or is refused, explain that it was not saved; if its outcome is unknown, say that the save is unconfirmed.\n\nAfter a successful save, acknowledge only what the result confirms and respect its scope and remote-use policy. A local-only memory does not authorize future model use. Availability for future requests is not a guarantee of recall. Existing recalled memories support their stated facts, not a claim that you just saved the current message.",
+    "language" : "en",
+    "mode" : "automatic",
+    "modelID" : "deepseek-flash",
+    "outputTokens" : 8192,
+    "protocolID" : "chat.completions",
+    "providerID" : "deepseek",
+    "root" : "\/var\/folders\/hd\/vw9cr2s54879tqf2kphbkzlw0000gn\/T\/Mira-Continuity-pi__6o1k",
+    "runID" : "8ed8c4bd-295f-42f9-bd93-a3f80b87444a"
+  },
+  "immediate" : [
+
+  ],
+  "mismatches" : [
+
+  ],
+  "phase" : "establish",
+  "processID" : 46793,
+  "processInstanceID" : "ede50344-56ae-4541-99f3-ee2c848d5f61",
+  "qualification" : "host evidence only; reply and fact semantics require separate review",
+  "requestAuthorizationCap" : 6,
+  "requestAuthorizationCount" : 2,
+  "route" : {
+    "adapter" : {
+      "id" : "mira.http.chat-completions",
+      "revision" : 1
+    },
+    "capabilities" : {
+      "callsTools" : true,
+      "producesThinking" : true,
+      "streamsText" : true
+    },
+    "configuration" : {
+      "allowsLoopbackHTTP" : false,
+      "baseURL" : "https:\/\/api.deepseek.com",
+      "dialectProfileID" : "deepseek.chat",
+      "protocolID" : "chat.completions",
+      "requestsUsage" : true,
+      "storeResponses" : false,
+      "thinking" : {
+        "mode" : "providerDefault"
+      }
+    },
+    "connectionID" : {
+      "rawValue" : "4BEACD1E-41C6-4DC1-86A7-7A1C519BDC1B"
+    },
+    "connectionRevision" : 1,
+    "contextWindow" : 1000000,
+    "credential" : {
+      "reference" : "mira.credential.53b04ac1f9083283af76a1e89a9a616232511ac0a979f5497bf53c59b147efe2.f5e3f655-9e18-43d9-ad5a-fba029bd1c51",
+      "version" : 1
+    },
+    "endpointID" : "primary",
+    "id" : {
+      "rawValue" : "FE099E1F-1A9D-40F2-B85B-445049240417"
+    },
+    "invocationID" : "default",
+    "invocationRevision" : 1,
+    "maximumOutputTokens" : 8192,
+    "modelAuthorizationRevision" : 1,
+    "modelDescriptorID" : {
+      "rawValue" : "FE099E1F-1A9D-40F2-B85B-445049240417"
+    },
+    "modelID" : "deepseek-flash",
+    "modelRevision" : 1,
+    "revision" : 1
+  },
+  "startedAt" : "2026-09-22T07:35:09Z",
+  "status" : "completed",
+  "verifiedCitations" : [
+
+  ],
+  "version" : 1
+}

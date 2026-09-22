@@ -1,0 +1,113 @@
+{
+  "cases": [
+    {
+      "caseID": "en-automatic-writing-plan",
+      "phases": [
+        {
+          "caseID": "en-automatic-writing-plan",
+          "interrupted": false,
+          "invalidReason": "report_not_finished_or_clean",
+          "log": "/private/tmp/mira-issue52-eval/en-automatic-writing-plan.establish.log",
+          "observedRequestAuthorizationCount": 2,
+          "phase": "establish",
+          "processUUID": "ede50344-56ae-4541-99f3-ee2c848d5f61",
+          "report": "/private/tmp/mira-issue52-eval/en-automatic-writing-plan.establish.json",
+          "reportStatus": "completed",
+          "reportValid": false,
+          "requestAuthorizationCap": 6,
+          "requestAuthorizationCount": null,
+          "testPID": 46793,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 46606
+        }
+      ],
+      "recallSkipped": "establishment_report_not_finished_or_clean",
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-pi__6o1k",
+      "runID": "8ed8c4bd-295f-42f9-bd93-a3f80b87444a"
+    },
+    {
+      "caseID": "en-explicit-reading-room",
+      "phases": [
+        {
+          "caseID": "en-explicit-reading-room",
+          "interrupted": false,
+          "invalidReason": "report_not_finished_or_clean",
+          "log": "/private/tmp/mira-issue52-eval/en-explicit-reading-room.establish.log",
+          "observedRequestAuthorizationCount": 4,
+          "phase": "establish",
+          "processUUID": "754bb303-41d2-4b18-9b65-1ab1f426d96e",
+          "report": "/private/tmp/mira-issue52-eval/en-explicit-reading-room.establish.json",
+          "reportStatus": "completed",
+          "reportValid": false,
+          "requestAuthorizationCap": 6,
+          "requestAuthorizationCount": null,
+          "testPID": 47786,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 47600
+        }
+      ],
+      "recallSkipped": "establishment_report_not_finished_or_clean",
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-nfgbwy_0",
+      "runID": "aac2b417-2aab-47c2-9ae3-28e2711a79f8"
+    },
+    {
+      "caseID": "zh-writing-plan",
+      "phases": [
+        {
+          "caseID": "zh-writing-plan",
+          "interrupted": false,
+          "invalidReason": "report_not_finished_or_clean",
+          "log": "/private/tmp/mira-issue52-eval/zh-writing-plan.establish.log",
+          "observedRequestAuthorizationCount": 2,
+          "phase": "establish",
+          "processUUID": "c828f9e4-2887-41c4-aabc-6b73437ecc15",
+          "report": "/private/tmp/mira-issue52-eval/zh-writing-plan.establish.json",
+          "reportStatus": "completed",
+          "reportValid": false,
+          "requestAuthorizationCap": 6,
+          "requestAuthorizationCount": null,
+          "testPID": 48594,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 48407
+        }
+      ],
+      "recallSkipped": "establishment_report_not_finished_or_clean",
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-r84hds13",
+      "runID": "b7a81506-017b-46b8-a7a7-f70e7eecd7dd"
+    },
+    {
+      "caseID": "zh-explicit-meeting-time",
+      "phases": [
+        {
+          "caseID": "zh-explicit-meeting-time",
+          "interrupted": false,
+          "invalidReason": "report_not_finished_or_clean",
+          "log": "/private/tmp/mira-issue52-eval/zh-explicit-meeting-time.establish.log",
+          "observedRequestAuthorizationCount": 4,
+          "phase": "establish",
+          "processUUID": "227e9935-8d21-486f-bcf9-aca27fed0f36",
+          "report": "/private/tmp/mira-issue52-eval/zh-explicit-meeting-time.establish.json",
+          "reportStatus": "completed",
+          "reportValid": false,
+          "requestAuthorizationCap": 6,
+          "requestAuthorizationCount": null,
+          "testPID": 49459,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 49198
+        }
+      ],
+      "recallSkipped": "establishment_report_not_finished_or_clean",
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-wfgeqg6r",
+      "runID": "08500371-2fb5-4c59-a753-7344c6dfef87"
+    }
+  ],
+  "corpus": "/Users/alwyn/dev/mira/Tests/Fixtures/EverydayMemory/continuity.json",
+  "finishedAt": "2026-09-22T07:45:48Z",
+  "globalAuthorizationLimit": 32,
+  "ledger": "/private/tmp/mira-issue52-eval/budget-ledger.json",
+  "startedAt": "2026-09-22T07:35:00Z",
+  "totalCommitted": 24,
+  "totalReserved": 24,
+  "totalUsed": 0,
+  "version": 1
+}

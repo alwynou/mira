@@ -1,0 +1,146 @@
+{
+  "cases": [
+    {
+      "caseID": "en-automatic-writing-plan",
+      "phases": [
+        {
+          "caseID": "en-automatic-writing-plan",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-issue52-recovery/en-automatic-writing-plan.establish.log",
+          "observedRequestAuthorizationCount": 2,
+          "phase": "establish",
+          "processUUID": "2b6fb791-bc18-45c1-a5a0-73ff7af9f053",
+          "report": "/private/tmp/mira-issue52-recovery/en-automatic-writing-plan.establish.json",
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 5,
+          "requestAuthorizationCount": 2,
+          "testPID": 50100,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 49903
+        },
+        {
+          "caseID": "en-automatic-writing-plan",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-issue52-recovery/en-automatic-writing-plan.recall.log",
+          "observedRequestAuthorizationCount": 1,
+          "phase": "recall",
+          "processUUID": "9c4c2f3e-6159-4e55-b2a2-5974e55831ad",
+          "report": "/private/tmp/mira-issue52-recovery/en-automatic-writing-plan.recall.json",
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 4,
+          "requestAuthorizationCount": 1,
+          "testPID": 51469,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 51284
+        }
+      ],
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-hk4_djii",
+      "runID": "8cdd0963-31cc-4aa1-948a-3c1b35dc5029"
+    },
+    {
+      "caseID": "en-explicit-reading-room",
+      "phases": [
+        {
+          "caseID": "en-explicit-reading-room",
+          "interrupted": false,
+          "invalidReason": "xcodebuild_failed_or_report_missing",
+          "log": "/private/tmp/mira-issue52-recovery/en-explicit-reading-room.establish.log",
+          "observedRequestAuthorizationCount": 3,
+          "phase": "establish",
+          "processUUID": "7493c486-6572-4067-9366-a9337b4784a9",
+          "report": "/private/tmp/mira-issue52-recovery/en-explicit-reading-room.establish.json",
+          "reportStatus": "failed",
+          "reportValid": false,
+          "requestAuthorizationCap": 3,
+          "requestAuthorizationCount": null,
+          "testPID": 51671,
+          "xcodebuildExitCode": 65,
+          "xcodebuildPID": 51483
+        }
+      ],
+      "recallSkipped": "establishment_report_not_finished_or_clean",
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-4ydi78g_",
+      "runID": "dedcfcaa-ee02-4e45-a639-43cad7393d2b"
+    },
+    {
+      "caseID": "zh-writing-plan",
+      "phases": [
+        {
+          "caseID": "zh-writing-plan",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-issue52-recovery/zh-writing-plan.establish.log",
+          "observedRequestAuthorizationCount": 2,
+          "phase": "establish",
+          "processUUID": "92d8f940-a264-48be-8096-acc7c04eee78",
+          "report": "/private/tmp/mira-issue52-recovery/zh-writing-plan.establish.json",
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 5,
+          "requestAuthorizationCount": 2,
+          "testPID": 52495,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 52305
+        },
+        {
+          "caseID": "zh-writing-plan",
+          "interrupted": false,
+          "invalidReason": null,
+          "log": "/private/tmp/mira-issue52-recovery/zh-writing-plan.recall.log",
+          "observedRequestAuthorizationCount": 1,
+          "phase": "recall",
+          "processUUID": "07337aa7-8560-4888-8da0-8ee9b49ca48b",
+          "report": "/private/tmp/mira-issue52-recovery/zh-writing-plan.recall.json",
+          "reportStatus": "completed",
+          "reportValid": true,
+          "requestAuthorizationCap": 4,
+          "requestAuthorizationCount": 1,
+          "testPID": 53418,
+          "xcodebuildExitCode": 0,
+          "xcodebuildPID": 53185
+        }
+      ],
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-qmqliy7a",
+      "runID": "4398ee5d-47cc-44ca-a17d-a467a8fcdfd9"
+    },
+    {
+      "caseID": "zh-explicit-meeting-time",
+      "phases": [
+        {
+          "caseID": "zh-explicit-meeting-time",
+          "interrupted": false,
+          "invalidReason": "xcodebuild_failed_or_report_missing",
+          "log": "/private/tmp/mira-issue52-recovery/zh-explicit-meeting-time.establish.log",
+          "observedRequestAuthorizationCount": 3,
+          "phase": "establish",
+          "processUUID": "997a1201-300e-470d-96f6-f18fa3954547",
+          "report": "/private/tmp/mira-issue52-recovery/zh-explicit-meeting-time.establish.json",
+          "reportStatus": "failed",
+          "reportValid": false,
+          "requestAuthorizationCap": 3,
+          "requestAuthorizationCount": null,
+          "testPID": 53616,
+          "xcodebuildExitCode": 65,
+          "xcodebuildPID": 53430
+        }
+      ],
+      "recallSkipped": "establishment_report_not_finished_or_clean",
+      "root": "/private/var/folders/hd/vw9cr2s54879tqf2kphbkzlw0000gn/T/Mira-Continuity-owcqwsct",
+      "runID": "05d92e2e-d471-41cf-9458-459439ac6268"
+    }
+  ],
+  "corpus": "/Users/alwyn/dev/mira/Tests/Fixtures/EverydayMemory/continuity.json",
+  "finishedAt": "2026-09-22T07:58:04Z",
+  "globalAuthorizationLimit": 32,
+  "ledger": "/private/tmp/mira-issue52-recovery/budget-ledger.json",
+  "priorRun": "/private/tmp/mira-issue52-eval",
+  "startedAt": "2026-09-22T07:46:40Z",
+  "totalCommitted": 24,
+  "totalReserved": 36,
+  "totalUsed": 18,
+  "version": 1
+}
