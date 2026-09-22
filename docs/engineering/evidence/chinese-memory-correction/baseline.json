@@ -1,0 +1,336 @@
+{
+  "adapterID" : "mira.http.chat-completions",
+  "cases" : [
+    {
+      "approvalDenialCount" : 0,
+      "backgroundExtractionState" : "completed",
+      "finalMemorySnapshots" : [
+        {
+          "authority" : "explicitUser",
+          "body" : "用户在工作更新中现在希望先给结论，再补充背景（此前的“先写完整背景、再给结论”习惯已更改）。",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "db078c10-4e8b-4570-bf80-a8c3f41776ab"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:72e0b334-faf1-4163-ac56-3e5e96c2e786\/execution:db078c10-4e8b-4570-bf80-a8c3f41776ab\/message:20d4a519-635c-415a-b020-eccc6476567b\/admission:51fb4934-ec7d-4d4d-b95b-a9666ef14079@20"
+          ],
+          "id" : "952a316b-5c2b-437a-96be-a9cae09d6ddc",
+          "isCurrent" : true,
+          "lifecycle" : "active",
+          "origin" : "explicitUser",
+          "previousMemoryIDs" : [
+            "df315429-c560-478c-82e9-442e3e0e4863"
+          ],
+          "revision" : 1,
+          "revisionBodyCount" : 1,
+          "revisionNumbers" : [
+            1
+          ],
+          "state" : "active"
+        },
+        {
+          "authority" : "observedUser",
+          "body" : "用户在工作更新中通常喜欢先写完整背景，再给结论。",
+          "detailAvailable" : true,
+          "evidenceCount" : 1,
+          "evidenceExcerptCount" : 1,
+          "evidenceExecutionIDs" : [
+            "cf7f7651-5488-4508-b176-bbe5b37e8098"
+          ],
+          "evidenceHashCount" : 1,
+          "evidenceSourceReferences" : [
+            "session:72e0b334-faf1-4163-ac56-3e5e96c2e786\/execution:cf7f7651-5488-4508-b176-bbe5b37e8098\/message:7e16dba0-2b39-40fd-ba0a-b678261f48e9\/admission:4fcd15c5-ae4c-40d0-bb31-053cf7d254b9@2"
+          ],
+          "id" : "df315429-c560-478c-82e9-442e3e0e4863",
+          "isCurrent" : false,
+          "lifecycle" : "superseded",
+          "origin" : "observedUserStatement",
+          "previousMemoryIDs" : [
+
+          ],
+          "revision" : 2,
+          "revisionBodyCount" : 2,
+          "revisionNumbers" : [
+            1,
+            2
+          ],
+          "state" : "active",
+          "supersededByID" : "952a316b-5c2b-437a-96be-a9cae09d6ddc"
+        }
+      ],
+      "followUp" : {
+        "answer" : "工作更新建议按这个顺序写：\n\n1. **结论 \/ 结果先行** —— 一句话说清现在状态：完成了什么、结论是什么、需要什么决定。\n2. **关键数据或进展** —— 支撑结论的要点，简洁列出，避免大段铺陈。\n3. **背景与过程** —— 只补充理解结论所必需的信息，可放在后面或作为附录。\n4. **下一步 \/ 待办 \/ 风险** —— 你打算做什么、需要谁配合、有无阻塞。\n\n简化记忆口诀：**结论 → 依据 → 背景 → 下一步**。\n\n也就是你最近调整后的习惯：先给结论，再补背景（`memory:952a316b-5c2b-437a-96be-a9cae09d6ddc@1`）。需要的话，我可以按这个结构帮你把某次更新的草稿排一遍。",
+        "answerKeywordObservations" : [
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : true,
+            "observed" : true,
+            "term" : "先给结论"
+          },
+          {
+            "basis" : "keyword heuristic; human review required; not a semantic judge",
+            "expectedPresence" : false,
+            "observed" : false,
+            "term" : "先写完整背景"
+          }
+        ],
+        "conversationUsage" : [
+          {
+            "cacheReadTokens" : 1664,
+            "complete" : true,
+            "id" : "a6943695-0278-458b-9c61-b7a5fbf7d497",
+            "inputTokens" : 2076,
+            "outputTokens" : 265,
+            "reasoningTokens" : 76
+          }
+        ],
+        "executionID" : "54b34a2a-1dff-4d4f-b52c-3fddec1e6121",
+        "executionOutcome" : "completed",
+        "memoryContextReferences" : [
+          "memory:952a316b-5c2b-437a-96be-a9cae09d6ddc@1"
+        ],
+        "rejectedCitationReferences" : [
+
+        ],
+        "sessionID" : "3180f3e3-8e73-4e0f-8134-f3b83f13fe34",
+        "verifiedCitationReferences" : [
+
+        ],
+        "visibleCitationReferences" : [
+
+        ]
+      },
+      "id" : "zh-update-style-explicit-replacement",
+      "kind" : "replacement",
+      "mismatchReasons" : [
+
+      ],
+      "stateChecks" : [
+        "foreground_replacement_committed_before_background",
+        "one_current_replacement_with_superseded_predecessor"
+      ],
+      "status" : "completed",
+      "stepSnapshots" : [
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2048,
+              "complete" : true,
+              "id" : "4e8349bc-e050-44d6-b51d-4dae83968952",
+              "inputTokens" : 2271,
+              "outputTokens" : 124,
+              "reasoningTokens" : 38
+            },
+            {
+              "cacheReadTokens" : 1664,
+              "complete" : true,
+              "id" : "12567764-71ec-434b-acfe-b71434ddfc19",
+              "inputTokens" : 1807,
+              "outputTokens" : 382,
+              "reasoningTokens" : 300
+            }
+          ],
+          "executionID" : "cf7f7651-5488-4508-b176-bbe5b37e8098",
+          "executionOutcome" : "completed",
+          "expectation" : "establish",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "5ef6fe30-3ba5-4968-b46d-fb211ec0fd0f",
+                "cacheReadTokens" : 256,
+                "chargedTokens" : 2042,
+                "dispatched" : true,
+                "inputTokens" : 1423,
+                "ordinal" : 1,
+                "outputTokens" : 619,
+                "reasoningTokens" : 511,
+                "reservedTokens" : 21687,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "9bc540ac-406f-42fa-863a-691f484d56bf",
+            "memoryCount" : 1,
+            "sourceExecutionID" : "cf7f7651-5488-4508-b176-bbe5b37e8098",
+            "status" : "completed"
+          },
+          "index" : 0,
+          "input" : "工作更新我通常喜欢先写完整背景，再给结论。",
+          "memories" : [
+            {
+              "authority" : "observedUser",
+              "body" : "用户在工作更新中通常喜欢先写完整背景，再给结论。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "cf7f7651-5488-4508-b176-bbe5b37e8098"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:72e0b334-faf1-4163-ac56-3e5e96c2e786\/execution:cf7f7651-5488-4508-b176-bbe5b37e8098\/message:7e16dba0-2b39-40fd-ba0a-b678261f48e9\/admission:4fcd15c5-ae4c-40d0-bb31-053cf7d254b9@2"
+              ],
+              "id" : "df315429-c560-478c-82e9-442e3e0e4863",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            }
+          ],
+          "memoryContextReferences" : [
+
+          ],
+          "rememberInvocationCount" : 0,
+          "rememberSucceededCount" : 0,
+          "sessionID" : "72e0b334-faf1-4163-ac56-3e5e96c2e786"
+        },
+        {
+          "conversationUsage" : [
+            {
+              "cacheReadTokens" : 2944,
+              "complete" : true,
+              "id" : "58190534-3f2d-483d-859b-2596db5b061c",
+              "inputTokens" : 3166,
+              "outputTokens" : 84,
+              "reasoningTokens" : 0
+            },
+            {
+              "cacheReadTokens" : 2304,
+              "complete" : true,
+              "id" : "cbbc49a8-6c02-43d2-a7f7-94fbe63e6028",
+              "inputTokens" : 2660,
+              "outputTokens" : 371,
+              "reasoningTokens" : 157
+            }
+          ],
+          "executionID" : "db078c10-4e8b-4570-bf80-a8c3f41776ab",
+          "executionOutcome" : "completed",
+          "expectation" : "replace",
+          "extraction" : {
+            "attempts" : [
+              {
+                "attemptID" : "064091f3-95b7-47e7-8a63-20c4837c7cfb",
+                "cacheReadTokens" : 1024,
+                "chargedTokens" : 2768,
+                "dispatched" : true,
+                "inputTokens" : 1361,
+                "ordinal" : 1,
+                "outputTokens" : 1407,
+                "reasoningTokens" : 1397,
+                "reservedTokens" : 21331,
+                "state" : "completed"
+              }
+            ],
+            "candidateCount" : 0,
+            "jobID" : "0031f26f-6c8b-4178-815a-36470733819b",
+            "memoryCount" : 0,
+            "sourceExecutionID" : "db078c10-4e8b-4570-bf80-a8c3f41776ab",
+            "status" : "completed"
+          },
+          "index" : 1,
+          "input" : "这个习惯改了，我现在希望工作更新先给结论，再补背景。",
+          "memories" : [
+            {
+              "authority" : "explicitUser",
+              "body" : "用户在工作更新中现在希望先给结论，再补充背景（此前的“先写完整背景、再给结论”习惯已更改）。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "db078c10-4e8b-4570-bf80-a8c3f41776ab"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:72e0b334-faf1-4163-ac56-3e5e96c2e786\/execution:db078c10-4e8b-4570-bf80-a8c3f41776ab\/message:20d4a519-635c-415a-b020-eccc6476567b\/admission:51fb4934-ec7d-4d4d-b95b-a9666ef14079@20"
+              ],
+              "id" : "952a316b-5c2b-437a-96be-a9cae09d6ddc",
+              "isCurrent" : true,
+              "lifecycle" : "active",
+              "origin" : "explicitUser",
+              "previousMemoryIDs" : [
+                "df315429-c560-478c-82e9-442e3e0e4863"
+              ],
+              "revision" : 1,
+              "revisionBodyCount" : 1,
+              "revisionNumbers" : [
+                1
+              ],
+              "state" : "active"
+            },
+            {
+              "authority" : "observedUser",
+              "body" : "用户在工作更新中通常喜欢先写完整背景，再给结论。",
+              "detailAvailable" : true,
+              "evidenceCount" : 1,
+              "evidenceExcerptCount" : 1,
+              "evidenceExecutionIDs" : [
+                "cf7f7651-5488-4508-b176-bbe5b37e8098"
+              ],
+              "evidenceHashCount" : 1,
+              "evidenceSourceReferences" : [
+                "session:72e0b334-faf1-4163-ac56-3e5e96c2e786\/execution:cf7f7651-5488-4508-b176-bbe5b37e8098\/message:7e16dba0-2b39-40fd-ba0a-b678261f48e9\/admission:4fcd15c5-ae4c-40d0-bb31-053cf7d254b9@2"
+              ],
+              "id" : "df315429-c560-478c-82e9-442e3e0e4863",
+              "isCurrent" : false,
+              "lifecycle" : "superseded",
+              "origin" : "observedUserStatement",
+              "previousMemoryIDs" : [
+
+              ],
+              "revision" : 2,
+              "revisionBodyCount" : 2,
+              "revisionNumbers" : [
+                1,
+                2
+              ],
+              "state" : "active",
+              "supersededByID" : "952a316b-5c2b-437a-96be-a9cae09d6ddc"
+            }
+          ],
+          "memoryContextReferences" : [
+            "memory:df315429-c560-478c-82e9-442e3e0e4863@1"
+          ],
+          "rememberInvocationCount" : 1,
+          "rememberSucceededCount" : 1,
+          "sessionID" : "72e0b334-faf1-4163-ac56-3e5e96c2e786"
+        }
+      ],
+      "terminalExtractionJobs" : [
+
+      ],
+      "terminalOutcome" : "followup_completed"
+    }
+  ],
+  "contextWindow" : 1000000,
+  "conversationInstructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.",
+  "conversationModelID" : "deepseek-flash",
+  "conversationOutputTokens" : 8192,
+  "corpusVersion" : 1,
+  "createdAt" : "2026-09-22T01:51:34Z",
+  "dialectProfileID" : "deepseek.chat",
+  "embeddingsMode" : "local",
+  "extractionOutputTokenCap" : 8192,
+  "protocolID" : "chat.completions",
+  "providerID" : "deepseek",
+  "qualification" : "completed means host\/state checks passed; memory contents and answers require separate semantic review",
+  "requestAuthorizationCap" : 12,
+  "requestAuthorizationCount" : 7,
+  "selectedCaseIDs" : [
+    "zh-update-style-explicit-replacement"
+  ],
+  "status" : "completed",
+  "updatedAt" : "2026-09-22T01:56:44Z",
+  "version" : 1
+}

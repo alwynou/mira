@@ -242,6 +242,42 @@ final class EverydayMemoryLiveTests: XCTestCase {
                                                   requestAuthorizationCount: 2))
     }
 
+    func testStateFailureCodePreservesSafeTypedAndAuditCodesWithoutBodies() throws {
+        let rawMessage = "raw provider error body"
+        var notCommitted = StateEvolutionCaseReport.pending(id: "not-committed", kind: "replacement", status: "failed")
+        let notCommittedResult = SessionCommitResult.notCommitted(
+            MiraError(.providerRejected, rawMessage))
+        XCTAssertEqual(Self.recordStateFailureCode(
+            in: &notCommitted, result: notCommittedResult, fallback: "admission_failed"), "providerRejected")
+
+        var indeterminate = StateEvolutionCaseReport.pending(id: "indeterminate", kind: "replacement", status: "failed")
+        let indeterminateResult = SessionCommitResult.indeterminate(
+            batchID: UUID(), error: MiraError(.network, rawMessage))
+        XCTAssertEqual(Self.recordStateFailureCode(
+            in: &indeterminate, result: indeterminateResult, fallback: "execution_failed"), "network")
+
+        var auditPreferred = StateEvolutionCaseReport.pending(id: "audit", kind: "replacement", status: "failed")
+        let committed = SessionCommitResult.committed(
+            SessionCursor(sessionID: ConversationID(), sequence: 1))
+        XCTAssertEqual(Self.recordStateFailureCode(
+            in: &auditPreferred, result: committed,
+            auditError: MiraError(.outputLimit, rawMessage), fallback: "execution_failed"), "outputLimit")
+
+        var generic = StateEvolutionCaseReport.pending(id: "generic", kind: "replacement", status: "failed")
+        XCTAssertEqual(Self.recordStateFailureCode(
+            in: &generic, result: committed, fallback: "execution_failed"), "execution_failed")
+        XCTAssertEqual(notCommitted.errorCode, "providerRejected")
+        XCTAssertEqual(indeterminate.errorCode, "network")
+        XCTAssertEqual(auditPreferred.errorCode, "outputLimit")
+        XCTAssertEqual(generic.errorCode, "execution_failed")
+
+        XCTAssertEqual(Self.recordStateFailureCode(
+            in: &auditPreferred, result: indeterminateResult,
+            auditError: MiraError(.outputLimit, rawMessage), fallback: "execution_failed"), "outputLimit")
+        let data = try JSONEncoder().encode([notCommitted, indeterminate, auditPreferred, generic])
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains(rawMessage))
+    }
+
     func testRequestCapDistinguishesLastAuthorizedRequestFromDeniedAdmission() throws {
         let counter = RequestAuthorizationCounter()
         let credential = EvaluationCredentials(secret: "synthetic", counter: counter, limit: 1)
@@ -633,20 +669,27 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 lastExecutionID = executionID
                 lastSessionID = sessionID
                 guard case .committed = admission else {
-                    let code = Self.errorCode(admission) ?? "admission_failed"
+                    let code = Self.recordStateFailureCode(
+                        in: &report, result: admission, fallback: "admission_failed")
                     throw MiraError(.storage, "State evaluation admission failed (\(code)).")
                 }
                 failureStage = "step_wait"
                 let completion = await workloads.application.waitForExecution(id: executionID, sessionID: sessionID)
-                failureStage = "step_status"
-                let status = try await Self.executionStatus(in: workloads, sessionID: sessionID, executionID: executionID)
+                failureStage = "step_completion"
+                let status: ExecutionStatus?
+                if case .committed = completion {
+                    failureStage = "step_status"
+                    status = try await Self.executionStatus(in: workloads, sessionID: sessionID, executionID: executionID)
+                } else {
+                    status = nil
+                }
                 guard case .committed = completion, status == .completed else {
-                    let code = Self.errorCode(completion) ?? "execution_failed"
-                    if let audit = try? await workloads.queries.executionAudit(
-                        sessionID: sessionID, executionID: executionID, beforeSequence: nil, limit: 32),
-                       case .available(let error) = audit.error {
-                        report.errorCode = error.code.rawValue
-                    }
+                    let audit = try? await workloads.queries.executionAudit(
+                        sessionID: sessionID, executionID: executionID, beforeSequence: nil, limit: 32)
+                    let auditError: MiraError?
+                    if let audit, case .available(let error) = audit.error { auditError = error } else { auditError = nil }
+                    let code = Self.recordStateFailureCode(
+                        in: &report, result: completion, auditError: auditError, fallback: "execution_failed")
                     if requestAuthorizationCounter.wasDenied {
                         report.status = "failed"
                         report.terminalOutcome = "request_authorization_cap_reached"
@@ -846,20 +889,23 @@ final class EverydayMemoryLiveTests: XCTestCase {
                 opening: .init(title: "Memory state follow-up \(scenario.id)", workspaceID: nil),
                 instructions: Self.stateEvaluationInstructions))
             guard case .committed = admission else {
-                throw MiraError(.storage, "State follow-up admission failed (\(Self.errorCode(admission) ?? "unknown")).")
+                let code = Self.recordStateFailureCode(
+                    in: &report, result: admission, fallback: "admission_failed")
+                throw MiraError(.storage, "State follow-up admission failed (\(code)).")
             }
             failureStage = "followup_wait"
             let completion = await workloads.application.waitForExecution(id: followupExecutionID, sessionID: followupSessionID)
-            failureStage = "followup_status"
+            failureStage = "followup_completion"
+            if case .committed = completion { failureStage = "followup_status" }
             guard case .committed = completion,
                   try await Self.executionStatus(in: workloads, sessionID: followupSessionID,
                                                  executionID: followupExecutionID) == .completed else {
-                let code = Self.errorCode(completion) ?? "execution_failed"
-                if let failedAudit = try? await workloads.queries.executionAudit(
-                    sessionID: followupSessionID, executionID: followupExecutionID, beforeSequence: nil, limit: 32),
-                   case .available(let error) = failedAudit.error {
-                    report.errorCode = error.code.rawValue
-                }
+                let failedAudit = try? await workloads.queries.executionAudit(
+                    sessionID: followupSessionID, executionID: followupExecutionID, beforeSequence: nil, limit: 32)
+                let auditError: MiraError?
+                if let failedAudit, case .available(let error) = failedAudit.error { auditError = error } else { auditError = nil }
+                let code = Self.recordStateFailureCode(
+                    in: &report, result: completion, auditError: auditError, fallback: "execution_failed")
                 if requestAuthorizationCounter.wasDenied {
                     report.status = "failed"
                     report.terminalOutcome = "request_authorization_cap_reached"
@@ -1308,6 +1354,15 @@ final class EverydayMemoryLiveTests: XCTestCase {
         case .committed: nil
         case .notCommitted(let error), .indeterminate(_, let error): error.code.rawValue
         }
+    }
+
+    private static func recordStateFailureCode(
+        in report: inout StateEvolutionCaseReport, result: SessionCommitResult,
+        auditError: MiraError? = nil, fallback: String
+    ) -> String {
+        let code = auditError?.code.rawValue ?? Self.errorCode(result) ?? fallback
+        report.errorCode = code
+        return code
     }
 
     private static func loadCorpus(at url: URL) throws -> EverydayMemoryCorpus {
