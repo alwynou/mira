@@ -82,6 +82,14 @@ Clear non-conflicting enrichment uses `changeIntent = enrichment` with one exact
 
 显式人工替代继续使用独立确认事务。
 
+## Conversational deletion
+
+`memory.delete` is a revision-1 local-write tool with one exact `memory_id`, positive `revision`, and verbatim current-user `quote`. It shares current-memory disclosure, workspace, source, and revision authorization with the other foreground tools. Its business transaction inserts a body-free `MemoryDeletionRequest` and the ordinary durable business receipt atomically. The result is always a pending submission acknowledgment, never deletion completion. Replacement and retraction receipts explicitly state that their retained history has not been erased.
+
+The deletion queue is a separate current schema family included in the memory archive module. A request stores its invocation ID, memory/revision, original user evidence identity, actual execution, workspace, timestamp, and state; it copies no source text or memory body. Pending targets are unique, indexed reads are bounded, and row identities are validated against encoded values. Committed requests suppress background capture from the deletion instruction. Archive validation binds each request to its original authorized tool invocation and validates completion against durable maintenance evidence.
+
+`MacLibrary` observes business changes and processes pending requests outside its replaceable workgroup. It releases ordinary access leases, waits for the source execution to settle, and calls the existing `memory.forget` library maintenance operation. The executing tool never calls maintenance or waits for the library to drain itself. Close drains admitted maintenance, closes executions, then drains this independent processor before storage. Reopening first restores journals and admitted maintenance, then resumes queued requests without model dispatch. An exact request with a durable completed maintenance operation can reconcile its status without another purge. Failed status requires an unadmitted request whose target has become invalid; an uncertain admitted operation stays pending for recovery. Completion cannot be written without a matching completed operation.
+
 ## 召回与引用
 
 所有召回显式携带 `AgentContextRequest.destination`。适配器在一个业务读取快照内检查冻结路线当前身份、目标工作区策略、记忆范围、状态、修订、有效期、远程发送许可、连接限制，以及原来源工作区的当前发送许可。全局记忆不能绕过来源工作区限制。
@@ -102,9 +110,9 @@ Shared conversation instructions require square-bracket syntax whenever the assi
 
 ## 遗忘与后台捕获
 
-遗忘必须经过库维护协调器：持久撤销旧库授权，停止并排空生产者，执行领域正文清理、会话依赖传递失效、工具与请求正文清理，并验证实际结果后完成维护。`MemoryStore.purgeMemory` 只承担领域事务，不是可直接暴露给用户的完整遗忘操作。完整维护处理器已接通；不能把单独的领域 purge 误报为已完成遗忘。
+遗忘必须经过库维护协调器：持久撤销旧库授权，停止并排空生产者，执行记忆领域正文清理，并验证实际结果后完成维护。`MemoryStore.purgeMemory` 只承担领域事务，不是可直接暴露给用户的完整遗忘操作。完整维护处理器已接通；不能把单独的领域 purge 误报为已完成遗忘。
 
-抑制保留完整无正文来源身份，强度只增不减：遗忘高于拒绝，高于移除。清除记忆、修订、摘录、散列、搜索及操作回执中的正文；保留必要身份、关系、状态和清理标记。已提交的用户消息、助手回复及可见思考保留为带状态标签的本地历史，隐含工具内容和受影响的后续重放必须清除。晚到的任务不得在维护后重新写回正文。
+抑制保留完整无正文来源身份，强度只增不减：遗忘高于拒绝，高于移除。清除记忆、修订、摘录、散列、搜索及操作回执中的正文；保留必要身份、关系、状态和清理标记。DSH v3 已提交的内联会话日志保持不变；用户消息、助手回复、思考和工具历史继续作为本地历史保留。当前来源授权排除已遗忘记忆及其受影响的历史上下文，不能重新发送给模型；不创建会话正文 sidecar、擦除计划或日志重写流程。晚到的任务不得在维护后重新写回正文。
 
 后台捕获使用持久会话消费者将完成事件写入 dirty 队列，并按阈值合并为有界领域作业，与消费者检查点同事务提交。消费者内不能调用模型。独立作业领取、从 journal 冻结批次末轮实际使用的会话路线、请求准备、revocation、uncertain-dispatch 处理、派发、结算和失败恢复都必须重验全批次来源、当前发送权限与库授权。提取尝试标识与断言 inputIndex 分离。不提供捕获模式开关或每日提取额度；模型上下文与单次输出限制仍需满足；不合格输出跳过且不进入候选收件箱。详细状态、用量及执行图见[自动记忆执行契约](AUTOMATIC_MEMORY_IMPLEMENTATION.md)。
 

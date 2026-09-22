@@ -24,7 +24,8 @@ public struct MemoryModule: RuntimeModule {
         try await registry.register(id: "memory.get", value: .tool(reads[1]), scope: scope, order: 1)
         try await registry.register(id: "memory.remember", value: .tool(.localWrite(MemoryRememberTool(store: store, now: now))), scope: scope, order: 2)
         try await registry.register(id: "memory.retract", value: .tool(.localWrite(MemoryRetractTool(store: store, now: now))), scope: scope, order: 3)
-        try await registry.register(id: "memory.recall", value: .context(MemoryRecallContributor(store: store, now: now)), scope: scope, order: 4)
+        try await registry.register(id: "memory.delete", value: .tool(.localWrite(MemoryDeleteTool(store: store, now: now))), scope: scope, order: 4)
+        try await registry.register(id: "memory.recall", value: .context(MemoryRecallContributor(store: store, now: now)), scope: scope, order: 5)
     }
 }
 

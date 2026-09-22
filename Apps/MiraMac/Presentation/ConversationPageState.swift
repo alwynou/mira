@@ -15,6 +15,7 @@ final class ConversationPageState: Identifiable {
     /// Message selected by an explicit source reveal action in memory management.
     var revealedMessageID: MessageID?
     var memoryNotices: [ExecutionID: [MemoryContextNotice]] = [:]
+    var memoryDeletions: [ExecutionID: [MemoryDeletionRequest]] = [:]
     var activities: [ExecutionID: [SessionActivityStep]] = [:]
     @ObservationIgnored var noticeGeneration = 0
     @ObservationIgnored var noticeTask: Task<Void, Never>?
@@ -129,6 +130,7 @@ final class ConversationPageState: Identifiable {
                 id: Self.answerTranscriptID(for: execution.admission.userMessageID),
                 role: .assistant, text: answer, status: nil, isStreaming: true,
                 executionID: execution.id, thinking: thinking,
+                memoryDeletions: memoryDeletions[execution.id, default: []],
                 executionPhase: execution.phase, outputPhase: live?.phase ?? .waiting,
                 pendingToolCall: live?.toolCall,
                 steps: activitySteps(for: execution.id, live: live),
@@ -183,6 +185,7 @@ final class ConversationPageState: Identifiable {
                     isStreaming: false, message: message,
                     executionID: summary.executionID, thinking: message.thinking.text ?? "",
                     memoryNotices: summary.role == .assistant ? memoryNotices[summary.executionID, default: []] : [],
+                    memoryDeletions: summary.role == .assistant ? memoryDeletions[summary.executionID, default: []] : [],
                     steps: summary.role == .assistant ? activitySteps(for: summary.executionID, live: nil,
                         recoveredAnswer: message.body.text, recoveredThinking: message.thinking.text) : [])))
             order += 1
@@ -200,6 +203,7 @@ final class ConversationPageState: Identifiable {
             entries.append((execution.sequence, order, .init(
                 id: Self.answerTranscriptID(for: turn), role: .assistant, text: "",
                 status: completion.status, isStreaming: false, executionID: execution.id,
+                memoryDeletions: memoryDeletions[execution.id, default: []],
                 steps: activitySteps(for: execution.id, live: nil))))
             order += 1
         }
@@ -271,6 +275,7 @@ final class ConversationPageState: Identifiable {
         loadTask = nil
         noticeTask = nil
         memoryNotices = [:]
+        memoryDeletions = [:]
         activities = [:]
         session = nil
         messages = []

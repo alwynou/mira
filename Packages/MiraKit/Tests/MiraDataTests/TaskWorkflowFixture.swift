@@ -123,7 +123,7 @@ func withTaskWorkflow(outputs: [[AgentModelStreamEvent]] = [], permission: Notif
         let handler = SQLiteTaskCommandHandler(now: { TaskWorkflowFixture.now })
         let b = try SQLiteBusinessEffects(database: database, libraryID: a.libraryID,
             resolver: JournalAgentEffectResolver(journal: library, payloads: library),
-            handlers: memoryEnabled ? [handler, SQLiteMemoryRememberHandler(now: { TaskWorkflowFixture.now }), SQLiteMemoryRetractHandler(now: { TaskWorkflowFixture.now })] : [handler],
+            handlers: memoryEnabled ? [handler, SQLiteMemoryRememberHandler(now: { TaskWorkflowFixture.now }), SQLiteMemoryRetractHandler(now: { TaskWorkflowFixture.now }), SQLiteMemoryDeleteHandler(now: { TaskWorkflowFixture.now })] : [handler],
             validator: TaskWorkflowValidator(memoryEnabled: memoryEnabled, knowledgeEnabled: knowledgeEnabled))
         business = b
         let taskApplication = TaskApplication(store: t, reader: .init(journal: library, payloads: library),
@@ -299,6 +299,8 @@ private struct TaskWorkflowValidator: SQLiteBusinessAuthorizationValidator {
         if memoryEnabled, effect.proposal.descriptor.definition.name.hasPrefix("memory.") {
             if effect.proposal.descriptor.definition.name == "memory.retract" {
                 try SQLiteMemoryRetractHandler(now: { TaskWorkflowFixture.now }).validate(effect: effect, isReplay: isReplay, in: db)
+            } else if effect.proposal.descriptor.definition.name == "memory.delete" {
+                try SQLiteMemoryDeleteHandler(now: { TaskWorkflowFixture.now }).validate(effect: effect, isReplay: isReplay, in: db)
             } else {
                 try SQLiteMemoryRememberHandler(now: { TaskWorkflowFixture.now }).validate(effect: effect, isReplay: isReplay, in: db)
             }

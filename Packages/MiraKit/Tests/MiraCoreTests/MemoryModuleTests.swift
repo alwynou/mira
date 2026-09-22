@@ -37,7 +37,7 @@ struct MemoryModuleTests {
         let toolSnapshot = try await tools.freeze()
         let authoritySnapshot = try await authorities.freeze()
         do {
-            #expect(toolSnapshot.entries.map(\.id) == ["memory.search", "memory.get", "memory.remember", "memory.retract", "memory.recall"])
+            #expect(toolSnapshot.entries.map(\.id) == ["memory.search", "memory.get", "memory.remember", "memory.retract", "memory.delete", "memory.recall"])
             #expect(authoritySnapshot.entries.map(\.id) == ["memories"])
         }
         await toolSnapshot.release()

@@ -113,3 +113,56 @@ struct MemoryHistoryTags: View {
         }
     }
 }
+
+/// Status only: deletion requests never expose memory bodies or request internals in the transcript.
+struct MemoryDeletionStatusView: View {
+    let requests: [MemoryDeletionRequest]
+    @Environment(\.locale) private var locale
+
+    private var orderedRequests: [MemoryDeletionRequest] {
+        requests.sorted {
+            if $0.requestedAt != $1.requestedAt { return $0.requestedAt < $1.requestedAt }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+
+    private var hasFailedRequest: Bool {
+        requests.contains { $0.state == .failed }
+    }
+
+    var body: some View {
+        if !requests.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(orderedRequests) { request in
+                    Label(title(for: request.state), systemImage: symbol(for: request.state))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Text(L10n.string(
+                    hasFailedRequest
+                        ? "The original conversation remains on this device. Retry failed deletions from Memory."
+                        : "The original conversation remains on this device.",
+                    locale: locale))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .accessibilityElement(children: .contain)
+        }
+    }
+
+    private func title(for state: MemoryDeletionRequest.State) -> String {
+        switch state {
+        case .pending: return L10n.string("Memory deletion pending", locale: locale)
+        case .completed: return L10n.string("Memory deleted", locale: locale)
+        case .failed: return L10n.string("Memory deletion failed", locale: locale)
+        }
+    }
+
+    private func symbol(for state: MemoryDeletionRequest.State) -> String {
+        switch state {
+        case .pending: return "clock"
+        case .completed: return "checkmark.circle"
+        case .failed: return "exclamationmark.triangle"
+        }
+    }
+}

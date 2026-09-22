@@ -113,7 +113,7 @@ public struct SQLiteMemoryRememberHandler: SQLiteBusinessCommandHandler, SQLiteB
                 expectedRevision: target.revision,
                 at: date,
                 in: db)
-            return MemoryTools.result(receipt)
+            return MemoryTools.result(receipt, replacedPrevious: true)
         }
         if !proposal.enrichmentTargets.isEmpty {
             let receipt = try SQLiteMemoryStore.enrichRememberedMemory(

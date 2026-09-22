@@ -42,6 +42,10 @@ actor MacLibrary {
     private var failure: MiraError?
     private var operationDrain: (@Sendable () async -> Void)?
     private var closeTask: Task<MacLibraryCloseResult, Never>?
+    private var deletionObservation: Task<Void, Never>?
+    private var deletionExecutionObservation: Task<Void, Never>?
+    private var deletionProcessing: Task<Void, Never>?
+    private var deletionWakeup = false
     private var observers: [UUID: AsyncStream<MacLibraryStatus>.Continuation] = [:]
 
     private init(
@@ -189,11 +193,22 @@ actor MacLibrary {
         if let closeTask { return await closeTask.value }
         phase = .closing
         publish()
+        deletionObservation?.cancel()
+        deletionExecutionObservation?.cancel()
+        deletionProcessing?.cancel()
         let drain = operationDrain
         let task = Task {
             await drain?()
             let settled = await group?.close().isSettled ?? true
             group = nil
+            // Execution waits must be released by closing the workgroup before we
+            // drain the library-owned deletion processor.
+            await deletionProcessing?.value
+            await deletionObservation?.value
+            await deletionExecutionObservation?.value
+            deletionProcessing = nil
+            deletionObservation = nil
+            deletionExecutionObservation = nil
             await activation.dispose()
             await scope.dispose()
             let storageError = await storage.close()
@@ -260,6 +275,7 @@ actor MacLibrary {
             throw error
         }
         try await startWorkloads()
+        try await observeDeletionRequests()
     }
 
     private func restoreLocally(authorizer: any AgentSourceAuthorizer) async throws {
@@ -287,6 +303,21 @@ actor MacLibrary {
             return
         }
         group = next
+        let previousObservation = deletionExecutionObservation
+        previousObservation?.cancel()
+        deletionExecutionObservation = Task { [weak self] in
+            await previousObservation?.value
+            guard !Task.isCancelled else { return }
+            do {
+                let executionChanges = try await next.application.observe()
+                for await _ in executionChanges {
+                    guard !Task.isCancelled else { break }
+                    // A settlement retry can complete without a business write.
+                    // Wake pending deletion requests on that runtime transition too.
+                    await self?.scheduleDeletionProcessing()
+                }
+            } catch { /* A closing workgroup has no more settlement transitions. */ }
+        }
         generation += 1
         phase = .ready
         failure = nil
@@ -318,7 +349,10 @@ actor MacLibrary {
         failure = nil
         publish()
         let task = Task {
-            defer { self.operationDrain = nil }
+            defer {
+                self.operationDrain = nil
+                self.scheduleDeletionProcessing()
+            }
             let result: Result<Value, any Error>
             do { result = .success(try await operation(coordinator)) } catch { result = .failure(error) }
             await coordinator.close()
@@ -344,6 +378,91 @@ actor MacLibrary {
         }
         operationDrain = { _ = await task.result }
         return try await task.value
+    }
+
+    /// This processor is library-owned, never a workgroup owner or an execution tool.
+    /// A tool commits only a request; no execution can wait for its own maintenance drain.
+    private func observeDeletionRequests() async throws {
+        let changes = try await storage.changes.observe()
+        deletionObservation = Task { [weak self] in
+            for await change in changes {
+                guard !Task.isCancelled, !change.isClosed else { break }
+                await self?.scheduleDeletionProcessing()
+            }
+        }
+    }
+
+    private func scheduleDeletionProcessing() {
+        deletionWakeup = true
+        guard phase == .ready, closeTask == nil, operationDrain == nil,
+              deletionProcessing == nil else { return }
+        deletionProcessing = Task {
+            defer { deletionProcessing = nil }
+            while deletionWakeup, !Task.isCancelled, phase == .ready, closeTask == nil {
+                deletionWakeup = false
+                do {
+                    let lease = try await storage.access.acquire(in: scope)
+                    let requests: [MemoryDeletionRequest]
+                    do { requests = try await lease.read { try await self.storage.memories.pendingMemoryDeletions(limit: 128) } }
+                    catch { await lease.release(); throw error }
+                    await lease.release()
+                    for request in requests {
+                        guard !Task.isCancelled, phase == .ready, closeTask == nil, operationDrain == nil else { return }
+                        try await processDeletion(request)
+                    }
+                } catch {
+                    // Durable requests remain pending on transient or uncertain failures.
+                    // A later committed change or reopening the library retries them.
+                    if !Task.isCancelled, closeTask == nil {
+                        failure = MiraError.safe(error)
+                        publish()
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    private func processDeletion(_ request: MemoryDeletionRequest) async throws {
+        if let operation = try await storage.authority.operation(id: request.id),
+           operation.request == request.maintenanceRequest, operation.completedAt != nil {
+            try await settleDeletion(request, state: .completed)
+            return
+        }
+        guard let group else { throw Self.unavailable }
+        let result = await group.application.waitForExecution(id: request.executionID, sessionID: request.source.sessionID)
+        guard case .committed = result else { return }
+        try Task.checkCancellation()
+        guard phase == .ready, closeTask == nil, operationDrain == nil else { throw Self.unavailable }
+        do {
+            _ = try await maintain(request.maintenanceRequest)
+        } catch {
+            // Only a rejected, unadmitted exact-target request may be marked failed.
+            // An admitted purge stays pending for maintenance recovery, even if its
+            // caller observed an error after a durable completion commit.
+            let code = MiraError.safe(error).code
+            if (code == .conflict || code == .unauthorized || code == .notFound),
+               phase == .ready, closeTask == nil,
+               try await storage.authority.operation(id: request.id) == nil {
+                try await settleDeletion(request, state: .failed)
+                return
+            }
+            throw error
+        }
+        try Task.checkCancellation()
+        try await settleDeletion(request, state: .completed)
+    }
+
+    private func settleDeletion(_ request: MemoryDeletionRequest, state: MemoryDeletionRequest.State) async throws {
+        let lease = try await storage.access.acquire(in: scope)
+        do {
+            try await lease.check()
+            try await storage.memories.settleMemoryDeletion(request, state: state, authorization: lease.authorization)
+            await lease.release()
+        } catch {
+            await lease.release()
+            throw error
+        }
     }
 
     private func publish() { for observer in observers.values { observer.yield(status()) } }

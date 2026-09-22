@@ -261,7 +261,7 @@ struct MemoryManagementDetail: View {
         VStack(spacing: MiraTheme.Spacing.lg) {
             Divider()
             HStack(alignment: .top, spacing: MiraTheme.Spacing.lg) {
-                Button(role: .destructive, action: forget) { Label("Forget memory", systemImage: "trash") }
+                Button(role: .destructive, action: forget) { Label("Delete memory", systemImage: "trash") }
                     .buttonStyle(.plain).foregroundStyle(MiraTheme.Colors.failure)
                     .font(MiraTheme.Typography.body)
                     .disabled(isWorking).accessibilityIdentifier("memory.forget")

@@ -232,6 +232,28 @@ public actor MemoryApplication {
         }
     }
 
+    /// Body-free deletion outcomes belong to the execution that submitted the request.
+    public func deletionRequests(sessionID: ConversationID, executionIDs: Set<ExecutionID>,
+                                 workspaceID: WorkspaceID?) async throws -> [MemoryDeletionRequest] {
+        guard executionIDs.count <= 128 else {
+            throw MiraError(.invalidInput, "The memory deletion selection exceeds its supported bounds.")
+        }
+        return try await owned { lease in
+            try await lease.read {
+                let snapshot = try await self.reader.snapshot(sessionID: sessionID)
+                guard snapshot.state.header?.workspaceID == workspaceID,
+                      executionIDs.allSatisfy({ snapshot.state.executions[$0] != nil }) else {
+                    throw MiraError(.unauthorized, "The memory deletion selection is not authorized.")
+                }
+                guard let deletions = self.store as? any MemoryDeletionStore else {
+                    throw MiraError(.configuration, "The memory deletion store is unavailable.")
+                }
+                return try await deletions.memoryDeletions(sessionID: sessionID, executionIDs: executionIDs,
+                                                           workspaceID: workspaceID)
+            }
+        }
+    }
+
     public func close() async {
         closed = true
         let drains = Array(operations.values)

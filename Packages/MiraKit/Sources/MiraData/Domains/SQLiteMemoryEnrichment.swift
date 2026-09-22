@@ -93,6 +93,7 @@ extension SQLiteMemoryStore {
 
     static func memoryCaptureSuppressed(_ source: MemoryEvidenceSource, in db: Database) throws -> Bool {
         if try suppressedMemorySource(source, in: db) { return true }
+        if try deletionCaptureSuppressed(source, in: db) { return true }
         return try Int.fetchOne(db, sql: """
             SELECT count(*) FROM memory_evidence e
             JOIN memory_records m ON m.id = e.memory_id

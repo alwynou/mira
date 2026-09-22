@@ -53,3 +53,9 @@ sequenceDiagram
 ## 独立提取检查
 
 执行检查器通过 [MemoryExtractionStatusReader](AGENT_EXTRACTION_QUERIES.md) 的 `MemoryApplication` 入口分页读取原始回合的后台作业，单作业读取全部尝试。前台和独立提取分别计算费用，内部尝试估算不充当模型实际用量，也不阻止后续提取。查询、业务通知和资料库代次更替由现有 `MacSessionReadModel` 管理；检查器不拥有 Worker，也不恢复已移除的对话正文状态面板。完整有数据视觉矩阵继续按核心验证记录验收。
+
+## Deletion status
+
+The management detail exposes **Delete memory** and a native irreversible confirmation. It invokes the existing exact-revision library maintenance command; archive and restore remain separate actions. English and Chinese action labels and confirmation copy live in the string catalog.
+
+Conversation pages load body-free deletion requests through `MemoryApplication.deletionRequests`, which validates session/workspace ownership and at most 128 selected executions. Requests are grouped by the execution that committed them. Business changes and generation rebinding refresh pending/completed/failed status; cancelled or interrupted executions retain a status row even without an assistant body. Releasing a page or a binding clears these values with other revocable presentation data. Deletion identity/state participate in native transcript invalidation and height estimates. Model output remains verbatim; app-owned completion status does not rewrite a prior pending acknowledgment.

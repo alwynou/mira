@@ -146,8 +146,11 @@ final class NativeTranscriptRow: ListRowView {
                     }
                 }.environment(\.locale, locale).foregroundStyle(MiraTheme.Colors.text))
         }
-        footerEstimate = assistant ? CGFloat(MemoryCitationReference.references(in: item.text).count
-            + SourceCitationReference.references(in: item.text).count) * 24 + (item.memoryNotices.isEmpty ? 0 : 28) : 0
+        let citationEstimate = CGFloat(MemoryCitationReference.references(in: item.text).count
+            + SourceCitationReference.references(in: item.text).count) * 24
+        let noticeEstimate: CGFloat = item.memoryNotices.isEmpty ? 0 : 28
+        let deletionEstimate = item.estimatedMemoryDeletionHeight
+        footerEstimate = assistant ? citationEstimate + noticeEstimate + deletionEstimate : 0
         footerContent = auxiliary
         if footerEstimate == 0 {
             footer.rootView = AnyView(EmptyView())

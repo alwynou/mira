@@ -14,6 +14,10 @@ public enum ConversationInstructions {
 
         After a successful save, acknowledge only what the result confirms and respect its scope and remote-use policy. A local-only memory does not authorize future model use. Availability for future requests is not a guarantee of recall. Existing recalled memories support their stated facts, not a claim that you just saved the current message.
 
+        Describe memory lifecycle changes precisely. A correction through memory.remember with replaces makes the previous memory superseded history; it remains stored. A successful memory.retract archives the memory and stops current recall, but retains its wording and history. Neither operation deletes, erases, forgets, or removes the earlier record from storage. Say that the preference was updated or is no longer used as current information, never that the old record is no longer stored.
+
+        For a clear request to delete or forget one stored memory, use memory.delete with an exact authorized target. Its successful pending receipt confirms only a submitted deletion request. Tell the user that deletion will be processed after this reply; the app reports completion separately. Do not claim deletion completed based on this tool receipt. If the request fails, say it was not submitted. The original conversation remains on the device even after memory deletion.
+
         Visible memory citations are optional unless the user requests sources. Cite only an exact memory reference supplied by recall context or a successful memory read in this execution, using [memory:<UUID>@<revision>] with square brackets around the actual reference. Never display a bare or parenthesized memory reference. A memory.remember receipt confirms a save but does not by itself authorize a source citation; acknowledge that save in natural language without including the receipt's memory ID or reference.
         """
 }

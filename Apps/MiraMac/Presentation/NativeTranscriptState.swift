@@ -11,11 +11,16 @@ struct TranscriptItem: Identifiable, Equatable {
     var executionID: ExecutionID? = nil
     var thinking: String = ""
     var memoryNotices: [MemoryContextNotice] = []
+    var memoryDeletions: [MemoryDeletionRequest] = []
     var executionPhase: ExecutionPhase? = nil
     var outputPhase: SessionOutputPhase = .waiting
     var pendingToolCall: CanonicalToolCall? = nil
     var steps: [SessionActivityStep] = []
     var liveAttemptID: UUID? = nil
+
+    var estimatedMemoryDeletionHeight: CGFloat {
+        memoryDeletions.isEmpty ? 0 : CGFloat(memoryDeletions.count * 20 + 24)
+    }
 
     var orderedBlocks: [TranscriptProcessEntry] {
         steps.flatMap { step in
@@ -125,6 +130,10 @@ struct TranscriptItem: Identifiable, Equatable {
         hasher.combine(expanded)
         if expanded { hasher.combine(thinking) }
         hasher.combine(memoryNotices)
+        for deletion in memoryDeletions.sorted(by: { $0.id.uuidString < $1.id.uuidString }) {
+            hasher.combine(deletion.id)
+            hasher.combine(deletion.state.rawValue)
+        }
         return hasher.finalize()
     }
 }
