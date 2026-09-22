@@ -3,7 +3,7 @@ import GRDB
 import MiraCore
 
 extension SQLiteMemoryStore {
-    static let archiveSchemaDefinitions: [(String, String)] = [
+    private static let baseArchiveSchemaDefinitions: [(String, String)] = [
         ("memory_schema", "CREATE TABLE memory_schema(id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL CHECK(version=1))"),
         ("memory_records", "CREATE TABLE memory_records(id TEXT PRIMARY KEY NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), scope TEXT NOT NULL, workspace_id TEXT REFERENCES business_workspaces(id), state TEXT NOT NULL CHECK(state IN ('active','candidate','archived','rejected','removed')), superseded_by TEXT REFERENCES memory_records(id), deleted_at REAL, forgotten_at REAL, draft_json BLOB CHECK(length(draft_json)<=131072), json BLOB NOT NULL CHECK(length(json)<=131072))"),
         ("memory_records_scope", "CREATE INDEX memory_records_scope ON memory_records(scope, state, id)"),
@@ -22,7 +22,21 @@ extension SQLiteMemoryStore {
         ("memory_search", "CREATE VIRTUAL TABLE memory_search USING fts5(memory_id UNINDEXED, content, tokenize='trigram')")
     ] + vectorSchemaDefinitions
 
+    /// Deletion requests are a separate schema family so the queue can be
+    /// initialized independently while still travelling with memory archives.
+    static let deletionSchemaDefinitions: [(String, String)] = [
+        ("memory_deletion_schema", "CREATE TABLE memory_deletion_schema(id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL CHECK(version=1))"),
+        ("memory_deletion_requests", "CREATE TABLE memory_deletion_requests(id TEXT PRIMARY KEY NOT NULL, memory_id TEXT NOT NULL REFERENCES memory_records(id), expected_revision INTEGER NOT NULL CHECK(expected_revision>0), source_key TEXT NOT NULL, source_json BLOB NOT NULL CHECK(length(source_json)<=131072), session_id TEXT NOT NULL, execution_id TEXT NOT NULL, workspace_id TEXT REFERENCES business_workspaces(id), requested_at REAL NOT NULL, state TEXT NOT NULL CHECK(state IN ('pending','completed','failed')), json BLOB NOT NULL CHECK(length(json)<=131072))"),
+        ("memory_deletion_pending_memory", "CREATE UNIQUE INDEX memory_deletion_pending_memory ON memory_deletion_requests(memory_id) WHERE state = 'pending'"),
+        ("memory_deletion_state", "CREATE INDEX memory_deletion_state ON memory_deletion_requests(state, requested_at, id)"),
+        ("memory_deletion_session", "CREATE INDEX memory_deletion_session ON memory_deletion_requests(session_id, execution_id, workspace_id, requested_at, id)"),
+        ("memory_deletion_source", "CREATE INDEX memory_deletion_source ON memory_deletion_requests(source_key, state, id)")
+    ]
+
+    static let archiveSchemaDefinitions: [(String, String)] = baseArchiveSchemaDefinitions + deletionSchemaDefinitions
+
     static func initialize(in db: Database) throws {
-        try SQLiteDomainDatabase.initialize(archiveSchemaDefinitions, metadata: "memory_schema", in: db)
+        try SQLiteDomainDatabase.initialize(baseArchiveSchemaDefinitions, metadata: "memory_schema", in: db)
+        try SQLiteDomainDatabase.initialize(deletionSchemaDefinitions, metadata: "memory_deletion_schema", in: db)
     }
 }

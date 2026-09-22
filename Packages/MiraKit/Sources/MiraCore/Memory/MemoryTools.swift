@@ -16,7 +16,7 @@ public enum MemoryTools {
 
     public static var rememberDefinition: ToolDefinition {
         .init(name: "memory.remember",
-              description: "Save a memory only when the user explicitly asks you to remember or save it, or clearly corrects one recalled fact. Do not call this tool for ordinary new facts or non-conflicting additions, even about an already remembered entity: background extraction captures and consolidates those statements. When asked to remember a clear, non-conflicting addition about the same entity as recalled memories, use memory.search or memory.get as needed, include every clearly same-entity current memory's exact memory_id and revision in enriches, preserve all supported facts and add only the new detail. For a clear correction of one recalled fact, set replaces to that exact memory_id and revision and save the corrected assertion as content. For a clear withdrawal without a replacement, use memory.retract with the exact target instead. Never use replaces for additions or withdrawals, or enriches for contradictions/corrections. Do not guess or merge by similarity; ask for clarification when target identity or correction intent is ambiguous. Leave enriches empty and omit replaces for an independent memory. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
+              description: "Save a memory only when the user explicitly asks you to remember or save it, or clearly corrects one recalled fact. Do not call this tool for ordinary new facts or non-conflicting additions, even about an already remembered entity: background extraction captures and consolidates those statements. When asked to remember a clear, non-conflicting addition about the same entity as recalled memories, use memory.search or memory.get as needed, include every clearly same-entity current memory's exact memory_id and revision in enriches, preserve all supported facts and add only the new detail. For a clear correction of one recalled fact, set replaces to that exact memory_id and revision and save the corrected assertion as content. For a clear withdrawal without a replacement, use memory.retract with the exact target instead. For an explicit request to delete or forget stored memory, use memory.delete. A replacement keeps the predecessor as superseded history; it does not delete or erase the earlier record. Never use replaces for additions or withdrawals, or enriches for contradictions/corrections. Do not guess or merge by similarity; ask for clarification when target identity or correction intent is ambiguous. Leave enriches empty and omit replaces for an independent memory. Standard memories are available to future model requests in their scope; sensitive memories remain local-only. Acknowledge success only after this tool commits. No extra confirmation is required.",
               inputSchema: object(properties: [
                   "content": string(maximum: 8_192),
                   "quote": string(maximum: 8_192),
@@ -49,12 +49,37 @@ public enum MemoryTools {
 
     public static var retractDefinition: ToolDefinition {
         .init(name: "memory.retract",
-              description: "Withdraw one current memory when the user clearly says the recalled assertion is no longer true or applicable and provides no replacement. Use the exact memory_id and revision from the authorized recall and quote the user's exact correction. Do not invent an opposite assertion or use this for privacy forgetting. Ask for clarification when the target, scope, or withdrawal intent is ambiguous or hypothetical. Acknowledge only after the withdrawal commits; historical sends and citations may remain available under their own authorization.",
+              description: "Withdraw one current memory when the user clearly says the recalled assertion is no longer true or applicable and provides no replacement. Use the exact memory_id and revision from the authorized recall and quote the user's exact correction. Do not invent an opposite assertion. For an explicit request to delete or forget stored memory, use memory.delete instead. Withdrawal archives the memory and retains its wording and history; it does not erase or delete it. Ask for clarification when the target, scope, or withdrawal intent is ambiguous or hypothetical. Acknowledge only after the withdrawal commits; historical sends and citations may remain available under their own authorization.",
               inputSchema: object(properties: [
                   "memory_id": string(maximum: 36),
                   "revision": .object(["type": .string("integer"), "minimum": .number(1), "maximum": .number(2_147_483_647)]),
                   "quote": string(maximum: 8_192)
               ], required: ["memory_id", "revision", "quote"]))
+    }
+
+    public static var deleteDefinition: ToolDefinition {
+        .init(name: "memory.delete",
+              description: "Request permanent deletion of one current memory only when the user explicitly asks to delete or forget that memory, including a mistaken memory. Use its exact authorized memory_id and revision and quote the user's direct deletion request verbatim. Search or read first if needed. Ask which memory when the target or intent is ambiguous; quoted examples, hypotheticals, and unrelated text are not deletion requests. Use memory.retract for a withdrawal that should retain history, and memory.remember with replaces for a correction that supplies a replacement. This tool queues deletion: it does not delete immediately. Say only that the deletion request was submitted and will be processed after this reply. The app reports completion separately. Never say deleted, erased, or forgotten based on a queued receipt. Deletion clears this memory's stored wording, source excerpts and derived search data, prevents recapture from its old sources, and retains a body-free tombstone and the original conversation. No extra confirmation is required for a clear direct request.",
+              inputSchema: retractDefinition.inputSchema)
+    }
+
+    public static var deleteResultSchema: JSONValue {
+        object(properties: [
+            "request_id": string(maximum: 36), "state": string(maximum: 32),
+            "acknowledgment": string(maximum: 512)
+        ], required: ["request_id", "state", "acknowledgment"])
+    }
+
+    public static func deletionResult(_ request: MemoryDeletionRequest) -> JSONValue {
+        .object([
+            "request_id": .string(request.id.uuidString.lowercased()), "state": .string("pending"),
+            "acknowledgment": .string("The deletion request was submitted. Deletion is not complete. The library will process it after this reply, and the app will show its outcome. Do not claim the memory has been deleted or forgotten.")
+        ])
+    }
+
+    public static func parsedDeletion(arguments: JSONValue, evidence: SessionUserEvidence) throws -> MemoryDeletionProposal {
+        let parsed = try parsedRetraction(arguments: arguments, evidence: evidence)
+        return .init(target: parsed.target, quote: parsed.quote)
     }
 
     public static var searchResultSchema: JSONValue { resultSchema }
@@ -134,7 +159,7 @@ public enum MemoryTools {
         MiraError(.invalidInput, "The memory evolution target is invalid.")
     }
 
-    public static func result(_ receipt: MemoryWriteReceipt) -> JSONValue {
+    public static func result(_ receipt: MemoryWriteReceipt, replacedPrevious: Bool = false) -> JSONValue {
         let allowsRemoteUse = receipt.memory.draft?.allowsRemoteUse ?? false
         return .object([
             "memory_id": .string(receipt.memory.id.rawValue.uuidString.lowercased()),
@@ -143,9 +168,10 @@ public enum MemoryTools {
             "state": .string(receipt.memory.state.rawValue),
             "allows_remote_use": .bool(allowsRemoteUse),
             "policy": .string(allowsRemoteUse ? "remote_allowed" : "local_only"),
-            "acknowledgment": .string(allowsRemoteUse
+            "acknowledgment": .string((allowsRemoteUse
                 ? "Acknowledge that this committed memory is allowed for future model requests."
                 : "Acknowledge that this committed memory is saved locally only. Do not promise that future model requests will recall or use it; remote use requires a separate user choice.")
+                + (replacedPrevious ? " The previous memory remains stored as superseded history. Say updated or replaced, never deleted, erased, forgotten, or no longer stored." : ""))
         ])
     }
 
@@ -155,7 +181,7 @@ public enum MemoryTools {
             "revision": .number(Double(receipt.memory.revision)),
             "state": .string(receipt.memory.state.rawValue),
             "disposition": .string(receipt.disposition.rawValue),
-            "acknowledgment": .string("Acknowledge that this memory was withdrawn and archived without creating a replacement. Historical context may remain available when separately authorized.")
+            "acknowledgment": .string("Acknowledge that this memory was withdrawn from current use and archived. Its wording and history are retained; do not claim it was deleted, erased, forgotten, or no longer stored.")
         ])
     }
 

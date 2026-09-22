@@ -4,6 +4,41 @@ import Testing
 
 @Suite("Memory remember evolution targets")
 struct MemoryRememberToolTests {
+    @Test func deletionBindsExactTargetAndNeverReportsPrematureCompletion() async throws {
+        let memory = makeMemory(content: "I prefer green tea")
+        let context = makeContext()
+        let tool = MemoryDeleteTool(store: RememberFixtureStore(memories: [memory]))
+        try tool.descriptor.validate()
+        let args: JSONValue = .object([
+            "memory_id": .string(memory.id.rawValue.uuidString.lowercased()),
+            "revision": .number(Double(memory.revision)), "quote": .string("remember this")
+        ])
+        let plan = try await tool.prepare(args, context: context)
+        #expect(plan.sources == [.domain(namespace: "memories", id: memory.id.rawValue, revision: memory.revision)])
+        #expect(plan.targets == plan.sources)
+        let request = MemoryDeletionRequest(id: context.invocationID, target: usage(memory),
+            source: context.evidence.reference, executionID: context.executionID, workspaceID: nil, requestedAt: Date())
+        let result = MemoryTools.deletionResult(request)
+        #expect(result["state"] == .string("pending"))
+        #expect(result["acknowledgment"]?.stringValue?.contains("Deletion is not complete") == true)
+        #expect(result["content"] == nil)
+        let replacement = MemoryTools.result(.init(memory: memory, disposition: .created), replacedPrevious: true)
+        #expect(replacement["acknowledgment"]?.stringValue?.contains("superseded history") == true)
+    }
+
+    @Test func deletionRejectsStaleTargetAndUnrelatedQuote() async throws {
+        let memory = makeMemory(content: "I prefer green tea")
+        let tool = MemoryDeleteTool(store: RememberFixtureStore(memories: [memory]))
+        for (revision, quote) in [(memory.revision + 1, "remember this"), (memory.revision, "unrelated evidence")] {
+            await #expect(throws: MiraError.self) {
+                _ = try await tool.prepare(.object([
+                    "memory_id": .string(memory.id.rawValue.uuidString.lowercased()),
+                    "revision": .number(Double(revision)), "quote": .string(quote)
+                ]), context: makeContext())
+            }
+        }
+    }
+
     @Test func retractionDescriptorBindsOneExactTarget() async throws {
         let memory = makeMemory(content: "I prefer green tea")
         let context = makeContext()

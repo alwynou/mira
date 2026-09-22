@@ -748,24 +748,45 @@ final class ConversationModel {
             }
             repeat {
                 let version = page.noticeGeneration
-                let ids = Array(Set(page.messages.filter { $0.summary.role == .assistant }.map(\.summary.executionID)))
+                // Deletion requests can outlive a cancelled or interrupted reply
+                // that never produced an assistant message, so include every
+                // execution known to this page. Context notices remain empty for
+                // executions without recorded model context.
+                let ids = Array(Set(page.executions.map(\.id)
+                    + page.messages.filter { $0.summary.role == .assistant }.map(\.summary.executionID)))
                     .sorted { $0.rawValue.uuidString < $1.rawValue.uuidString }
                 let workspaceID = page.workspaceID
                 do {
                     var notices: [ExecutionID: [MemoryContextNotice]] = [:]
+                    var deletions: [ExecutionID: [MemoryDeletionRequest]] = [:]
                     for start in stride(from: 0, to: ids.count, by: 128) {
                         let batch = Set(ids[start..<min(start + 128, ids.count)])
                         let values = try await group.memories.contextNotices(
                             sessionID: id, executionIDs: batch, workspaceID: workspaceID)
                         guard !Task.isCancelled, bindingID == token, page.observationID == identity else { return }
                         notices.merge(values) { _, new in new }
+                        let deletionValues = try await group.memories.deletionRequests(
+                            sessionID: id, executionIDs: batch, workspaceID: workspaceID)
+                        guard !Task.isCancelled, bindingID == token, page.observationID == identity else { return }
+                        for request in deletionValues {
+                            deletions[request.executionID, default: []].append(request)
+                        }
                     }
                     guard !Task.isCancelled, bindingID == token, page.observationID == identity else { return }
-                    if version == page.noticeGeneration { page.memoryNotices = notices }
+                    if version == page.noticeGeneration {
+                        page.memoryNotices = notices
+                        page.memoryDeletions = deletions.mapValues {
+                            $0.sorted {
+                                if $0.requestedAt != $1.requestedAt { return $0.requestedAt < $1.requestedAt }
+                                return $0.id.uuidString < $1.id.uuidString
+                            }
+                        }
+                    }
                 } catch {
                     guard !Task.isCancelled, bindingID == token, page.observationID == identity else { return }
                     if version == page.noticeGeneration {
                         page.memoryNotices = [:]
+                        page.memoryDeletions = [:]
                         page.error = MiraError.safe(error)
                     }
                 }

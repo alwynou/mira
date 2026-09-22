@@ -50,6 +50,25 @@ struct NativeTranscriptStateTests {
         #expect(state.tokens == [terminalToken])
     }
 
+    @Test func memoryDeletionStateChangesInvalidateTheMountedRow() throws {
+        var state = NativeTranscriptState()
+        var request = deletionRequest(state: .pending)
+        var pending = item(id: "deletion", text: "Answer")
+        pending.memoryDeletions = [request]
+        let pendingChange = state.apply([pending])
+        let pendingToken = try #require(pendingChange.updated.first)
+
+        request.state = .completed
+        var completed = pending
+        completed.memoryDeletions = [request]
+        let completedChange = state.apply([completed])
+        let completedToken = try #require(completedChange.updated.first)
+
+        #expect(completedToken.id == pendingToken.id)
+        #expect(completedToken.revision > pendingToken.revision)
+        #expect(completed.measurementSignature(expanded: false) != pending.measurementSignature(expanded: false))
+    }
+
     @Test func deletionAndReinsertDoNotReuseStaleRevision() throws {
         var state = NativeTranscriptState()
         let original = item(id: "message", text: "Original")
@@ -96,5 +115,15 @@ struct NativeTranscriptStateTests {
             status: status,
             isStreaming: isStreaming
         )
+    }
+
+    private func deletionRequest(state: MemoryDeletionRequest.State) -> MemoryDeletionRequest {
+        let sessionID = ConversationID()
+        let executionID = ExecutionID()
+        return MemoryDeletionRequest(
+            id: UUID(), target: MemoryUsage(memoryID: MemoryID(), revision: 1),
+            source: SessionEvidenceReference(sessionID: sessionID, originalExecutionID: executionID,
+                                             userMessageID: MessageID(), admissionEventID: UUID(), admissionSequence: 1),
+            executionID: executionID, workspaceID: nil, requestedAt: Date(timeIntervalSince1970: 1), state: state)
     }
 }

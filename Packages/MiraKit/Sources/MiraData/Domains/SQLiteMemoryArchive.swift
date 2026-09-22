@@ -21,6 +21,8 @@ extension SQLiteMemoryStore {
 
     private static func validateArchive(db: Database, snapshot: FileSessionSnapshot) throws {
         try SQLiteArchiveValidation.metadata("memory_schema", in: db)
+        try SQLiteArchiveValidation.metadata("memory_deletion_schema", in: db)
+        guard try SQLiteLibraryAuthority.readState(in: db).pending == nil else { throw LibraryArchiveIO.invalid }
         guard try Row.fetchOne(db, sql: "PRAGMA foreign_key_check") == nil else { throw LibraryArchiveIO.invalid }
         let sessions = try SQLiteArchiveSessions(snapshot)
 
@@ -73,6 +75,7 @@ extension SQLiteMemoryStore {
         try validateAspects(memories: memories, sources: sources, db: db)
         try validateOperations(memories: memories, db: db)
         try validatePurges(memories: memories, sources: sources, db: db)
+        try validateDeletions(memories: memories, sessions: sessions, snapshot: snapshot, db: db)
         try validateSearch(memories: memories, db: db)
     }
 
@@ -373,4 +376,126 @@ extension SQLiteMemoryStore {
         let expected = Set(memories.compactMap { $0.value.draft == nil ? nil : $0.key })
         guard indexed == expected else { throw LibraryArchiveIO.invalid }
     }
+
+    private static func validateDeletions(
+        memories: [String: Memory], sessions: SQLiteArchiveSessions, snapshot: FileSessionSnapshot, db: Database
+    ) throws {
+        let libraryID = try SQLiteLibraryAuthority.readState(in: db).authorization.libraryID
+        var ids = Set<String>()
+        var pendingMemoryIDs = Set<String>()
+        try SQLiteArchiveValidation.rows(in: db, table: "memory_deletion_requests",
+                                         maximumBytes: ["source_json": 131_072, "json": 131_072]) { row in
+            guard let idText: String = row["id"], let id = UUID(uuidString: idText), key(id) == idText,
+                  ids.insert(idText).inserted else { throw LibraryArchiveIO.invalid }
+            let value = try deletionRequest(row, in: db)
+            let memoryID = key(value.target.memoryID)
+            let expectedSourceKey = try sourceKey(.userMessage(value.source))
+            guard row["source_key"] as String? == expectedSourceKey else { throw LibraryArchiveIO.invalid }
+            let sourceUser = try sessions.validate(value.source, workspaceID: value.workspaceID)
+            try validateDeletionIntent(value, snapshot: snapshot)
+            guard let memory = memories[memoryID],
+                  memory.scope.workspaceID == nil || memory.scope.workspaceID == value.workspaceID,
+                  sourceUser.reference == value.source,
+                  sessions.sessions[value.source.sessionID]?.executions[value.executionID] == value.source,
+                  value.id == id else { throw LibraryArchiveIO.invalid }
+
+            let operation = try SQLiteLibraryAuthority.readOperation(id: value.id, in: db, libraryID: libraryID)
+            switch value.state {
+            case .pending:
+                if let operation {
+                    guard operation.completedAt != nil, operation.request == value.maintenanceRequest,
+                          memory.forgottenAt == operation.request.requestedAt,
+                          memory.revision == value.target.revision + 1, memory.draft == nil else {
+                        throw LibraryArchiveIO.invalid
+                    }
+                } else {
+                    guard value.target.revision <= memory.revision,
+                          try Row.fetchOne(db, sql: "SELECT 1 FROM memory_revisions WHERE memory_id = ? AND revision = ?",
+                                           arguments: [memoryID, value.target.revision]) != nil else {
+                        throw LibraryArchiveIO.invalid
+                    }
+                }
+                guard pendingMemoryIDs.insert(memoryID).inserted else { throw LibraryArchiveIO.invalid }
+            case .completed:
+                guard let operation, operation.completedAt != nil,
+                      operation.request == value.maintenanceRequest,
+                      memory.forgottenAt == operation.request.requestedAt,
+                      memory.revision == value.target.revision + 1, memory.draft == nil,
+                      try Row.fetchOne(db, sql: "SELECT 1 FROM memory_purges WHERE operation_id = ?",
+                                       arguments: [key(value.id)]) != nil else { throw LibraryArchiveIO.invalid }
+            case .failed:
+                guard operation == nil,
+                      try SQLiteLibraryAuthority.readState(in: db).pending == nil else { throw LibraryArchiveIO.invalid }
+                let stillValid = memory.revision == value.target.revision && memory.state == .active &&
+                    memory.isCurrent && memory.draft != nil && memory.deletedAt == nil && memory.forgottenAt == nil
+                guard !stillValid else { throw LibraryArchiveIO.invalid }
+            }
+        }
+    }
+
+    private static func validateDeletionIntent(
+        _ request: MemoryDeletionRequest, snapshot: FileSessionSnapshot
+    ) throws {
+        var invocation: SessionInvocation?
+        var proposal: AgentToolProposal?
+        var resolution: SessionToolResolution?
+        var userText: String?
+        var actualExecutionSeen = false
+        var attemptExecutions: [UUID: ExecutionID] = [:]
+        for captured in snapshot.sessions where captured.id == request.source.sessionID {
+            for batch in try snapshot.readBatches(sessionID: captured.id) {
+                for event in batch.events {
+                    switch event.fact {
+                    case .admitted(let admission):
+                        if admission.executionID == request.executionID { actualExecutionSeen = true }
+                        guard event.id == request.source.admissionEventID else { break }
+                        guard let body = admission.userBody, let text = String(data: body.bytes, encoding: .utf8) else {
+                            throw LibraryArchiveIO.invalid
+                        }
+                        let reference = SessionEvidenceReference(
+                            sessionID: captured.id, originalExecutionID: admission.executionID,
+                            userMessageID: admission.userMessageID, admissionEventID: event.id,
+                            admissionSequence: event.sequence)
+                        guard reference == request.source else { throw LibraryArchiveIO.invalid }
+                        userText = text
+                    case .attemptStarted(let attempt):
+                        attemptExecutions[attempt.id] = attempt.executionID
+                    case .toolProposed(let value) where value.id == request.id:
+                        invocation = value
+                    case .toolPrepared(let value) where value.invocationID == request.id:
+                        proposal = try SessionCodec.decode(AgentToolProposal.self, from: value.proposal.bytes)
+                    case .toolResolved(let value) where value.invocationID == request.id:
+                        resolution = value
+                    default: break
+                    }
+                }
+            }
+        }
+        guard let invocation, invocation.toolName == "memory.delete", invocation.effect == .localWrite,
+              let proposal, actualExecutionSeen,
+              attemptExecutions[invocation.attemptID] == request.executionID,
+              proposal.effect == .localWrite, proposal.businessNamespace == "memory.delete",
+              proposal.descriptor.revision == 1,
+              proposal.descriptor.definition == MemoryTools.deleteDefinition,
+              proposal.descriptor.outputSchema == MemoryTools.deleteResultSchema,
+              proposal.plan.sources == [.domain(namespace: "memories", id: request.target.memoryID.rawValue, revision: request.target.revision)],
+              proposal.plan.targets == proposal.plan.sources,
+              let call = try? SessionCodec.decode(CanonicalToolCall.self, from: invocation.call.bytes),
+              call.name == "memory.delete", !call.id.isEmpty, invocation.call.digest == proposal.callDigest,
+              let normalized = try? ToolSchemaValidator.decode(call.arguments, schema: MemoryTools.deleteDefinition.inputSchema),
+              proposal.plan.input == normalized,
+              let idText = normalized["memory_id"]?.stringValue, let id = UUID(uuidString: idText),
+              let revisionValue = normalized["revision"], case .number(let revisionNumber) = revisionValue,
+              revisionNumber.isFinite, revisionNumber.rounded() == revisionNumber,
+              let quote = normalized["quote"]?.stringValue, !quote.isEmpty,
+              userText?.range(of: quote) != nil,
+              id == request.target.memoryID.rawValue, Int(revisionNumber) == request.target.revision,
+              resolution?.status == .succeeded, resolution?.effectIsKnown == true,
+              let receipt = resolution?.businessReceipt, receipt.invocationID == request.id,
+              let result = resolution?.result,
+              let resultJSON = try? SessionCodec.decode(JSONValue.self, from: result.bytes),
+              resultJSON["request_id"]?.stringValue == request.id.uuidString.lowercased(),
+              resultJSON["state"] == .string("pending") else { throw LibraryArchiveIO.invalid }
+    }
+
 }

@@ -46,10 +46,10 @@ struct MemoryManagementView: View {
                 onSaved: { await model.reloadAfterEditing() })
             .environment(\.locale, locale)
         }
-        .confirmationDialog("Forget this memory?", isPresented: Binding(
+        .confirmationDialog("Delete this memory?", isPresented: Binding(
             get: { forgetting != nil }, set: { if !$0 { forgetting = nil } }), titleVisibility: .visible
         ) {
-            Button("Forget memory", role: .destructive) {
+            Button("Delete memory", role: .destructive) {
                 if let memory = forgetting { model.forget(memory) }
                 forgetting = nil
             }

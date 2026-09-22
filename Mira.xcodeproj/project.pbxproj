@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00966D2FE8E01984D4DAA75E /* MemoryDeletionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA578888071A1B3D390199C9 /* MemoryDeletionTests.swift */; };
 		00FFDDC5E0505AE3CB96D3F3 /* MiraModelIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14696E04A71A5E8E7E00E6C /* MiraModelIcon.swift */; };
 		02CDB3E3558F49BB662A734D /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = AC077B1804638B6DABAC612C /* MLXLMCommon */; };
 		0384F016F578B4A311EAC487 /* NativeConversationTranscript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35235F777F4B8BA4C02FCF66 /* NativeConversationTranscript.swift */; };
@@ -451,6 +452,7 @@
 		C9006EA277C86151CB175C93 /* PoolModelEditorModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolModelEditorModelTests.swift; sourceTree = "<group>"; };
 		C94059A1B675293BB441421F /* LibraryActivationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryActivationTests.swift; sourceTree = "<group>"; };
 		C99490BB67E891054038B13E /* ProviderLibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLibraryModel.swift; sourceTree = "<group>"; };
+		CA578888071A1B3D390199C9 /* MemoryDeletionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryDeletionTests.swift; sourceTree = "<group>"; };
 		CB6749F9DA00DFF343CE95B6 /* MacLocalNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLocalNotifications.swift; sourceTree = "<group>"; };
 		CD065CAF0C050F79CC4D9843 /* MemorySettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsModel.swift; sourceTree = "<group>"; };
 		CDDC593F360243EBDD2CB20E /* MiraBrandMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraBrandMark.swift; sourceTree = "<group>"; };
@@ -843,6 +845,7 @@
 				24B3109E6FB1D411E1EA7B04 /* MacLibrarySelectionTests.swift */,
 				B6BA63D7E0B5E743B597CDB3 /* MacNotificationRetirementTests.swift */,
 				EA6970C2E0B7FEF9AF9D06FE /* MacSessionReadModelTests.swift */,
+				CA578888071A1B3D390199C9 /* MemoryDeletionTests.swift */,
 				5916E007387CEDAA8B516192 /* MemoryEditorModelTests.swift */,
 				C7E45B4066CB9ECF9710070F /* MemoryManagementModelTests.swift */,
 				DB727C79E67BB84F37B10905 /* MemorySettingsModelTests.swift */,
@@ -1268,6 +1271,7 @@
 				CFBDEE65DE518DAAA935F4BF /* MacSessionReadModelTests.swift in Sources */,
 				9CB9342A63431BCB774A4455 /* MemoryCitationModel.swift in Sources */,
 				3B86B9079900D97B8D7A7C39 /* MemoryCitationView.swift in Sources */,
+				00966D2FE8E01984D4DAA75E /* MemoryDeletionTests.swift in Sources */,
 				A6494EFE682695B43B3FB9C8 /* MemoryEditorModel.swift in Sources */,
 				4FB447B31B78BDB405129ACD /* MemoryEditorModelTests.swift in Sources */,
 				4C127D0DB40AAD9530FF8370 /* MemoryEditorView.swift in Sources */,

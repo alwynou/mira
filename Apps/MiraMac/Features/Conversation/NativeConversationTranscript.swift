@@ -487,6 +487,7 @@ struct NativeConversationTranscript: NSViewRepresentable {
             if visible && !measuring {
                 auxiliary = AnyView(VStack(alignment: .leading, spacing: 10) {
                     MemoryHistoryTags(notices: item.memoryNotices)
+                    MemoryDeletionStatusView(requests: item.memoryDeletions)
                     if let executionID = item.executionID, let conversationID {
                         TranscriptCitations(text: item.text, executionID: executionID, conversationID: conversationID,
                                            model: parent.model, memoryNotices: item.memoryNotices).equatable()

@@ -133,10 +133,14 @@ final class MemoryManagementUITests: XCTestCase {
         }, "History did not preserve the wording that was current before replacement.")
 
         app.scrollViews["memory.detail"].scroll(byDeltaX: 0, deltaY: -1200)
+        XCTAssertEqual(app.buttons["memory.forget"].label,
+                       localized(language, english: "Delete memory", chinese: "删除记忆")) // i18n-fixture: Assert Chinese destructive action label.
         app.buttons["memory.forget"].click()
         let confirmForget = app.buttons["memory.forget.confirm"]
         try require(confirmForget.waitForExistence(timeout: 5), "The forget confirmation did not appear.")
-        capture(app, name: "Forget confirmation - \(language) - \(appearance)")
+        XCTAssertEqual(confirmForget.label,
+                       localized(language, english: "Delete memory", chinese: "删除记忆")) // i18n-fixture: Assert Chinese confirmation label.
+        capture(app, name: "Delete confirmation - \(language) - \(appearance)")
         confirmForget.click()
         try require(waitUntil(timeout: 20) {
             matchingRow(containing: localized(language, english: "Forgotten memory", chinese: "已遗忘的记忆"), in: app) != nil // i18n-fixture: Assert supported Chinese UI copy.

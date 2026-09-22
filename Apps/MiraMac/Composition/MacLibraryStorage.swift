@@ -129,6 +129,7 @@ actor MacLibraryStorage {
                         SQLiteTaskCommandHandler(now: environment.now),
                         SQLiteMemoryRememberHandler(now: environment.now),
                         SQLiteMemoryRetractHandler(now: environment.now),
+                        SQLiteMemoryDeleteHandler(now: environment.now),
                     ],
                     validator: MacBusinessValidator(now: environment.now))
                 cleanups.append { try? await business.close() }
@@ -322,6 +323,8 @@ private struct MacBusinessValidator: SQLiteBusinessAuthorizationValidator {
             try SQLiteMemoryRememberHandler(now: now).validate(effect: effect, isReplay: isReplay, in: db)
         case "memory.retract":
             try SQLiteMemoryRetractHandler(now: now).validate(effect: effect, isReplay: isReplay, in: db)
+        case "memory.delete":
+            try SQLiteMemoryDeleteHandler(now: now).validate(effect: effect, isReplay: isReplay, in: db)
         case "task.list", "task.change":
             try SQLiteTaskCommandHandler(now: now).validate(effect: effect, isReplay: isReplay, in: db)
         case "knowledge.search", "source.open", "source.read_chunk":
