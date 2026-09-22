@@ -1367,7 +1367,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         return report
     }
 
-    private static func installSettings(
+    static func installSettings(
         in group: MacLibraryWorkloads, configuration: LiveEvaluationConfiguration
     ) async throws -> EvaluationRoutes {
         let connectionID = ConnectionID()
@@ -1440,7 +1440,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         return .init(conversation: conversation.route, extraction: conversation.route)
     }
 
-    private static func command(
+    static func command(
         sessionID: ConversationID, executionID: ExecutionID, text: String,
         route: AgentModelRoute, opening: AgentSessionOpening?,
         instructions: String = ConversationInstructions.default
@@ -1507,7 +1507,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         return observations
     }
 
-    private static func captureState(
+    static func captureState(
         in group: MacLibraryWorkloads, knownIDs: Set<MemoryID>
     ) async throws -> [StateEvolutionMemorySnapshot] {
         let listed = try await group.memories.list(
@@ -1570,11 +1570,11 @@ final class EverydayMemoryLiveTests: XCTestCase {
         return snapshots.sorted { $0.id < $1.id }
     }
 
-    private static func sourceReferenceString(_ reference: SessionEvidenceReference) -> String {
+    static func sourceReferenceString(_ reference: SessionEvidenceReference) -> String {
         "session:\(reference.sessionID.rawValue.uuidString.lowercased())/execution:\(reference.originalExecutionID.rawValue.uuidString.lowercased())/message:\(reference.userMessageID.rawValue.uuidString.lowercased())/admission:\(reference.admissionEventID.uuidString.lowercased())@\(reference.admissionSequence)"
     }
 
-    private static func memoryReferences(in audit: SessionExecutionAuditPage) -> [String] {
+    static func memoryReferences(in audit: SessionExecutionAuditPage) -> [String] {
         let references = audit.attempts.flatMap { attempt -> [String] in
             guard case .available(let build) = attempt.request else { return [] }
             return build.sources.compactMap { source in
@@ -1590,7 +1590,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         "memory:\(id.lowercased())@\(revision)"
     }
 
-    private static func extractionSnapshot(
+    static func extractionSnapshot(
         in group: MacLibraryWorkloads, sourceSession: ConversationID, sourceExecution: ExecutionID,
         fallbackState: String, fallbackError: String?
     ) async throws -> StateEvolutionExtractionSnapshot {
@@ -1617,7 +1617,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
                      memoryCount: job.memoryCount, candidateCount: job.candidateCount, attempts: attempts)
     }
 
-    private static func assistantAnswer(
+    static func assistantAnswer(
         in group: MacLibraryWorkloads, sessionID: ConversationID, executionID: ExecutionID
     ) async throws -> String? {
         _ = try await group.queries.synchronize(sessionID: sessionID)
@@ -1625,7 +1625,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         return try Self.assistantAnswer(in: page, sessionID: sessionID, executionID: executionID)
     }
 
-    private static func assistantAnswer(
+    static func assistantAnswer(
         in page: SessionQueryMessagePage, sessionID: ConversationID, executionID: ExecutionID
     ) throws -> String? {
         let matching = page.messages.filter {
@@ -1709,7 +1709,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         return code
     }
 
-    private static func commitOutcome(_ result: SessionCommitResult) -> String {
+    static func commitOutcome(_ result: SessionCommitResult) -> String {
         switch result {
         case .committed: "committed"
         case .notCommitted: "notCommitted"
@@ -1717,7 +1717,7 @@ final class EverydayMemoryLiveTests: XCTestCase {
         }
     }
 
-    private static func captureFailureExecution(
+    static func captureFailureExecution(
         _ checkpoint: StateEvolutionExecutionCheckpoint,
         readAudit: () async throws -> SessionExecutionAuditPage
     ) async -> StateEvolutionFailureExecutionSnapshot {
@@ -1772,10 +1772,10 @@ final class EverydayMemoryLiveTests: XCTestCase {
     }
 }
 
-private struct EvaluationRoutes: Sendable { let conversation: AgentModelRoute; let extraction: AgentModelRoute }
+struct EvaluationRoutes: Sendable { let conversation: AgentModelRoute; let extraction: AgentModelRoute }
 struct MemoryObservationResult: Sendable { let memories: [MemoryObservation]; let state: String; let errorCode: String? }
 
-private struct LiveNoopNotifications: LocalNotificationPort {
+struct LiveNoopNotifications: LocalNotificationPort {
     func permission() async -> NotificationPermission { .denied }
     func requestPermission() async throws -> Bool { false }
     func pending() async -> [ReminderNotification] { [] }
@@ -1788,7 +1788,7 @@ private struct LiveNoopNotifications: LocalNotificationPort {
 /// HTTPModelAdapter reads the credential immediately before creating its
 /// transport operation. This is a conservative request-authorization count;
 /// it is deliberately reported separately from an exact transport dispatch count.
-private final class RequestAuthorizationCounter: @unchecked Sendable {
+final class RequestAuthorizationCounter: @unchecked Sendable {
     private let lock = NSLock(); private var count = 0
     private var denied = false
     var value: Int { lock.withLock { count } }
@@ -1802,13 +1802,13 @@ private final class RequestAuthorizationCounter: @unchecked Sendable {
     }
 }
 
-private final class ApprovalCounter: @unchecked Sendable {
+final class ApprovalCounter: @unchecked Sendable {
     private let lock = NSLock(); private var count = 0
     var value: Int { lock.withLock { count } }
     func increment() { lock.withLock { count += 1 } }
 }
 
-private final class EvaluationCredentials: MacCredentialStore, @unchecked Sendable {
+final class EvaluationCredentials: MacCredentialStore, @unchecked Sendable {
     private let secret: String; private let counter: RequestAuthorizationCounter
     private let limit: Int
     init(secret: String, counter: RequestAuthorizationCounter, limit: Int) { self.secret = secret; self.counter = counter; self.limit = limit }
@@ -1823,9 +1823,9 @@ private final class EvaluationCredentials: MacCredentialStore, @unchecked Sendab
     func delete(reference: String, version: Int) throws {}
 }
 
-private enum LiveEvaluationMode { case ordinary, stateEvolution }
+enum LiveEvaluationMode { case ordinary, stateEvolution }
 
-private struct LiveEvaluationConfiguration: Sendable {
+struct LiveEvaluationConfiguration: Sendable {
     let corpusURL: URL; let reportURL: URL; let endpoint: String; let allowsLoopbackHTTP: Bool; let apiKey: String
     let protocolID: HTTPProtocolID; let dialectProfileID: HTTPDialectProfileID
     let providerID: String; let conversationModelID: String; let caseIDs: [String]
@@ -2025,7 +2025,7 @@ private struct StateEvolutionScenario: Codable {
     let forbiddenTerms: [String]
 }
 
-private struct StateEvolutionWithdrawalEvidence: Codable, Sendable {
+struct StateEvolutionWithdrawalEvidence: Codable, Sendable {
     let revision: Int
     let sourceReference: String
     let executionID: String
@@ -2033,13 +2033,13 @@ private struct StateEvolutionWithdrawalEvidence: Codable, Sendable {
     let hasHash: Bool
 }
 
-private struct StateEvolutionRetractionSnapshot: Codable, Sendable {
+struct StateEvolutionRetractionSnapshot: Codable, Sendable {
     let priorRevision: Int
     let revision: Int
     let evidence: [StateEvolutionWithdrawalEvidence]
 }
 
-private struct StateEvolutionMemorySnapshot: Codable, Sendable {
+struct StateEvolutionMemorySnapshot: Codable, Sendable {
     let id: String
     let revision: Int
     let state: String
@@ -2078,7 +2078,7 @@ private struct StateEvolutionMemorySnapshot: Codable, Sendable {
     }
 }
 
-private enum StateEvolutionAssertions {
+enum StateEvolutionAssertions {
     static func preservationFailures(
         memories: [StateEvolutionMemorySnapshot], baseline: StateEvolutionMemorySnapshot?,
         mutationInvocationCount: Int = 0, contextMemoryReferences: [String]? = nil
@@ -2207,7 +2207,7 @@ private enum StateEvolutionAssertions {
     }
 }
 
-private struct StateEvolutionExtractionAttemptSnapshot: Codable, Sendable {
+struct StateEvolutionExtractionAttemptSnapshot: Codable, Sendable {
     let attemptID: String
     let ordinal: Int
     let state: String
@@ -2221,7 +2221,7 @@ private struct StateEvolutionExtractionAttemptSnapshot: Codable, Sendable {
     let dispatched: Bool
 }
 
-private struct StateEvolutionExtractionSnapshot: Codable, Sendable {
+struct StateEvolutionExtractionSnapshot: Codable, Sendable {
     let jobID: String?
     let sourceExecutionID: String?
     let status: String
@@ -2239,7 +2239,7 @@ private struct StateEvolutionExtractionSnapshot: Codable, Sendable {
     }
 }
 
-private struct StateEvolutionTokenUsageSnapshot: Codable, Sendable {
+struct StateEvolutionTokenUsageSnapshot: Codable, Sendable, Equatable {
     let id: String
     let complete: Bool
     let inputTokens: Int?
@@ -2294,7 +2294,7 @@ private struct StateEvolutionFollowUpSnapshot: Codable, Sendable {
     let conversationUsage: [StateEvolutionTokenUsageSnapshot]
 }
 
-private struct StateEvolutionExecutionCheckpoint: Sendable {
+struct StateEvolutionExecutionCheckpoint: Sendable {
     let phase: String
     let stepIndex: Int?
     let sessionID: ConversationID
@@ -2305,7 +2305,7 @@ private struct StateEvolutionExecutionCheckpoint: Sendable {
 
 /// Nullable audit fields distinguish unavailable evidence from an observed empty result.
 /// Usage retains attempt identity and completeness; it does not infer HTTP dispatch.
-private struct StateEvolutionFailureExecutionSnapshot: Codable, Sendable {
+struct StateEvolutionFailureExecutionSnapshot: Codable, Sendable {
     let phase: String
     let stepIndex: Int?
     let sessionID: String

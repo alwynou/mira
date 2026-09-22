@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "caseID": "en-automatic-writing-plan",
+      "heldAt": "2026-09-22T07:37:44Z",
+      "log": "/private/tmp/mira-issue52-eval/en-automatic-writing-plan.establish.log",
+      "phase": "establish",
+      "report": "/private/tmp/mira-issue52-eval/en-automatic-writing-plan.establish.json",
+      "reserved": 6,
+      "reservedAt": "2026-09-22T07:35:00Z",
+      "runID": "8ed8c4bd-295f-42f9-bd93-a3f80b87444a",
+      "state": "held",
+      "used": null
+    },
+    {
+      "caseID": "en-explicit-reading-room",
+      "heldAt": "2026-09-22T07:40:24Z",
+      "log": "/private/tmp/mira-issue52-eval/en-explicit-reading-room.establish.log",
+      "phase": "establish",
+      "report": "/private/tmp/mira-issue52-eval/en-explicit-reading-room.establish.json",
+      "reserved": 6,
+      "reservedAt": "2026-09-22T07:37:44Z",
+      "runID": "aac2b417-2aab-47c2-9ae3-28e2711a79f8",
+      "state": "held",
+      "used": null
+    },
+    {
+      "caseID": "zh-writing-plan",
+      "heldAt": "2026-09-22T07:43:06Z",
+      "log": "/private/tmp/mira-issue52-eval/zh-writing-plan.establish.log",
+      "phase": "establish",
+      "report": "/private/tmp/mira-issue52-eval/zh-writing-plan.establish.json",
+      "reserved": 6,
+      "reservedAt": "2026-09-22T07:40:24Z",
+      "runID": "b7a81506-017b-46b8-a7a7-f70e7eecd7dd",
+      "state": "held",
+      "used": null
+    },
+    {
+      "caseID": "zh-explicit-meeting-time",
+      "heldAt": "2026-09-22T07:45:48Z",
+      "log": "/private/tmp/mira-issue52-eval/zh-explicit-meeting-time.establish.log",
+      "phase": "establish",
+      "report": "/private/tmp/mira-issue52-eval/zh-explicit-meeting-time.establish.json",
+      "reserved": 6,
+      "reservedAt": "2026-09-22T07:43:06Z",
+      "runID": "08500371-2fb5-4c59-a753-7344c6dfef87",
+      "state": "held",
+      "used": null
+    }
+  ],
+  "globalLimit": 32,
+  "version": 1
+}

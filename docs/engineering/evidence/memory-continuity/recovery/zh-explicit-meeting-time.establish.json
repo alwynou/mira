@@ -1,0 +1,322 @@
+{
+  "approvalDenialCount" : 0,
+  "before" : [
+
+  ],
+  "checks" : [
+
+  ],
+  "closeSettled" : true,
+  "errorCode" : "request_authorization_cap_reached",
+  "execution" : {
+    "answer" : "好的，已记住：你偏好把会议安排在上午。",
+    "executionID" : "f487e265-8152-412b-ac54-29293f4c8da8",
+    "input" : "请记住这个偏好：我喜欢把会议安排在上午。",
+    "memoryReferences" : [
+
+    ],
+    "rounds" : [
+      {
+        "attemptID" : "1529CDCC-E96C-4CB1-9745-C0CD938D93A7",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 4,
+        "visibleText" : ""
+      },
+      {
+        "attemptID" : "D25232EA-423B-4616-BDEB-BDCC905FA93F",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 12,
+        "visibleText" : ""
+      },
+      {
+        "attemptID" : "EC1FBB83-BCA9-419F-B1BC-29BDEF880A97",
+        "memoryReferences" : [
+
+        ],
+        "sequence" : 20,
+        "visibleText" : "好的，已记住：你偏好把会议安排在上午。"
+      }
+    ],
+    "sessionID" : "83f41eec-1fc8-425c-9eb0-4c6451d74f52",
+    "sourceReference" : "session:83f41eec-1fc8-425c-9eb0-4c6451d74f52\/execution:f487e265-8152-412b-ac54-29293f4c8da8\/message:1577de29-1be5-4bb2-9f21-b917e90bebbd\/admission:464bcb76-3344-402c-a4ba-75b567aa8de5@2",
+    "tools" : [
+      {
+        "attemptID" : "1529CDCC-E96C-4CB1-9745-C0CD938D93A7",
+        "id" : "56891C06-6687-4EA6-88B3-5BAE06885BD7",
+        "name" : "memory.search",
+        "result" : {
+          "memories" : [
+
+          ],
+          "truncated" : false
+        },
+        "status" : "succeeded"
+      },
+      {
+        "attemptID" : "D25232EA-423B-4616-BDEB-BDCC905FA93F",
+        "id" : "9B4C48FB-B01F-42C9-9904-ECFA506F7DC1",
+        "name" : "memory.remember",
+        "receipt" : {
+          "authorization" : {
+            "epoch" : 0,
+            "libraryID" : "202165CB-E95F-4D6D-A39D-EF5C3A110397"
+          },
+          "id" : "81837DCA-6772-4500-9C33-ABE702586DCF",
+          "intentDigest" : "dcfb9a38478800257027bd408011c10829e000b5fbab8abb3ff44cb7a4cec866",
+          "invocationID" : "9B4C48FB-B01F-42C9-9904-ECFA506F7DC1",
+          "resultDigest" : "f5542dd8d685e3af7dd02ad611ebbdd0667c80a0df7c76ffbdb796715b6730f1"
+        },
+        "result" : {
+          "acknowledgment" : "Acknowledge that this committed memory is allowed for future model requests.",
+          "allows_remote_use" : true,
+          "memory_id" : "290c225e-4dbd-4efb-926e-389e51c4b90e",
+          "policy" : "remote_allowed",
+          "reference" : "memory:290c225e-4dbd-4efb-926e-389e51c4b90e@1",
+          "revision" : 1,
+          "state" : "active"
+        },
+        "status" : "succeeded"
+      }
+    ],
+    "usage" : [
+      {
+        "cacheReadTokens" : 2816,
+        "complete" : true,
+        "id" : "ec1fbb83-bca9-419f-b1bc-29bdef880a97",
+        "inputTokens" : 3000,
+        "outputTokens" : 13,
+        "reasoningTokens" : 0
+      },
+      {
+        "cacheReadTokens" : 2432,
+        "complete" : true,
+        "id" : "d25232ea-423b-4616-bdeb-bdcc905fa93f",
+        "inputTokens" : 2576,
+        "outputTokens" : 289,
+        "reasoningTokens" : 153
+      },
+      {
+        "cacheReadTokens" : 2176,
+        "complete" : true,
+        "id" : "1529cdcc-e96c-4cb1-9745-c0cd938d93a7",
+        "inputTokens" : 2410,
+        "outputTokens" : 123,
+        "reasoningTokens" : 78
+      }
+    ]
+  },
+  "extraction" : {
+    "attempts" : [
+      {
+        "attemptID" : "ecf3e752-4054-4078-8a5a-1299f01b3d11",
+        "chargedTokens" : 25566,
+        "dispatched" : true,
+        "ordinal" : 1,
+        "reservedTokens" : 25566,
+        "state" : "paused"
+      }
+    ],
+    "candidateCount" : 0,
+    "errorCode" : "credentialMissing",
+    "jobID" : "d08fe23c-ca5f-495a-8db4-f74324380248",
+    "memoryCount" : 0,
+    "sourceExecutionID" : "f487e265-8152-412b-ac54-29293f4c8da8",
+    "status" : "paused"
+  },
+  "failureStage" : "background_extraction",
+  "finishedAt" : "2026-09-22T07:57:58Z",
+  "identity" : {
+    "caseID" : "zh-explicit-meeting-time",
+    "contextWindow" : 1000000,
+    "embeddings" : "local",
+    "endpoint" : "https:\/\/api.deepseek.com",
+    "followUp" : "我更喜欢把会议安排在什么时候？",
+    "input" : "请记住这个偏好：我喜欢把会议安排在上午。",
+    "instructions" : "You are Mira, a personal assistant. Reply in the user's requested language, otherwise the language of their message. Use tools when needed and preserve source citations.\n\nDistinguish understanding information in this conversation from saving durable memory. For ordinary statements, acknowledge the information naturally and use it in the current conversation. Background memory extraction may run later; it is not evidence that a save has completed. Do not call memory.remember just to justify an acknowledgment, and do not wait for background extraction before replying.\n\nKeep ordinary preference acknowledgments about the user's information, not your future behavior. For example, acknowledge \"I prefer aisle seats\" with \"Understood, you prefer aisle seats\" in the user's language. Do not add \"I'll prioritize aisle seats next time\", \"I'll keep that in mind for future bookings\", or similar open-ended future-use promises. Merely replacing \"saved\" with \"understood\" does not make such a promise valid. Any offer to apply an unsaved preference must be explicitly limited to the current conversation.\n\nClaim that you saved or updated a memory only after the matching memory.remember call returns status succeeded with the committed memory content for that information. A proposed or pending call, a failed or refused result, an absent result, a previous assistant claim, or an unrelated earlier receipt is not confirmation. Without that result, do not say you have saved, recorded, or remembered the new information for later, or promise to recall or use it in future conversations. You may briefly acknowledge understanding without making a persistence claim. If an explicit save fails or is refused, explain that it was not saved; if its outcome is unknown, say that the save is unconfirmed.\n\nAfter a successful save, acknowledge only what the result confirms and respect its scope and remote-use policy. A local-only memory does not authorize future model use. Availability for future requests is not a guarantee of recall. Existing recalled memories support their stated facts, not a claim that you just saved the current message.",
+    "language" : "zh-CN",
+    "mode" : "explicitSave",
+    "modelID" : "deepseek-flash",
+    "outputTokens" : 8192,
+    "protocolID" : "chat.completions",
+    "providerID" : "deepseek",
+    "root" : "\/var\/folders\/hd\/vw9cr2s54879tqf2kphbkzlw0000gn\/T\/Mira-Continuity-owcqwsct",
+    "runID" : "05d92e2e-d471-41cf-9458-459439ac6268"
+  },
+  "immediate" : [
+    {
+      "authority" : "explicitUser",
+      "body" : "用户偏好将会议安排在上午。",
+      "detailAvailable" : true,
+      "evidenceCount" : 1,
+      "evidenceExcerptCount" : 1,
+      "evidenceExecutionIDs" : [
+        "f487e265-8152-412b-ac54-29293f4c8da8"
+      ],
+      "evidenceHashCount" : 1,
+      "evidenceSourceReferences" : [
+        "session:83f41eec-1fc8-425c-9eb0-4c6451d74f52\/execution:f487e265-8152-412b-ac54-29293f4c8da8\/message:1577de29-1be5-4bb2-9f21-b917e90bebbd\/admission:464bcb76-3344-402c-a4ba-75b567aa8de5@2"
+      ],
+      "id" : "290c225e-4dbd-4efb-926e-389e51c4b90e",
+      "isCurrent" : true,
+      "lifecycle" : "active",
+      "origin" : "explicitUser",
+      "previousMemoryIDs" : [
+
+      ],
+      "revision" : 1,
+      "revisionBodyCount" : 1,
+      "revisionNumbers" : [
+        1
+      ],
+      "state" : "active"
+    }
+  ],
+  "immediateMaterial" : {
+    "evidence" : [
+      {
+        "createdAt" : 1790063732691.2952,
+        "excerpt" : "请记住这个偏好：我喜欢把会议安排在上午。",
+        "id" : "034FB5D6-A797-4B48-BC1C-BAD0A2303DEB",
+        "memoryID" : {
+          "rawValue" : "290C225E-4DBD-4EFB-926E-389E51C4B90E"
+        },
+        "source" : {
+          "userMessage" : {
+            "_0" : {
+              "admissionEventID" : "464BCB76-3344-402C-A4BA-75B567AA8DE5",
+              "admissionSequence" : 2,
+              "originalExecutionID" : {
+                "rawValue" : "F487E265-8152-412B-AC54-29293F4C8DA8"
+              },
+              "sessionID" : {
+                "rawValue" : "83F41EEC-1FC8-425C-9EB0-4C6451D74F52"
+              },
+              "userMessageID" : {
+                "rawValue" : "1577DE29-1BE5-4BB2-9F21-B917E90BEBBD"
+              }
+            }
+          }
+        },
+        "sourceHash" : "06ccbe7d13d45faf2e2e83ff1475fd8e2536b38ceedd7263705b5732e7064889"
+      }
+    ],
+    "memory" : {
+      "authority" : "explicitUser",
+      "createdAt" : 1790063732691.2952,
+      "draft" : {
+        "allowsRemoteUse" : true,
+        "content" : "用户偏好将会议安排在上午。",
+        "kind" : "preference",
+        "scope" : {
+          "global" : {
+
+          }
+        },
+        "sensitivity" : "standard",
+        "subject" : "user"
+      },
+      "id" : {
+        "rawValue" : "290C225E-4DBD-4EFB-926E-389E51C4B90E"
+      },
+      "origin" : "explicitUser",
+      "revision" : 1,
+      "scope" : {
+        "global" : {
+
+        }
+      },
+      "state" : "active",
+      "subject" : "user",
+      "updatedAt" : 1790063732691.2952
+    },
+    "replacements" : [
+
+    ],
+    "revisions" : [
+      {
+        "actor" : "user",
+        "changedAt" : 1790063732691.2952,
+        "draft" : {
+          "allowsRemoteUse" : true,
+          "content" : "用户偏好将会议安排在上午。",
+          "kind" : "preference",
+          "scope" : {
+            "global" : {
+
+            }
+          },
+          "sensitivity" : "standard",
+          "subject" : "user"
+        },
+        "memoryID" : {
+          "rawValue" : "290C225E-4DBD-4EFB-926E-389E51C4B90E"
+        },
+        "revision" : 1
+      }
+    ]
+  },
+  "mismatches" : [
+
+  ],
+  "phase" : "establish",
+  "processID" : 53616,
+  "processInstanceID" : "997a1201-300e-470d-96f6-f18fa3954547",
+  "qualification" : "host evidence only; reply and fact semantics require separate review",
+  "requestAuthorizationCap" : 3,
+  "requestAuthorizationCount" : 3,
+  "route" : {
+    "adapter" : {
+      "id" : "mira.http.chat-completions",
+      "revision" : 1
+    },
+    "capabilities" : {
+      "callsTools" : true,
+      "producesThinking" : true,
+      "streamsText" : true
+    },
+    "configuration" : {
+      "allowsLoopbackHTTP" : false,
+      "baseURL" : "https:\/\/api.deepseek.com",
+      "dialectProfileID" : "deepseek.chat",
+      "protocolID" : "chat.completions",
+      "requestsUsage" : true,
+      "storeResponses" : false,
+      "thinking" : {
+        "mode" : "providerDefault"
+      }
+    },
+    "connectionID" : {
+      "rawValue" : "B02E8275-9064-4894-A93E-CBC7423D2CA3"
+    },
+    "connectionRevision" : 1,
+    "contextWindow" : 1000000,
+    "credential" : {
+      "reference" : "mira.credential.21f50778d1d05c775d575662c00df8b83fdbdc27c6753832703edb2ecbdc397b.83bee25f-8680-4552-abc8-f7506cf58f7b",
+      "version" : 1
+    },
+    "endpointID" : "primary",
+    "id" : {
+      "rawValue" : "5FBF4ED0-15FF-48C9-A564-1AC060E4ED93"
+    },
+    "invocationID" : "default",
+    "invocationRevision" : 1,
+    "maximumOutputTokens" : 8192,
+    "modelAuthorizationRevision" : 1,
+    "modelDescriptorID" : {
+      "rawValue" : "5FBF4ED0-15FF-48C9-A564-1AC060E4ED93"
+    },
+    "modelID" : "deepseek-flash",
+    "modelRevision" : 1,
+    "revision" : 1
+  },
+  "startedAt" : "2026-09-22T07:55:27Z",
+  "status" : "failed",
+  "verifiedCitations" : [
+
+  ],
+  "version" : 1
+}
