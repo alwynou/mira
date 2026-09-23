@@ -133,6 +133,9 @@ enum MiraTheme {
         static let memoryListProportion: CGFloat = 0.34
         static let memoryDetailContentMax: CGFloat = 580
         static let memoryMetadataLabelWidth: CGFloat = 90
+        static let knowledgeListWidth: CGFloat = 320
+        static let knowledgeCompactBreakpoint: CGFloat = 790
+        static let knowledgeReaderContentMax: CGFloat = 680
     }
 
     enum Markdown {

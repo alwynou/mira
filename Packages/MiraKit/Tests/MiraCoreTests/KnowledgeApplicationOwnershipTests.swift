@@ -236,6 +236,8 @@ private actor KnowledgeTestStore: KnowledgeStore {
     func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID?, scope: KnowledgeReadScope) async throws -> KnowledgeSourceDetail { lastScope = scope; throw MiraError(.notFound, "Synthetic source is unavailable.") }
     func sourceChunk(_ id: SourceChunkID, scope: KnowledgeReadScope) async throws -> SourceChunk { lastScope = scope; throw MiraError(.notFound, "Synthetic chunk is unavailable.") }
     func searchKnowledge(query: String, scope: KnowledgeReadScope, limit: Int) async throws -> KnowledgeSearchResult { lastScope = scope; return .init(hits: []) }
+    func knowledgeManagementPage(_ query: KnowledgeManagementQuery) async throws -> KnowledgeManagementPage { return .init(items: [], nextCursor: nil) }
+    func knowledgeDocumentPage(_ id: KnowledgeSourceID, versionID: SourceVersionID, scope: KnowledgeReadScope, afterSequence: Int?, limit: Int) async throws -> KnowledgeDocumentPage { lastScope = scope; throw MiraError(.notFound, "Synthetic document is unavailable.") }
     func sourceCitation(_ reference: SourceCitationReference, scope: KnowledgeReadScope) async throws -> SourceCitationDetail { citationReadCount += 1; throw MiraError(.notFound, "Synthetic citation is unavailable.") }
     func validateKnowledgeSources(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {}
     func importMarkdown(_ input: KnowledgeImport, workspaceID: WorkspaceID?, updating: KnowledgeSourceID?, expectedRevision: Int?, operationID: UUID, authorization: AgentLibraryAuthorization, at: Date) async throws -> KnowledgeImportReceipt {

@@ -32,6 +32,10 @@ public protocol KnowledgeReadStore: Sendable {
     func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID?, scope: KnowledgeReadScope) async throws -> KnowledgeSourceDetail
     func sourceChunk(_ id: SourceChunkID, scope: KnowledgeReadScope) async throws -> SourceChunk
     func searchKnowledge(query: String, scope: KnowledgeReadScope, limit: Int) async throws -> KnowledgeSearchResult
+    /// Host-only source management reads. These results are never model context or tool input.
+    func knowledgeManagementPage(_ query: KnowledgeManagementQuery) async throws -> KnowledgeManagementPage
+    func knowledgeDocumentPage(_ id: KnowledgeSourceID, versionID: SourceVersionID,
+                               scope: KnowledgeReadScope, afterSequence: Int?, limit: Int) async throws -> KnowledgeDocumentPage
     func sourceCitation(_ reference: SourceCitationReference, scope: KnowledgeReadScope) async throws -> SourceCitationDetail
     func validateKnowledgeSources(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws
 }

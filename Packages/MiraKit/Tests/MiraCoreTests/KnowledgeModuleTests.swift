@@ -94,6 +94,8 @@ private struct KnowledgeFixture: KnowledgeReadStore, Sendable {
     func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID?, scope: KnowledgeReadScope) async throws -> KnowledgeSourceDetail { .init(source: source, versions: [version], selectedVersion: version, chunks: (0..<summaryCount).map { index in var s = chunk.summary; s.id = index == 0 ? chunk.id : SourceChunkID(); s.sequence = index; s.startUTF8Offset = index * 1_200; s.endUTF8Offset = index * 1_200 + 1_200; return s }) }
     func sourceChunk(_ id: SourceChunkID, scope: KnowledgeReadScope) async throws -> SourceChunk { chunk }
     func searchKnowledge(query: String, scope: KnowledgeReadScope, limit: Int) async throws -> KnowledgeSearchResult { .init(hits: [.init(source: source, chunk: chunk.summary, snippet: chunk.text)]) }
+    func knowledgeManagementPage(_ query: KnowledgeManagementQuery) async throws -> KnowledgeManagementPage { .init(items: [], nextCursor: nil) }
+    func knowledgeDocumentPage(_ id: KnowledgeSourceID, versionID: SourceVersionID, scope: KnowledgeReadScope, afterSequence: Int?, limit: Int) async throws -> KnowledgeDocumentPage { .init(source: source, version: version, chunks: [chunk], nextSequence: nil) }
     func sourceCitation(_ reference: SourceCitationReference, scope: KnowledgeReadScope) async throws -> SourceCitationDetail { .init(source: source, version: version, chunk: chunk) }
     func validateKnowledgeSources(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {}
 }
@@ -113,6 +115,8 @@ private struct BrokenKnowledgeStore: KnowledgeReadStore {
         }
         return .init(hits: [hit])
     }
+    func knowledgeManagementPage(_ query: KnowledgeManagementQuery) async throws -> KnowledgeManagementPage { try await base.knowledgeManagementPage(query) }
+    func knowledgeDocumentPage(_ id: KnowledgeSourceID, versionID: SourceVersionID, scope: KnowledgeReadScope, afterSequence: Int?, limit: Int) async throws -> KnowledgeDocumentPage { try await base.knowledgeDocumentPage(id, versionID: versionID, scope: scope, afterSequence: afterSequence, limit: limit) }
     func sourceCitation(_ reference: SourceCitationReference, scope: KnowledgeReadScope) async throws -> SourceCitationDetail { try await base.sourceCitation(reference, scope: scope) }
     func validateKnowledgeSources(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws {}
 }
@@ -123,6 +127,8 @@ private struct RejectingKnowledgeStore: KnowledgeReadStore {
     func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID?, scope: KnowledgeReadScope) async throws -> KnowledgeSourceDetail { try await base.knowledgeSource(id, versionID: versionID, scope: scope) }
     func sourceChunk(_ id: SourceChunkID, scope: KnowledgeReadScope) async throws -> SourceChunk { try await base.sourceChunk(id, scope: scope) }
     func searchKnowledge(query: String, scope: KnowledgeReadScope, limit: Int) async throws -> KnowledgeSearchResult { try await base.searchKnowledge(query: query, scope: scope, limit: limit) }
+    func knowledgeManagementPage(_ query: KnowledgeManagementQuery) async throws -> KnowledgeManagementPage { try await base.knowledgeManagementPage(query) }
+    func knowledgeDocumentPage(_ id: KnowledgeSourceID, versionID: SourceVersionID, scope: KnowledgeReadScope, afterSequence: Int?, limit: Int) async throws -> KnowledgeDocumentPage { try await base.knowledgeDocumentPage(id, versionID: versionID, scope: scope, afterSequence: afterSequence, limit: limit) }
     func sourceCitation(_ reference: SourceCitationReference, scope: KnowledgeReadScope) async throws -> SourceCitationDetail { try await base.sourceCitation(reference, scope: scope) }
     func validateKnowledgeSources(_ sources: [AgentSourceReference], for request: AgentContextRequest) async throws { throw MiraError(.unauthorized, "rejected") }
 }

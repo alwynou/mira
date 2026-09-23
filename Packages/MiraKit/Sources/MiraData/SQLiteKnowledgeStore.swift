@@ -41,13 +41,15 @@ public final class SQLiteKnowledgeStore: KnowledgeStore, @unchecked Sendable {
     public func knowledgeSource(_ id: KnowledgeSourceID, versionID: SourceVersionID?, scope: KnowledgeReadScope) async throws -> KnowledgeSourceDetail {
         try await owner.read { db in
             let source = try Self.source(id, scope: scope, in: db)
-            let versions = try Row.fetchAll(db, sql: "SELECT * FROM knowledge_versions WHERE source_id = ? ORDER BY created_at DESC, id LIMIT 100", arguments: [Self.key(id)]).map(Self.version)
+            let versionRows = try Row.fetchAll(db, sql: "SELECT * FROM knowledge_versions WHERE source_id = ? ORDER BY created_at DESC, id LIMIT 101", arguments: [Self.key(id)])
+            let versions = try versionRows.prefix(100).map(Self.version)
             let selected = try (versionID ?? source.currentVersionID).map { try Self.version($0, sourceID: id, in: db) }
             if versionID == nil, let selected { guard selected.parseState == .ready else { throw Self.corrupt } }
             let rows = try selected.map { try Row.fetchAll(db, sql: "SELECT * FROM knowledge_chunks WHERE version_id = ? ORDER BY sequence LIMIT 201", arguments: [Self.key($0.id)]) } ?? []
             guard selected?.parseState != .failed || rows.isEmpty else { throw Self.corrupt }
             let chunks = try rows.prefix(200).map { try Self.chunk($0).summary }
-            return .init(source: source, versions: versions, selectedVersion: selected, chunks: chunks, hasMoreChunks: rows.count > 200)
+            return .init(source: source, versions: versions, selectedVersion: selected, chunks: chunks,
+                         hasMoreChunks: rows.count > 200, hasMoreVersions: versionRows.count > 100)
         }
     }
     public func sourceChunk(_ id: SourceChunkID, scope: KnowledgeReadScope) async throws -> SourceChunk {

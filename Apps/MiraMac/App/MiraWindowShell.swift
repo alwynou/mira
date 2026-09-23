@@ -12,6 +12,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
     @Binding var showsInspector: Bool
     var newConversation: () -> Void
     var addMemory: (() -> Void)? = nil
+    var importKnowledge: (() -> Void)? = nil
+    var openKnowledge: (() -> Void)? = nil
+    var canImportKnowledge = true
 
     func makeNSViewController(context: Context) -> Controller { Controller(configuration: self) }
     func updateNSViewController(_ controller: Controller, context: Context) { controller.update(self) }
@@ -43,6 +46,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private static let newItem = NSToolbarItem.Identifier("conversation.new")
         private static let inspectorID = NSToolbarItem.Identifier("conversation.inspector")
         private static let memoryNew = NSToolbarItem.Identifier("memory.new")
+        private static let knowledgeImport = NSToolbarItem.Identifier("knowledge.import")
         private static let knowledge = NSToolbarItem.Identifier("conversation.knowledge")
 
         init(configuration: MiraWindowShell) {
@@ -199,6 +203,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private var desiredItems: [NSToolbarItem.Identifier] {
+            if configuration.importKnowledge != nil {
+                return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.knowledgeImport]
+            }
             if configuration.addMemory != nil {
                 return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.memoryNew]
             }
@@ -227,15 +234,18 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 switch id {
                 case Self.newItem: label = "New conversation"
                 case Self.memoryNew: label = "Add memory"
+                case Self.knowledgeImport: label = "Import Markdown"
                 case Self.inspectorID: label = "Execution details"
                 case Self.knowledge: label = "Knowledge"
                 default: continue
                 }
                 let text = L10n.string(label, locale: configuration.locale)
                 if item.label != text { item.label = text; item.paletteLabel = text }
-                item.toolTip = id == Self.knowledge ? L10n.string("Not implemented yet", locale: configuration.locale) : text
+                item.toolTip = text
                 item.isEnabled = id != Self.inspectorID || configuration.canInspect
+                if id == Self.knowledgeImport { item.isEnabled = configuration.canImportKnowledge }
                 if let button = item.view as? NSButton {
+                    if id == Self.knowledgeImport { button.title = text }
                     button.setAccessibilityLabel(text)
                     button.toolTip = item.toolTip
                     button.isEnabled = item.isEnabled
@@ -254,6 +264,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             let symbol: String
             let action: Selector
             switch id {
+            case Self.knowledgeImport: (label, symbol, action) = ("Import Markdown", "square.and.arrow.down", #selector(importKnowledge))
             case Self.memoryNew: (label, symbol, action) = ("Add memory", "plus", #selector(addMemory))
             case Self.newItem: (label, symbol, action) = ("New conversation", "square.and.pencil", #selector(newConversation))
             case Self.inspectorID: (label, symbol, action) = ("Execution details", "sidebar.right", #selector(toggleExecutionInspector))
@@ -265,6 +276,10 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             let button = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)!, target: self, action: action)
             button.setAccessibilityIdentifier(id.rawValue)
             button.imagePosition = .imageOnly
+            if id == Self.knowledgeImport {
+                button.title = L10n.string(label, locale: configuration.locale)
+                button.imagePosition = .imageLeading
+            }
             if id == Self.newItem { button.keyEquivalent = "n"; button.keyEquivalentModifierMask = .command }
             button.bezelStyle = .texturedRounded
             item.view = button
@@ -273,6 +288,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             item.target = self
             item.action = action
             item.isEnabled = id != Self.inspectorID || configuration.canInspect
+            if id == Self.knowledgeImport { item.isEnabled = configuration.canImportKnowledge }
             button.isEnabled = item.isEnabled
             cachedItems[id] = item
             return item
@@ -281,7 +297,8 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         @objc private func addMemory() { configuration.addMemory?() }
         @objc private func newConversation() { configuration.newConversation() }
         @objc private func toggleExecutionInspector() { configuration.showsInspector.toggle() }
-        @objc private func openKnowledge() {}
+        @objc private func openKnowledge() { configuration.openKnowledge?() }
+        @objc private func importKnowledge() { configuration.importKnowledge?() }
 
     }
 }

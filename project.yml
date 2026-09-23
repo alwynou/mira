@@ -113,6 +113,7 @@ targets:
       - Apps/MiraMac/Presentation/MemoryCitationModel.swift
       - Apps/MiraMac/Presentation/MemoryEditorModel.swift
       - Apps/MiraMac/Presentation/MemoryManagementModel.swift
+      - Apps/MiraMac/Presentation/KnowledgeManagementModel.swift
       - Apps/MiraMac/Presentation/MemorySettingsModel.swift
       - Apps/MiraMac/Presentation/DataSettingsModel.swift
       - Apps/MiraMac/Presentation/ProviderConnectionTestModel.swift
@@ -132,7 +133,7 @@ targets:
       - Apps/MiraMac/Features/Conversation/NativeConversationTranscript.swift
       - Apps/MiraMac/Presentation/TranscriptViewportLayout.swift
       - Apps/MiraMac/Presentation/TranscriptFollowScheduler.swift
-      - Apps/MiraMac/Features/Knowledge/KnowledgeCitationView.swift
+      - Apps/MiraMac/Features/Knowledge
       - Apps/MiraMac/Features/Memory/MemoryCitationView.swift
       - Apps/MiraMac/Features/Conversation/ExecutionInspector.swift
       - Apps/MiraMac/Features/Conversation/MemoryExtractionInspector.swift

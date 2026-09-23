@@ -85,8 +85,18 @@
 
 文件解除链接后 SQL 事务可能失败或进程中断：此前领域删除与 pending 已持久化，没有有效版本指向被删文件；剩余无引用元数据可在重开后继续清理。原有共享引用始终阻止物理删除。完成过的操作、伪造 pending、关闭的适配器都不能继续授权回收。
 
-## 7. 尚待完成的边界
+## 7. 当前集成与验收边界
 
-本实现提供可组合并可恢复的领域处理器。备份／恢复、完整查询／规模验收、原生宿主及全部工作组组装仍待当前 Goal 完成，不把隔离组合成功称为 App 已可用。旧 `source_usages`、`SourceUsage`、SQL 引用解析和旧知识备份校验已删除，不用于过渡运行。
+领域处理器已接入原生宿主、库工作组、隐私维护及备份／恢复。管理界面通过同一库所有者读取和执行操作；不建立第二套数据库所有权或模型授权。旧 `source_usages`、`SourceUsage`、SQL 引用解析和旧知识备份校验已删除，不用于过渡运行，也不迁移旧开发数据。
 
-旧开发数据已按用户授权删除，默认目录为空，等待新宿主按新格式初始化；不迁移历史数据。旧包调用方继续直接重写，隔离新领域测试不能替代完整包、宿主构建和原生验收。
+当前原生管理验收、已知测试限制及未验证的运行平台见 [Knowledge management verification](../engineering/KNOWLEDGE_MANAGEMENT_VERIFICATION.md)。该界面增量不关闭完整联合规模、真实模型问答质量或全部平台验收。
+
+## 8. 当前资料管理读取
+
+`KnowledgeApplication.managementPage(_:)` 和 `documentPage(_:versionID:scope:afterSequence:limit:)` 是宿主资料管理入口。管理列表通过库租约调用 `KnowledgeReadStore` 的本地 owner-only 查询；它不接收模型 route，不建立模型可见授权，也不查询会话数据。`KnowledgeManagementScope.all` 覆盖本地库中的全局及工作区来源，`.inbox` 只匹配 `workspace_id IS NULL`，工作区范围只匹配该工作区；所有管理范围排除已删除来源。
+
+管理查询先应用范围、状态和文本过滤，再使用稳定 keyset 分页。状态可按当前成功版本（`searchable`）、本地-only 许可（`localOnly`）及最新失败版本（`needsAttention`）筛选；这些条件可重叠，因此一个有较新失败版本但仍保留较早成功当前版本的来源同时可被两种筛选命中。文本搜索只检查来源标题和当前成功片段，历史正文及失败版本正文不参与匹配；多个词必须命中同一当前片段。列表只读取匹配片段的 bounded excerpt，并返回精确 `SourceChunkSummary` 作为 reader navigation；未搜索的列表行只读取一个当前片段的 bounded excerpt，不读取 blob。列表 SQL 只取当前页加一个 keyset lookahead，因此不会静默扫描或截断整个库；当前实现的 `isTruncated` 为 false。游标绑定范围、状态、文本和排序，排序使用 `(updatedAt,id)` 或 `(title,id)`。
+
+管理项同时返回当前版本、按创建时间和 ID 确定的最新版本及版本总数。普通 `detail` 读取保留每次最多 100 个版本和 200 个片段，并通过 `hasMoreVersions` / `hasMoreChunks` 明确告知截断；具体管理 UI 需要据此继续请求或提示仍有历史。
+
+文档页仅接受明确 source/version 身份，先验证现有 `KnowledgeReadScope` 的来源工作区和模型许可，再读取并校验完整 blob 大小、摘要和片段在 blob 中的 UTF-8 区间。分页按片段 sequence 递增，单页最多 16 个；存在后续页时 `nextSequence` 是最后返回的 sequence。损坏 blob、关系、摘要或作用域均失败关闭，不返回部分正文。
