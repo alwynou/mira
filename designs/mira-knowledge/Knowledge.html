@@ -1,0 +1,64 @@
+<!doctype html>
+<!-- Review proposal: Mira's current shell and token export are the visual reference.
+     All documents and interactions are synthetic, temporary, and local to this page. -->
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mira · Knowledge design</title>
+  <link rel="stylesheet" href="knowledge.css">
+  <script defer src="content.js"></script>
+  <script defer src="knowledge.js"></script>
+</head>
+<body>
+  <header class="review-bar" aria-label="Design review controls">
+    <div class="review-title"><strong>Mira</strong><span>/</span><span data-copy="designTitle"></span><span class="review-badge" data-copy="prototype"></span></div>
+    <div class="review-controls">
+      <select id="scenario" data-label="scenario"></select>
+      <button class="review-button" id="theme" data-label="theme"></button>
+      <button class="review-button" id="language" data-label="language">EN</button>
+      <button class="review-button" id="size" aria-pressed="false">850 × 620</button>
+      <button class="review-button" id="reset" data-copy="reset"></button>
+      <button class="review-button" id="notes" data-copy="notes" aria-expanded="false"></button>
+    </div>
+  </header>
+  <main class="stage" id="stage">
+    <div class="frame-slot" id="frame-slot">
+      <div class="window" id="window" data-screen-label="Knowledge management proposal">
+        <aside class="sidebar" data-label="navigation">
+          <div class="window-chrome"><div class="traffic-lights" aria-hidden="true"><i></i><i></i><i></i></div><button id="hide-sidebar" class="icon-button" data-label="toggleSidebar"><img src="assets/sidebar.left.png" alt=""></button></div>
+          <div class="brand">Mira</div>
+          <nav class="primary-nav">
+            <div class="nav-row inactive"><img src="assets/square.and.pencil.png" alt=""><span data-copy="newConversation"></span></div>
+            <div class="nav-row inactive"><img src="assets/brain.png" alt=""><span data-copy="memory"></span></div>
+            <button class="nav-row selected" id="knowledge-nav" aria-current="page"><img src="assets/book.closed.png" alt=""><span data-copy="knowledge"></span></button>
+            <div class="nav-row inactive"><img src="assets/checklist.png" alt=""><span data-copy="tasks"></span></div>
+          </nav>
+          <section class="nav-section"><div class="nav-heading" data-copy="workspaces"></div>
+            <div class="nav-row inactive"><img src="assets/tray.png" alt=""><span data-copy="inbox"></span></div>
+            <div class="nav-row inactive"><img src="assets/folder.png" alt=""><span>Mira</span></div>
+            <div class="nav-row inactive"><img src="assets/folder.png" alt=""><span>Field Notes</span></div>
+          </section>
+          <section class="nav-section recent"><div class="nav-heading" data-copy="recentConversations"></div><div class="conversation-label">资料如何参与对话</div><div class="conversation-label">首版的功能边界</div><div class="conversation-label">阅读笔记整理</div></section>
+          <footer class="sidebar-footer"><div class="nav-row inactive"><img src="assets/gearshape.png" alt=""><span data-copy="settings"></span></div></footer>
+        </aside>
+        <section class="main-pane">
+          <header class="app-toolbar"><div class="toolbar-title"><button class="icon-button" id="show-sidebar" data-label="toggleSidebar"><img src="assets/sidebar.left.png" alt=""></button><h1 data-copy="knowledge"></h1></div><button class="button primary" data-action="import"><img src="assets/plus.png" alt=""><span data-copy="import"></span></button></header>
+          <div class="knowledge-workspace" id="workspace">
+            <section class="list-pane" data-label="sourceList">
+              <div class="list-tools"><label class="search-field"><img src="assets/magnifyingglass.png" alt=""><input type="search" id="search" data-placeholder="search" autocomplete="off" spellcheck="false"></label><div class="filter-row"><select id="scope" data-label="scopeFilter"></select><select id="status" data-label="statusFilter"></select></div></div>
+              <div class="list-caption"><span id="result-count" aria-live="polite"></span><select id="sort" data-label="sort"></select></div>
+              <div id="source-list" class="source-list" role="list"></div>
+              <footer class="list-footer"><img src="assets/internaldrive.png" alt=""><span data-copy="localSnapshots"></span></footer>
+            </section>
+            <section class="reader-pane" id="reader" data-label="sourcePreview"></section>
+          </div>
+        </section>
+        <div class="toast" id="toast" role="status" hidden></div>
+      </div>
+    </div>
+  </main>
+  <aside class="design-notes" id="design-notes" hidden></aside>
+  <dialog id="modal" aria-labelledby="modal-title"></dialog>
+</body>
+</html>
