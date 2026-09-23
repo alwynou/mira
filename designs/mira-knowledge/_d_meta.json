@@ -1,0 +1,23 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "Knowledge management": {
+      "versions": [
+        {
+          "path": "Knowledge.html",
+          "createdAt": "2026-09-23T02:28:06.699Z",
+          "status": "needs-review",
+          "subtitle": "Source list, Markdown preview, version history and import flows",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-09-23T02:28:06.700Z",
+  "updatedAt": "2026-09-23T02:28:06.700Z"
+}
