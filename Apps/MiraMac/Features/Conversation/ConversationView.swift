@@ -7,7 +7,9 @@ struct ConversationRoot: View {
     @Environment(\.openWindow) private var openWindow
     @State private var model: ConversationModel
     @State private var memoryModel: MemoryManagementModel
-    @State private var showsMemories = false
+    @State private var knowledgeModel: KnowledgeManagementModel
+    @State private var destination: Destination = .conversation
+    private enum Destination { case conversation, memories, knowledge }
     @State private var memoryEditor: MemoryEditorDestination?
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
@@ -18,6 +20,7 @@ struct ConversationRoot: View {
     init(library: MacLibrary, isDemo: Bool) {
         _model = State(initialValue: ConversationModel(library: library))
         _memoryModel = State(initialValue: MemoryManagementModel(library: library))
+        _knowledgeModel = State(initialValue: KnowledgeManagementModel(library: library))
         self.isDemo = isDemo
     }
 
@@ -52,8 +55,8 @@ struct ConversationRoot: View {
                     .environment(\.locale, locale)
                 }
             }
-            .onChange(of: showsMemories) { _, showing in
-                model.activePage.isActive = !showing
+            .onChange(of: destination) { _, selected in
+                model.activePage.isActive = selected == .conversation
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active, let group = model.workgroup { Task { await group.wake() } }
@@ -90,12 +93,15 @@ struct ConversationRoot: View {
                         .disabled(!page.isActive)
                         .accessibilityHidden(!page.isActive)
                     }
-                    if showsMemories {
+                    if destination == .memories {
                         MemoryManagementView(model: memoryModel, editor: $memoryEditor) { reference in
                             Task {
-                                if await model.revealMemorySource(reference) { showsMemories = false }
+                                if await model.revealMemorySource(reference) { destination = .conversation }
                             }
                         }
+                    }
+                    if destination == .knowledge {
+                        KnowledgeManagementView(model: knowledgeModel)
                     }
                 }
                 .environment(\.locale, locale)
@@ -105,16 +111,23 @@ struct ConversationRoot: View {
                 ExecutionInspector(model: model, page: model.activePage)
                     .environment(\.locale, locale)),
             title: displayedConversationTitle, locale: locale,
-            canInspect: !showsMemories && !model.activePage.executions.isEmpty,
-            showsInspector: Binding(get: { !showsMemories && showsInspector }, set: { showsInspector = $0 }),
-            newConversation: { showsMemories = false; Task { await model.newConversation() } },
-            addMemory: showsMemories ? { memoryEditor = .init(scope: memoryModel.creationScope) } : nil
+            canInspect: destination == .conversation && !model.activePage.executions.isEmpty,
+            showsInspector: Binding(get: { destination == .conversation && showsInspector }, set: { showsInspector = $0 }),
+            newConversation: { destination = .conversation; Task { await model.newConversation() } },
+            addMemory: destination == .memories ? { memoryEditor = .init(scope: memoryModel.creationScope) } : nil,
+            importKnowledge: destination == .knowledge ? { knowledgeModel.chooseImport() } : nil,
+            openKnowledge: { destination = .knowledge },
+            canImportKnowledge: knowledgeModel.generation != nil && !knowledgeModel.isWorking
         )
         .ignoresSafeArea()
     }
 
     private var displayedConversationTitle: String {
-        showsMemories ? L10n.string("Memories", locale: locale) : title(for: model.activePage)
+        switch destination {
+        case .conversation: title(for: model.activePage)
+        case .memories: L10n.string("Memories", locale: locale)
+        case .knowledge: L10n.string("Knowledge", locale: locale)
+        }
     }
 
     private func title(for page: ConversationPageState) -> String {
@@ -149,23 +162,23 @@ struct ConversationRoot: View {
                 VStack(alignment: .leading, spacing: MiraTheme.Spacing.xl) {
                     VStack(spacing: 2) {
                         Button {
-                            showsMemories = false
+                            destination = .conversation
                             Task { await model.newConversation() }
                         } label: {
                             MiraSidebarRow { Label("New conversation", systemImage: "square.and.pencil") }
                         }
                         .accessibilityIdentifier("sidebar.newConversation")
                         Button {
-                            showsMemories = true
+                            destination = .memories
                         } label: {
-                            MiraSidebarRow(isSelected: showsMemories) { Label("Memories", systemImage: "brain") }
+                            MiraSidebarRow(isSelected: destination == .memories) { Label("Memories", systemImage: "brain") }
                         }
                         .accessibilityIdentifier("sidebar.memories")
                         Button {
+                            destination = .knowledge
                         } label: {
-                            MiraSidebarRow { Label("Knowledge", systemImage: "book.closed") }
+                            MiraSidebarRow(isSelected: destination == .knowledge) { Label("Knowledge", systemImage: "book.closed") }
                         }
-                        .help("Not implemented yet")
                         .accessibilityIdentifier("sidebar.knowledge")
                         Button {
                         } label: {
@@ -202,19 +215,19 @@ struct ConversationRoot: View {
                 .padding(.horizontal, MiraTheme.Spacing.md)
                 .padding(.bottom, MiraTheme.Spacing.sm)
             Button {
-                showsMemories = false
+                destination = .conversation
                 Task { await model.selectWorkspace(nil) }
             } label: {
-                MiraSidebarRow(isSelected: !showsMemories && model.selectedWorkspaceID == nil) {
+                MiraSidebarRow(isSelected: destination == .conversation && model.selectedWorkspaceID == nil) {
                     Label("Inbox", systemImage: "tray")
                 }
             }
             ForEach(model.workspaces) { workspace in
                 Button {
-                    showsMemories = false
+                    destination = .conversation
                     Task { await model.selectWorkspace(workspace.id) }
                 } label: {
-                    MiraSidebarRow(isSelected: !showsMemories && model.selectedWorkspaceID == workspace.id) {
+                    MiraSidebarRow(isSelected: destination == .conversation && model.selectedWorkspaceID == workspace.id) {
                         Label {
                             Text(verbatim: workspace.name).lineLimit(1)
                         } icon: {
@@ -246,7 +259,7 @@ struct ConversationRoot: View {
                     .font(MiraTheme.Typography.section)
                 Spacer()
                 Button {
-                    showsMemories = false
+                    destination = .conversation
                     model.showArchived.toggle()
                     Task { await model.selectConversation(nil) }
                 } label: {
@@ -267,10 +280,10 @@ struct ConversationRoot: View {
             .padding(.trailing, MiraTheme.Spacing.xs)
             ForEach(model.filteredConversations) { conversation in
                 Button {
-                    showsMemories = false
+                    destination = .conversation
                     Task { await model.selectConversation(conversation.id) }
                 } label: {
-                    MiraSidebarRow(isSelected: !showsMemories && model.selectedConversationID == conversation.id) {
+                    MiraSidebarRow(isSelected: destination == .conversation && model.selectedConversationID == conversation.id) {
                         Text(verbatim: displayTitle(conversation))
                             .lineLimit(1)
                     }

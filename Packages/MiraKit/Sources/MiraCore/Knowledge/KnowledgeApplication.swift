@@ -45,6 +45,24 @@ public actor KnowledgeApplication {
         }
     }
 
+    public func managementPage(_ query: KnowledgeManagementQuery) async throws -> KnowledgeManagementPage {
+        try await owned { lease in
+            try await lease.read { try await self.store.knowledgeManagementPage(query) }
+        }
+    }
+
+    public func documentPage(_ id: KnowledgeSourceID, versionID: SourceVersionID,
+                             scope: KnowledgeReadScope, afterSequence: Int? = nil,
+                             limit: Int = 16) async throws -> KnowledgeDocumentPage {
+        try await owned { lease in
+            try await lease.read {
+                try await self.store.knowledgeDocumentPage(id, versionID: versionID,
+                                                           scope: scope, afterSequence: afterSequence,
+                                                           limit: limit)
+            }
+        }
+    }
+
     public func importMarkdown(_ input: KnowledgeImport, workspaceID: WorkspaceID?, updating: KnowledgeSourceID? = nil,
                                expectedRevision: Int? = nil, operationID: UUID) async throws -> KnowledgeImportReceipt {
         try input.validate()

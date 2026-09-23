@@ -72,9 +72,10 @@ public struct KnowledgeSourceDetail: Sendable {
     public var selectedVersion: KnowledgeSourceVersion?
     public var chunks: [SourceChunkSummary]
     public var hasMoreChunks: Bool
-    public init(source: KnowledgeSource, versions: [KnowledgeSourceVersion], selectedVersion: KnowledgeSourceVersion?, chunks: [SourceChunkSummary], hasMoreChunks: Bool = false) {
+    public var hasMoreVersions: Bool
+    public init(source: KnowledgeSource, versions: [KnowledgeSourceVersion], selectedVersion: KnowledgeSourceVersion?, chunks: [SourceChunkSummary], hasMoreChunks: Bool = false, hasMoreVersions: Bool = false) {
         self.source = source; self.versions = versions; self.selectedVersion = selectedVersion
-        self.chunks = chunks; self.hasMoreChunks = hasMoreChunks
+        self.chunks = chunks; self.hasMoreChunks = hasMoreChunks; self.hasMoreVersions = hasMoreVersions
     }
 }
 
