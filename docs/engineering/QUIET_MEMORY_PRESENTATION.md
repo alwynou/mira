@@ -67,3 +67,18 @@ Unverified: live-provider compliance with the new prose instructions, VoiceOver,
 Reduce Transparency, Increase Contrast, fullscreen/multiple displays and older
 macOS runtime. No paid provider evaluation was run. These focused checks do not
 close broad memory-quality acceptance.
+
+## CI follow-up
+
+The first [CI run](https://github.com/alwynou/mira/actions/runs/35968573933)
+passed the package and lightweight checks. App/host testing failed only in the
+existing titlebar test's initial-window assertions: the title width was zero and
+a trailing native action still had window X = 0. Subsequent management navigation,
+resizing and sidebar assertions passed, as did all memory presentation checks.
+
+The titlebar fixture now waits up to five seconds for all initial native action
+views to attach to the window and receive positive width/position, then allows
+the normal settling interval. It does not wait on the title result, trigger
+header layout, skip the test or relax geometry assertions. The focused titlebar
+test passed locally after this fixture correction. This changes test startup
+synchronization only; production titlebar behavior is unchanged.
