@@ -224,7 +224,7 @@ final class MiraWindowShellTests: XCTestCase {
             let sidebarButton = window.toolbar?.items.first { $0.itemIdentifier == .toggleSidebar }?.view
             let occupiedMaxX = max(windowButtons.map { windowFrame(of: $0).maxX }.max() ?? 0,
                                    sidebarButton.map { windowFrame(of: $0).maxX } ?? 0)
-            let actionIDs = ["conversation.new", "conversation.inspector", "conversation.knowledge"]
+            let actionIDs = ["conversation.new", "conversation.inspector", "conversation.knowledge", "memory.new", "knowledge.import"]
             let actionMinX = window.toolbar?.items.filter { actionIDs.contains($0.itemIdentifier.rawValue) }
                 .compactMap { $0.view }
                 .map { windowFrame(of: $0).minX }
@@ -271,6 +271,33 @@ final class MiraWindowShellTests: XCTestCase {
             }, message)
         }
         assertNativeControls("Native sidebar and action controls must be visible while expanded.")
+
+        // Management destinations replace trailing toolbar items while retaining
+        // the conversation host. Returning must relayout against installed controls.
+        for cycle in 0..<3 {
+            var memories = shell
+            memories.title = "Memories"
+            memories.addMemory = {}
+            controller.update(memories)
+            try await settle()
+            _ = try assertHeaderGeometry("Memory destination in cycle \(cycle)")
+
+            controller.update(shell)
+            try await settle()
+            _ = try assertHeaderGeometry("Conversation after Memory in cycle \(cycle)")
+
+            var knowledge = shell
+            knowledge.title = "Knowledge"
+            knowledge.importKnowledge = {}
+            controller.update(knowledge)
+            try await settle()
+            _ = try assertHeaderGeometry("Knowledge destination in cycle \(cycle)")
+
+            controller.update(shell)
+            try await settle()
+            _ = try assertHeaderGeometry("Conversation after Knowledge in cycle \(cycle)")
+            assertNativeControls("Conversation controls after management navigation")
+        }
 
         window.setFrame(NSRect(x: 100, y: 100, width: 850, height: 700), display: true)
         try await settle()

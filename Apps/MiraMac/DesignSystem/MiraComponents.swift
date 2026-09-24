@@ -331,6 +331,7 @@ private struct MiraInteractiveLabel<Shape: InsettableShape>: View {
 final class MiraConversationHeaderView: NSView {
     let label = NSTextField(labelWithString: "")
     weak var detailView: NSView?
+    var trailingToolbarItemIdentifiers: Set<NSToolbarItem.Identifier> = []
     var title: String {
         get { label.stringValue }
         set { label.stringValue = newValue; label.toolTip = newValue; needsLayout = true }
@@ -360,7 +361,11 @@ final class MiraConversationHeaderView: NSView {
         }
     }
     @objc private func windowDidResize(_ notification: Notification) {
-        // Native toolbar frames settle after the split content's layout callback.
+        scheduleLayout()
+    }
+    func scheduleLayout() {
+        // Native toolbar frames settle after the split content's layout callback
+        // both when resizing and when navigation replaces the trailing actions.
         DispatchQueue.main.async { [weak self] in
             self?.needsLayout = true
             self?.layoutSubtreeIfNeeded()
@@ -377,8 +382,7 @@ final class MiraConversationHeaderView: NSView {
                                sidebar.map { convert($0.bounds, from: $0).maxX } ?? 0)
         let detailRect = detailView.map { convert($0.safeAreaRect, from: $0) } ?? bounds
         let leading = max(detailRect.minX + MiraTheme.Spacing.lg, occupiedEdge + MiraTheme.Spacing.md)
-        let actionIDs = ["conversation.new", "conversation.inspector", "conversation.knowledge"]
-        let actions = window?.toolbar?.items.filter { actionIDs.contains($0.itemIdentifier.rawValue) }
+        let actions = window?.toolbar?.items.filter { trailingToolbarItemIdentifiers.contains($0.itemIdentifier) }
             .compactMap(\.view).map { convert($0.bounds, from: $0).minX }
         let trailing = min(detailRect.maxX, actions?.min() ?? bounds.maxX) - MiraTheme.Spacing.lg
         let height = ceil(label.intrinsicContentSize.height)

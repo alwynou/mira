@@ -1,0 +1,44 @@
+[
+  {
+    "cycle": 1,
+    "destination": "sidebar.memories",
+    "returnedTitle": "Synthetic Switch 1",
+    "composerPreserved": true,
+    "scrollbarValue": 0.9368465668267872
+  },
+  {
+    "cycle": 1,
+    "destination": "sidebar.knowledge",
+    "returnedTitle": "Synthetic Switch 1",
+    "composerPreserved": true,
+    "scrollbarValue": 0.9368465668267872
+  },
+  {
+    "cycle": 2,
+    "destination": "sidebar.memories",
+    "returnedTitle": "Synthetic Switch 1",
+    "composerPreserved": true,
+    "scrollbarValue": 0.9368465668267872
+  },
+  {
+    "cycle": 2,
+    "destination": "sidebar.knowledge",
+    "returnedTitle": "Synthetic Switch 1",
+    "composerPreserved": true,
+    "scrollbarValue": 0.9368465668267872
+  },
+  {
+    "cycle": 3,
+    "destination": "sidebar.memories",
+    "returnedTitle": "Synthetic Switch 1",
+    "composerPreserved": true,
+    "scrollbarValue": 0.9368465668267872
+  },
+  {
+    "cycle": 3,
+    "destination": "sidebar.knowledge",
+    "returnedTitle": "Synthetic Switch 1",
+    "composerPreserved": true,
+    "scrollbarValue": 0.9368465668267872
+  }
+]

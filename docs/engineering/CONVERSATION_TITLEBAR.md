@@ -100,3 +100,58 @@ Sendable scalar tuples inside the database closure and require the row to exist.
 All nine `SQLiteBusinessPrivacyStoreTests` and `SQLiteMemoryPrivacyStoreTests`
 passed locally (`/tmp/mira-pr-2-privacy-tests.log`). Production storage behavior
 and the privacy assertions are unchanged.
+
+
+## Management navigation correction — 2026-09-24
+
+Issue [#61](https://github.com/alwynou/mira/issues/61) reproduced a disappearing
+conversation title after visiting Memories or Knowledge. The cached trailing
+toolbar buttons are removed and reinserted for these destinations. During the
+SwiftUI update their native window frames are not final, so the title's computed
+width could become zero and remain there until another window layout event.
+
+The window shell now schedules a header layout after changing the toolbar item
+set, using the same deferred native-layout path as window resizing. It provides
+the complete trailing-action identifiers, including Add memory and Import
+Markdown, so the shared header reserves the correct clearance for every
+destination. The existing split accessory and native scroll-edge material retain
+their ownership. No conversation host, transcript, draft or reading state is
+recreated. The self-contained titlebar component previews now expose destination
+switches in both light and dark appearance.
+
+### Focused verification
+
+Host: macOS 27.0 (26A428), Xcode 27.0 (27A266a), Apple Silicon. Deployment target
+remains macOS 15; this is not older-system runtime evidence.
+
+- Extended `MiraWindowShellTests.testNativeConversationHeaderTracksTrafficLightsScrollDetailAndNativeControls`
+  with three Memory/Knowledge round trips. It failed before the fix on every
+  return with title width `0.0`; Knowledge also violated toolbar clearance
+  (`654 > 631`). The same test passed after the fix in 12.488 seconds. It retains
+  its native-control, inspector, resize and sidebar-collapse geometry checks.
+- Command: `xcodebuild -project Mira.xcodeproj -scheme MiraHostTests -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO -only-testing:MiraHostTests/MiraWindowShellTests/testNativeConversationHeaderTracksTrafficLightsScrollDetailAndNativeControls test`.
+  Local logs: `/tmp/mira-titlebar-before.log` and `/tmp/mira-titlebar-after.log`.
+- The required resolved-package Debug app build passed
+  (`/tmp/mira-titlebar-build.log`). The bilingual language policy passed all 2,343
+  catalog entries; no localized copy or theme tokens changed.
+- The production app was run with an isolated local-driver fixture. Its ordinary
+  conversation-switch benchmark passed cached-list reuse, draft preservation,
+  reading-anchor preservation and unchanged snapshot-load count. The
+  [report](evidence/conversation-titlebar-navigation/conversation-switching.json)
+  is separate from the management-navigation checks below.
+- Native UI automation performed three Memory/Knowledge round trips in English
+  light at 1100 pt width and Chinese dark at the 850 pt minimum width. The unsent
+  synthetic draft remained present and the native scrollbar value was unchanged
+  after all six returns in each run. The title remained visible in the full
+  window captures. Records:
+  [English navigation](evidence/conversation-titlebar-navigation/en-navigation.json),
+  [Chinese navigation](evidence/conversation-titlebar-navigation/zh-navigation.json),
+  [English light](evidence/conversation-titlebar-navigation/en-light-return.png),
+  [Chinese dark minimum](evidence/conversation-titlebar-navigation/zh-dark-minimum-return.png).
+
+All fixture content is synthetic and uses no credentials or provider requests.
+The capture tool's Stage Manager thumbnail was insufficient for visual review;
+full window captures were obtained through the system screenshot helper.
+Unverified in this increment: older macOS runtime, VoiceOver, Reduce Transparency,
+Increase Contrast, fullscreen/multiple-display transitions, and live streaming
+while navigating. No broader memory or knowledge acceptance gate is closed.
