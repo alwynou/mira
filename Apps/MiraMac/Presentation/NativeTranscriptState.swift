@@ -18,6 +18,11 @@ struct TranscriptItem: Identifiable, Equatable {
     var steps: [SessionActivityStep] = []
     var liveAttemptID: UUID? = nil
 
+    var memoryIDs: Set<UUID> { AssistantTextPresentation.memoryIDs(in: steps) }
+    var displayText: String {
+        role == .assistant ? AssistantTextPresentation.text(text, memoryIDs: memoryIDs, isStreaming: isStreaming) : text
+    }
+
     var estimatedMemoryDeletionHeight: CGFloat {
         memoryDeletions.isEmpty ? 0 : CGFloat(memoryDeletions.count * 20 + 24)
     }
@@ -85,7 +90,9 @@ struct TranscriptItem: Identifiable, Equatable {
     var activityPreview: String {
         if let latest = orderedBlocks.last {
             switch latest.block.content {
-            case .text(let content), .thinking(let content): return Self.latestLine(content.text ?? "")
+            case .text(let content):
+                return Self.latestLine(AssistantTextPresentation.text(content.text ?? "", memoryIDs: memoryIDs, isStreaming: latest.isLive))
+            case .thinking(let content): return Self.latestLine(content.text ?? "")
             case .tool(let tool): return Self.singleLine(tool.toolName + " · " + (tool.result.text ?? tool.arguments.text ?? ""))
             }
         }
@@ -129,7 +136,6 @@ struct TranscriptItem: Identifiable, Equatable {
         }
         hasher.combine(expanded)
         if expanded { hasher.combine(thinking) }
-        hasher.combine(memoryNotices)
         for deletion in memoryDeletions.sorted(by: { $0.id.uuidString < $1.id.uuidString }) {
             hasher.combine(deletion.id)
             hasher.combine(deletion.state.rawValue)

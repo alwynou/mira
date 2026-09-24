@@ -107,9 +107,11 @@ final class NativeTranscriptRow: ListRowView {
                 if case .text(let content) = block.content { return content.text }; return nil
             }.joined() == item.text
         } ?? false
-        answer.isHidden = (ordered && representedAnswer) || !assistant || item.text.isEmpty
+        let displayText = item.displayText
+        let memoryIDs = item.memoryIDs
+        answer.isHidden = (ordered && representedAnswer) || !assistant || displayText.isEmpty
         if let body, !answer.isHidden {
-            answer.apply(content: body, source: item.text, theme: theme, locale: locale,
+            answer.apply(content: body, source: displayText, theme: theme, locale: locale,
                          isStreaming: item.isStreaming && !measurement, reduceMotion: reduceMotion)
         } else { answer.prepareForReuse() }
         if let reasoning, !thinking.isHidden {
@@ -129,7 +131,8 @@ final class NativeTranscriptRow: ListRowView {
             if processViews[entry.id] == nil { processViews[entry.id] = view; addSubview(view) }
             view.isHidden = false
             view.configure(entry, expanded: expandedBlocks.contains(entry.id), phase: item.outputPhase,
-                           theme: theme, locale: locale, reduceMotion: reduceMotion, measurement: measurement)
+                           theme: theme, locale: locale, reduceMotion: reduceMotion, measurement: measurement,
+                           memoryIDs: memoryIDs)
             view.onToggle = { [weak self] in self?.onToggleProcessBlock?(entry.id) }
             view.onLayout = { [weak self] in self?.needsLayout = true }
         }
@@ -146,11 +149,9 @@ final class NativeTranscriptRow: ListRowView {
                     }
                 }.environment(\.locale, locale).foregroundStyle(MiraTheme.Colors.text))
         }
-        let citationEstimate = CGFloat(MemoryCitationReference.references(in: item.text).count
-            + SourceCitationReference.references(in: item.text).count) * 24
-        let noticeEstimate: CGFloat = item.memoryNotices.isEmpty ? 0 : 28
+        let citationEstimate = CGFloat(SourceCitationReference.references(in: displayText).count) * 24
         let deletionEstimate = item.estimatedMemoryDeletionHeight
-        footerEstimate = assistant ? citationEstimate + noticeEstimate + deletionEstimate : 0
+        footerEstimate = assistant ? citationEstimate + deletionEstimate : 0
         footerContent = auxiliary
         if footerEstimate == 0 {
             footer.rootView = AnyView(EmptyView())
@@ -284,7 +285,8 @@ private final class NativeProcessBlockView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
 
     func configure(_ entry: TranscriptProcessEntry, expanded: Bool, phase: SessionOutputPhase,
-                   theme: MarkdownTheme, locale: Locale, reduceMotion: Bool, measurement: Bool) {
+                   theme: MarkdownTheme, locale: Locale, reduceMotion: Bool, measurement: Bool,
+                   memoryIDs: Set<UUID>) {
         disclosure.isHidden = false
         disclosure.image = nil
         toolDetails.isHidden = true
@@ -295,7 +297,7 @@ private final class NativeProcessBlockView: NSView {
         switch entry.block.content {
         case .text(let text):
             disclosure.isHidden = true
-            source = display(text, locale: locale)
+            source = AssistantTextPresentation.text(display(text, locale: locale), memoryIDs: memoryIDs, isStreaming: entry.isLive)
             streaming = entry.isLive && phase == .answering
         case .thinking(let text):
             title = L10n.string(entry.isLive && phase == .thinking ? "Thinking…" : "Thinking", locale: locale)

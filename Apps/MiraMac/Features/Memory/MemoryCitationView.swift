@@ -1,25 +1,6 @@
 import MiraCore
 import SwiftUI
 
-struct MemoryCitationList: View {
-    let references: [MemoryCitationReference]
-    let executionID: ExecutionID
-    let conversationID: ConversationID
-    let library: MacLibrary
-    let onOpenConversation: (ConversationID) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(references) { reference in
-                MemoryCitationButton(
-                    reference: reference, executionID: executionID,
-                    conversationID: conversationID, library: library,
-                    onOpenConversation: onOpenConversation)
-            }
-        }
-    }
-}
-
 struct MemoryCitationButton: View {
     @Environment(\.locale) private var locale
     let reference: MemoryCitationReference

@@ -1,0 +1,9 @@
+{
+  "locale": "zh-CN",
+  "appearance": "dark",
+  "windowWidth": 850,
+  "reopenedHistory": true,
+  "assistantReply": "text # Mira Local Demo\n\nHello, I am Mira. This reply is generated locally without network or Keychain access.\n\nYou sent:\n\n> Quiet memory presentation fixture for English and Chinese, light and dark appearance.\n\nRowan enjoys playing with a ball. \n\n## Supported Content\n\n- Headings, lists, and quotes\n- **Emphasis**, `inline code`, and tables\n- Deterministic local streaming",
+  "hasMemoryReference": false,
+  "hasMemoryBadge": false
+}

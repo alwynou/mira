@@ -61,56 +61,14 @@ struct TranscriptCitations: View, Equatable {
     let executionID: ExecutionID
     let conversationID: ConversationID
     let model: ConversationModel
-    let memoryNotices: [MemoryContextNotice]
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.memoryNotices == rhs.memoryNotices && lhs.text == rhs.text && lhs.executionID == rhs.executionID && lhs.conversationID == rhs.conversationID && lhs.model === rhs.model
+        lhs.text == rhs.text && lhs.executionID == rhs.executionID && lhs.conversationID == rhs.conversationID && lhs.model === rhs.model
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            MemoryCitationList(references: MemoryCitationReference.references(in: text), executionID: executionID,
-                               conversationID: conversationID, library: model.library) { sourceID in
-                Task { await model.selectConversation(sourceID) }
-            }
-            KnowledgeCitationList(references: SourceCitationReference.references(in: text), executionID: executionID,
-                                  conversationID: conversationID, library: model.library)
-        }
-    }
-}
-
-/// Status only: never copy a memory body into historical metadata.
-struct MemoryHistoryTags: View {
-    let notices: [MemoryContextNotice]
-
-    var body: some View {
-        if !notices.isEmpty {
-            HStack(spacing: 6) {
-                ForEach(Array(Set(notices.map(\.reason))).sorted { $0.rawValue < $1.rawValue }, id: \.self) { reason in
-                    Label(title(for: reason), systemImage: "brain")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(.quaternary, in: Capsule())
-                }
-            }
-            .help("Historical reply retained. The related memory has changed or is unavailable, so this reply is excluded from future model context.")
-        }
-    }
-
-    private func title(for reason: MemoryContextNotice.Reason) -> LocalizedStringKey {
-        switch reason {
-        case .forgotten: "Related memory forgotten"
-        case .superseded: "Related memory superseded"
-        case .expired: "Related memory expired"
-        case .notYetValid: "Related memory not yet valid"
-        case .archived: "Related memory archived"
-        case .rejected: "Related memory rejected"
-        case .removed: "Related memory removed"
-        case .candidate: "Related memory pending review"
-        case .updated: "Related memory updated"
-        case .unavailable: "Related memory unavailable"
-        }
+        KnowledgeCitationList(references: SourceCitationReference.references(in: text), executionID: executionID,
+                              conversationID: conversationID, library: model.library)
     }
 }
 

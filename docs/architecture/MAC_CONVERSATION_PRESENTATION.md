@@ -123,3 +123,10 @@ The composer opens a compact provider-grouped native menu and shows the selected
 ## Code viewport geometry
 
 The local MarkdownView source dependency reserves the same capped intrinsic height that its code view occupies. The code text retains its full natural size inside a two-axis native scroll view, and a separate clipped gutter tracks vertical offset. `MiraMarkdownStyle` supplies the shared maximum-height token. The transcript event monitor yields the dominant scrolling axis to an overflowing `conversation.codeBlock`; short blocks retain outer transcript scrolling. See [code viewport verification](../engineering/CODE_BLOCK_SCROLLING_VERIFICATION.md).
+
+
+## Quiet memory answer presentation — 2026-09-24
+
+`AssistantTextPresentation` is a pure host presentation boundary. It removes reserved memory reference annotations from assistant answer text and suppresses exact bare IDs found in that turn's memory-tool receipts. Trailing incomplete reference tokens and known streamed ID prefixes are withheld to prevent intermediate exposure. User messages, raw `TranscriptItem.text`, ordered activity evidence and canonical journals remain unchanged. Knowledge references and unrelated UUIDs remain text. Flat and ordered answer rendering use the same rule; their Markdown caches and measurements use the displayed answer.
+
+Ordinary transcript footers render Knowledge citations and explicit deletion outcomes. They do not render memory citation lists or historical memory lifecycle tags. Internal body-free notice queries, current source authorization and explicit execution-inspection reads keep their own contracts; hiding a badge neither grants access nor changes recall eligibility. Thinking and deliberately expanded tool evidence retain their original content.

@@ -18,7 +18,7 @@ SPEC.loader.exec_module(launcher)
 
 
 def scenario(case_id="en-automatic-writing-plan"):
-    return {"id": case_id, "language": "en", "input": "A preference.", "followUp": "A question.", "mode": "automatic", "requiresCitation": False}
+    return {"id": case_id, "language": "en", "input": "A preference.", "followUp": "A question.", "mode": "automatic", "asksForSource": False}
 
 
 class CorpusAndBudgetTests(unittest.TestCase):
@@ -52,16 +52,16 @@ class CorpusAndBudgetTests(unittest.TestCase):
             with self.assertRaises(launcher.LauncherError):
                 launcher.load_scenarios(path)
 
-    def test_corpus_requires_boolean_citation_flag(self):
+    def test_corpus_requires_boolean_source_request_flag(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "continuity.json"
             corpus = json.loads(launcher.DEFAULT_CORPUS.read_text(encoding="utf-8"))
-            del corpus["scenarios"][0]["requiresCitation"]
+            del corpus["scenarios"][0]["asksForSource"]
             path.write_text(json.dumps(corpus), encoding="utf-8")
             with self.assertRaises(launcher.LauncherError):
                 launcher.load_scenarios(path)
 
-            corpus["scenarios"][0]["requiresCitation"] = 0
+            corpus["scenarios"][0]["asksForSource"] = 0
             path.write_text(json.dumps(corpus), encoding="utf-8")
             with self.assertRaises(launcher.LauncherError):
                 launcher.load_scenarios(path)
@@ -218,7 +218,7 @@ class ReportAndProcessGateTests(unittest.TestCase):
                     "version": 1, "phase": "establish", "identity": {
                         "caseID": case_id, "runID": run_id, "root": str(alias), "language": scenario_value["language"],
                         "mode": scenario_value["mode"], "input": scenario_value["input"], "followUp": scenario_value["followUp"],
-                        "requiresCitation": scenario_value["requiresCitation"],
+                        "asksForSource": scenario_value["asksForSource"],
                         "providerID": "deepseek", "modelID": "deepseek-flash", "endpoint": "https://api.deepseek.com",
                         "protocolID": "chat.completions", "contextWindow": 1000000, "outputTokens": 8192, "embeddings": "local",
                     }, "phase": "establish", "status": "completed", "closeSettled": True, "mismatches": [], "finishedAt": "now",
@@ -255,12 +255,12 @@ class ReportAndProcessGateTests(unittest.TestCase):
             self.assertTrue(all(path.exists() for path in raw_paths))
             original = json.loads(raw_paths[0].read_text(encoding="utf-8"))
             missing_flag = json.loads(json.dumps(original))
-            del missing_flag["identity"]["requiresCitation"]
+            del missing_flag["identity"]["asksForSource"]
             raw_paths[0].write_text(json.dumps(missing_flag), encoding="utf-8")
             with self.assertRaises(launcher.LauncherError):
                 launcher.load_prior_establishments(prior, scenarios)
             mismatched_flag = json.loads(json.dumps(original))
-            mismatched_flag["identity"]["requiresCitation"] = not original["identity"]["requiresCitation"]
+            mismatched_flag["identity"]["asksForSource"] = not original["identity"]["asksForSource"]
             raw_paths[0].write_text(json.dumps(mismatched_flag), encoding="utf-8")
             with self.assertRaises(launcher.LauncherError):
                 launcher.load_prior_establishments(prior, scenarios)

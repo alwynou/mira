@@ -245,6 +245,23 @@ final class MiraWindowShellTests: XCTestCase {
         XCTAssertTrue(nativeScrollView.isDescendant(of: detailView))
         XCTAssertFalse(detailView === nativeScrollView)
         XCTAssertFalse(sidebar.isCollapsed)
+        // A cold window can publish toolbar items before AppKit has attached and
+        // positioned their views. Wait on those native prerequisites, not on the
+        // title geometry under test, and do not force the header to lay out.
+        let initialActions = ["conversation.new", "conversation.inspector", "conversation.knowledge"]
+        func initialToolbarIsReady() -> Bool {
+            let views = window.toolbar?.items.filter { initialActions.contains($0.itemIdentifier.rawValue) }
+                .compactMap(\.view) ?? []
+            return views.count == initialActions.count && views.allSatisfy {
+                $0.window === window && $0.bounds.width > 0 && windowFrame(of: $0).minX > 0
+            }
+        }
+        let toolbarDeadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !initialToolbarIsReady() && ContinuousClock.now < toolbarDeadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertTrue(initialToolbarIsReady(), "Initial native toolbar views must be installed and positioned.")
+        try await settle()
         let initialTitleFrame = try assertHeaderGeometry("Initial native header geometry")
         let sidebarView = sidebar.viewController.view
         XCTAssertLessThanOrEqual(sidebarView.convert(sidebarView.safeAreaRect, to: nil).maxY,
