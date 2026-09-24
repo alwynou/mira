@@ -228,4 +228,5 @@ private func expectDefaultInstructionAnchors(_ instructions: String) {
     #expect(instructions.contains("failed or refused result"))
     #expect(instructions.contains("local-only memory"))
     #expect(instructions.contains("Any offer to apply an unsaved preference must be explicitly limited to the current conversation"))
+    #expect(instructions.contains(MemoryTools.saveConsolidationGuidance))
 }

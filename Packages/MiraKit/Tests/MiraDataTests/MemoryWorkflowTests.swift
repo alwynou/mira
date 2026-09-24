@@ -294,6 +294,83 @@ struct MemoryWorkflowTests {
         }
     }
 
+    @Test func referentialSaveRetryConsolidatesNameWithoutAbsorbingUnrelatedNickname() async throws {
+        // Scripted calls exercise recovery and storage, not a live model's target selection.
+        let introduction = "My name is Casey. Please call me Captain."
+        let addition = "I am a ceramicist."
+        let request = "Remember that."
+        let complete = "My name is Casey and I am a ceramicist."
+        try await withTaskWorkflow(outputs: [reply("Understood.")], memoryEnabled: true) { f in
+            let initial = try await f.run(introduction, instructions: ConversationInstructions.default)
+            let evidence = try await f.evidence(initial)
+            let store = try #require(f.memory)
+            let authorization = try await f.authority.authorization()
+            let name = try await store.createMemory(draft: .init(content: "My name is Casey.", scope: .global, kind: .fact),
+                source: .userMessage(evidence: evidence, excerpt: "My name is Casey."), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            let nickname = try await store.createMemory(draft: .init(content: "Please call me Captain.", scope: .global, kind: .preference),
+                source: .userMessage(evidence: evidence, excerpt: "Please call me Captain."), operationID: UUID(),
+                replacing: nil, expectedRevision: nil, authorization: authorization, at: TaskWorkflowFixture.now).memory
+            await f.model.append([reply("Understood.")])
+            _ = try await f.run(addition, sessionID: initial.sessionID, instructions: ConversationInstructions.default)
+            let nameTarget = AgentSourceReference.domain(namespace: "memories", id: name.id.rawValue, revision: name.revision)
+            let nicknameTarget = AgentSourceReference.domain(namespace: "memories", id: nickname.id.rawValue, revision: nickname.revision)
+            let search = try CanonicalToolCall(id: "search-profile", name: "memory.search",
+                arguments: JSONValue.object(["query": .string("Casey name ceramicist Captain")]).jsonString())
+            let badQuote = try CanonicalToolCall(id: "combined-quote", name: "memory.remember",
+                arguments: rememberArguments(content: complete, quote: introduction + " " + addition + " " + request,
+                    enriches: [nameTarget]).jsonString())
+            let badTargets = try CanonicalToolCall(id: "mixed-targets", name: "memory.remember",
+                arguments: rememberArguments(content: complete, quote: request,
+                    enriches: [nameTarget, nicknameTarget]).jsonString())
+            let corrected = try CanonicalToolCall(id: "consolidate-name", name: "memory.remember",
+                arguments: rememberArguments(content: complete, quote: request, enriches: [nameTarget]).jsonString())
+            await f.model.append([modelToolStream([search]), modelToolStream([badQuote]), modelToolStream([badTargets]),
+                                 modelToolStream([corrected]), reply("Saved.")])
+            let saved = try await f.run(request, sessionID: initial.sessionID, instructions: ConversationInstructions.default)
+            let state = try await f.runtime.sessionSnapshot(id: saved.sessionID)
+            let invocations = state.invocations.values.filter { $0.invocation.toolName == "memory.remember" }
+            #expect(invocations.count == 3)
+            #expect(invocations.filter { $0.resolution?.status == .succeeded }.count == 1)
+            for rejected in invocations.filter({ $0.resolution?.status != .succeeded }) {
+                #expect(rejected.resolution?.businessReceipt == nil)
+                #expect(rejected.intent == nil)
+            }
+            let inputs = await f.model.inputs
+            for input in inputs { #expect(input.instructions == ConversationInstructions.default) }
+            let results = inputs.flatMap { $0.messages.flatMap(\.toolResults) }
+            let searchResult = try #require(results.first(where: { $0.callID == search.id }))
+            #expect(searchResult.text.contains(name.id.rawValue.uuidString.lowercased()))
+            #expect(searchResult.text.contains(nickname.id.rawValue.uuidString.lowercased()))
+            let quoteResult = try #require(results.first(where: { $0.callID == badQuote.id }))
+            #expect(quoteResult.text.contains("The quote must be an exact substring of the current user message."))
+            let targetResult = try #require(results.first(where: { $0.callID == badTargets.id }))
+            #expect(targetResult.text.contains("An enrichment target has a different memory kind."))
+            #expect(targetResult.text.contains("Do not save overlapping facts as an independent memory."))
+
+            let page = try await store.memoryList(workspaceID: nil, states: [.active], query: "", limit: 10)
+            let current = page.memories.filter(\.isCurrent)
+            #expect(current.count == 2)
+            #expect(current.filter { $0.draft?.content.contains("Casey") == true }.count == 1)
+            let profile = try #require(current.first(where: { $0.draft?.content == complete }))
+            #expect(try await store.memoryDetail(nickname.id, workspaceID: nil).memory == nickname)
+            #expect(try await store.memoryDetail(name.id, workspaceID: nil).memory.supersededBy == profile.id)
+            let detail = try await store.memoryDetail(profile.id, workspaceID: nil)
+            #expect(detail.replacements.map(\.previousID) == [name.id])
+            let savedEvidence = try await f.evidence(saved)
+            #expect(detail.evidence.count == 2)
+            #expect(detail.evidence.contains { $0.source == .userMessage(evidence.reference) })
+            #expect(detail.evidence.contains { $0.source == .userMessage(savedEvidence.reference) })
+            let success = try #require(invocations.first(where: { $0.resolution?.status == .succeeded }))
+            let proposalReference = try #require(success.intent?.intent.proposal)
+            let proposal = try SessionCodec.decode(AgentToolProposal.self, from: await f.library.read(proposalReference))
+            #expect(proposal.plan.targets == [nameTarget])
+            #expect(proposal.plan.sources == [nameTarget])
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM memory_records") } == 3)
+            #expect(try await f.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM business_receipts") } == 1)
+        }
+    }
+
     @Test func receiptInsertionFailureRollsBackMemoryAndEvidence() async throws {
         let call = try CanonicalToolCall(
             id: "remember", name: "memory.remember", arguments: arguments(content: "I prefer tea").jsonString())
