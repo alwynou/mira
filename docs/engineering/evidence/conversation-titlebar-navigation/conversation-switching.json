@@ -1,0 +1,56 @@
+{
+  "anchorPreserved" : true,
+  "conversationIDs" : [
+    "A8B20D64-7E5C-4A38-8A25-3D4B2E7F1001",
+    "A8B20D64-7E5C-4A38-8A25-3D4B2E7F1002"
+  ],
+  "firstAnchor" : {
+    "id" : "message:28242028-7035-4873-A5F2-95031E2005F2",
+    "relativeY" : -100
+  },
+  "firstComposerPreserved" : true,
+  "firstListMounted" : true,
+  "firstListReused" : true,
+  "firstMessageCount" : 100,
+  "firstSelectionMs" : 540.19662500000004,
+  "limitations" : [
+    "Sessions and replies are created through the local application driver and journal.",
+    "Selection timings and anchors are native presentation proxies, not frame-rate measurements.",
+    "Provider, credentials, notification delivery, and cancellation are outside this benchmark."
+  ],
+  "middleAnchor" : {
+    "id" : "answer:EEE9DFA8-6369-4348-9A13-4DA6BCF417C6",
+    "relativeY" : -262
+  },
+  "nativeHitTesting" : {
+    "attached" : true,
+    "documentHeight" : 26758,
+    "frame" : "{{248, 0}, {852, 760}}",
+    "hitIdentifier" : "",
+    "hitType" : "TextLabelView",
+    "offset" : 13355,
+    "reachesList" : true,
+    "viewportHeight" : 760,
+    "windowCount" : 2
+  },
+  "passed" : true,
+  "presentationError" : "",
+  "returnedAnchor" : {
+    "id" : "answer:EEE9DFA8-6369-4348-9A13-4DA6BCF417C6",
+    "relativeY" : -262
+  },
+  "returnSelectionMs" : 0.13137499999999999,
+  "sameSelectionPreserved" : true,
+  "schema" : 2,
+  "secondAnchor" : {
+    "id" : "answer:AEAFDD15-510D-4F5A-B5FF-1C2CADB89095",
+    "relativeY" : -201
+  },
+  "secondListDistinct" : true,
+  "secondListMounted" : true,
+  "secondMessageCount" : 120,
+  "secondSelectionMs" : 478.931333,
+  "snapshotLoadCount" : 4,
+  "snapshotLoadCountAfterReturn" : 4,
+  "snapshotLoadCountBeforeReturn" : 4
+}

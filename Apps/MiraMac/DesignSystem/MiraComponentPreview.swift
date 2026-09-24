@@ -215,12 +215,23 @@ private struct MiraComponentPreview: View {
 }
 
 private struct MiraTitlebarMaterialPreview: View {
+    @Environment(\.locale) private var locale
+    @State private var destination = "Mira"
+
     var body: some View {
         MiraWindowShell(
-            sidebar: AnyView(Text("Mira").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding()),
+            sidebar: AnyView(VStack(alignment: .leading, spacing: MiraTheme.Spacing.lg) {
+                Button("New conversation") { destination = "Mira" }
+                Button("Memories") { destination = "Memories" }
+                Button("Knowledge") { destination = "Knowledge" }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding()),
             detail: AnyView(sampleScrollView), inspector: AnyView(EmptyView()),
-            title: "Mira", locale: Locale(identifier: "en"), canInspect: false,
-            showsInspector: .constant(false), newConversation: {})
+            title: destination == "Mira" ? "Mira" : L10n.string(destination, locale: locale),
+            locale: locale, canInspect: destination == "Mira",
+            showsInspector: .constant(false), newConversation: { destination = "Mira" },
+            addMemory: destination == "Memories" ? {} : nil,
+            importKnowledge: destination == "Knowledge" ? {} : nil,
+            openKnowledge: destination == "Mira" ? { destination = "Knowledge" } : nil)
             .ignoresSafeArea()
             .background(MiraTheme.Colors.canvas)
             .frame(width: 850, height: 620)

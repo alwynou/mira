@@ -87,6 +87,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 accessory.preferredScrollEdgeEffectStyle = .soft
                 accessory.view = titleHeader
                 titleHeader.detailView = detailHost.view
+                titleHeader.trailingToolbarItemIdentifiers = [
+                    Self.newItem, Self.inspectorID, Self.knowledge, Self.memoryNew, Self.knowledgeImport
+                ]
                 titleHeader.heightAnchor.constraint(equalToConstant: MiraTheme.Layout.conversationHeaderHeight).isActive = true
                 detailItem.addTopAlignedAccessoryViewController(accessory)
             }
@@ -221,7 +224,8 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 installedWindow?.titleVisibility = .visible
             }
             let desired = desiredItems
-            if nativeToolbar.items.map(\.itemIdentifier) != desired {
+            let toolbarItemsChanged = nativeToolbar.items.map(\.itemIdentifier) != desired
+            if toolbarItemsChanged {
                 for i in nativeToolbar.items.indices.reversed() where !desired.contains(nativeToolbar.items[i].itemIdentifier) {
                     nativeToolbar.removeItem(at: i)
                 }
@@ -250,6 +254,11 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                     button.toolTip = item.toolTip
                     button.isEnabled = item.isEnabled
                 }
+            }
+            if toolbarItemsChanged {
+                // Reinserted toolbar views do not have their final window frames
+                // during this SwiftUI update. Recompute title clearance afterward.
+                titleHeader.scheduleLayout()
             }
         }
 
