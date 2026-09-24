@@ -4,6 +4,20 @@ import Testing
 
 @Suite("Memory remember evolution targets")
 struct MemoryRememberToolTests {
+    @Test func saveAcknowledgmentsKeepInternalIDsOutOfUserFacingGuidance() throws {
+        for allowsRemoteUse in [false, true] {
+            var memory = makeMemory(content: "A synthetic preference")
+            memory.draft?.allowsRemoteUse = allowsRemoteUse
+            let result = MemoryTools.result(.init(memory: memory, disposition: .created), replacedPrevious: true)
+            _ = try ToolSchemaValidator.decode(try result.jsonString(), schema: MemoryTools.rememberResultSchema)
+            let acknowledgment = try #require(result["acknowledgment"]?.stringValue)
+            #expect(acknowledgment.contains("without memory IDs, references, revisions or citations"))
+            #expect(!acknowledgment.contains(memory.id.rawValue.uuidString))
+            #expect(acknowledgment.contains(allowsRemoteUse ? "available for future requests in its scope" : "saved locally only"))
+            #expect(acknowledgment.contains("superseded history"))
+        }
+    }
+
     @Test func deletionBindsExactTargetAndNeverReportsPrematureCompletion() async throws {
         let memory = makeMemory(content: "I prefer green tea")
         let context = makeContext()

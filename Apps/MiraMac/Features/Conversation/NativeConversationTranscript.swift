@@ -481,16 +481,16 @@ struct NativeConversationTranscript: NSViewRepresentable {
                     reasoningSource = L10n.string("The model did not provide visible thinking text.", locale: parent.locale)
                 }
             }
-            let body = visible && !item.text.isEmpty ? content(id: item.id + ":answer", source: item.text) : nil
+            let displayText = item.displayText
+            let body = visible && !displayText.isEmpty ? content(id: item.id + ":answer", source: displayText) : nil
             let reasoning = visible && expanded ? content(id: item.id + ":thinking", source: reasoningSource) : nil
             let auxiliary: AnyView
             if visible && !measuring {
                 auxiliary = AnyView(VStack(alignment: .leading, spacing: 10) {
-                    MemoryHistoryTags(notices: item.memoryNotices)
                     MemoryDeletionStatusView(requests: item.memoryDeletions)
                     if let executionID = item.executionID, let conversationID {
-                        TranscriptCitations(text: item.text, executionID: executionID, conversationID: conversationID,
-                                           model: parent.model, memoryNotices: item.memoryNotices).equatable()
+                        TranscriptCitations(text: displayText, executionID: executionID, conversationID: conversationID,
+                                           model: parent.model).equatable()
                     }
                 }.environment(\.locale, parent.locale))
             } else { auxiliary = AnyView(EmptyView()) }

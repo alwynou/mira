@@ -73,8 +73,8 @@ def load_scenarios(corpus_path: Path) -> list[dict[str, Any]]:
             raise LauncherError("continuity.json contains a non-object scenario")
         if not all(isinstance(scenario.get(key), str) and scenario[key].strip() for key in ("id", "language", "input", "followUp", "mode")):
             raise LauncherError("continuity.json contains an empty or malformed scenario field")
-        if type(scenario.get("requiresCitation")) is not bool:
-            raise LauncherError("continuity.json requires a boolean requiresCitation field")
+        if type(scenario.get("asksForSource")) is not bool:
+            raise LauncherError("continuity.json requires a boolean asksForSource field")
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", scenario["id"]):
             raise LauncherError(f"continuity scenario ID is not a safe lowercase kebab ID: {scenario['id']}")
         if scenario["id"] in ids:
@@ -367,16 +367,16 @@ def load_prior_establishments(prior_run: Path, scenarios: list[dict[str, Any]]) 
         raw = read_json(report_path)
         identity = raw.get("identity") if isinstance(raw, dict) else None
         scenario = expected[case_id]
-        expected_requires_citation = scenario.get("requiresCitation")
+        expected_asks_for_source = scenario.get("asksForSource")
         if (
             not isinstance(identity, dict)
             or identity.get("language") != scenario["language"]
             or identity.get("mode") != scenario["mode"]
             or identity.get("input") != scenario["input"]
             or identity.get("followUp") != scenario["followUp"]
-            or type(expected_requires_citation) is not bool
-            or type(identity.get("requiresCitation")) is not bool
-            or identity.get("requiresCitation") != expected_requires_citation
+            or type(expected_asks_for_source) is not bool
+            or type(identity.get("asksForSource")) is not bool
+            or identity.get("asksForSource") != expected_asks_for_source
         ):
             raise LauncherError(f"The prior establishment identity does not match the corpus for {case_id}")
         if identity.get("providerID") != "deepseek" or identity.get("modelID") != "deepseek-flash" or identity.get("endpoint") != "https://api.deepseek.com" or identity.get("protocolID") != "chat.completions" or identity.get("contextWindow") != 1_000_000 or identity.get("outputTokens") != 8_192 or identity.get("embeddings") != "local":

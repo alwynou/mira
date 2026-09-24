@@ -10,6 +10,7 @@ private struct MiraActivityPreview: NSViewRepresentable {
     var completed = false
     var initialThinking = false
     var failedTool = false
+    var quietMemory = false
 
     func makeNSView(context: Context) -> NativeTranscriptRow { NativeTranscriptRow(frame: .zero) }
 
@@ -39,7 +40,15 @@ private struct MiraActivityPreview: NSViewRepresentable {
                     .init(id: "reasoning", content: .thinking(.available("Reviewing the first source.")))
                 ])], liveAttemptID: first)
         }
-        view.configure(item: item, body: MarkdownContent(markdown: item.text, theme: theme),
+        if quietMemory {
+            let id = "00000000-0000-0000-0000-000000000001"
+            let answer = "Your dog enjoys playing with a ball. [memory:\(id)@1]"
+            item = TranscriptItem(id: "preview", role: .assistant, text: answer, status: .completed,
+                isStreaming: false, steps: [.init(id: first, stepIndex: 0, blocks: [
+                    .init(id: "answer", content: .text(.available(answer)))
+                ])])
+        }
+        view.configure(item: item, body: MarkdownContent(markdown: item.displayText, theme: theme),
                        reasoning: MarkdownContent(markdown: item.thinking, theme: theme), expanded: true,
                        theme: theme, locale: locale, reduceMotion: true, measurement: false,
                        auxiliary: AnyView(EmptyView()), expandedBlocks: completed ? [first.uuidString + ":tool"] : [], remember: { _ in })
@@ -63,6 +72,16 @@ private struct MiraActivityPreview: NSViewRepresentable {
 
 #Preview("Conversation activity · Failed tool · Dark · Narrow") {
     MiraActivityPreview(phase: .answering, completed: true, failedTool: true).frame(width: 360, height: 320)
+        .environment(\.locale, Locale(identifier: "zh-CN")).preferredColorScheme(.dark)
+}
+
+#Preview("Quiet memory · English · Light") {
+    MiraActivityPreview(phase: .answering, quietMemory: true).frame(width: 600, height: 160)
+        .environment(\.locale, Locale(identifier: "en")).preferredColorScheme(.light)
+}
+
+#Preview("Quiet memory · Chinese · Dark · Narrow") {
+    MiraActivityPreview(phase: .answering, quietMemory: true).frame(width: 360, height: 160)
         .environment(\.locale, Locale(identifier: "zh-CN")).preferredColorScheme(.dark)
 }
 

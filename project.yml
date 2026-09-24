@@ -144,6 +144,7 @@ targets:
       - Apps/MiraMac/Presentation/ConversationReadingState.swift
       - Apps/MiraMac/Presentation/TranscriptScrollState.swift
       - Apps/MiraMac/Presentation/NativeTranscriptState.swift
+      - Apps/MiraMac/Presentation/AssistantTextPresentation.swift
       - Apps/MiraMac/Features/Conversation/NativeTranscriptRow.swift
       - Apps/MiraMac/Features/Conversation/MessageRow.swift
       - Apps/MiraMac/DesignSystem/MiraMarkdownView.swift
@@ -241,6 +242,7 @@ targets:
       - Apps/MiraMac/Features/Conversation/UsageCostView.swift
       - Apps/MiraMac/DesignSystem/MiraMarkdownView.swift
       - Apps/MiraMac/Presentation/NativeTranscriptState.swift
+      - Apps/MiraMac/Presentation/AssistantTextPresentation.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

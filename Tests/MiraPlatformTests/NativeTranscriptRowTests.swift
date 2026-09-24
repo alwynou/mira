@@ -8,6 +8,31 @@ import MiraCore
 @MainActor
 @Suite("Native transcript rows", .serialized)
 struct NativeTranscriptRowTests {
+    @Test func memoryReferencesHaveNoRenderedTextOrFooterInFlatAndOrderedReplies() throws {
+        _ = NSApplication.shared
+        let reference = "[memory:00000000-0000-0000-0000-000000000001@1]"
+        let raw = "A remembered preference.\(reference)"
+        for ordered in [false, true] {
+            let row = NativeTranscriptRow(frame: .zero)
+            var item = TranscriptItem(id: "quiet", role: .assistant, text: raw, status: .completed, isStreaming: false)
+            item.memoryNotices = [.init(memoryID: MemoryID(), reason: .updated)]
+            if ordered {
+                item.steps = [.init(id: UUID(), stepIndex: 0, blocks: [.init(id: "answer", content: .text(.available(raw)))])]
+            }
+            row.configure(item: item, body: MarkdownContent(markdown: item.displayText, theme: theme()), reasoning: nil,
+                expanded: false, theme: theme(), locale: Locale(identifier: "en"), reduceMotion: true,
+                measurement: false, auxiliary: AnyView(Text(verbatim: "Unexpected memory footer")), remember: { _ in })
+            row.frame = NSRect(x: 0, y: 0, width: 360, height: row.fittingHeight(width: 360))
+            row.layoutSubtreeIfNeeded()
+            let rendered = markdownViews(in: row).filter { !$0.isHidden }
+                .map { $0.textLabelView.attributedText.string.trimmingCharacters(in: .newlines) }.filter { !$0.isEmpty }
+            #expect(rendered == ["A remembered preference."])
+            let decorationsHidden = row.subviews.compactMap { $0 as? NSHostingView<AnyView> }.allSatisfy { $0.isHidden }
+            #expect(decorationsHidden)
+            #expect(item.text == raw)
+        }
+    }
+
     @Test func disclosureAffordanceTracksHoverAndAvailableWidth() throws {
         _ = NSApplication.shared
         let button = MiraHoverDisclosureButton(frame: NSRect(x: 0, y: 0, width: 360, height: 24))

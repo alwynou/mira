@@ -7,7 +7,7 @@
       "input": "I usually start a writing plan by listing the three most important tasks.",
       "followUp": "How do I usually begin a writing plan?",
       "mode": "automatic",
-      "requiresCitation": false
+      "asksForSource": false
     },
     {
       "id": "en-explicit-reading-room",
@@ -15,7 +15,7 @@
       "input": "Please remember this preference: I like a quiet room when I do focused reading.",
       "followUp": "What kind of room do I prefer for focused reading?",
       "mode": "explicitSave",
-      "requiresCitation": false
+      "asksForSource": false
     },
     {
       "id": "zh-writing-plan",
@@ -23,7 +23,7 @@
       "input": "我平时写计划时喜欢先列出三个最重要的事项。",
       "followUp": "我平时写计划时先做什么？请附上记忆来源引用。",
       "mode": "automatic",
-      "requiresCitation": true
+      "asksForSource": true
     },
     {
       "id": "zh-explicit-meeting-time",
@@ -31,7 +31,7 @@
       "input": "请记住这个偏好：我喜欢把会议安排在上午。",
       "followUp": "我更喜欢把会议安排在什么时候？",
       "mode": "explicitSave",
-      "requiresCitation": false
+      "asksForSource": false
     }
   ]
 }

@@ -4,6 +4,50 @@ import Testing
 
 @Suite("Native transcript state")
 struct NativeTranscriptStateTests {
+    @Test func memoryAnnotationsArePresentationOnlyAndKnowledgeReferencesRemain() {
+        let id = "00000000-0000-0000-0000-000000000001"
+        let reference = "memory:\(id)@12"
+        let knowledge = "[source:\(id)@2#chunk-1]"
+        let raw = "A [\(reference)]B (\(reference))C \(reference) D [a fact](\(reference)) \(knowledge)"
+        let answer = item(id: "answer", text: raw)
+        #expect(answer.displayText == "A B C  D a fact \(knowledge)")
+        #expect(answer.text == raw)
+        let user = TranscriptItem(id: "user", role: .user, text: raw, status: .completed, isStreaming: false)
+        #expect(user.displayText == raw)
+        #expect(AssistantTextPresentation.text("Unrelated UUID: \(id)") == "Unrelated UUID: \(id)")
+    }
+
+    @Test func memoryReferenceNeverFlashesItsIDDuringStreamingOrInterruptedOutput() {
+        let reference = "[memory:00000000-0000-0000-0000-000000000001@12]"
+        for count in "[memory:".count...reference.count {
+            let source = "A fact. " + reference.prefix(count)
+            #expect(item(id: "live", text: source, status: nil, isStreaming: true).displayText == "A fact. ")
+            #expect(item(id: "stopped", text: source, status: .cancelled).displayText == "A fact. ")
+        }
+        #expect(AssistantTextPresentation.text("A fact. [memory:00000000-0000-0000-0000-000000000001@12] Next.") == "A fact.  Next.")
+        #expect(AssistantTextPresentation.text("A fact. `memory:00000000-0000-0000-0000-000000000001@12`") == "A fact. ")
+        #expect(AssistantTextPresentation.text("A fact. `memory:00000000-0000", isStreaming: true) == "A fact. ")
+    }
+
+    @Test func saveReceiptIDsAreHiddenWithoutChangingToolEvidenceOrOtherUUIDs() {
+        let id = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let other = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+        let receipt = "{\"memory_id\":\"\(id)\",\"revision\":1}"
+        let steps: [SessionActivityStep] = [.init(id: UUID(), stepIndex: 0, blocks: [
+            .init(id: "save", content: .tool(.init(id: UUID(), toolName: "memory.remember", status: .succeeded,
+                arguments: .available("{}"), result: .available(receipt))))
+        ])]
+        var answer = item(id: "save", text: "Saved. `\(id)` Other: \(other)")
+        answer.steps = steps
+        #expect(answer.displayText == "Saved.  Other: \(other)")
+        #expect(answer.steps == steps)
+        for count in 1...id.uuidString.count {
+            #expect(AssistantTextPresentation.text("Saved. " + id.uuidString.prefix(count),
+                memoryIDs: [id], isStreaming: true) == "Saved. ")
+        }
+        #expect(AssistantTextPresentation.text("Saved a", memoryIDs: [id]) == "Saved a")
+    }
+
     @Test func finalReasoningStaysInProcessAndOnlyTrailingTextStaysOutside() {
         var turn = TranscriptItem(id: "turn", role: .assistant, text: "Answer", status: .completed, isStreaming: false)
         let attempt = UUID()

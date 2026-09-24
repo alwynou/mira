@@ -8,6 +8,12 @@
 
 返回 [PRD.md](../PRD.md) · 版本范围：[MVP](../MVP.md)
 
+## Quiet conversation memory — 2026-09-24
+
+Memory is background context in ordinary conversation. Replies use relevant facts naturally without announcing recall, displaying memory citations, IDs, revisions, or adding memory badges/status tags below the answer. An explicit successful save can receive a brief natural-language confirmation; it never includes internal identifiers. Failed, unconfirmed and local-only saves retain accurate wording. If the user asks how Mira knows, explain available provenance in ordinary language. Knowledge and external-source citations remain visible.
+
+The transcript hides reserved memory reference markup in assistant answers, including streamed, interrupted and reopened replies, and known bare IDs from memory tool receipts. This is presentation only: journal text, user messages, thinking, tool evidence and authorization remain verbatim. Memory management and deliberately opened execution inspection retain their detailed records. Explicit deletion outcomes still report whether the requested action completed.
+
 ## Current management UI status — 2026-09-22
 
 The macOS Memory management screen is implemented. It provides search, global/workspace scope filters, current/history sections, updated-time ordering, and paged results. A selected memory shows its evidence, revisions, and related replacement records; related records can be opened from detail even when they fall outside the current filter or page. Manual memories default to local-only. Editing wording keeps the memory identity, scope, and subject; replacing creates a separate memory and retains the previous one in history. Users can archive, restore, reject a candidate, and delete a memory after confirmation. Deletion (the existing privacy-forget operation) clears the body and source excerpts while retaining a body-free tombstone. At compact widths, including the 850×620 target window, detail uses a drill-in layout with a return action. Conversation drafts remain available when switching to Memory and back to a new conversation.
@@ -129,7 +135,7 @@ Replacement, withdrawal, and deletion have distinct confirmations. Replacement p
 
 Clear, non-conflicting additions about the same identified entity are enrichment, rather than a correction requiring the user to say “replace.” The extractor identifies the exact existing memory (or an earlier item in the same batch) and produces one complete statement retaining the supported prior facts and new detail. The new representation becomes current; the previous representation remains in history, with both sources traceable. Aspect labels and text similarity alone do not authorize this operation. Ambiguous entities, contradictions, incompatible disclosure policy, or changed target revisions do not merge automatically.
 
-这类记忆在后台自然生效，不逐条弹窗或要求确认，也不要求在回答中显示引用。内部来源可以关联整个会话批次，供纠正和遗忘时追踪依赖。已实现的记忆管理界面提供编辑、替代、归档与遗忘入口；后台处理结果的独立审核队列不在当前范围内。
+这类记忆在后台自然生效，不逐条弹窗或要求确认，不在回答中显示记忆引用。内部来源可以关联整个会话批次，供纠正和遗忘时追踪依赖。已实现的记忆管理界面提供编辑、替代、归档与遗忘入口；后台处理结果的独立审核队列不在当前范围内。
 
 #### C. 推断、敏感、冲突或低置信内容
 
@@ -244,9 +250,9 @@ Memory search returns relevant matches, up to its result limit, and can return n
 
 当用户询问“我们过去讨论过哪些方案”“找出所有来源”等问题时，Agent 应主动调用 Memory / Knowledge 搜索工具，而不是依赖一次预取猜中所有内容。
 
-用户可以查看：
+用户主动打开记忆管理或执行详情时可以查看：
 
-- 本轮用了哪条 Memory；
+- 本轮内部使用了哪条 Memory；
 - 为什么被召回；
 - 适用范围；
 - 来源；
@@ -275,7 +281,7 @@ An ordinary conversational acknowledgment can confirm understanding and use info
 
 - 编辑一条 Memory 的文字与编辑其含义是两种操作：含义变化保留旧认知与替代关系，用户能看到本次影响。
 - 撤销自动捕获或拒绝候选后，同一来源的自动重试、索引重建与提取器升级不应重新创建同一条内容。
-- “忘记这条”立即阻止这条 Memory 继续召回和后台再提取，并清理 Memory 正文、修订版本、Evidence 正文、工具 / 请求 / 审计缓存和活跃草稿。已提交的历史用户消息、Assistant 回复与可显示的 Trace（Assistant 正文和可显示思考）仍保留在本地可见，并带有不含正文的状态标签；Trace 中隐藏的工具消息、参数、结果和 Tool Call 标识会被清理。它们以及由其历史传递影响的后续记录不再进入未来 Provider Context，也不会被模型重放。
+- “忘记这条”立即阻止这条 Memory 继续召回和后台再提取，并清理 Memory 正文、修订版本、Evidence 正文、工具 / 请求 / 审计缓存和活跃草稿。已提交的历史用户消息、Assistant 回复与可显示的 Trace（Assistant 正文和可显示思考）仍保留在本地可见；相关状态可在主动打开的管理或执行详情中查看，不在回复下方添加记忆标签。Trace 中隐藏的工具消息、参数、结果和 Tool Call 标识会被清理。它们以及由其历史传递影响的后续记录不再进入未来 Provider Context，也不会被模型重放。
 - 原始 Conversation 或 Source 可以保留。若用户要求连原文都删除，明确展示连带清理的来源和影响。仅删除 Memory 不承诺使原始文本在显式历史搜索中不可见。
 - 新来源再次陈述相同事实不等于同一来源重试。当前只保证对已排除来源与已识别内容的抑制；跨所有语义改写的永久屏蔽不冒充已实现能力。用户可以明确重新要求记住。
 - 已确认替代的新记忆被归档或删除时，旧认知不自动恢复为当前事实；恢复需要用户明确操作。
@@ -284,7 +290,7 @@ An ordinary conversational acknowledgment can confirm understanding and use info
 
 ### 1.11 知识更新与来源失效
 
-更新 Source 或删除来源时，已人工确认的 Memory 不静默消失或重新解释为新版本资料的结论。显示其依据的原始版本或“来源已不可用”状态。若 Evidence 存在归属错误或不能再支撑该记忆，退出自动事实注入并等待纠正。Memory 因此失效时，已提交的历史消息、回复和可显示 Trace 可以继续在本地查看并显示状态标签，但相关内容（包括历史依赖的传递后代）不得再次进入 Provider Context。
+更新 Source 或删除来源时，已人工确认的 Memory 不静默消失或重新解释为新版本资料的结论。显示其依据的原始版本或“来源已不可用”状态。若 Evidence 存在归属错误或不能再支撑该记忆，退出自动事实注入并等待纠正。Memory 因此失效时，已提交的历史消息、回复和可显示 Trace 可以继续在本地查看；相关状态不在普通回复中展示，但相关内容（包括历史依赖的传递后代）不得再次进入 Provider Context。
 
 > **参考设计标注｜Nowledge Mem**  
 > 借鉴其将原始对话与可独立复用的 Memory 分开、保留来源、Working Memory 与知识演化的思路。Mira 不照搬固定审核队列：对清晰的用户陈述采用“自动生效 + 易撤销”，跳过后台推断、敏感和含糊冲突。
