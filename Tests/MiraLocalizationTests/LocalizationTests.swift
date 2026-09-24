@@ -24,6 +24,14 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(error.message, "Enter an API key.")
     }
 
+    func testMemoryEnrichmentRecoveryErrorUsesCurrentLocale() {
+        let error = MiraError(.invalidInput, "An enrichment target has a different memory kind. Keep unrelated memories separate, search again, and retry with only compatible overlapping targets. Do not save overlapping facts as an independent memory.")
+        XCTAssertEqual(L10n.error(error, locale: AppLanguage.english.locale, bundle: resources), error.message)
+        let translated = L10n.error(error, locale: AppLanguage.simplifiedChinese.locale, bundle: resources)
+        XCTAssertEqual(translated, "某个合并目标的记忆类型不同。请保留不相关的记忆，重新搜索后仅使用类型兼容且内容重叠的目标重试。不要将重叠内容另存为独立记忆。") // i18n-fixture: Expected Simplified Chinese recovery instruction.
+        XCTAssertEqual(error.code, .invalidInput)
+    }
+
     func testUnknownMessagesHaveAnEnglishFallbackAndPreferencesSurviveReload() {
         XCTAssertEqual(L10n.string("Unknown fixture key", locale: Locale(identifier: "fr_FR"), bundle: resources), "Unknown fixture key")
         let name = "mira.language-tests.\(UUID().uuidString)"

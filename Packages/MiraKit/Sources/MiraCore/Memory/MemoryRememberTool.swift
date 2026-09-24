@@ -34,7 +34,8 @@ public struct MemoryRememberTool: AgentLocalWriteTool {
         let proposal = try MemoryTools.parsedProposal(arguments: normalized, evidence: context.evidence)
         let targets = proposal.replacementTarget.map { [$0] } ?? proposal.enrichmentTargets
         let memories = try await MemoryRememberValidation.loadTargets(
-            targets, draft: proposal.draft, store: store, context: context, at: now())
+            targets, draft: proposal.draft, isReplacement: proposal.replacementTarget != nil,
+            store: store, context: context, at: now())
         let references = memories.map {
             AgentSourceReference.domain(namespace: "memories", id: $0.id.rawValue, revision: $0.revision)
         }
@@ -64,7 +65,8 @@ private struct MemoryRememberPolicy: AgentToolPolicy {
         let parsed = try MemoryTools.parsedProposal(arguments: proposal.plan.input, evidence: context.evidence)
         let targets = parsed.replacementTarget.map { [$0] } ?? parsed.enrichmentTargets
         let memories = try await MemoryRememberValidation.loadTargets(
-            targets, draft: parsed.draft, store: store, context: context, at: now())
+            targets, draft: parsed.draft, isReplacement: parsed.replacementTarget != nil,
+            store: store, context: context, at: now())
         let references = memories.map {
             AgentSourceReference.domain(namespace: "memories", id: $0.id.rawValue, revision: $0.revision)
         }
@@ -77,7 +79,7 @@ private struct MemoryRememberPolicy: AgentToolPolicy {
 
 private enum MemoryRememberValidation {
     static func loadTargets(
-        _ targets: [MemoryUsage], draft: MemoryDraft,
+        _ targets: [MemoryUsage], draft: MemoryDraft, isReplacement: Bool,
         store: any MemoryReadStore, context: AgentToolContext, at: Date
     ) async throws -> [Memory] {
         guard targets.count <= 6, Set(targets.map(\.memoryID)).count == targets.count else {
@@ -93,11 +95,13 @@ private enum MemoryRememberValidation {
                   let existing = memory.draft,
                   existing.scope == draft.scope,
                   existing.subject == draft.subject,
-                  existing.kind == draft.kind,
                   existing.sensitivity == draft.sensitivity,
                   existing.allowsRemoteUse == draft.allowsRemoteUse,
                   existing.allowedConnectionIDs == draft.allowedConnectionIDs
             else { throw MemoryTools.evolutionTargetInvalid }
+            guard existing.kind == draft.kind else {
+                throw isReplacement ? MemoryTools.evolutionTargetInvalid : MemoryTools.enrichmentKindMismatch
+            }
             if let first = memories.first?.draft, !compatible(existing, first) {
                 throw MemoryTools.evolutionTargetInvalid
             }

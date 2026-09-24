@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [memory save retry correction](engineering/MEMORY_SAVE_RETRY_VERIFICATION.md) addresses a name-only fact left current after an independent retry saved a fuller profile. Foreground save guidance now searches specific facts, retains compatible overlapping targets and avoids bypassing a failed consolidation with an independent duplicate. Kind mismatches have actionable diagnostics. Focused synthetic regression tests pass; live-model compliance and retrospective cleanup of existing personal records remain unqualified.
+
 The [quiet memory presentation correction](engineering/QUIET_MEMORY_PRESENTATION.md) removes memory references and badges from ordinary replies and guides brief save acknowledgments without internal IDs. Streaming, interrupted and reopened assistant text share a presentation filter while raw evidence and Knowledge citations remain intact. Focused package/host tests and English/light plus Chinese/dark native fixtures passed; live-provider wording and broader memory quality remain unqualified.
 
 The [conversation titlebar navigation correction](engineering/CONVERSATION_TITLEBAR.md#management-navigation-correction--2026-09-24) restores the header after visiting Memories or Knowledge. A failing-before/passing-after native geometry regression and English/light plus Chinese/dark minimum-window checks preserve the title, draft and reading position.

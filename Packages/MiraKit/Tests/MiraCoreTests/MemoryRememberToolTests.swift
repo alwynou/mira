@@ -161,6 +161,7 @@ struct MemoryRememberToolTests {
             Issue.record("Incompatible targets were accepted")
         } catch let error as MiraError {
             #expect(error.code == .invalidInput)
+            #expect(error == MemoryTools.enrichmentKindMismatch)
         }
 
         do {
@@ -170,6 +171,14 @@ struct MemoryRememberToolTests {
             Issue.record("A stale correction target was accepted")
         } catch let error as MiraError {
             #expect(error.code == .invalidInput)
+        }
+    }
+
+    @Test func incompatibleReplacementKeepsReplacementValidation() async throws {
+        let fact = makeMemory(content: "My name is Casey", kind: .fact)
+        let tool = MemoryRememberTool(store: RememberFixtureStore(memories: [fact]))
+        await #expect(throws: MemoryTools.evolutionTargetInvalid) {
+            _ = try await tool.prepare(arguments(for: [], replaces: usage(fact)), context: makeContext())
         }
     }
 
