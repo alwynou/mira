@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [conversation permission scope correction](engineering/CONVERSATION_TOOL_PERMISSIONS_VERIFICATION.md) separates each existing conversation’s consent from the global new-conversation default. First submission captures the default, later composer changes remain local, and runtime checks use the invoking conversation identity.
+
 The user-approved [Bash and global tool permission increment](engineering/TOOL_PERMISSIONS_VERIFICATION.md) adds noninteractive macOS command execution and one persisted three-level approval setting in General settings and the composer. The host governs all risky tools, including conversational memory deletion, while ordinary memory/task operations retain domain checks. Focused process/runtime tests and the complete hostless target passed; native bilingual checks and remaining platform limits are recorded in the evidence.
 
 The [memory save retry correction](engineering/MEMORY_SAVE_RETRY_VERIFICATION.md) addresses a name-only fact left current after an independent retry saved a fuller profile. Foreground save guidance now searches specific facts, retains compatible overlapping targets and avoids bypassing a failed consolidation with an independent duplicate. Kind mismatches have actionable diagnostics. Focused synthetic regression tests pass; live-model compliance and retrospective cleanup of existing personal records remain unqualified.

@@ -7,6 +7,65 @@
     @MainActor
     struct ConversationModelTests {
         @Test
+        func composerPermissionsCaptureAtFirstSendAndRemainLocalAfterSwitchingPages() async throws {
+            let suite = "mira-composer-permissions-\(UUID())"
+            let defaults = try #require(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let permissions = ToolPermissionPreferences(defaults: defaults)
+            try await withDirectory { directory in
+                let library = try await Self.openDemoLibrary(directory: directory, stress: false)
+                let model = ConversationModel(library: library, pageLimit: 1, toolPermissions: permissions)
+                let observer = Task { await model.observe() }
+                do {
+                    try await eventually { model.isReady && !model.routes.isEmpty }
+                    let group = try #require(model.workgroup)
+                    let first = model.activePage
+                    first.composer = "An unsent draft is still global."
+                    #expect(model.toolPermissionScope(for: first) == .defaults)
+                    permissions.select(.automatic, for: model.toolPermissionScope(for: first))
+                    first.modelSelectionRevision = 1
+                    await model.send(first)
+                    #expect(first.conversationID == nil && first.pendingAdmission == nil)
+                    #expect(model.toolPermissionScope(for: first) == .defaults)
+                    #expect(defaults.dictionary(forKey: ToolPermissionPreferences.conversationsKey)?.isEmpty == true)
+                    first.modelSelectionRevision = 0
+                    await model.send(first)
+                    let firstID = try #require(first.conversationID)
+                    try await Self.waitForExecution(group, sessionID: firstID)
+                    let firstScope = model.toolPermissionScope(for: first)
+                    #expect(firstScope == .conversation(libraryID: library.id, conversationID: firstID))
+                    #expect(permissions.level(for: firstScope) == .automatic)
+                    permissions.select(.fullAccess, for: firstScope)
+                    #expect(permissions.level == .automatic)
+                    await model.newConversation()
+                    #expect(model.toolPermissionScope(for: model.activePage) == .defaults)
+                    permissions.select(.ask, for: model.toolPermissionScope(for: model.activePage))
+                    #expect(permissions.level(for: firstScope) == .fullAccess)
+                    model.activePage.composer = "The second conversation captures Ask."
+                    await model.send()
+                    let secondID = try #require(model.activePage.conversationID)
+                    try await Self.waitForExecution(group, sessionID: secondID)
+                    let secondScope = model.toolPermissionScope(for: model.activePage)
+                    permissions.select(.automatic)
+                    #expect(permissions.level(for: secondScope) == .ask)
+                    await model.selectConversation(firstID)
+                    #expect(model.toolPermissionScope(for: model.activePage) == firstScope)
+                    #expect(model.toolPermissions.level(for: firstScope) == .fullAccess)
+                    // Releasing cached content must never turn an existing conversation into a global draft.
+                    model.activePage.releaseContent()
+                    #expect(model.toolPermissionScope(for: model.activePage) == firstScope)
+                    let reopened = ToolPermissionPreferences(defaults: defaults)
+                    #expect(reopened.level(for: firstScope) == .fullAccess)
+                    #expect(reopened.level(for: secondScope) == .ask)
+                    observer.cancel(); await observer.value
+                    #expect(await library.close().isSettled)
+                } catch {
+                    observer.cancel(); await observer.value; _ = await library.close(); throw error
+                }
+            }
+        }
+
+        @Test
         func defaultConversationInstructionsReachTheRecordedModelRequest() async throws {
             try await withDirectory { directory in
                 let gate = SyntheticCompositionStreamGate()
@@ -364,9 +423,14 @@
 
         @Test
         func retriesTheSamePendingCommandAfterExportWithoutResubmittingIt() async throws {
+            let suite = "mira-pending-permissions-\(UUID())"
+            let defaults = try #require(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let permissions = ToolPermissionPreferences(defaults: defaults)
+            permissions.select(.automatic)
             try await withDirectory { directory in
                 let library = try await Self.openDemoLibrary(directory: directory, stress: false)
-                let model = ConversationModel(library: library)
+                let model = ConversationModel(library: library, toolPermissions: permissions)
                 let observer = Task { @MainActor in await model.observe() }
                 do {
                     try await eventually { model.isReady && !model.routes.isEmpty }
@@ -386,6 +450,11 @@
                     page.composer = input
                     page.pendingAdmission = command
                     page.pendingAdmissionRuntimeID = oldGroup.application.id
+                    let scope = model.toolPermissionScope(for: page)
+                    #expect(scope == .conversation(libraryID: library.id, conversationID: command.sessionID))
+                    permissions.captureDefault(for: scope)
+                    permissions.select(.fullAccess, for: scope)
+                    permissions.select(.ask)
 
                     try committed(await oldGroup.application.submit(command))
                     try committed(
@@ -404,6 +473,9 @@
                     await model.retrySaving(page)
 
                     #expect(page.conversationID == command.sessionID)
+                    #expect(model.toolPermissionScope(for: page) == scope)
+                    #expect(permissions.level(for: scope) == .fullAccess)
+                    #expect(permissions.level == .ask)
                     #expect(page.pendingAdmission == nil)
                     #expect(page.pendingAdmissionRuntimeID == nil)
                     #expect(page.composer.isEmpty)

@@ -6,6 +6,57 @@ import Testing
 
 @Suite("Bash through the macOS agent runtime", .timeLimit(.minutes(1)))
 struct BashWorkflowTests {
+    @MainActor @Test func runtimeUsesInvokingConversationConsentDespiteChangedGlobalDefault() async throws {
+        let suite = "mira-runtime-permissions-\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let permissions = ToolPermissionPreferences(defaults: defaults)
+        try await withDirectory { directory in
+            let arguments = try JSONValue.object([
+                "command": .string("printf 'run\\n' >> runs.txt"), "working_directory": .string(directory.path)
+            ]).jsonString()
+            let tool: [AgentModelStreamEvent] = [
+                .blockStarted(.init(id: "bash", content: .toolCall(.init(id: "scoped-bash", name: "bash", arguments: arguments)))),
+                .blockFinished(id: "bash"), .finished(.toolCalls)
+            ]
+            let answer: [AgentModelStreamEvent] = [
+                .blockStarted(.init(id: "answer", content: .text("Synthetic result."))),
+                .blockFinished(id: "answer"), .finished(.stop)
+            ]
+            let model = CompositionModel(outputs: [tool, answer, tool, answer])
+            let storage = try await MacLibraryStorage.open(embeddings: OfflineMemoryEmbedding(), directory: directory)
+            let route: AgentModelRoute
+            do { route = try await seedRoute(storage, model: model); #expect(await storage.close() == nil) }
+            catch { _ = await storage.close(); throw error }
+            let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
+                notifications: CompositionNotifications(), credentials: CompositionCredentials(),
+                modules: { [CompositionModelModule(registry: $0, model: model)] },
+                toolPermissionLevel: { await permissions.level(for: $0) })
+            do {
+                let group = try await library.workloads()
+                let guarded = ConversationID(), allowed = ConversationID()
+                permissions.captureDefault(for: .conversation(libraryID: library.id, conversationID: guarded))
+                permissions.select(.fullAccess, for: .conversation(libraryID: library.id, conversationID: allowed))
+                permissions.select(.fullAccess)
+                for id in [guarded, allowed] {
+                    let request = AgentSubmitCommand(id: UUID(), sessionID: id, executionID: .init(),
+                        input: .message(id: .init(), text: "Run the synthetic scoped command.", timeZoneIdentifier: "UTC"),
+                        options: .init(instructions: ConversationInstructions.default, route: route),
+                        opening: .init(title: "Scoped permissions", workspaceID: nil))
+                    try committed(await group.application.submit(request))
+                    try committed(await group.application.waitForExecution(id: request.executionID, sessionID: id))
+                    let state = try await group.application.sessionSnapshot(id: id)
+                    let invocation = try #require(state.invocations.values.first)
+                    #expect((invocation.dispatchedAt != nil) == (id == allowed))
+                    #expect((invocation.resolution?.status == .succeeded) == (id == allowed))
+                    if id == guarded { #expect(!FileManager.default.fileExists(atPath: directory.appendingPathComponent("runs.txt").path)) }
+                }
+                #expect(try String(contentsOf: directory.appendingPathComponent("runs.txt"), encoding: .utf8) == "run\n")
+                #expect(await library.close().isSettled)
+            } catch { _ = await library.close(); throw error }
+        }
+    }
+
     enum Scenario: CaseIterable { case approved, denied, noObserver, cancelPending, cancelRunning, closeRunning, fullAccess, automaticRead, automaticRisk, changePending }
 
     @Test(arguments: Scenario.allCases)
@@ -34,7 +85,7 @@ struct BashWorkflowTests {
             catch { _ = await storage.close(); throw error }
             let modules: MacLibrary.ModuleFactory = { [CompositionModelModule(registry: $0, model: model)] }
             let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: libraryDirectory,
-                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { await permission.level })
+                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { _ in await permission.level })
             let request = AgentSubmitCommand(id: UUID(), sessionID: .init(), executionID: .init(),
                 input: .message(id: .init(), text: "Run the synthetic local command.", timeZoneIdentifier: "UTC"),
                 options: .init(instructions: ConversationInstructions.default, route: route),
@@ -105,7 +156,7 @@ struct BashWorkflowTests {
 
             let inputCount = await model.inputs.count
             let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: libraryDirectory,
-                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { await permission.level })
+                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { _ in await permission.level })
             do {
                 let group = try await reopened.workloads()
                 let state = try await group.application.sessionSnapshot(id: request.sessionID)

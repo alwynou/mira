@@ -2,8 +2,40 @@ import Foundation
 import MiraCore
 import Testing
 
-@Suite("Global tool permissions")
+@Suite("Scoped tool permissions")
 struct ToolPermissionTests {
+    @MainActor @Test func conversationConsentIsIsolatedPersistentAndDoesNotFollowLaterDefaults() throws {
+        let suite = "mira-permission-scopes-test-\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = ToolPermissionPreferences(defaults: defaults)
+        let library = UUID(), conversation = ConversationID()
+        let first = ToolPermissionScope.conversation(libraryID: library, conversationID: conversation)
+        let second = ToolPermissionScope.conversation(libraryID: library, conversationID: .init())
+        let otherLibrary = ToolPermissionScope.conversation(libraryID: UUID(), conversationID: conversation)
+        preferences.select(.automatic)
+        preferences.captureDefault(for: first)
+        preferences.select(.fullAccess, for: first)
+        #expect(preferences.level == .automatic)
+        preferences.captureDefault(for: second)
+        preferences.select(.ask)
+        // A retry cannot replace consent, and an unrelated library cannot inherit it.
+        preferences.captureDefault(for: first)
+        let reopened = ToolPermissionPreferences(defaults: defaults)
+        #expect(reopened.level(for: .defaults) == .ask)
+        #expect(reopened.level(for: first) == .fullAccess)
+        #expect(reopened.level(for: second) == .automatic)
+        #expect(reopened.level(for: otherLibrary) == .ask)
+        reopened.select(.fullAccess)
+        #expect(reopened.level(for: second) == .automatic)
+        #expect(reopened.level(for: otherLibrary) == .ask)
+        reopened.discardUncommittedConversation(first)
+        #expect(ToolPermissionPreferences(defaults: defaults).level(for: first) == .ask)
+        let key = "\(library.uuidString)/\(conversation.rawValue.uuidString)"
+        defaults.set([key: "unrecognized"], forKey: ToolPermissionPreferences.conversationsKey)
+        #expect(ToolPermissionPreferences(defaults: defaults).level(for: first) == .ask)
+    }
+
     @MainActor @Test func preferencePersistsAndUnknownValuesFailClosed() throws {
         let suite = "mira-permissions-test-\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))

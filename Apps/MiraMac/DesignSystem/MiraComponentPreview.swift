@@ -2,6 +2,31 @@ import SwiftUI
 import MarkdownView
 import MiraCore
 
+private struct MiraToolPermissionPreview: View {
+    @State private var selection = ToolPermissionLevel.automatic
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
+            Text("Tool permissions").font(MiraTheme.Typography.section)
+            Text("This conversation only").font(MiraTheme.Typography.caption)
+            ToolPermissionOptions(selection: selection) { selection = $0 }
+            Text("Changes apply only to this conversation. Pending requests still need a decision.")
+                .font(MiraTheme.Typography.caption)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(MiraTheme.Spacing.md)
+        .frame(width: 360)
+    }
+}
+
+#Preview("Conversation permissions · English · Light") {
+    MiraToolPermissionPreview().environment(\.locale, Locale(identifier: "en")).preferredColorScheme(.light)
+}
+
+#Preview("Conversation permissions · Chinese · Dark") {
+    MiraToolPermissionPreview().environment(\.locale, Locale(identifier: "zh-CN")).preferredColorScheme(.dark)
+}
+
 /// Activity states use synthetic content and the same native row as conversations.
 private struct MiraActivityPreview: NSViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme

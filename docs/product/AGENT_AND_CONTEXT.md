@@ -318,9 +318,11 @@ Compact 是 Conversation 内部的模型上下文压缩，不是 Memory，也不
 - Compact 后从替换点建立新的稳定前缀。
 
 
-## Global tool permissions
+## Tool permission defaults and conversation scope
 
-The permission selector in General settings and the lower-left corner of the conversation composer controls the same persisted preference on this Mac, across all conversations and libraries. It covers risky tools, not just Bash. The default is **Ask for approval**; unknown stored values use that default.
+General settings controls the persisted default for new conversations on this Mac, across libraries. The lower-left composer selector edits that same default only while the page has no submitted history. Once the first message is submitted, the conversation captures its own level; subsequent composer changes apply only to that conversation. Settings and other drafts continue to use the global default, and later global changes never overwrite existing conversation consent. These levels cover all risky tools, not just Bash. The initial default is **Ask for approval**. Existing conversations without saved consent, and unknown stored values, use Ask.
+
+The menu identifies its scope as **New conversation default** or **This conversation only**. Unsent text is still a draft. Pending or indeterminate first-message admission uses conversation scope because history may already be committed; a definitely rejected first admission returns to draft scope. Reloading or evicting visible message pages does not change scope. Conversation consent is retained across app restarts and scoped by library and conversation identity. It is a host preference, not conversational content or an instruction editable by tools.
 
 | Level | Host approval behavior |
 | --- | --- |
