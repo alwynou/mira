@@ -29,13 +29,13 @@ Used explicit `--demo --verify-bash-tool`, a disposable library, and the separat
 
 - English/light and Chinese/dark: all three translated options, explanations, selected checkmark and current composer label are present. General settings and composer selections update each other. A new conversation inherits the choice; quitting and reopening preserves Full access. The demo preference was restored to Ask afterwards.
 - Default Ask shows exact command, cwd and timeout. Deny yields the fixture's not-executed reply. A new Full access conversation completes the real synthetic command without a review panel.
-- The 850 × 620 minimum conversation frame retains both permission and model/send controls. Screenshots cover English/light and Chinese/dark composer and settings. Longer English settings notes wrap instead of truncating.
+- The 850 × 620 minimum conversation frame retains both permission and model/send controls. Screenshots cover both composer appearances and Chinese/dark settings. English settings inspection found a truncated note; the final build adds vertical fixed sizing to wrap both notes. The final English settings capture was unavailable, so that last pixel check remains unqualified.
 - Initial native inspection found the popover did not inherit the app's selected locale; the popover now explicitly receives locale and color scheme. Bilingual accessibility inspection confirms the corrected labels. Escape closes the popover.
 - Computer-use captures intermittently returned Stage Manager thumbnails; OS window captures supplied the full-size evidence below. A separate popover-window capture was blank and is not retained as visual proof. Popover interaction/translation is verified by native accessibility state; exact dark popover pixels, full VoiceOver traversal, Increased Contrast/Reduce Transparency and simultaneous inspector compression remain unqualified.
 
 | Appearance | Conversation | Settings |
 | --- | --- | --- |
-| English/light | [Composer](evidence/tool-permissions/en-light-composer.png) | [Settings](evidence/tool-permissions/en-light-settings.png) |
+| English/light | [Composer](evidence/tool-permissions/en-light-composer.png) | Native interaction/AX verified; final capture unavailable |
 | Chinese/dark | [Composer](evidence/tool-permissions/zh-dark-composer.png) | [Settings](evidence/tool-permissions/zh-dark-settings.png) |
 
 ## Limits
