@@ -100,7 +100,7 @@ Mira/
 
 ## 2. 开发协作与工程边界
 
-- Every requirement adjustment follows GitHub issue → fresh `codex/` branch → implementation and focused verification → linked PR → merge after required checks pass. Create or reuse the issue before implementation and record scope and acceptance criteria. Fetch and fast-forward `main` before branching; preserve unrelated local changes.
+- Every requirement adjustment follows GitHub issue → fresh `codex/` branch → implementation and focused verification → linked PR and pre-merge checks → merge after required checks pass. Create or reuse the issue before implementation and record scope and acceptance criteria. Fetch and fast-forward `main` before branching; preserve unrelated local changes. Follow the [verification workflow](#verification-workflow) to keep broad regression out of implementation iterations.
 - The user approved this standing workflow on 2026-09-20, including routine pushes, PR creation, and merging. Follow explicit exceptions for a particular task and never bypass failing checks or branch protections. Link the PR with `Closes #<issue>`, use Conventional Commits, record exact verification and remaining gaps, then synchronize local `main` after merge. Release publication remains a separate action.
 - 建工程时提交 Xcode 工程、共享 Scheme、Swift Package 清单和解析依赖；增加适合 Swift / Xcode 的 `.gitignore`，不提交 DerivedData、用户工作区状态、密钥或真实资料库。
 - 使用 SwiftUI 原生控件与 Observation，平台桥接仅在所需能力不由 SwiftUI 提供时加入。View 仅发意图，业务执行由长生命周期的明确所有者管理。
@@ -124,25 +124,70 @@ Mira/
 
 ## 4. 当前工程操作
 
-从仓库根目录执行：
+<a id="verification-workflow"></a>
+
+### Verification workflow
+
+During implementation, select the smallest set of tests that covers the changed behavior, affected callers and shared contracts. Include relevant failure boundaries, such as rollback, cancellation, recovery or authorization. Expand that set only when the dependency impact or a failure warrants it. A change in one module does not by itself require testing every presentation model, model display, language or appearance.
+
+| Change or affected boundary | Iteration checks |
+| --- | --- |
+| Core, runtime, persistence or provider behavior | Filtered tests for the changed behavior and dependent contracts; relevant failure fixtures |
+| Host composition or presentation state | Selected composition/host test classes or methods; app build when integration is affected |
+| Visible UI, layout, rendering or shared visual components | Affected native screens/states; light/dark, minimum size, bilingual layout and accessibility only for dimensions the change can affect |
+| UI copy, catalog, formatting or locale resolution | Language policy and selected localization tests; affected native language/layout checks |
+| Model picker, model information or model routing | Relevant selection, display or routing tests; no live-provider evaluation unless separately authorized |
+| Design tokens | Export and consistency check, affected previews and native consumers |
+| Scripts or CI tooling | Focused script/routing tests; broader hosted checks at the pre-merge stage when selected by CI |
+| Documentation only | Review content, links and command references; `git diff --check` |
+
+Shared components may affect multiple consumers; include those consumers without automatically adding unrelated suites. For example, a persistence-only correction with unchanged presentation and localization needs storage/runtime regressions, not light/dark screenshots or bilingual model-picker checks. A locale-resolution change does need localization coverage even when it adds no catalog keys.
+
+Use filtered commands from the repository root. Replace the example selectors with the affected test class or method, and confirm the output actually ran the intended tests; an empty selection is not passing evidence:
+
+```sh
+swift test --package-path Packages/MiraKit --disable-automatic-resolution \
+  --filter MemoryRetractionStoreTests
+xcodebuild -project Mira.xcodeproj -scheme MiraCompositionTests -configuration Debug \
+  -destination 'platform=macOS' -derivedDataPath .build/xcode \
+  -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO \
+  -only-testing:MiraCompositionTests/MemoryDeletionTests test
+xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
+  -destination 'platform=macOS' -derivedDataPath .build/xcode \
+  -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO \
+  -only-testing:MiraHostTests/LocalizationTests test
+```
+
+The localization command is an example for language-impacting work, not an extra step for every change. Filtered Xcode testing may still compile shared target dependencies; compilation does not require running every test in those targets. For an affected app integration that needs only a build, use the same locked-dependency app command with `build` instead of `test` and omit the test selector.
+
+When implementation and focused verification are complete, open the routine linked PR and use the [CI contract](CI.md) for pre-merge regression. Broad automated suites belong at this stage. CI already selects suites from the complete PR diff; documentation-only PRs retain lightweight checks. A full manual workflow run is available when final acceptance requires all checks, but is not a default addition to every PR. Existing CI also runs on draft PRs and subsequent pushes, so opening a draft does not defer broad checks.
+
+Reuse successful final CI evidence for the tested revision and environment rather than rerunning the same complete suites locally. Later code, dependency or environment changes invalidate the affected evidence: rerun the relevant local checks, and let required CI checks pass for the updated revision before merge. Failures must be resolved without bypassing checks or branch protections. Synchronizing local `main` after merge does not itself call for another regression run.
+
+Record the selected checks and why they cover the change, actual results, and any applicable acceptance still unverified in the PR or owning engineering evidence. Unrelated checks are out of scope, not deferred acceptance. Native screenshots, live-model evaluations, scale measurements and release gates remain separate, impact-driven work; a pre-merge automated run is not a request to repeat every manual matrix.
+
+### Pre-merge command reference
+
+These unfiltered commands are for final verification when the corresponding suite is required and not already covered by applicable CI evidence. Do not run this block as an implementation checklist:
 
 ```sh
 swift test --package-path Packages/MiraKit --disable-automatic-resolution
 xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
   -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project Mira.xcodeproj -scheme Mira \
+xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath .build/xcode \
-  -onlyTesting:MiraHostTests test
+  -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO \
+  -only-testing:MiraHostTests test
 ```
 
-The package command exercises MiraKit. The host command runs the renamed `MiraHostTests` target, which contains localization and isolated Keychain fixtures. Native macOS UI and CI execution are separate evidence and must be recorded independently.
+The package command exercises all MiraKit tests. The host command runs the complete `MiraHostTests` target, which contains localization and isolated Keychain fixtures. Native macOS UI and CI execution are separate evidence and must be recorded independently.
 
 CI adds `--no-parallel` to the package command so unrelated Swift Testing fixtures do not compete for the hosted runner's executor threads. Cancellation and ownership tests retain their internal concurrent tasks and blocking boundaries. The package step is limited to 15 minutes in a 20-minute job; the independent app/host step has 30 minutes in a 35-minute job. See [CI reliability](CI_RELIABILITY.md) for the observed stall and validation scope.
 
 CI now selects checks from the complete PR diff: app-only changes skip package tests while retaining app/host coverage, and lightweight checks run on Linux. Shared configuration changes and detection failures retain full verification. The [CI contract](CI.md) owns path routing, the stable final result, manual full runs and dependency-cache warming. Dependency caches do not replace builds or tests.
 
-`MiraCompositionTests` compiles the production `MacLibrary`, storage owner and workload group directly into an independent test bundle. Run `xcodebuild -project Mira.xcodeproj -scheme MiraCompositionTests -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO test`. This suite uses synthetic model and notification ports with real journals and business databases. Both the `Mira` and `MiraHostTests` schemes include it; its independent success does not establish app or UI acceptance while legacy presentation callers are being replaced.
+`MiraCompositionTests` compiles the production `MacLibrary`, storage owner and workload group directly into an independent test bundle. Use the filtered example above during implementation; remove its `-only-testing:` selector only for a required pre-merge run of the complete suite. This suite uses synthetic model and notification ports with real journals and business databases. Both the `Mira` and `MiraHostTests` schemes include it; its independent success does not establish app or UI acceptance while legacy presentation callers are being replaced.
 
 Opt-in live memory evaluation uses `MIRA_EVAL_CASE_IDS` (one to four fixture IDs) and a shared `MIRA_EVAL_DISPATCH_CAP`; the default cap is 4 and valid overrides are 1 through 12. The cap includes provider continuations and background extraction, so a run must record the selected IDs and effective cap with its evidence. Live evaluation requires an isolated schema 12 library, configured synthetic corpus, and a new report path; it is never part of the normal package or host test commands.
 
@@ -183,4 +228,4 @@ MiraMac uses MarkdownView's `MarkdownView` and `MarkdownParser` products with Li
 Conversation presentation coalesces runtime text and thinking snapshots at 100 ms before publishing observable state. Authoritative reloads, terminal messages, selection changes, and privacy clears replace pending presentation state immediately. Stable transcript rows retain their renderer. Appended paragraph text uses a display-only 500 ms fade with up to 100 ms of word staggering; animation ticks neither mutate attributed text nor invalidate intrinsic size, and completion removes fade markers from the current document without restoring stale attachment reservations. Initial and completed snapshots render immediately, and Reduce Motion disables fades. The composer observes its own input independently from transcript content. Streaming growth now preserves reading position without auto-follow. Current surface, typography, and navigation verification are documented in [floating composer](FLOATING_COMPOSER.md); the original renderer measurements remain in [renderer replacement](RENDERER_REPLACEMENT.md).
 
 
-The current native-app rendering health check is `python3 scripts/run_rendering_benchmark.py --output /absolute/new-report.json --expand-thinking` after a Debug build. It runs a disposable app/library and removes them on exit. Its main-actor queue samples are not displayed frame-rate measurements; current evidence is in [Renderer replacement](RENDERER_REPLACEMENT.md).
+For rendering or streaming-presentation changes that affect responsiveness, the native-app rendering health check is `python3 scripts/run_rendering_benchmark.py --output /absolute/new-report.json --expand-thinking` after a Debug build. It is not a default check for unrelated requirements. It runs a disposable app/library and removes them on exit. Its main-actor queue samples are not displayed frame-rate measurements; current evidence is in [Renderer replacement](RENDERER_REPLACEMENT.md).

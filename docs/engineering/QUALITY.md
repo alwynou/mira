@@ -14,6 +14,12 @@
 
 ## 1. Testing 与 Eval Strategy
 
+### Verification scope and timing
+
+The categories below define available coverage and milestone/release acceptance, not a checklist to rerun after every edit. During implementation, follow the [verification workflow](DEVELOPMENT.md#verification-workflow): select tests for changed behavior, dependent contracts and relevant failure boundaries. Presentation/model-display, localization, appearance and native layout checks apply only when the change affects them. Live-model evaluation remains separately authorized.
+
+Reserve broad automated regression for the completed change before merging into `main`, using the required CI selection and reusing applicable final results. Record unverified acceptance only when it is relevant to the change; unrelated categories are out of scope. This timing does not weaken the milestone and release quality gates below.
+
 <a id="s31-01"></a>
 
 ### 1.1 Domain Tests
