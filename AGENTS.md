@@ -19,7 +19,7 @@
 - API keys live in Keychain. Persist only credential references and versions. No raw request bodies, responses, keys, or personal content in ordinary logs/errors.
 - Provider requests use frozen routes, explicit context limits, no cross-origin credential redirects, and no implicit fallback. Test providers never enter production automatically.
 - Thinking is a first-class output. Preserve provider continuation data through process-local streams, settled tool calls and journal history; never force thinking off to hide an incomplete adapter. Follow `docs/architecture/THINKING.md` for provider-specific replay boundaries.
-- Build only the current milestone. Do not add speculative packages, empty feature screens, shell tools, sync, or a backend.
+- Build only the current milestone. Do not add speculative packages, empty feature screens, sync, or a backend. The user-approved macOS Bash tool is governed by the global tool permission setting; additional platform tools still require explicit scope.
 
 ## Design system
 

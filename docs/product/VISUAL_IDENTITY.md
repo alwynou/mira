@@ -29,3 +29,5 @@ Model capability symbols are a user-requested semantic color exception: vision i
 The standalone Settings window follows native macOS System Settings styling, as requested by the user. System accent selection, standard blue controls and colored category symbols are a scoped interface exception. They do not recolor the conversation UI or the Contour Silver mark. Its measurements and native component contract are in [Settings design](SETTINGS_DESIGN.md).
 
 Failed conversation tool triggers are a user-requested semantic color exception: text and the leading failure symbol share the appearance-aware `MiraTheme.Colors.failure` red. The disclosure chevron remains neutral. The SF Symbols `xmark.circle.fill` failure symbol and localized status preserve meaning without color. Tool actions otherwise use a neutral SF Symbols `wrench.fill`; the canvas and Contour Silver identity remain unchanged.
+
+The global Full access tool-permission option uses system orange as a narrow, user-requested semantic emphasis, paired with an exclamation-shield symbol and explicit label. Other permission controls remain neutral.

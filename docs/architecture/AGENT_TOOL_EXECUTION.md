@@ -153,3 +153,8 @@ flowchart LR
 ## 库访问与维护
 
 工具执行必须显式接收当前执行的库访问租约，提案授权与租约的库身份、代次必须一致。正文与期限通过同一关口原子接纳，撤销后排空实际任务，不能在当前执行中换用新代次。恢复直接使用不具备派发依赖的 `AgentToolRecovery`。详见[访问与结算边界](AGENT_LIBRARY_MAINTENANCE.md)。
+
+
+## macOS global permission policy
+
+The macOS host evaluates the saved tool permission level through `MacToolPermissionPolicy` for every prepared invocation. Tool-owned policy remains an independent restriction composed by the existing executor; Full access only removes the host's routine approval requirement. The implementation, conservative classification, persisted preference scope and Bash external-effect boundaries are defined in [Bash and tool permissions](BASH_AND_TOOL_PERMISSIONS.md). Core protocols and durable journal formats are unchanged.

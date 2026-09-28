@@ -36,6 +36,7 @@ actor MacLibrary {
     private let notifications: any LocalNotificationPort
     private let credentials: any MacCredentialStore
     private let environment: RuntimeEnvironment
+    private let toolPermissionLevel: @Sendable () async -> ToolPermissionLevel
     private var group: MacLibraryWorkloads?
     private var phase: MacLibraryStatus.Phase = .starting
     private var generation: UInt64 = 0
@@ -53,7 +54,7 @@ actor MacLibrary {
         registry: RuntimeRegistry<AgentCapability>, handlers: RuntimeRegistry<any AgentLibraryMaintenanceHandler>,
         authorizer: JournalAgentSourceAuthorizer, notifications: any LocalNotificationPort,
         credentials: any MacCredentialStore,
-        environment: RuntimeEnvironment
+        environment: RuntimeEnvironment, toolPermissionLevel: @escaping @Sendable () async -> ToolPermissionLevel
     ) {
         self.storage = storage
         self.scope = scope
@@ -64,6 +65,7 @@ actor MacLibrary {
         self.notifications = notifications
         self.credentials = credentials
         self.environment = environment
+        self.toolPermissionLevel = toolPermissionLevel
         directory = storage.directory
         id = storage.authority.libraryID
     }
@@ -71,7 +73,8 @@ actor MacLibrary {
     static func open(
         embeddings: (any MemoryEmbeddingService)? = nil, directory: URL, expectedLibraryID: UUID? = nil,
         notifications: any LocalNotificationPort, credentials: any MacCredentialStore,
-        modules: @escaping ModuleFactory, environment: RuntimeEnvironment = .init()
+        modules: @escaping ModuleFactory, environment: RuntimeEnvironment = .init(),
+        toolPermissionLevel: @escaping @Sendable () async -> ToolPermissionLevel = { await ToolPermissionPreferences.shared.level }
     ) async throws -> MacLibrary {
         let storage = try await MacLibraryStorage.open(
             embeddings: embeddings, directory: directory, expectedLibraryID: expectedLibraryID, environment: environment)
@@ -84,6 +87,7 @@ actor MacLibrary {
             let host = try RuntimeModuleHost(
                 modules: [
                     MacDriverModule(registry: registry),
+                    MacBashModule(registry: registry),
                     MemoryModule(
                         registry: registry, store: storage.memories,
                         sourceAuthorities: domains, now: environment.now),
@@ -109,7 +113,8 @@ actor MacLibrary {
             let library = MacLibrary(
                 storage: storage, scope: scope, activation: active,
                 registry: registry, handlers: handlers, authorizer: authorizer,
-                notifications: notifications, credentials: credentials, environment: environment)
+                notifications: notifications, credentials: credentials, environment: environment,
+                toolPermissionLevel: toolPermissionLevel)
             do { try await library.recoverAndStart() } catch {
                 _ = await library.close()
                 throw error
@@ -296,7 +301,8 @@ actor MacLibrary {
         guard closeTask == nil else { return }
         let next = try await MacLibraryWorkloads.open(
             storage: storage, registry: registry,
-            authorizer: authorizer, notifications: notifications, credentials: credentials, environment: environment)
+            authorizer: authorizer, notifications: notifications, credentials: credentials, environment: environment,
+            toolPermissionLevel: toolPermissionLevel)
         // Close may begin while asynchronous opening is in flight.
         guard closeTask == nil else {
             _ = await next.close()

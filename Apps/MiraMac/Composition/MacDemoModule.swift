@@ -14,6 +14,7 @@
         static let routeID = RouteID(modelDescriptorID.rawValue)
         static let verifyMultiroundFlow = ProcessInfo.processInfo.arguments.contains("--verify-multiround-flow")
         static let verifyCodeScrolling = ProcessInfo.processInfo.arguments.contains("--verify-code-scrolling")
+        static let verifyBashTool = ProcessInfo.processInfo.arguments.contains("--verify-bash-tool")
 
         let id = "mac.demo"
         let dependencies: Set<String> = []
@@ -79,13 +80,13 @@
                     endpointID: "demo", contextWindow: 32_768, maximumOutputTokens: 12_000,
                     capabilities: [AgentModelCapabilityID.streamingText: .declared,
                                    AgentModelCapabilityID.thinking: .declared,
-                                   AgentModelCapabilityID.toolCalls: ProcessInfo.processInfo.arguments.contains("--verify-multiround-flow") ? .declared : .failed],
+                                   AgentModelCapabilityID.toolCalls: (verifyMultiroundFlow || verifyBashTool) ? .declared : .failed],
                     configuration: .init(schema: routeSchema, value: .object([:])),
                     parameterSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))], facts: [])
             let expectedPreset = AgentRoutePreset(
                 id: routeID, revision: 1, name: "Mira Local Demo",
                 modelDescriptorID: expectedModel.id, invocationID: "demo",
-                maximumOutputTokens: ProcessInfo.processInfo.arguments.contains("--verify-multiround-flow") ? 1_024 : 12_000,
+                maximumOutputTokens: (verifyMultiroundFlow || verifyBashTool) ? 1_024 : 12_000,
                 configuration: .init(schema: routeSchema, value: .object([:])))
             let currentModel = try await group.modelSettings.model(id: modelDescriptorID)
             let currentPreset = try await group.modelSettings.preset(id: routeID)
@@ -236,6 +237,11 @@
             let stress = stress
             let producer = Task {
                 do {
+                    if MacDemoModule.verifyBashTool {
+                        try Self.emitBashFixture(request: request, continuation: continuation)
+                        continuation.finish()
+                        return
+                    }
                     if verifyMultiroundFlow {
                         try await Self.emitMultiround(
                             request: request, continuation: continuation)
@@ -294,6 +300,30 @@
             _ messages: [AgentModelMessage], from source: AgentModelRoute,
             to target: AgentModelRoute, boundary: AgentReplayBoundary
         ) throws -> AgentReplayDecision { .include(messages) }
+
+        private static func emitBashFixture(
+            request: AgentPreparedModelRequest,
+            continuation: AsyncThrowingStream<AgentModelStreamEvent, any Error>.Continuation
+        ) throws {
+            if let result = request.input.messages.flatMap(\.toolResults).last(where: { $0.callID == "bash-fixture" }) {
+                let observation = try SessionCodec.decode(JSONValue.self, from: Data(result.text.utf8))
+                let reply = observation["status"] == .string("succeeded")
+                    ? "Bash completed. The command printed a greeting and the working directory, with a separate stderr line."
+                    : "The Bash command was not executed."
+                continuation.yield(.blockStarted(.init(id: "answer", content: .text(reply))))
+                continuation.yield(.blockFinished(id: "answer"))
+                continuation.yield(.finished(.stop))
+            } else {
+                let arguments = try JSONValue.object([
+                    "command": .string("printf 'Mira Bash is ready.\\n'; printf 'stderr fixture\\n' >&2; pwd"),
+                    "working_directory": .string("/tmp"), "timeout_seconds": .number(5)
+                ]).jsonString()
+                continuation.yield(.blockStarted(.init(id: "bash", content: .toolCall(
+                    .init(id: "bash-fixture", name: "bash", arguments: arguments)))))
+                continuation.yield(.blockFinished(id: "bash"))
+                continuation.yield(.finished(.toolCalls))
+            }
+        }
 
         private static func answer(for input: AgentModelInput) -> String {
             let text = input.messages.last(where: { $0.role == .user })?.text ?? ""

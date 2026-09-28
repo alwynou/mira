@@ -133,7 +133,8 @@ actor MacLibraryWorkloads {
         storage: MacLibraryStorage, registry: RuntimeRegistry<AgentCapability>,
         authorizer: any AgentSourceAuthorizer, notifications: any LocalNotificationPort,
         credentials: any MacCredentialStore,
-        environment: RuntimeEnvironment = .init()
+        environment: RuntimeEnvironment = .init(),
+        toolPermissionLevel: @escaping @Sendable () async -> ToolPermissionLevel = { await ToolPermissionPreferences.shared.level }
     ) async throws -> MacLibraryWorkloads {
         try Task.checkCancellation()
         let scope = RuntimeScope(kind: .application)
@@ -177,7 +178,7 @@ actor MacLibraryWorkloads {
             try await registry.register(id: "mac.memory-extraction", value: .consumer(consumer), scope: scope)
             let app = try await AgentApplicationRuntime.open(
                 journal: storage.sessions, payloads: storage.sessions, libraryAccess: access,
-                registry: registry, modules: [], policy: MacToolPolicy(), authority: storage.business,
+                registry: registry, modules: [], policy: MacToolPolicy(level: toolPermissionLevel, now: environment.now), authority: storage.business,
                 business: storage.business, authorizer: authorizer, approvals: approvals,
                 scheduler: scheduler, environment: environment)
             cleanups.append { _ = await app.shutdown() }
@@ -405,14 +406,17 @@ actor MacLibraryWorkloads {
     }
 }
 
-/// Domain modules may add stricter requirements. This host exposes only read and local business tools.
+/// Only the exact built-in Bash descriptor may add an external effect to this host.
 private struct MacToolPolicy: AgentToolPolicy {
+    let level: @Sendable () async -> ToolPermissionLevel
+    let now: @Sendable () -> Date
     func evaluate(_ proposal: AgentToolProposal, context: AgentToolContext) async throws -> AgentToolPolicyDecision {
         try validate(proposal, context: context)
-        return .allow
+        return try MacToolPermissionPolicy.decision(for: proposal, level: await level(), now: now())
     }
     func validate(_ proposal: AgentToolProposal, context: AgentToolContext) throws {
-        guard proposal.effect == .read || proposal.effect == .localWrite else {
+        guard proposal.effect == .read || proposal.effect == .localWrite ||
+                (proposal.effect == .externalWrite && proposal.descriptor == MacBashTool().descriptor) else {
             throw MiraError(.unauthorized, "The tool effect is not enabled in this host.")
         }
     }

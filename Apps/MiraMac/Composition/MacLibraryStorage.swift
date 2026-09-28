@@ -319,6 +319,16 @@ private struct MacBusinessValidator: SQLiteBusinessAuthorizationValidator {
         }
         #endif
         switch effect.proposal.descriptor.definition.name {
+        case "bash":
+            let proposal = effect.proposal
+            guard proposal.effect == .externalWrite, proposal.businessNamespace == nil,
+                  proposal.descriptor == MacBashTool().descriptor,
+                  proposal.plan.sources.isEmpty, proposal.plan.targets.isEmpty,
+                  proposal.plan.input["working_directory"]?.stringValue?.hasPrefix("/") == true,
+                  proposal.plan.input["timeout_seconds"] != nil else {
+                throw MiraError(.unauthorized, "The business tool is not registered in this library.")
+            }
+            _ = try ToolSchemaValidator.decode(try proposal.plan.input.jsonString(), schema: MacBashTool.definition.inputSchema)
         case "memory.search", "memory.get", "memory.remember":
             try SQLiteMemoryRememberHandler(now: now).validate(effect: effect, isReplay: isReplay, in: db)
         case "memory.retract":

@@ -510,6 +510,7 @@ private struct ConversationComposer: View {
                         .font(MiraTheme.Typography.caption).foregroundStyle(.orange)
                 }
                 HStack(spacing: MiraTheme.Spacing.sm) {
+                    ToolPermissionControl()
                     HStack(spacing: MiraTheme.Spacing.sm) { executionStatus }
                     Spacer(minLength: MiraTheme.Spacing.sm)
                     HStack(spacing: MiraTheme.Spacing.sm) {

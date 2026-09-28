@@ -316,3 +316,20 @@ Compact 是 Conversation 内部的模型上下文压缩，不是 Memory，也不
 - 当 Compact Route 与主对话路线相同时，可以重放相同前缀尝试利用缓存；
 - 当路线不同时，只发送必要的待压缩区间，不强求原会话缓存；
 - Compact 后从替换点建立新的稳定前缀。
+
+
+## Global tool permissions
+
+The permission selector in General settings and the lower-left corner of the conversation composer controls the same persisted preference on this Mac, across all conversations and libraries. It covers risky tools, not just Bash. The default is **Ask for approval**; unknown stored values use that default.
+
+| Level | Host approval behavior |
+| --- | --- |
+| Ask for approval | Review external actions, deletion and unclassified tools before dispatch. |
+| Approve safe actions | Skip review for explicitly recognized low-risk actions; risky or uncertain actions still ask. |
+| Full access | Skip the host's routine approval for enabled tools, including file changes and network access. |
+
+Internal memory/knowledge/task lookups, explicit memory save/retraction and ordinary task changes retain their existing domain checks and unobtrusive behavior. Conversational memory deletion is a guarded action with the exact target in its review. New tools do not inherit a low-risk classification. Automatic mode currently recognizes only simple literal system read-only Bash commands beyond those routine internal operations; it is not an AI safety verdict for arbitrary commands.
+
+Changing the preference affects subsequent tool evaluations. Existing pending approvals still require a decision, and running operations continue until completion or cancellation. Full access preserves tool-specific restrictions, source and workspace authorization, library maintenance fences and macOS permissions. It cannot enable an unregistered tool or grant credentials. Provider requests and direct user operations in management screens retain their own settings and confirmations.
+
+Bash runs one noninteractive command with closed input, a selected absolute working directory, bounded time and output, and no persistent terminal. A directory is not a filesystem sandbox. Results can become model context under the admitted conversation route. Commands can read or modify resources available to the current macOS account. The exact execution and approval boundaries are defined in [Bash and tool permissions](../architecture/BASH_AND_TOOL_PERMISSIONS.md).

@@ -102,6 +102,8 @@ targets:
       - Apps/MiraMac/Composition/MacLibrarySelection.swift
       - Apps/MiraMac/Composition/MacLibraryDiagnostics.swift
       - Apps/MiraMac/Composition/MacLibraryWorkloads.swift
+      - Apps/MiraMac/Platform/ToolPermissions
+      - Apps/MiraMac/Platform/Bash
       - Apps/MiraMac/Composition/MacConnectionTestService.swift
       - Apps/MiraMac/Platform/Keychain
       - Apps/MiraMac/Platform/MemoryEmbedding
@@ -128,6 +130,7 @@ targets:
       - Apps/MiraMac/Features/Settings/MemorySettingsView.swift
       - Apps/MiraMac/Features/Settings/MiraSettingsLink.swift
       - Apps/MiraMac/Features/Conversation/RuntimeApprovalView.swift
+      - Apps/MiraMac/Features/ToolPermissions
       - Apps/MiraMac/Features/Conversation/ConversationView.swift
       - Apps/MiraMac/Features/Conversation/ConversationTranscript.swift
       - Apps/MiraMac/Features/Conversation/NativeConversationTranscript.swift
@@ -200,6 +203,8 @@ targets:
       - Apps/MiraMac/Composition/MacLibrarySelection.swift
       - Apps/MiraMac/Composition/MacLibraryDiagnostics.swift
       - Apps/MiraMac/Composition/MacLibraryWorkloads.swift
+      - Apps/MiraMac/Platform/ToolPermissions
+      - Apps/MiraMac/Platform/Bash
       - Apps/MiraMac/Composition/MacConnectionTestService.swift
       - Apps/MiraMac/Localization
       - Apps/MiraMac/App/MiraWindowShell.swift
