@@ -47,7 +47,7 @@ struct SessionAuditQueryTests {
     }
 
     @Test func toolAttemptReturnsOrderedInvocationCallProposalAndResult() async throws {
-        let arguments = taskArguments(quote: "Question")
+        let arguments = taskArguments()
         try await withTaskWorkflow(outputs: try taskReplies(arguments)) { fixture in
             let address = try await fixture.run("Question")
             try await withAudit(fixture) { query in
@@ -70,7 +70,7 @@ struct SessionAuditQueryTests {
     }
 
     @Test func toolAuditPaginatesAttemptsAtCommittedStartSequence() async throws {
-        let arguments = taskArguments(quote: "Question")
+        let arguments = taskArguments()
         try await withTaskWorkflow(outputs: try taskReplies(arguments)) { fixture in
             let address = try await fixture.run("Question")
             try await withAudit(fixture) { query in

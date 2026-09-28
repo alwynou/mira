@@ -158,7 +158,7 @@ private struct TaskMutationTool: AgentLocalWriteTool {
     var descriptor: AgentToolDescriptor {
         .init(
             definition: TaskTools.mutationDefinition,
-            revision: 1,
+            revision: 2,
             outputSchema: TaskTools.mutationResultSchema,
             executionMode: .exclusive,
             timeoutMilliseconds: 30_000,
@@ -173,9 +173,6 @@ private struct TaskMutationTool: AgentLocalWriteTool {
         )
         let evidence = TaskEvidence(context.evidence)
         try evidence.validate()
-        guard normalized["quote"]?.stringValue == evidence.quote else {
-            throw MiraError(.invalidInput, "The task quote must match the complete admitted user message.")
-        }
 
         let proposal = try TaskCommandInterpreter.proposal(
             arguments: normalized,

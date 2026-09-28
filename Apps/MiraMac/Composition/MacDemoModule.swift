@@ -319,6 +319,13 @@
             request: AgentPreparedModelRequest,
             continuation: AsyncThrowingStream<AgentModelStreamEvent, any Error>.Continuation
         ) throws {
+            let currentUser = request.input.messages.last(where: { $0.role == .user && !$0.text.isEmpty })?.text ?? ""
+            if currentUser == "Remind me to review notes" {
+                continuation.yield(.blockStarted(.init(id: "clarification", content: .text("What date and time should I use?"))))
+                continuation.yield(.blockFinished(id: "clarification"))
+                continuation.yield(.finished(.stop))
+                return
+            }
             let results = request.input.messages.flatMap(\.toolResults)
             if let result = results.last(where: { $0.callID == "task-time-fixture" }) {
                 let observation = try SessionCodec.decode(JSONValue.self, from: Data(result.text.utf8))
@@ -333,11 +340,10 @@
             }
             let call: CanonicalToolCall
             if results.contains(where: { $0.callID == "task-clock-fixture" }) {
-                let quote = request.input.messages.last(where: { $0.role == .user && !$0.text.isEmpty })?.text ?? ""
-                let clock = quote.contains("09:00") ? "09:00" : "18:00"
+                let clock = currentUser.contains("09:00") ? "09:00" : "18:00"
                 let arguments = try JSONValue.object([
-                    "operation": .string("create"), "title": .string("review notes"), "quote": .string(quote),
-                    "remind": .bool(true), "time_quote": .string(clock), "time": .string(clock), "day_offset": .number(0)
+                    "operation": .string("create"), "title": .string("review notes"),
+                    "remind": .bool(true), "time": .string(clock), "day_offset": .number(0)
                 ]).jsonString()
                 call = .init(id: "task-time-fixture", name: "task.change", arguments: arguments)
             } else {
@@ -355,8 +361,7 @@
             if request.input.messages.flatMap(\.toolResults).isEmpty {
                 let arguments = try JSONValue.object([
                     "operation": .string("create"), "title": .string("Review local task fixture"),
-                    "quote": .string("Please add a task for the local task management fixture"),
-                    "remind": .bool(true), "time_quote": .string("sometime later")
+                    "remind": .bool(true)
                 ]).jsonString()
                 continuation.yield(.blockStarted(.init(id: "task-fixture", content: .toolCall(
                     .init(id: "task-fixture", name: "task.change", arguments: arguments)))))

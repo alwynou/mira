@@ -80,7 +80,7 @@ private func inspect(_ fixture: TaskWorkflowFixture) async throws {
 }
 private func withArchiveWorkflow(_ body: (TaskWorkflowFixture) async throws -> Void) async throws {
     let quote = "add a task to review notes"
-    try await withTaskWorkflow(outputs: taskReplies(taskArguments(quote: quote))) { fixture in
+    try await withTaskWorkflow(outputs: taskReplies(taskArguments())) { fixture in
         _ = try await fixture.run(quote)
         #expect(
             try await fixture.database.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM business_receipts") } == 1

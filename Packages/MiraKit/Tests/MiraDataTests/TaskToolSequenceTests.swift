@@ -11,13 +11,13 @@ struct TaskToolSequenceTests {
         let title: String
         switch operation {
         case "complete":
-            quote = "complete task review notes"
+            quote = "That one is done"
             title = "review notes"
         case "update":
-            quote = "update task review notes to renewed notes with new details"
+            quote = "Update it with those details"
             title = "renewed notes"
         default:
-            quote = "cancel task review notes"
+            quote = "Cancel that one"
             title = "review notes"
         }
 
@@ -26,7 +26,6 @@ struct TaskToolSequenceTests {
             var fields: [String: JSONValue] = [
                 "operation": .string(operation),
                 "title": .string(title),
-                "quote": .string(quote),
                 "task_id": .string(task.id.rawValue.uuidString.lowercased()),
                 "expected_revision": .number(Double(task.revision)),
                 "remind": .bool(false)
@@ -90,11 +89,11 @@ struct TaskToolSequenceTests {
 
     @Test
     func staleTargetIsRejectedAfterListWhileFinalAnswerStillCompletes() async throws {
-        let quote = "complete task review notes"
+        let quote = "That one is done"
         try await withTaskWorkflow { fixture in
             let task = try await fixture.save(draft: .init(title: "review notes"))
             let change = try JSONValue.object([
-                "operation": .string("complete"), "title": .string("review notes"), "quote": .string(quote),
+                "operation": .string("complete"), "title": .string("review notes"),
                 "task_id": .string(task.id.rawValue.uuidString.lowercased()),
                 "expected_revision": .number(Double(task.revision)), "remind": .bool(false)
             ]).jsonString()
