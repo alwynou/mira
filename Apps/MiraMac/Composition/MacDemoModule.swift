@@ -15,6 +15,7 @@
         static let verifyMultiroundFlow = ProcessInfo.processInfo.arguments.contains("--verify-multiround-flow")
         static let verifyCodeScrolling = ProcessInfo.processInfo.arguments.contains("--verify-code-scrolling")
         static let verifyBashTool = ProcessInfo.processInfo.arguments.contains("--verify-bash-tool")
+        static let verifyTaskManagement = ProcessInfo.processInfo.arguments.contains("--verify-task-management")
 
         let id = "mac.demo"
         let dependencies: Set<String> = []
@@ -23,16 +24,19 @@
         let verifyConversationFlow: Bool
         let verifyMultiroundFlow: Bool
         let verifyCodeScrolling: Bool
+        let verifyTaskManagement: Bool
 
         init(registry: RuntimeRegistry<AgentCapability>, stress: Bool = false,
              verifyConversationFlow: Bool = ProcessInfo.processInfo.arguments.contains("--verify-conversation-flow"),
              verifyMultiroundFlow: Bool = MacDemoModule.verifyMultiroundFlow,
-             verifyCodeScrolling: Bool = MacDemoModule.verifyCodeScrolling) {
+             verifyCodeScrolling: Bool = MacDemoModule.verifyCodeScrolling,
+             verifyTaskManagement: Bool = MacDemoModule.verifyTaskManagement) {
             self.registry = registry
             self.stress = stress
             self.verifyConversationFlow = verifyConversationFlow
             self.verifyMultiroundFlow = verifyMultiroundFlow
             self.verifyCodeScrolling = verifyCodeScrolling
+            self.verifyTaskManagement = verifyTaskManagement
         }
 
         func activate(in scope: RuntimeScope) async throws {
@@ -40,7 +44,8 @@
                 id: "mac.demo.model",
                 value: .model(MacDemoModel(stress: stress, verifyConversationFlow: verifyConversationFlow,
                                            verifyMultiroundFlow: verifyMultiroundFlow,
-                                           verifyCodeScrolling: verifyCodeScrolling)), scope: scope)
+                                           verifyCodeScrolling: verifyCodeScrolling,
+                                           verifyTaskManagement: verifyTaskManagement)), scope: scope)
             if verifyMultiroundFlow {
                 try await registry.register(
                     id: "demo.source.read", value: .tool(.read(MacDemoSourceReadTool())), scope: scope, order: 0)
@@ -50,7 +55,7 @@
         }
 
         /// Seeds only an empty settings collection. A local demo never creates or reads a credential.
-        static func seed(in group: MacLibraryWorkloads) async throws {
+        static func seed(in group: MacLibraryWorkloads, verifyTaskManagement: Bool = MacDemoModule.verifyTaskManagement) async throws {
             let connections = try await group.modelSettings.connections(after: nil, limit: 128)
             let saved: AgentConfiguredConnection
             if let existing = connections.first(where: { $0.id == connectionID }) {
@@ -80,13 +85,13 @@
                     endpointID: "demo", contextWindow: 32_768, maximumOutputTokens: 12_000,
                     capabilities: [AgentModelCapabilityID.streamingText: .declared,
                                    AgentModelCapabilityID.thinking: .declared,
-                                   AgentModelCapabilityID.toolCalls: (verifyMultiroundFlow || verifyBashTool) ? .declared : .failed],
+                    AgentModelCapabilityID.toolCalls: (verifyMultiroundFlow || verifyBashTool || verifyTaskManagement) ? .declared : .failed],
                     configuration: .init(schema: routeSchema, value: .object([:])),
                     parameterSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))], facts: [])
             let expectedPreset = AgentRoutePreset(
                 id: routeID, revision: 1, name: "Mira Local Demo",
                 modelDescriptorID: expectedModel.id, invocationID: "demo",
-                maximumOutputTokens: (verifyMultiroundFlow || verifyBashTool) ? 1_024 : 12_000,
+                maximumOutputTokens: (verifyMultiroundFlow || verifyBashTool || verifyTaskManagement) ? 1_024 : 12_000,
                 configuration: .init(schema: routeSchema, value: .object([:])))
             let currentModel = try await group.modelSettings.model(id: modelDescriptorID)
             let currentPreset = try await group.modelSettings.preset(id: routeID)
@@ -217,6 +222,7 @@
         let verifyConversationFlow: Bool
         let verifyMultiroundFlow: Bool
         let verifyCodeScrolling: Bool
+        let verifyTaskManagement: Bool
 
         func prepare(_ input: AgentModelInput, route: AgentModelRoute) throws -> AgentPreparedModelRequest {
             try input.validate(for: route)
@@ -239,6 +245,11 @@
                 do {
                     if MacDemoModule.verifyBashTool {
                         try Self.emitBashFixture(request: request, continuation: continuation)
+                        continuation.finish()
+                        return
+                    }
+                    if verifyTaskManagement {
+                        try Self.emitTaskFixture(request: request, continuation: continuation)
                         continuation.finish()
                         return
                     }
@@ -294,6 +305,27 @@
                     producer.cancel()
                     await producer.value
                 })
+        }
+
+        private static func emitTaskFixture(
+            request: AgentPreparedModelRequest,
+            continuation: AsyncThrowingStream<AgentModelStreamEvent, any Error>.Continuation
+        ) throws {
+            if request.input.messages.flatMap(\.toolResults).isEmpty {
+                let arguments = try JSONValue.object([
+                    "operation": .string("create"), "title": .string("Review local task fixture"),
+                    "quote": .string("Please add a task for the local task management fixture"),
+                    "remind": .bool(true), "time_quote": .string("sometime later")
+                ]).jsonString()
+                continuation.yield(.blockStarted(.init(id: "task-fixture", content: .toolCall(
+                    .init(id: "task-fixture", name: "task.change", arguments: arguments)))))
+                continuation.yield(.blockFinished(id: "task-fixture"))
+                continuation.yield(.finished(.toolCalls))
+            } else {
+                continuation.yield(.blockStarted(.init(id: "answer", content: .text("The task management fixture proposal is ready for review."))))
+                continuation.yield(.blockFinished(id: "answer"))
+                continuation.yield(.finished(.stop))
+            }
         }
 
         func replay(

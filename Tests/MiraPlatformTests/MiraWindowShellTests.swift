@@ -224,7 +224,7 @@ final class MiraWindowShellTests: XCTestCase {
             let sidebarButton = window.toolbar?.items.first { $0.itemIdentifier == .toggleSidebar }?.view
             let occupiedMaxX = max(windowButtons.map { windowFrame(of: $0).maxX }.max() ?? 0,
                                    sidebarButton.map { windowFrame(of: $0).maxX } ?? 0)
-            let actionIDs = ["conversation.new", "conversation.inspector", "conversation.knowledge", "memory.new", "knowledge.import"]
+            let actionIDs = ["conversation.new", "conversation.inspector", "conversation.knowledge", "memory.new", "knowledge.import", "task.new"]
             let actionMinX = window.toolbar?.items.filter { actionIDs.contains($0.itemIdentifier.rawValue) }
                 .compactMap { $0.view }
                 .map { windowFrame(of: $0).minX }
@@ -313,6 +313,17 @@ final class MiraWindowShellTests: XCTestCase {
             controller.update(shell)
             try await settle()
             _ = try assertHeaderGeometry("Conversation after Knowledge in cycle \(cycle)")
+            var tasks = shell
+            tasks.title = "Tasks"
+            tasks.addTask = {}
+            controller.update(tasks)
+            try await settle()
+            _ = try assertHeaderGeometry("Tasks destination in cycle \(cycle)")
+            XCTAssertNotNil(window.toolbar?.items.first { $0.itemIdentifier.rawValue == "task.new" })
+
+            controller.update(shell)
+            try await settle()
+            _ = try assertHeaderGeometry("Conversation after Tasks in cycle \(cycle)")
             assertNativeControls("Conversation controls after management navigation")
         }
 

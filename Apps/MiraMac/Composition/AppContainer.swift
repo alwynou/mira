@@ -365,6 +365,9 @@ final class AppContainer {
                     })
                 do {
                     try await MacDemoModule.seed(in: library.workloads())
+                    if MacDemoModule.verifyTaskManagement {
+                        try await MacTaskManagementFixture.seed(in: library.workloads())
+                    }
                     return library
                 } catch {
                     _ = await library.close()

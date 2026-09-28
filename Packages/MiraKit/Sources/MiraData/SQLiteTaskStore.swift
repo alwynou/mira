@@ -36,6 +36,32 @@ public final class SQLiteTaskStore: TaskStore, @unchecked Sendable {
         }
     }
 
+    public func taskManagementPage(_ query: TaskManagementQuery) async throws -> TaskManagementPage {
+        try Self.validatePage(offset: query.offset, limit: query.limit)
+        guard query.search.unicodeScalars.count <= 500 else { throw Self.invalidPage }
+        return try await owner.read { db in
+            db.add(function: Self.managementNormalizeFunction)
+            var conditions = ["workspace_id IS ?"]
+            var arguments: StatementArguments = [query.workspaceID.map(Self.id)]
+            switch query.status {
+            case .all: break
+            case .active:
+                conditions.append("status IN ('open','inProgress')")
+            case .open, .inProgress, .completed, .cancelled:
+                conditions.append("status = ?")
+                arguments += [query.status.rawValue]
+            }
+            let needle = Self.managementSearchKey(query.search)
+            if !needle.isEmpty {
+                conditions.append("(instr(mira_task_normalize(json_extract(task_json, '$.draft.title')), ?) > 0 OR instr(mira_task_normalize(json_extract(task_json, '$.draft.notes')), ?) > 0)")
+                arguments += [needle, needle]
+            }
+            let rows = try Row.fetchAll(db, sql: "SELECT * FROM mira_tasks WHERE \(conditions.joined(separator: " AND ")) ORDER BY (reminder_at IS NULL), reminder_at, updated_at DESC, id ASC LIMIT ? OFFSET ?", arguments: arguments + [query.limit + 1, query.offset])
+            let hasMore = rows.count > query.limit
+            return .init(items: try rows.prefix(query.limit).map(Self.taskRecord), hasMore: hasMore)
+        }
+    }
+
     public func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> MiraTask {
         try await owner.read { try Self.readTask(id, workspaceID: workspaceID, in: $0) }
     }
@@ -69,6 +95,21 @@ public final class SQLiteTaskStore: TaskStore, @unchecked Sendable {
         }
     }
 
+    public func taskRevisionPage(_ id: MiraTaskID, workspaceID: WorkspaceID?, offset: Int, limit: Int) async throws -> TaskRevisionPage {
+        try Self.validatePage(offset: offset, limit: limit)
+        return try await owner.read { db in
+            _ = try Self.readTask(id, workspaceID: workspaceID, in: db)
+            let rows = try Row.fetchAll(db, sql: "SELECT * FROM task_revisions WHERE task_id = ? ORDER BY revision DESC, id DESC LIMIT ? OFFSET ?", arguments: [Self.id(id), limit + 1, offset])
+            let hasMore = rows.count > limit
+            let revisions = try rows.prefix(limit).map { row in
+                let revision = try Self.revisionRecord(row)
+                guard revision.task.id == id, revision.task.workspaceID == workspaceID else { throw Self.taskConflict }
+                return revision
+            }
+            return .init(items: revisions, hasMore: hasMore)
+        }
+    }
+
     public func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus, expectedRevision: Int?, operationID: UUID, authorization: AgentLibraryAuthorization, at: Date) async throws -> MiraTask {
         try await owner.write(authorization: authorization) { db in
             let request = try Self.encode(TaskSaveRequest(id: id, workspaceID: workspaceID, draft: draft, status: status, expectedRevision: expectedRevision))
@@ -82,6 +123,21 @@ public final class SQLiteTaskStore: TaskStore, @unchecked Sendable {
     public func taskProposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal] {
         try await owner.read { db in
             try Row.fetchAll(db, sql: "SELECT * FROM task_proposals WHERE workspace_id IS ? AND state = 'pending' ORDER BY rowid DESC LIMIT 100", arguments: [workspaceID.map(Self.id)]).map(Self.proposalRecord)
+        }
+    }
+
+    public func taskProposalPage(workspaceID: WorkspaceID?, offset: Int, limit: Int) async throws -> TaskProposalPage {
+        try Self.validatePage(offset: offset, limit: limit)
+        return try await owner.read { db in
+            let rows = try Row.fetchAll(db, sql: "SELECT * FROM task_proposals WHERE workspace_id IS ? AND state = 'pending' ORDER BY rowid DESC, id DESC LIMIT ? OFFSET ?", arguments: [workspaceID.map(Self.id), limit + 1, offset])
+            return .init(items: try rows.prefix(limit).map(Self.proposalRecord), hasMore: rows.count > limit)
+        }
+    }
+
+    public func taskProposal(_ id: UUID, workspaceID: WorkspaceID?) async throws -> TaskProposal {
+        try await owner.read { db in
+            guard let row = try Row.fetchOne(db, sql: "SELECT * FROM task_proposals WHERE id = ? AND workspace_id IS ?", arguments: [id.uuidString.lowercased(), workspaceID.map(Self.id)]) else { throw Self.taskUnavailable }
+            return try Self.proposalRecord(row)
         }
     }
 
@@ -169,6 +225,15 @@ public final class SQLiteTaskStore: TaskStore, @unchecked Sendable {
             guard count < 60 else { throw MiraError(.outputLimit, "At most 60 future reminders can be active. Complete or cancel a reminder first.") }
         }
         var task = MiraTask(id: id, workspaceID: workspaceID, draft: draft, status: status, revision: (existing?.revision ?? 0) + 1, createdAt: existing?.createdAt ?? at, updatedAt: at, evidence: evidence ?? existing?.evidence)
+        if let existing, existing.deliveryState == .paused,
+           let oldReminder = existing.draft.reminderAt,
+           draft.reminderAt == oldReminder, !status.isTerminal {
+            // Restored reminders remain explicitly paused until the user resumes them.
+            // Editing other task fields does not constitute a scheduling action.
+            task.deliveryState = .paused
+            task.deliveryRevision = nil
+            task.deliveryError = nil
+        }
         if let existing, existing.draft == draft, existing.status == status { return existing }
         if existing == nil {
             try db.execute(sql: "INSERT INTO mira_tasks (id, workspace_id, status, revision, reminder_at, delivery_state, delivery_revision, updated_at, task_json) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)", arguments: [Self.id(id), workspaceID.map(Self.id), task.status.rawValue, task.revision, task.draft.reminderAt?.timeIntervalSince1970, task.deliveryState.rawValue, at.timeIntervalSince1970, try encode(task)])
@@ -325,4 +390,20 @@ public final class SQLiteTaskStore: TaskStore, @unchecked Sendable {
     static var taskUnavailable: MiraError { .init(.notFound, "The task or proposal is unavailable in this workspace.") }
     static var taskConflict: MiraError { .init(.conflict, "The task changed in another window. Refresh before saving.") }
     static var taskUnauthorized: MiraError { .init(.unauthorized, "The task source or tool request is no longer authorized.") }
+    static var invalidPage: MiraError { .init(.invalidInput, "The task page is invalid.") }
+
+    static func validatePage(offset: Int, limit: Int) throws {
+        guard offset >= 0, (1...200).contains(limit), offset <= 1_000_000_000 else { throw invalidPage }
+    }
+
+    static func managementSearchKey(_ value: String) -> String {
+        value.precomposedStringWithCompatibilityMapping
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .lowercased()
+    }
+
+    static let managementNormalizeFunction = DatabaseFunction("mira_task_normalize", argumentCount: 1, pure: true) { values in
+        guard let first = values.first, case .string(let value) = first.storage else { return nil }
+        return managementSearchKey(value)
+    }
 }

@@ -136,6 +136,9 @@ enum MiraTheme {
         static let knowledgeListWidth: CGFloat = 320
         static let knowledgeCompactBreakpoint: CGFloat = 790
         static let knowledgeReaderContentMax: CGFloat = 680
+        static let taskListWidth: CGFloat = 320
+        static let taskCompactBreakpoint: CGFloat = 790
+        static let taskDetailContentMax: CGFloat = 620
     }
 
     enum Markdown {
