@@ -90,6 +90,29 @@ public struct TaskRevision: Codable, Sendable, Identifiable {
 public enum TaskProposalState: String, Codable, Sendable { case pending, accepted, rejected }
 public enum TaskOperation: String, Codable, Sendable, CaseIterable { case create, update, complete, cancel }
 
+/// A bounded explanation for the current tool result, not a second persisted proposal.
+public enum TaskReviewReason: String, Sendable, CaseIterable {
+    case intentUnclear, targetUnclear, detailsUnclear, timeUnclear, timeNotGrounded, timeElapsed
+
+    public var requiresTimeClarification: Bool {
+        switch self {
+        case .timeUnclear, .timeNotGrounded, .timeElapsed: true
+        default: false
+        }
+    }
+
+    public var message: String {
+        switch self {
+        case .intentUnclear: "Confirm the requested task action in Tasks. The source does not clearly authorize this change. No task change or notification has been committed."
+        case .targetUnclear: "Confirm the target task in Tasks. Its title is not stated in the source. No task change or notification has been committed."
+        case .detailsUnclear: "Review the proposed title and notes in Tasks. They do not match the source wording. No task change or notification has been committed."
+        case .timeUnclear: "Choose an exact future date and time in Tasks. The reminder time is missing, invalid, or ambiguous. No task change or notification has been committed."
+        case .timeNotGrounded: "Confirm the date and time in Tasks. The proposed time does not match a supported source expression. No task change or notification has been committed."
+        case .timeElapsed: "Choose a new future date and time in Tasks. The requested time has passed; a date-omitted time is not rolled forward to tomorrow. No task change or notification has been committed."
+        }
+    }
+}
+
 /// A frozen interpretation, independent of memory candidates and foreground execution lifetime.
 public struct TaskProposal: Identifiable, Codable, Sendable, Equatable {
     public var id: UUID

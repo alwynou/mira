@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [conversational task time correction](engineering/TASK_TIME_INTENT_VERIFICATION.md) accepts supported date-omitted reminders for a future time on the original message’s local day, preserves review for elapsed or ambiguous times, and returns actionable review reasons. Synthetic bilingual, tool-pipeline and native evidence is recorded separately from live-provider quality.
+
 The [Tasks management increment](engineering/TASK_MANAGEMENT_VERIFICATION.md) restores native task and one-time reminder management, exact scope and bounded search/history, manual editing and status changes, source-bound proposal review, and explicit reminder recovery. Focused synthetic tests and English/light plus Chinese/dark native checks passed; platform notification delivery and broader M6 release gates remain separate.
 
 The [conversation permission scope correction](engineering/CONVERSATION_TOOL_PERMISSIONS_VERIFICATION.md) separates each existing conversation’s consent from the global new-conversation default. First submission captures the default, later composer changes remain local, and runtime checks use the invoking conversation identity.

@@ -5,6 +5,7 @@ public enum TaskCommandInterpreter {
     private struct IntentPatterns: Decodable {
         var create: [String]; var update: [String]; var complete: [String]; var cancel: [String]
         var veto: [String]; var unsupported: [String]; var relativeDays: [[String]]; var periods: [String: [String]]
+        var calendarReferences: [String]; var implicitDateFrames: [String]
     }
     private static let patterns: IntentPatterns? = {
         guard let url = Bundle.module.url(forResource: "TaskIntentPatterns", withExtension: "json") else { return nil }
@@ -33,7 +34,12 @@ public enum TaskCommandInterpreter {
         let timeQuote = arguments["time_quote"]?.stringValue
         let time = arguments["time"]?.stringValue
         let date = arguments["date"]?.stringValue
-        let offset: Int? = { if case .number(let value) = arguments["day_offset"], value.isFinite, value.rounded() == value, (0...3660).contains(value) { return Int(value) }; return nil }()
+        var offset: Int? = { if case .number(let value) = arguments["day_offset"], value.isFinite, value.rounded() == value, (0...3660).contains(value) { return Int(value) }; return nil }()
+        if date == nil, arguments["day_offset"] == nil, let timeQuote, let patterns,
+           allowsImplicitDate(source: reference.quote.lowercased(), timeQuote: timeQuote.lowercased(),
+                              title: title.lowercased(), notes: arguments["notes"]?.stringValue?.lowercased() ?? "", patterns: patterns) {
+            offset = 0
+        }
         var dueAt: Date?
         var unclear = false
         if wantsReminder || time != nil || date != nil || offset != nil {
@@ -47,10 +53,10 @@ public enum TaskCommandInterpreter {
         return .init(id: operationID, workspaceID: workspaceID, operation: operation, taskID: taskID, expectedRevision: expectedRevision, draft: draft, evidence: reference, requiresTimeClarification: unclear && wantsReminder, createdAt: at)
     }
 
-    public static func canCommitDirectly(_ proposal: TaskProposal, current: MiraTask?, arguments: JSONValue) -> Bool {
-        guard let patterns else { return false }
+    public static func reviewReason(_ proposal: TaskProposal, current: MiraTask?, arguments: JSONValue, at: Date) -> TaskReviewReason? {
+        guard let patterns else { return .intentUnclear }
         let text = proposal.evidence.quote.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard text.utf8.count <= 4_096, !patterns.veto.contains(where: { matches($0, text) }) else { return false }
+        guard text.utf8.count <= 4_096, !patterns.veto.contains(where: { matches($0, text) }) else { return .intentUnclear }
         let rules: [String]
         switch proposal.operation {
         case .create: rules = patterns.create
@@ -58,21 +64,30 @@ public enum TaskCommandInterpreter {
         case .complete: rules = patterns.complete
         case .cancel: rules = patterns.cancel
         }
-        guard rules.contains(where: { matches($0, text) }) else { return false }
+        guard rules.contains(where: { matches($0, text) }) else { return .intentUnclear }
         // An exact title anchors the concrete target; pronouns and paraphrases stay reviewable.
-        guard text.contains((current?.draft.title ?? proposal.draft.title).lowercased()) else { return false }
+        guard text.contains((current?.draft.title ?? proposal.draft.title).lowercased()) else { return .targetUnclear }
         if proposal.operation == .create || proposal.operation == .update {
-            guard text.contains(proposal.draft.title.lowercased()), proposal.draft.notes.isEmpty || text.contains(proposal.draft.notes.lowercased()) else { return false }
+            guard text.contains(proposal.draft.title.lowercased()), proposal.draft.notes.isEmpty || text.contains(proposal.draft.notes.lowercased()) else { return .detailsUnclear }
             if arguments["time"] != nil || arguments["date"] != nil || arguments["day_offset"] != nil || arguments["remind"] == .bool(true) {
-                guard proposal.draft.dueAt != nil else { return false }
+                guard let dueAt = proposal.draft.dueAt, !proposal.requiresTimeClarification else { return .timeUnclear }
+                let implicitDate = allowsImplicitDate(source: text, timeQuote: arguments["time_quote"]?.stringValue?.lowercased() ?? "",
+                    title: proposal.draft.title.lowercased(), notes: proposal.draft.notes.lowercased(), patterns: patterns)
                 guard let quote = arguments["time_quote"]?.stringValue, let clock = arguments["time"]?.stringValue,
-                      sourceTimeMatches(timeQuote: quote.lowercased(), source: proposal.evidence.quote.lowercased(), time: clock, date: arguments["date"]?.stringValue, dayOffset: arguments["day_offset"], patterns: patterns) else { return false }
+                      sourceTimeMatches(timeQuote: quote.lowercased(), source: text, time: clock,
+                        date: arguments["date"]?.stringValue, dayOffset: arguments["day_offset"],
+                        implicitDate: implicitDate, patterns: patterns) else { return .timeNotGrounded }
+                // Date omission is anchored to admission, including retries after midnight.
+                // It never means the next occurrence of the clock time.
+                if (implicitDate || proposal.draft.reminderAt != nil), dueAt <= max(proposal.evidence.sentAt, at) {
+                    return .timeElapsed
+                }
             }
         }
-        return true
+        return nil
     }
 
-    private static func sourceTimeMatches(timeQuote: String, source: String, time: String, date: String?, dayOffset: JSONValue?, patterns: IntentPatterns) -> Bool {
+    private static func sourceTimeMatches(timeQuote: String, source: String, time: String, date: String?, dayOffset: JSONValue?, implicitDate: Bool, patterns: IntentPatterns) -> Bool {
         let clock = time.split(separator: ":")
         guard clock.count == 2, let hour = Int(clock[0]), let minute = Int(clock[1]) else { return false }
         guard !timeQuote.isEmpty, source.contains(timeQuote) else { return false }
@@ -81,10 +96,13 @@ public enum TaskCommandInterpreter {
             guard !hasRelativeDay(in: source, patterns: patterns) else { return false }
         }
         else {
-            guard case .number(let offset) = dayOffset, (0...2).contains(offset), offset.rounded() == offset else { return false }
+            let value = dayOffset ?? (implicitDate ? .number(0) : .null)
+            guard case .number(let offset) = value, (0...2).contains(offset), offset.rounded() == offset else { return false }
             let index = Int(offset)
-            guard patterns.relativeDays.indices.contains(index), patterns.relativeDays[index].contains(where: { matches($0, source) }) else { return false }
-            guard matchingRelativeDayCount(in: source, patterns: patterns) == 1 else { return false }
+            if !(implicitDate && index == 0) {
+                guard patterns.relativeDays.indices.contains(index), patterns.relativeDays[index].contains(where: { matches($0, source) }) else { return false }
+                guard matchingRelativeDayCount(in: source, patterns: patterns) == 1 else { return false }
+            }
             guard countMatches("(?<![0-9])\\d{4}-\\d{2}-\\d{2}(?![0-9])", in: source) == 0 else { return false }
         }
 
@@ -121,6 +139,19 @@ public enum TaskCommandInterpreter {
         let matchingHours = (1...12).filter { patterns.periods["hour\($0)"]?.contains(where: { matches($0, source) }) == true }
         guard minute == 0, matchingHours == [localHour] else { return false }
         return true
+    }
+
+    private static func allowsImplicitDate(source: String, timeQuote: String, title: String, notes: String, patterns: IntentPatterns) -> Bool {
+        guard !timeQuote.isEmpty, source.contains(timeQuote), !title.isEmpty, source.contains(title),
+              !patterns.calendarReferences.contains(where: { matches($0, source) }) else { return false }
+        // Only an ordinary reminder instruction may remain after removing exact user
+        // content and its clock phrase. Unknown scheduling qualifiers stay reviewable.
+        var frame = source.replacingOccurrences(of: title, with: " ")
+        if !notes.isEmpty { frame = frame.replacingOccurrences(of: notes, with: " ") }
+        frame = frame.replacingOccurrences(of: timeQuote, with: " ")
+        frame = frame.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return patterns.implicitDateFrames.contains { matches($0, frame) }
     }
 
     private static func hasRelativeDay(in text: String, patterns: IntentPatterns) -> Bool {

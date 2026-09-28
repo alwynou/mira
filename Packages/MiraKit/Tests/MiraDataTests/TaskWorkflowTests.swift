@@ -6,6 +6,62 @@ import Testing
 
 @Suite("Task workflow through agent modules")
 struct TaskWorkflowTests {
+    @Test(arguments: [false, true])
+    func dateOmittedReminderCommitsThroughTheRealToolPipeline(chinese: Bool) async throws {
+        let quote = chinese ? "提醒我下午6点取快递" : "remind me at 6pm to review notes" // i18n-fixture: Synthetic Chinese reproduction with unrelated task content.
+        let title = chinese ? "取快递" : "review notes" // i18n-fixture: Synthetic Chinese task title.
+        let timeQuote = chinese ? "下午6点" : "6pm" // i18n-fixture: Date-omitted Chinese clock phrase.
+        let args = taskArguments(title: title, quote: quote, remind: true, timeQuote: timeQuote, time: "18:00", dayOffset: 0)
+        try await withTaskWorkflow(outputs: taskReplies(args), permission: .denied) { f in
+            let address = try await f.run(quote)
+            let task = try #require(try await f.tasks.tasks(workspaceID: nil).first)
+            #expect(task.draft.reminderAt?.ISO8601Format() == "2027-01-15T10:00:00Z")
+            #expect(try await f.tasks.proposals(workspaceID: nil).isEmpty)
+            let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
+            let result = try await SessionCodec.decode(JSONValue.self, from: f.library.read(#require(state.invocations.values.first?.resolution?.result)))
+            #expect(result["record_saved"] == .bool(true))
+            #expect(result["task"]?["delivery_state"] == .string("pending"))
+            #expect(result["requires_review"] == nil)
+            try await f.reminders.reconcile()
+            #expect(try await f.store.taskDetail(task.id, workspaceID: nil).deliveryState == .permissionRequired)
+            #expect(await f.notifications.pending().isEmpty)
+        }
+    }
+
+    @Test(arguments: [
+        ("remind me at 09:00 to review notes", "09:00", "09:00", "timeElapsed"),
+        ("remind me next Monday at 18:00 to review notes", "18:00", "18:00", "timeNotGrounded"),
+        ("remind me later to review notes", "later", "18:00", "timeNotGrounded")
+    ])
+    func timeReviewReturnsActionableReasonAndRequiresExplicitCorrection(_ input: (String, String, String, String)) async throws {
+        let args = taskArguments(quote: input.0, remind: true, timeQuote: input.1, time: input.2, dayOffset: 0)
+        try await withTaskWorkflow(outputs: taskReplies(args)) { f in
+            let address = try await f.run(input.0)
+            #expect(try await f.tasks.tasks(workspaceID: nil).isEmpty)
+            let proposal = try #require(try await f.tasks.proposals(workspaceID: nil).first)
+            #expect(proposal.requiresTimeClarification)
+            let state = try await f.runtime.sessionSnapshot(id: address.sessionID)
+            let result = try await SessionCodec.decode(JSONValue.self, from: f.library.read(#require(state.invocations.values.first?.resolution?.result)))
+            #expect(result["review_reason"] == .string(input.3))
+            #expect(result["requires_time_clarification"] == .bool(true))
+            #expect(result["message"]?.stringValue?.contains("No task change or notification has been committed.") == true)
+            await #expect(throws: MiraError.self) {
+                try await f.tasks.resolve(id: proposal.id, workspaceID: nil, accept: true)
+            }
+        }
+    }
+
+    @Test func timeReviewForDueDateDoesNotAddReminder() async throws {
+        let args = taskArguments(quote: "create a task to review notes next Monday at 18:00", remind: false,
+                                 timeQuote: "18:00", time: "18:00", dayOffset: 0)
+        try await withTaskWorkflow(outputs: taskReplies(args)) { f in
+            _ = try await f.run("create a task to review notes next Monday at 18:00")
+            let proposal = try #require(try await f.tasks.proposals(workspaceID: nil).first)
+            #expect(!proposal.requiresTimeClarification)
+            #expect(proposal.draft.reminderAt == nil)
+        }
+    }
+
     @Test func acceptsPendingProposalBeyondLegacyFirstHundredAndRejectsRepeatedReview() async throws {
         let quote = "remind me tomorrow to review notes"
         try await withTaskWorkflow(outputs: taskReplies(taskArguments(quote: quote, remind: true))) { f in

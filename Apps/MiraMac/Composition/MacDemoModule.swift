@@ -16,6 +16,7 @@
         static let verifyCodeScrolling = ProcessInfo.processInfo.arguments.contains("--verify-code-scrolling")
         static let verifyBashTool = ProcessInfo.processInfo.arguments.contains("--verify-bash-tool")
         static let verifyTaskManagement = ProcessInfo.processInfo.arguments.contains("--verify-task-management")
+        static let verifyTaskTime = ProcessInfo.processInfo.arguments.contains("--verify-task-time")
 
         let id = "mac.demo"
         let dependencies: Set<String> = []
@@ -85,13 +86,13 @@
                     endpointID: "demo", contextWindow: 32_768, maximumOutputTokens: 12_000,
                     capabilities: [AgentModelCapabilityID.streamingText: .declared,
                                    AgentModelCapabilityID.thinking: .declared,
-                    AgentModelCapabilityID.toolCalls: (verifyMultiroundFlow || verifyBashTool || verifyTaskManagement) ? .declared : .failed],
+                    AgentModelCapabilityID.toolCalls: (verifyMultiroundFlow || verifyBashTool || verifyTaskManagement || verifyTaskTime) ? .declared : .failed],
                     configuration: .init(schema: routeSchema, value: .object([:])),
                     parameterSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))], facts: [])
             let expectedPreset = AgentRoutePreset(
                 id: routeID, revision: 1, name: "Mira Local Demo",
                 modelDescriptorID: expectedModel.id, invocationID: "demo",
-                maximumOutputTokens: (verifyMultiroundFlow || verifyBashTool || verifyTaskManagement) ? 1_024 : 12_000,
+                maximumOutputTokens: (verifyMultiroundFlow || verifyBashTool || verifyTaskManagement || verifyTaskTime) ? 1_024 : 12_000,
                 configuration: .init(schema: routeSchema, value: .object([:])))
             let currentModel = try await group.modelSettings.model(id: modelDescriptorID)
             let currentPreset = try await group.modelSettings.preset(id: routeID)
@@ -253,6 +254,11 @@
                         continuation.finish()
                         return
                     }
+                    if MacDemoModule.verifyTaskTime {
+                        try Self.emitTaskTimeFixture(request: request, continuation: continuation)
+                        continuation.finish()
+                        return
+                    }
                     if verifyMultiroundFlow {
                         try await Self.emitMultiround(
                             request: request, continuation: continuation)
@@ -305,6 +311,41 @@
                     producer.cancel()
                     await producer.value
                 })
+        }
+
+        /// Exercises the production task tools without a provider or real notifications.
+        /// Send "remind me at 18:00 to review notes" (or 09:00 for an elapsed-time case).
+        private static func emitTaskTimeFixture(
+            request: AgentPreparedModelRequest,
+            continuation: AsyncThrowingStream<AgentModelStreamEvent, any Error>.Continuation
+        ) throws {
+            let results = request.input.messages.flatMap(\.toolResults)
+            if let result = results.last(where: { $0.callID == "task-time-fixture" }) {
+                let observation = try SessionCodec.decode(JSONValue.self, from: Data(result.text.utf8))
+                let content = observation["content"]
+                let reply = content?["record_saved"] == .bool(true)
+                    ? "The task was saved. Check Tasks for the current notification scheduling state."
+                    : content?["message"]?.stringValue ?? "The task request did not complete."
+                continuation.yield(.blockStarted(.init(id: "answer", content: .text(reply))))
+                continuation.yield(.blockFinished(id: "answer"))
+                continuation.yield(.finished(.stop))
+                return
+            }
+            let call: CanonicalToolCall
+            if results.contains(where: { $0.callID == "task-clock-fixture" }) {
+                let quote = request.input.messages.last(where: { $0.role == .user && !$0.text.isEmpty })?.text ?? ""
+                let clock = quote.contains("09:00") ? "09:00" : "18:00"
+                let arguments = try JSONValue.object([
+                    "operation": .string("create"), "title": .string("review notes"), "quote": .string(quote),
+                    "remind": .bool(true), "time_quote": .string(clock), "time": .string(clock), "day_offset": .number(0)
+                ]).jsonString()
+                call = .init(id: "task-time-fixture", name: "task.change", arguments: arguments)
+            } else {
+                call = .init(id: "task-clock-fixture", name: "task.list", arguments: "{}")
+            }
+            continuation.yield(.blockStarted(.init(id: call.id, content: .toolCall(call))))
+            continuation.yield(.blockFinished(id: call.id))
+            continuation.yield(.finished(.toolCalls))
         }
 
         private static func emitTaskFixture(

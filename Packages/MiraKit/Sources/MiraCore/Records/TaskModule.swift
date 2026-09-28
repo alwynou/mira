@@ -68,7 +68,7 @@ private struct TaskListTool: AgentReadTool {
         .init(
             definition: .init(
                 name: "task.list",
-                description: "List tasks in the current workspace, including revisions, due times, and reminder delivery state.",
+                description: "List tasks in the current workspace, including revisions, due times, and reminder delivery state. Always returns reference_time and time_zone from the original user message, including for an empty list. Use these as the reminder clock instead of Bash or the current execution time.",
                 inputSchema: .object([
                     "type": .string("object"),
                     "properties": .object([
