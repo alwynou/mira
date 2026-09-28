@@ -15,6 +15,8 @@ struct MiraWindowShell: NSViewControllerRepresentable {
     var importKnowledge: (() -> Void)? = nil
     var openKnowledge: (() -> Void)? = nil
     var canImportKnowledge = true
+    var addTask: (() -> Void)? = nil
+    var canAddTask = true
 
     func makeNSViewController(context: Context) -> Controller { Controller(configuration: self) }
     func updateNSViewController(_ controller: Controller, context: Context) { controller.update(self) }
@@ -48,6 +50,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         private static let memoryNew = NSToolbarItem.Identifier("memory.new")
         private static let knowledgeImport = NSToolbarItem.Identifier("knowledge.import")
         private static let knowledge = NSToolbarItem.Identifier("conversation.knowledge")
+        private static let taskNew = NSToolbarItem.Identifier("task.new")
 
         init(configuration: MiraWindowShell) {
             self.configuration = configuration
@@ -88,7 +91,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 accessory.view = titleHeader
                 titleHeader.detailView = detailHost.view
                 titleHeader.trailingToolbarItemIdentifiers = [
-                    Self.newItem, Self.inspectorID, Self.knowledge, Self.memoryNew, Self.knowledgeImport
+                    Self.newItem, Self.inspectorID, Self.knowledge, Self.memoryNew, Self.knowledgeImport, Self.taskNew
                 ]
                 titleHeader.heightAnchor.constraint(equalToConstant: MiraTheme.Layout.conversationHeaderHeight).isActive = true
                 detailItem.addTopAlignedAccessoryViewController(accessory)
@@ -206,6 +209,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
         }
 
         private var desiredItems: [NSToolbarItem.Identifier] {
+            if configuration.addTask != nil {
+                return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.taskNew]
+            }
             if configuration.importKnowledge != nil {
                 return [.toggleSidebar, Self.separator, .flexibleSpace, Self.newItem, Self.knowledgeImport]
             }
@@ -238,6 +244,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 switch id {
                 case Self.newItem: label = "New conversation"
                 case Self.memoryNew: label = "Add memory"
+                case Self.taskNew: label = "Add task"
                 case Self.knowledgeImport: label = "Import Markdown"
                 case Self.inspectorID: label = "Execution details"
                 case Self.knowledge: label = "Knowledge"
@@ -248,8 +255,9 @@ struct MiraWindowShell: NSViewControllerRepresentable {
                 item.toolTip = text
                 item.isEnabled = id != Self.inspectorID || configuration.canInspect
                 if id == Self.knowledgeImport { item.isEnabled = configuration.canImportKnowledge }
+                if id == Self.taskNew { item.isEnabled = configuration.canAddTask }
                 if let button = item.view as? NSButton {
-                    if id == Self.knowledgeImport { button.title = text }
+                    if id == Self.knowledgeImport || id == Self.taskNew { button.title = text }
                     button.setAccessibilityLabel(text)
                     button.toolTip = item.toolTip
                     button.isEnabled = item.isEnabled
@@ -275,6 +283,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             switch id {
             case Self.knowledgeImport: (label, symbol, action) = ("Import Markdown", "square.and.arrow.down", #selector(importKnowledge))
             case Self.memoryNew: (label, symbol, action) = ("Add memory", "plus", #selector(addMemory))
+            case Self.taskNew: (label, symbol, action) = ("Add task", "plus", #selector(addTask))
             case Self.newItem: (label, symbol, action) = ("New conversation", "square.and.pencil", #selector(newConversation))
             case Self.inspectorID: (label, symbol, action) = ("Execution details", "sidebar.right", #selector(toggleExecutionInspector))
             case Self.knowledge: (label, symbol, action) = ("Knowledge", "book.closed", #selector(openKnowledge))
@@ -285,7 +294,7 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             let button = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)!, target: self, action: action)
             button.setAccessibilityIdentifier(id.rawValue)
             button.imagePosition = .imageOnly
-            if id == Self.knowledgeImport {
+            if id == Self.knowledgeImport || id == Self.taskNew {
                 button.title = L10n.string(label, locale: configuration.locale)
                 button.imagePosition = .imageLeading
             }
@@ -298,12 +307,14 @@ struct MiraWindowShell: NSViewControllerRepresentable {
             item.action = action
             item.isEnabled = id != Self.inspectorID || configuration.canInspect
             if id == Self.knowledgeImport { item.isEnabled = configuration.canImportKnowledge }
+            if id == Self.taskNew { item.isEnabled = configuration.canAddTask }
             button.isEnabled = item.isEnabled
             cachedItems[id] = item
             return item
         }
 
         @objc private func addMemory() { configuration.addMemory?() }
+        @objc private func addTask() { configuration.addTask?() }
         @objc private func newConversation() { configuration.newConversation() }
         @objc private func toggleExecutionInspector() { configuration.showsInspector.toggle() }
         @objc private func openKnowledge() { configuration.openKnowledge?() }

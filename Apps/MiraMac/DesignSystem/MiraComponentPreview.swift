@@ -588,3 +588,23 @@ private struct MiraSettingsNavigationPreview: View {
     .menuStyle(.borderlessButton)
     .menuIndicator(.hidden)
 }
+
+#Preview("Tasks · Reminder states · Light and dark") {
+    HStack(spacing: 0) {
+        ForEach([ColorScheme.light, .dark], id: \.self) { scheme in
+            VStack(spacing: MiraTheme.Spacing.sm) {
+                TaskManagementRow(task: MiraTask(workspaceID: nil,
+                    draft: .init(title: "Review the synthetic launch checklist", notes: "Preview only", dueAt: .distantFuture),
+                    createdAt: .distantPast, updatedAt: .distantPast), isSelected: true)
+                TaskManagementRow(task: MiraTask(workspaceID: nil,
+                    draft: .init(title: "Prepare the next review", reminderAt: .distantFuture),
+                    status: .inProgress, createdAt: .distantPast, updatedAt: .distantPast), isSelected: false)
+            }
+            .padding(MiraTheme.Spacing.sm)
+            .frame(width: MiraTheme.Layout.taskListWidth)
+            .background(MiraTheme.Colors.canvas)
+            .environment(\.locale, Locale(identifier: scheme == .light ? "en" : "zh-Hans"))
+            .preferredColorScheme(scheme)
+        }
+    }
+}

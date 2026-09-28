@@ -6,6 +6,40 @@ import Testing
 
 @Suite("Task workflow through agent modules")
 struct TaskWorkflowTests {
+    @Test func acceptsPendingProposalBeyondLegacyFirstHundredAndRejectsRepeatedReview() async throws {
+        let quote = "remind me tomorrow to review notes"
+        try await withTaskWorkflow(outputs: taskReplies(taskArguments(quote: quote, remind: true))) { f in
+            let address = try await f.run(quote)
+            let original = try await f.evidence(address)
+            let oldest: TaskProposal = try await f.database.read { db in
+                let json = try String.fetchOne(db, sql: "SELECT proposal_json FROM task_proposals ORDER BY rowid ASC LIMIT 1") ?? ""
+                return try SessionCodec.decode(TaskProposal.self, from: Data(json.utf8))
+            }
+            try await f.database.write { db in
+                for index in 0..<100 {
+                    var extra = oldest
+                    extra.id = UUID()
+                    extra.createdAt = TaskWorkflowFixture.now.addingTimeInterval(TimeInterval(index + 1))
+                    let encoded = try String(data: SessionCodec.encode(extra), encoding: .utf8) ?? ""
+                    try db.execute(sql: "INSERT INTO task_proposals (id, workspace_id, state, proposal_json) VALUES (?, NULL, 'pending', ?)", arguments: [extra.id.uuidString.lowercased(), encoded])
+                }
+            }
+
+            let corrected = TaskDraft(title: oldest.draft.title, dueAt: TaskWorkflowFixture.now.addingTimeInterval(3600),
+                                      reminderAt: TaskWorkflowFixture.now.addingTimeInterval(3600), timeZoneID: oldest.draft.timeZoneID)
+            let receipt = try await f.tasks.resolve(id: oldest.id, workspaceID: nil, accept: true, correctedDraft: corrected)
+            #expect(receipt.task != nil)
+            #expect(try await f.store.taskProposal(oldest.id, workspaceID: nil).state == .accepted)
+            #expect(try await f.store.taskProposalPage(workspaceID: nil, offset: 0, limit: 200).items.count == 100)
+            await #expect(throws: MiraError.self) {
+                try await f.tasks.resolve(id: oldest.id, workspaceID: nil, accept: true, correctedDraft: corrected)
+            }
+
+            // The source came from the exact journal evidence, proving the old list truncation was bypassed safely.
+            #expect(original.reference == oldest.evidence.source)
+        }
+    }
+
     @Test func englishReminderCommitsExactJournalSourceBeforeScheduling() async throws {
         let quote = "remind me tomorrow at 09:30 to review notes"
         let args = taskArguments(quote: quote, remind: true, timeQuote: "tomorrow at 09:30", time: "09:30", dayOffset: 1)

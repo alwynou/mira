@@ -39,6 +39,7 @@ private actor SchedulerStore: TaskStore {
     init(tasks: [MiraTask], includeInWorkPage: Bool) { self.tasks = tasks; self.includeInWorkPage = includeInWorkPage }
 
     func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) async throws -> [MiraTask] { tasks }
+    func taskManagementPage(_ query: TaskManagementQuery) async throws -> TaskManagementPage { .init(items: tasks, hasMore: false) }
     func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> MiraTask {
         guard let task = tasks.first(where: { $0.id == id }) else { throw MiraError(.notFound, "Task is unavailable.") }
         return task
@@ -50,7 +51,10 @@ private actor SchedulerStore: TaskStore {
         return .init(task: task, operation: "synthetic", actor: "test", changedAt: task.updatedAt)
     }
     func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> [TaskRevision] { [] }
+    func taskRevisionPage(_ id: MiraTaskID, workspaceID: WorkspaceID?, offset: Int, limit: Int) async throws -> TaskRevisionPage { .init(items: [], hasMore: false) }
     func taskProposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal] { [] }
+    func taskProposalPage(workspaceID: WorkspaceID?, offset: Int, limit: Int) async throws -> TaskProposalPage { .init(items: [], hasMore: false) }
+    func taskProposal(_ id: UUID, workspaceID: WorkspaceID?) async throws -> TaskProposal { throw MiraError(.notFound, "Proposal is unavailable.") }
     func saveTask(_ id: MiraTaskID, workspaceID: WorkspaceID?, draft: TaskDraft, status: MiraTaskStatus,
                   expectedRevision: Int?, operationID: UUID, authorization: AgentLibraryAuthorization, at: Date) async throws -> MiraTask {
         throw MiraError(.unsupported, "Synthetic store does not save tasks.")

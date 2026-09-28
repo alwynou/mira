@@ -91,6 +91,7 @@ targets:
     sources:
       - Apps/MiraMac/Composition/AppContainer.swift
       - Apps/MiraMac/Composition/MacDemoModule.swift
+      - Apps/MiraMac/Composition/MacTaskManagementFixture.swift
       - Apps/MiraMac/Composition/MacBenchmarkModule.swift
       - Apps/MiraMac/App/MiraAppDelegate.swift
       - Apps/MiraMac/App/LibraryStartupView.swift
@@ -116,6 +117,7 @@ targets:
       - Apps/MiraMac/Presentation/MemoryEditorModel.swift
       - Apps/MiraMac/Presentation/MemoryManagementModel.swift
       - Apps/MiraMac/Presentation/KnowledgeManagementModel.swift
+      - Apps/MiraMac/Presentation/TaskManagementModel.swift
       - Apps/MiraMac/Presentation/MemorySettingsModel.swift
       - Apps/MiraMac/Presentation/DataSettingsModel.swift
       - Apps/MiraMac/Presentation/ProviderConnectionTestModel.swift
@@ -137,6 +139,7 @@ targets:
       - Apps/MiraMac/Presentation/TranscriptViewportLayout.swift
       - Apps/MiraMac/Presentation/TranscriptFollowScheduler.swift
       - Apps/MiraMac/Features/Knowledge
+      - Apps/MiraMac/Features/Tasks
       - Apps/MiraMac/Features/Memory/MemoryCitationView.swift
       - Apps/MiraMac/Features/Conversation/ExecutionInspector.swift
       - Apps/MiraMac/Features/Conversation/MemoryExtractionInspector.swift
@@ -197,6 +200,7 @@ targets:
     platform: macOS
     sources:
       - Apps/MiraMac/Composition/MacDemoModule.swift
+      - Apps/MiraMac/Composition/MacTaskManagementFixture.swift
       - Apps/MiraMac/Composition/MacLibrary.swift
       - Apps/MiraMac/Composition/MacLibraryStorage.swift
       - Apps/MiraMac/Composition/MacLibraryRestoration.swift

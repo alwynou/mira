@@ -1,6 +1,6 @@
 # 任务与本地提醒
 
-本文拥有任务领域的技术契约，产品含义见 [Records](../product/RECORDS.md)。任务模块直接使用新的 Agent 核心，不再关联旧 SQL 会话表。当前为 P4 无 UI 集成；原生宿主、完整遗忘与整库备份仍待后续切换。
+本文拥有任务领域的技术契约，产品含义见 [Records](../product/RECORDS.md)。任务模块直接使用新的 Agent 核心，不再关联旧 SQL 会话表。当前 macOS 宿主已接入任务管理读写用例与资料库归档／恢复路径；本次原生管理验收见验证记录；更广泛发布质量、完整遗忘与整库备份边界仍保留独立验收门槛。
 
 任务模块同时在自己的作用域注册 `tasks` 来源权威，通过 `TaskReadStore` 检查当前工作区与修订。上下文携带真实冻结目的地，工作区／模型配置政策由生产 `SQLiteAgentContextPolicy` 复核；来源版本和调用生命周期遵守[来源授权契约](AGENT_SOURCE_AUTHORIZATION.md)。
 
@@ -11,6 +11,12 @@
 `TaskModule` 在所属运行时作用域注册 `task.list` 与 `task.change`。它只依赖 Foundation 和领域读取端口；不认识 SQLite、通知中心或平台。`TaskApplication` 提供人工保存、提案审核与恢复提醒的用例，不拥有 Agent loop，也不模拟模型工具调用。
 
 `SQLiteTaskStore` 实现领域记录端口，`SQLiteTaskCommandHandler` 在共享业务事务中处理模型变更。工作区由 `SQLiteWorkspaceStore` 拥有，当前模型身份由 `SQLiteAgentModelSettings` 校验。平台只需实现 `LocalNotificationPort`；macOS 使用系统通知服务，iOS 当前不实现。
+
+### 管理读取与编辑
+
+Tasks 管理读取严格区分 Inbox（`workspaceID == nil`）与 Workspace；列表状态支持 `all`、`active`、`open`、`inProgress`、`completed` 和 `cancelled`。标题与备注搜索先做 Unicode 兼容形式、大小写、变音符号和全半角规范化，再进行字面匹配；管理界面每页读取 50 行及一行前瞻（领域端口允许 1–200 行），不把结果静默截断在首 100 或 200 条。任务、历史修订和待审核 Proposal 分别使用有界分页与当前作用域校验；原始消息通过完整证据引用导航。
+
+macOS 管理界面使用 320 pt 任务列表、790 pt 紧凑布局断点和 620 pt 详情内容上限。详情编辑保留修订草稿，提交时以修订号进行 CAS；冲突要求刷新，不覆盖新版本。Proposal 审核位于独立 Needs review 区域：接受会重新读取完整 journal 证据，拒绝不需要重新披露原文，重复审核返回冲突，需澄清的提醒必须确认精确时间。截止日期与提醒时间独立；提醒权限、重试、暂停、恢复和 elapsed 状态分别保持真实。标题或备注编辑若不改变提醒时刻，会保留恢复后的 paused 状态；显式恢复才进入 pending，改变提醒时刻才重新安排。
 
 ```mermaid
 flowchart TB
@@ -113,10 +119,10 @@ flowchart TD
 
 最多接纳 60 个未来活动提醒。无后台 helper、循环引擎、EventKit、同步或日历发布。原生退出后送达、专注模式及系统权限提示仍需平台验收；mock 成功不证明这些行为。
 
-## 存储与待完成集成
+## 存储与宿主集成
 
 任务使用独立 task_schema 版本 1，拥有 mira_tasks、task_revisions、task_proposals、task_operations；工作区使用独立 workspace_schema 和 business_workspaces。数据库必须启用外键与 FULL 或 EXTRA 同步，结构不符明确拒绝。任务数据没有 messages、conversations、executions、message_time_context 表依赖。
 
-领域端口的已接纳 SQL 由适配器持有，close 排空实际队列而不关闭共享数据库。新工作区和任务存储不接受旧 MiraStore。剩余旧领域存储当前版本改为 13，已移除任务表；没有旧库升级或迁移桥。
+领域端口的已接纳 SQL 由适配器持有，close 排空实际队列而不关闭共享数据库。`MacLibraryStorage` 拥有任务存储，`MacLibraryWorkloads` 拥有可替换的任务用例与提醒协调器；界面不直接读取数据库。
 
-当前恢复领域原语可以把提醒改为 paused，显式恢复后再调度。**完整 JSONL／正文／业务库备份、跨领域来源校验与清除、提醒维护处理器、生产组合根仍未完成**。旧 SQL 库备份不包含新任务域，不能作为新架构的备份入口。后续 P4／P5 必须完成统一维护和一次性宿主切换，不能增加双写或回退路径。
+`SQLiteTaskArchive` 已接入资料库归档、恢复和跨领域来源校验，任务维护路径处理来源清理与通知退役。恢复后的活动提醒改为 paused，不自动重新排程。当前实现不使用旧 SQL 资料库、双写或兼容回退。Tasks 管理增量的证据与未验证范围见 [Task management verification](../engineering/TASK_MANAGEMENT_VERIFICATION.md)；历史归档与恢复证据见 [核心验证记录](../engineering/AGENT_CORE_VERIFICATION.md)。

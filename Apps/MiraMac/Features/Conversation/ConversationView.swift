@@ -8,8 +8,9 @@ struct ConversationRoot: View {
     @State private var model: ConversationModel
     @State private var memoryModel: MemoryManagementModel
     @State private var knowledgeModel: KnowledgeManagementModel
+    @State private var taskModel: TaskManagementModel
     @State private var destination: Destination = .conversation
-    private enum Destination { case conversation, memories, knowledge }
+    private enum Destination { case conversation, memories, knowledge, tasks }
     @State private var memoryEditor: MemoryEditorDestination?
     @State private var showsWorkspaceSheet = false
     @State private var editingWorkspace: Workspace?
@@ -21,6 +22,7 @@ struct ConversationRoot: View {
         _model = State(initialValue: ConversationModel(library: library))
         _memoryModel = State(initialValue: MemoryManagementModel(library: library))
         _knowledgeModel = State(initialValue: KnowledgeManagementModel(library: library))
+        _taskModel = State(initialValue: TaskManagementModel(library: library))
         self.isDemo = isDemo
     }
 
@@ -103,6 +105,13 @@ struct ConversationRoot: View {
                     if destination == .knowledge {
                         KnowledgeManagementView(model: knowledgeModel)
                     }
+                    if destination == .tasks {
+                        TaskManagementView(model: taskModel) { reference in
+                            Task {
+                                if await model.revealMemorySource(reference) { destination = .conversation }
+                            }
+                        }
+                    }
                 }
                 .environment(\.locale, locale)
                 .environment(\.miraOpenSettingsWindow, openWindow)
@@ -117,7 +126,9 @@ struct ConversationRoot: View {
             addMemory: destination == .memories ? { memoryEditor = .init(scope: memoryModel.creationScope) } : nil,
             importKnowledge: destination == .knowledge ? { knowledgeModel.chooseImport() } : nil,
             openKnowledge: { destination = .knowledge },
-            canImportKnowledge: knowledgeModel.generation != nil && !knowledgeModel.isWorking
+            canImportKnowledge: knowledgeModel.generation != nil && !knowledgeModel.isWorking,
+            addTask: destination == .tasks ? { taskModel.beginCreate() } : nil,
+            canAddTask: taskModel.generation != nil && !taskModel.isWorking
         )
         .ignoresSafeArea()
     }
@@ -127,6 +138,7 @@ struct ConversationRoot: View {
         case .conversation: title(for: model.activePage)
         case .memories: L10n.string("Memories", locale: locale)
         case .knowledge: L10n.string("Knowledge", locale: locale)
+        case .tasks: L10n.string("Tasks", locale: locale)
         }
     }
 
@@ -181,10 +193,10 @@ struct ConversationRoot: View {
                         }
                         .accessibilityIdentifier("sidebar.knowledge")
                         Button {
+                            destination = .tasks
                         } label: {
-                            MiraSidebarRow { Label("Tasks", systemImage: "checklist") }
+                            MiraSidebarRow(isSelected: destination == .tasks) { Label("Tasks", systemImage: "checklist") }
                         }
-                        .help("Not implemented yet")
                         .accessibilityIdentifier("sidebar.tasks")
                     }
                     workspaceSection

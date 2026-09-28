@@ -22,6 +22,30 @@ public actor TaskApplication {
         }
     }
 
+    public func managementPage(_ query: TaskManagementQuery) async throws -> TaskManagementPage {
+        try await owned { lease in
+            try await lease.read { try await self.store.taskManagementPage(query) }
+        }
+    }
+
+    public func detail(id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> MiraTask {
+        try await owned { lease in
+            try await lease.read { try await self.store.taskDetail(id, workspaceID: workspaceID) }
+        }
+    }
+
+    public func revisionPage(id: MiraTaskID, workspaceID: WorkspaceID?, offset: Int = 0, limit: Int = 50) async throws -> TaskRevisionPage {
+        try await owned { lease in
+            try await lease.read { try await self.store.taskRevisionPage(id, workspaceID: workspaceID, offset: offset, limit: limit) }
+        }
+    }
+
+    public func proposalPage(workspaceID: WorkspaceID?, offset: Int = 0, limit: Int = 50) async throws -> TaskProposalPage {
+        try await owned { lease in
+            try await lease.read { try await self.store.taskProposalPage(workspaceID: workspaceID, offset: offset, limit: limit) }
+        }
+    }
+
     public func proposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal] {
         try await owned { lease in
             try await lease.read { try await self.store.taskProposals(workspaceID: workspaceID) }
@@ -42,10 +66,7 @@ public actor TaskApplication {
         try await owned { lease in
             let source: SessionUserEvidence?
             if accept {
-                let proposals = try await lease.read { try await self.store.taskProposals(workspaceID: workspaceID) }
-                guard let proposal = proposals.first(where: { $0.id == id }) else {
-                    throw MiraError(.conflict, "This task proposal has already been reviewed.")
-                }
+                let proposal = try await lease.read { try await self.store.taskProposal(id, workspaceID: workspaceID) }
                 source = try await lease.read { try await self.reader.userEvidence(proposal.evidence.source) }
             } else { source = nil }
             try await lease.check()

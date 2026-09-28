@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [Tasks management increment](engineering/TASK_MANAGEMENT_VERIFICATION.md) restores native task and one-time reminder management, exact scope and bounded search/history, manual editing and status changes, source-bound proposal review, and explicit reminder recovery. Focused synthetic tests and English/light plus Chinese/dark native checks passed; platform notification delivery and broader M6 release gates remain separate.
+
 The [conversation permission scope correction](engineering/CONVERSATION_TOOL_PERMISSIONS_VERIFICATION.md) separates each existing conversation’s consent from the global new-conversation default. First submission captures the default, later composer changes remain local, and runtime checks use the invoking conversation identity.
 
 The user-approved [Bash and global tool permission increment](engineering/TOOL_PERMISSIONS_VERIFICATION.md) adds noninteractive macOS command execution and one persisted three-level approval setting in General settings and the composer. The host governs all risky tools, including conversational memory deletion, while ordinary memory/task operations retain domain checks. Focused process/runtime tests and the complete hostless target passed; native bilingual checks and remaining platform limits are recorded in the evidence.
@@ -47,7 +49,7 @@ The subsequent user-requested [daily quota removal](engineering/LOCAL_MEMORY_IMP
 
 The [memory search relevance correction](engineering/MEMORY_SEARCH_RELEVANCE.md) filters low-scoring vector neighbors so small libraries no longer return every memory for unrelated queries. Focused tool/store tests and a real local-model fixture passed; broad answerability calibration remains open.
 
-**状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒底层能力保留。2026-09-20 已重建 macOS Memory 管理界面，提供当前／历史、范围、搜索、排序、分页、详情、手动保存、编辑、替代、归档和遗忘；2026-09-23 已实现 Knowledge 管理界面，Tasks 管理界面仍暂缓。2026-09-08 移除旧界面的记录是历史状态，旧原生界面验收不代表当前版本已验收。Memory 管理的原生证据与未验证范围见 [Memory management verification](engineering/MEMORY_MANAGEMENT_VERIFICATION.md)；该增量不代表完整 M3 验收、真实模型质量通过或 macOS 15 原生运行验证。本机通知授权、应用完全退出后的普通提醒送达，以及重启后的到期状态曾通过用户配合验收。专注模式与正式分发按用户选择暂缓。其他历史证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
+**状态：** M0–M5 的核心功能和本机开发验证已实现，发布质量与跨平台验收仍待完成。普通对话自动记忆、记忆演变、自然召回、Markdown 问答预取，以及 M6 的任务和一次性本地提醒底层能力保留。2026-09-20 已重建 macOS Memory 管理界面，提供当前／历史、范围、搜索、排序、分页、详情、手动保存、编辑、替代、归档和遗忘；2026-09-23 已实现 Knowledge 管理界面；Tasks 管理界面现提供响应式列表／详情、精确范围、状态搜索、来源历史和 Proposal 审核路径，原生与自动化验证记录见 [Task management verification](engineering/TASK_MANAGEMENT_VERIFICATION.md)。2026-09-08 移除旧界面的记录是历史状态，旧原生界面验收不代表当前版本已验收。Memory 管理的原生证据与未验证范围见 [Memory management verification](engineering/MEMORY_MANAGEMENT_VERIFICATION.md)；该增量不代表完整 M3 验收、真实模型质量通过或 macOS 15 原生运行验证。本机通知授权、应用完全退出后的普通提醒送达，以及重启后的到期状态曾通过用户配合验收。专注模式与正式分发按用户选择暂缓。其他历史证据与跳过项见 [功能增量验收](engineering/FUNCTIONAL_MILESTONES_VERIFICATION.md)。
 
 服务商接入流程已按“配置并激活服务商 → 选择服务商模型 → 模型池 → 选择模型”更新，模型池阶段验收见 [模型池验收记录](engineering/PROVIDER_POOL_VERIFICATION.md)。新增服务商目录、models.dev 资料和用途筛选的当前范围见 [目录与筛选验收](engineering/MODEL_CATALOG_VERIFICATION.md)。
 
@@ -149,11 +151,11 @@ M2 使用 Fake Tool 验证完整管线，测试工具不进入发布注册表。
 
 | 区域 | 首版必需内容 |
 |---|---|
-| Sidebar | Inbox、Workspace、Settings；Memory 管理界面已实现。Knowledge 与 Tasks 仍为待实现入口 |
+| Sidebar | Inbox、Workspace、Settings；Memory、Knowledge 与 Tasks 管理界面已接入当前主窗格 |
 | Conversation | 消息、发送 / 取消 / 重试、模型和执行状态、历史记忆状态提示、引用入口 |
 | Workspace | 名称、项目背景、发送策略；不建设层级 Workspace |
 | Memory | 当前／历史、范围与搜索、排序分页、证据和修订详情、手动本地记忆、编辑、替代、归档、遗忘及正文清理占位；不提供自动候选收件箱 |
-| Knowledge | 管理界面仍待实现；底层检索和对话引用保留 |
+| Knowledge | Source 管理界面、搜索、阅读与版本路径已接入；更广泛原生验收见验证记录 |
 | Inspector | 实际 Context、有效来源、被省略原因、Step / Tool / 错误、Usage |
 | Settings | Provider / 用途路线、自动记忆、隐私、备份 / 恢复 / 清理 |
 
@@ -288,7 +290,7 @@ Working Memory 只组合用户固定项与当前 Workspace 的有效决定；尚
 
 **依赖：** 已有对话、执行、来源、存储与恢复能力。用户已授权在需人工配合的 v0.1 验收项暂缓时继续实现 M6；该授权不等于发布质量门槛通过。
 
-**当前实现：** 保留任务用例、独立候选、`task.list` / `task.change`、原消息时间与时区、一次性本地通知及恢复后暂停提醒。原任务列表、编辑、状态操作、候选审核和权限恢复管理界面已移除，替代界面待实现。产品范围见 [Records](product/RECORDS.md)，技术契约见 [Tasks and reminders](architecture/TASKS_AND_REMINDERS.md)。
+**当前实现：** 保留任务用例、独立候选、`task.list` / `task.change`、原消息时间与时区、一次性本地通知及恢复后暂停提醒，并提供 macOS Tasks 管理列表／详情、精确 Inbox／Workspace 范围、状态与规范化字面搜索、来源／修订分页和 Needs review Proposal 审核。编辑冲突使用修订 CAS；标题／备注编辑保留未改变提醒时刻的 paused 状态；截止日期独立于提醒，权限、重试、暂停、恢复和 elapsed 状态如实显示。当前不包含 recurring、EventKit 或 iOS。产品范围见 [Records](product/RECORDS.md)，技术契约见 [Tasks and reminders](architecture/TASKS_AND_REMINDERS.md)，验证证据与剩余平台范围见 [Task management verification](engineering/TASK_MANAGEMENT_VERIFICATION.md)。
 
 **交付：** 明确命令创建 / 修改任务和一次性提醒、RecordProposal、Revision + Evidence、本地通知、完成 / 取消与失败状态。
 
@@ -325,7 +327,7 @@ The first composer focus no longer initializes the macOS OTP AutoFill panel. The
 
 ## 5. 开发前条件与发布前条件
 
-**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并保留可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆保留独立配置与后台任务；M4 保留资料工具与完整文件备份；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。自然记忆与资料预取、M6 任务 / 一次性提醒底层实现保留。Memory 管理界面已重建；Knowledge 与 Tasks 界面仍待设计与实现，历史界面验收不视为当前版本的验收。Memory 管理的原生运行与质量边界见 [Memory management verification](engineering/MEMORY_MANAGEMENT_VERIFICATION.md)。真实 Provider 的广泛质量验证、Keychain 故障演练及完整平台交互验收仍待补；M3–M6 尚未完成全部发布验收。
+**目前进度：** 已实现 M1 的可恢复对话、Markdown 与标准化用途级路线配置，以及 M2 的多步工具交换、逐次审计、权限检查和限额。M3 已注册三个实际记忆工具，并保留可纠正状态、来源抑制、派生内容清理与历史引用；确定性证据见 [记忆验收记录](engineering/MEMORY_VERIFICATION.md)。自动记忆保留独立配置与后台任务；M4 保留资料工具与完整文件备份；M5 已完成可独立执行的规模性能、恢复与本机开发包验证。自然记忆与资料预取、M6 任务 / 一次性提醒底层实现保留。Memory 管理界面已重建；Knowledge 与 Tasks 管理界面已接入当前主窗格并通过本机合成数据验收，完整发布验收仍待完成。Memory 管理的原生运行与质量边界见 [Memory management verification](engineering/MEMORY_MANAGEMENT_VERIFICATION.md)。真实 Provider 的广泛质量验证、Keychain 故障演练及完整平台交互验收仍待补；M3–M6 尚未完成全部发布验收。
 
 **实施时填写的证据：** 实际选用的模型 ID / 端点及能力验证结果、Package.resolved、最低系统与各 CPU 的验证环境。无需在文档中写入密钥。
 

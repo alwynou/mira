@@ -31,3 +31,5 @@ The standalone Settings window follows native macOS System Settings styling, as 
 Failed conversation tool triggers are a user-requested semantic color exception: text and the leading failure symbol share the appearance-aware `MiraTheme.Colors.failure` red. The disclosure chevron remains neutral. The SF Symbols `xmark.circle.fill` failure symbol and localized status preserve meaning without color. Tool actions otherwise use a neutral SF Symbols `wrench.fill`; the canvas and Contour Silver identity remain unchanged.
 
 The global Full access tool-permission option uses system orange as a narrow, user-requested semantic emphasis, paired with an exclamation-shield symbol and explicit label. Other permission controls remain neutral.
+
+Tasks follows the existing neutral management surfaces: a responsive list/detail view, native Add task toolbar action, scope and status controls, and a separate Needs review tab. Reminder delivery uses explicit text and symbols rather than additional brand colors. Its layout tokens and interaction details are owned by [Design system](DESIGN_SYSTEM.md) and [Records](RECORDS.md).

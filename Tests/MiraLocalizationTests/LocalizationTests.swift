@@ -65,4 +65,12 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(L10n.format("Step %lld · Attempt %lld", locale: AppLanguage.english.locale, bundle: resources, Int64(2), Int64(3)), "Step 2 · Attempt 3")
         XCTAssertEqual(L10n.format("Step %lld · Attempt %lld", locale: AppLanguage.simplifiedChinese.locale, bundle: resources, Int64(2), Int64(3)), "步骤 2 · 尝试 3") // i18n-fixture: Expected Simplified Chinese format.
     }
+
+    func testTaskStateAndReminderExplanationSwitchWithLocale() {
+        XCTAssertEqual(L10n.string("Add task", locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "添加任务") // i18n-fixture: Expected native toolbar and create-sheet title translation.
+        XCTAssertEqual(L10n.string("Completed", locale: AppLanguage.english.locale, bundle: resources), "Completed")
+        XCTAssertEqual(L10n.string("Completed", locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "已完成") // i18n-fixture: Expected task status translation.
+        XCTAssertEqual(L10n.string("The task is saved, but Mira needs notification permission to schedule its reminder.", locale: AppLanguage.english.locale, bundle: resources), "The task is saved, but Mira needs notification permission to schedule its reminder.")
+        XCTAssertEqual(L10n.string("The task is saved, but Mira needs notification permission to schedule its reminder.", locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "任务已保存，但 Mira 需要通知权限才能调度提醒。") // i18n-fixture: Expected reminder explanation translation.
+    }
 }

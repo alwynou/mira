@@ -3,11 +3,15 @@ import Foundation
 /// Business records only. Callers own a library access lease; no method reads session projections.
 public protocol TaskReadStore: Sendable {
     func taskList(workspaceID: WorkspaceID?, includeCompleted: Bool, limit: Int) async throws -> [MiraTask]
+    func taskManagementPage(_ query: TaskManagementQuery) async throws -> TaskManagementPage
     func taskDetail(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> MiraTask
     /// Resolves one immutable revision while checking the current task and workspace in the same read snapshot.
     func taskRevision(_ id: MiraTaskID, revision: Int, workspaceID: WorkspaceID?) async throws -> TaskRevision
     func taskRevisions(_ id: MiraTaskID, workspaceID: WorkspaceID?) async throws -> [TaskRevision]
+    func taskRevisionPage(_ id: MiraTaskID, workspaceID: WorkspaceID?, offset: Int, limit: Int) async throws -> TaskRevisionPage
     func taskProposals(workspaceID: WorkspaceID?) async throws -> [TaskProposal]
+    func taskProposalPage(workspaceID: WorkspaceID?, offset: Int, limit: Int) async throws -> TaskProposalPage
+    func taskProposal(_ id: UUID, workspaceID: WorkspaceID?) async throws -> TaskProposal
 }
 
 public protocol TaskStore: TaskReadStore {
