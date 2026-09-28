@@ -28,6 +28,7 @@ final class ConversationModel {
     }
     @ObservationIgnored let library: MacLibrary
     let modelPreferences: ConversationModelPreferences
+    let toolPermissions: ToolPermissionPreferences
     @ObservationIgnored private let instructions: String
     @ObservationIgnored private let pageLimit: Int
     @ObservationIgnored private var pages: [ConversationID: ConversationPageState] = [:]
@@ -50,10 +51,12 @@ final class ConversationModel {
     init(
         library: MacLibrary, pageLimit: Int = 3,
         modelPreferences: ConversationModelPreferences = .shared,
+        toolPermissions: ToolPermissionPreferences = .shared,
         instructions: String = ConversationInstructions.default
     ) {
         self.library = library
         self.modelPreferences = modelPreferences
+        self.toolPermissions = toolPermissions
         self.pageLimit = max(1, pageLimit)
         self.instructions = instructions
         let draft = ConversationPageState()
@@ -64,6 +67,12 @@ final class ConversationModel {
     }
 
     var isReady: Bool { workgroup != nil }
+
+    func toolPermissionScope(for page: ConversationPageState) -> ToolPermissionScope {
+        // Pending admission may already be durable, even before the UI receives its result.
+        guard let id = page.conversationID ?? page.pendingAdmission?.sessionID else { return .defaults }
+        return .conversation(libraryID: library.id, conversationID: id)
+    }
     var selectedConversationID: ConversationID? { activePage.conversationID }
     var currentConversation: SessionQueryItem? { activePage.session }
     var filteredConversations: [SessionQueryItem] {
@@ -826,6 +835,9 @@ final class ConversationModel {
                     : .init(selection: selection, expectedRevision: page.modelSelectionRevision))
             page.pendingAdmission = command
             page.pendingAdmissionRuntimeID = group.application.id
+            if command.opening != nil {
+                toolPermissions.captureDefault(for: toolPermissionScope(for: page))
+            }
             let result = await group.application.submit(command)
             if page.submissionCancelled { await group.application.cancel(sessionID: command.sessionID) }
             consume(result, command: command, page: page, token: token)
@@ -869,6 +881,9 @@ final class ConversationModel {
                 requestReload()
             }
         case .notCommitted(let failure):
+            if command.opening != nil {
+                toolPermissions.discardUncommittedConversation(toolPermissionScope(for: page))
+            }
             page.pendingAdmission = nil
             page.pendingAdmissionRuntimeID = nil
             if bindingID == token { page.error = failure }

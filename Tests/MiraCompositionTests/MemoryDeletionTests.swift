@@ -20,7 +20,7 @@ struct MemoryDeletionTests {
             await model.setTarget(memory)
             let modules: MacLibrary.ModuleFactory = { [DeletionModule(registry: $0, model: model)] }
             let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
-                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { .ask })
+                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { _ in .ask })
             let command = AgentSubmitCommand(id: UUID(), sessionID: .init(), executionID: .init(),
                 input: .message(id: .init(), text: "Delete my green tea memory", timeZoneIdentifier: "UTC"),
                 options: .init(instructions: ConversationInstructions.default, route: route),
@@ -80,7 +80,7 @@ struct MemoryDeletionTests {
                         } catch { _ = await interrupted.close(); throw error }
                     }
                     let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
-                        notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { .ask })
+                        notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { _ in .ask })
                     do {
                         try await expectOutcome(reopened, command: command, memory: memory, state: .completed)
                         #expect(await model.calls == 2)

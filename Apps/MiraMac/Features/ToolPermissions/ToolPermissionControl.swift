@@ -25,15 +25,14 @@ extension ToolPermissionLevel {
 }
 
 struct ToolPermissionOptions: View {
-    let preferences: ToolPermissionPreferences
-    var didSelect: () -> Void = {}
+    let selection: ToolPermissionLevel
+    let select: (ToolPermissionLevel) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: MiraTheme.Spacing.xs) {
             ForEach(ToolPermissionLevel.allCases, id: \.self) { level in
                 Button {
-                    preferences.select(level)
-                    didSelect()
+                    select(level)
                 } label: {
                     HStack(alignment: .top, spacing: MiraTheme.Spacing.md) {
                         Image(systemName: level.symbol)
@@ -48,7 +47,7 @@ struct ToolPermissionOptions: View {
                         }
                         Spacer(minLength: 0)
                         Image(systemName: "checkmark")
-                            .opacity(preferences.level == level ? 1 : 0)
+                            .opacity(selection == level ? 1 : 0)
                             .accessibilityHidden(true)
                     }
                     .foregroundStyle(level == .fullAccess ? Color.orange : MiraTheme.Colors.text)
@@ -57,7 +56,7 @@ struct ToolPermissionOptions: View {
                 }
                 .buttonStyle(MiraRowButtonStyle())
                 .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(preferences.level == level ? .isSelected : [])
+                .accessibilityAddTraits(selection == level ? .isSelected : [])
                 .accessibilityIdentifier("tools.permission.\(level.rawValue)")
             }
         }
@@ -65,31 +64,42 @@ struct ToolPermissionOptions: View {
 }
 
 struct ToolPermissionControl: View {
-    private let preferences = ToolPermissionPreferences.shared
+    let preferences: ToolPermissionPreferences
+    let scope: ToolPermissionScope
+    private var level: ToolPermissionLevel { preferences.level(for: scope) }
     @Environment(\.locale) private var locale
     @Environment(\.colorScheme) private var colorScheme
     @State private var showsOptions = false
 
     var body: some View {
         Button { showsOptions.toggle() } label: {
-            Label { Text(preferences.level.title).lineLimit(1) } icon: {
-                Image(systemName: preferences.level.symbol)
+            Label { Text(level.title).lineLimit(1) } icon: {
+                Image(systemName: level.symbol)
             }
             .font(MiraTheme.Typography.composerModel)
-            .foregroundStyle(preferences.level == .fullAccess ? Color.orange : MiraTheme.Colors.secondaryText)
+            .foregroundStyle(level == .fullAccess ? Color.orange : MiraTheme.Colors.secondaryText)
         }
         .buttonStyle(.plain)
         .help("Tool permissions")
         .accessibilityLabel("Tool permissions")
-        .accessibilityValue(Text(preferences.level.title))
+        .accessibilityValue(Text(level.title))
         .accessibilityIdentifier("conversation.toolPermissions")
         .popover(isPresented: $showsOptions, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: MiraTheme.Spacing.sm) {
                 Text("Tool permissions").font(MiraTheme.Typography.section)
                     .foregroundStyle(MiraTheme.Colors.secondaryText)
                     .padding(.horizontal, MiraTheme.Spacing.md)
-                ToolPermissionOptions(preferences: preferences) { showsOptions = false }
-                Text("Applies to all conversations on this Mac. Changes affect new tool actions; pending requests still need a decision.")
+                Text(scope == .defaults ? "New conversation default" : "This conversation only")
+                    .font(MiraTheme.Typography.caption)
+                    .foregroundStyle(MiraTheme.Colors.secondaryText)
+                    .padding(.horizontal, MiraTheme.Spacing.md)
+                ToolPermissionOptions(selection: level) { selection in
+                    preferences.select(selection, for: scope)
+                    showsOptions = false
+                }
+                Text(scope == .defaults
+                    ? "No messages yet. Changes set the default for new conversations; existing conversations keep their permissions."
+                    : "Changes apply only to this conversation. Pending requests still need a decision.")
                     .font(MiraTheme.Typography.caption)
                     .foregroundStyle(MiraTheme.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -108,8 +118,8 @@ struct ToolPermissionSettings: View {
 
     var body: some View {
         MiraSettingsSection("Tool permissions") {
-            ToolPermissionOptions(preferences: preferences)
-            Text("Applies to all conversations on this Mac. Changes affect new tool actions; pending requests still need a decision.")
+            ToolPermissionOptions(selection: preferences.level) { preferences.select($0) }
+            Text("Sets the default for new conversations on this Mac. Existing conversations keep their permissions.")
                 .font(MiraTheme.Typography.caption)
                 .foregroundStyle(MiraTheme.Colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)

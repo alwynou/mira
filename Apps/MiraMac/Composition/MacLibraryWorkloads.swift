@@ -134,7 +134,7 @@ actor MacLibraryWorkloads {
         authorizer: any AgentSourceAuthorizer, notifications: any LocalNotificationPort,
         credentials: any MacCredentialStore,
         environment: RuntimeEnvironment = .init(),
-        toolPermissionLevel: @escaping @Sendable () async -> ToolPermissionLevel = { await ToolPermissionPreferences.shared.level }
+        toolPermissionLevel: @escaping @Sendable (ToolPermissionScope) async -> ToolPermissionLevel = { @MainActor scope in ToolPermissionPreferences.shared.level(for: scope) }
     ) async throws -> MacLibraryWorkloads {
         try Task.checkCancellation()
         let scope = RuntimeScope(kind: .application)
@@ -178,7 +178,7 @@ actor MacLibraryWorkloads {
             try await registry.register(id: "mac.memory-extraction", value: .consumer(consumer), scope: scope)
             let app = try await AgentApplicationRuntime.open(
                 journal: storage.sessions, payloads: storage.sessions, libraryAccess: access,
-                registry: registry, modules: [], policy: MacToolPolicy(level: toolPermissionLevel, now: environment.now), authority: storage.business,
+                registry: registry, modules: [], policy: MacToolPolicy(libraryID: storage.authority.libraryID, level: toolPermissionLevel, now: environment.now), authority: storage.business,
                 business: storage.business, authorizer: authorizer, approvals: approvals,
                 scheduler: scheduler, environment: environment)
             cleanups.append { _ = await app.shutdown() }
@@ -408,11 +408,14 @@ actor MacLibraryWorkloads {
 
 /// Only the exact built-in Bash descriptor may add an external effect to this host.
 private struct MacToolPolicy: AgentToolPolicy {
-    let level: @Sendable () async -> ToolPermissionLevel
+    let libraryID: UUID
+    let level: @Sendable (ToolPermissionScope) async -> ToolPermissionLevel
     let now: @Sendable () -> Date
     func evaluate(_ proposal: AgentToolProposal, context: AgentToolContext) async throws -> AgentToolPolicyDecision {
         try validate(proposal, context: context)
-        return try MacToolPermissionPolicy.decision(for: proposal, level: await level(), now: now())
+        let scope = ToolPermissionScope.conversation(
+            libraryID: libraryID, conversationID: context.evidence.reference.sessionID)
+        return try MacToolPermissionPolicy.decision(for: proposal, level: await level(scope), now: now())
     }
     func validate(_ proposal: AgentToolProposal, context: AgentToolContext) throws {
         guard proposal.effect == .read || proposal.effect == .localWrite ||

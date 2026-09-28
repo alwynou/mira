@@ -1,8 +1,12 @@
-# Bash and global tool permissions
+# Bash and scoped tool permissions
 
 ## Host policy
 
-`ToolPermissionPreferences` is a MainActor Observable owner persisted in UserDefaults under `tools.permissionLevel`. Both UI entry points observe this one instance. The production library injects an asynchronous level reader into each work group, including groups recreated after maintenance. Tests inject isolated values; explicit Debug demo mode uses a separate preference domain. No library schema or journal format changes.
+`ToolPermissionPreferences` is a MainActor Observable owner. UserDefaults stores the global default under `tools.permissionLevel` and conversation consent under `tools.conversationPermissionLevels`, keyed by library UUID and conversation UUID. Settings always edits the default. Composer scope uses a committed conversation identity or its pending admission identity; only a fresh draft edits the default. It never infers scope from a paginated or unloaded message array.
+
+Before submitting a first message, the presentation model captures the current default for that exact conversation. A definitive admission rejection removes that unused selection; an indeterminate result retains it for retry. Capture is idempotent and does not overwrite a subsequent conversation choice. Existing identities without saved consent and invalid persisted values use Ask, independent of later default changes; no migration or journal rewrite is involved.
+
+The production library injects an asynchronous scope-aware reader into each work group, including groups recreated after maintenance. `MacToolPolicy` constructs the scope from its library identity and the invocation’s admitted evidence session ID, never from active UI selection. Tests inject isolated values; explicit Debug demo mode uses a separate preference domain. No library schema or journal format changes.
 
 `MacToolPolicy` retains the host's enabled-effect gate and delegates its approval decision to `MacToolPermissionPolicy`. The latter classifies every tool, including reads and local writes. Known internal memory/knowledge/task reads and the exact local-write name/namespace pairs for memory save, memory retraction and task changes are routine. Memory deletion and every unclassified capability are guarded. An external tool cannot inherit a routine classification by using a familiar local-write name. Registered domain validators still check exact descriptors, prepared input, source/target revisions and admitted user evidence.
 
@@ -18,7 +22,7 @@ The recognizer accepts literal space-separated words with balanced single/double
 
 ## Process adapter
 
-`MacBashTool` is an exclusive external-write capability in MiraMac. MiraCore remains Foundation-only. Its constrained module policy validates the canonical plan and descriptor but leaves permission-level approval to the global host policy.
+`MacBashTool` is an exclusive external-write capability in MiraMac. MiraCore remains Foundation-only. Its constrained module policy validates the canonical plan and descriptor but leaves permission-level approval to the scoped host policy.
 
 Input limits are 2048 UTF-8 bytes for command text and 1024 for an absolute working directory. The directory is standardized, resolved and checked during preparation and again before execution. Timeout defaults to 30 seconds and is bounded to 1–90 seconds; the executor budget is 120 seconds. Each call spawns `/bin/bash --noprofile --norc -c`, with stdin at EOF and only an explicit PATH, HOME, TMPDIR, LANG, LC_CTYPE and TERM environment. It inherits no application environment, shell startup file or exported function. The working directory is not confinement and the account's existing network and file access remain available.
 

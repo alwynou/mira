@@ -36,7 +36,7 @@ actor MacLibrary {
     private let notifications: any LocalNotificationPort
     private let credentials: any MacCredentialStore
     private let environment: RuntimeEnvironment
-    private let toolPermissionLevel: @Sendable () async -> ToolPermissionLevel
+    private let toolPermissionLevel: @Sendable (ToolPermissionScope) async -> ToolPermissionLevel
     private var group: MacLibraryWorkloads?
     private var phase: MacLibraryStatus.Phase = .starting
     private var generation: UInt64 = 0
@@ -54,7 +54,7 @@ actor MacLibrary {
         registry: RuntimeRegistry<AgentCapability>, handlers: RuntimeRegistry<any AgentLibraryMaintenanceHandler>,
         authorizer: JournalAgentSourceAuthorizer, notifications: any LocalNotificationPort,
         credentials: any MacCredentialStore,
-        environment: RuntimeEnvironment, toolPermissionLevel: @escaping @Sendable () async -> ToolPermissionLevel
+        environment: RuntimeEnvironment, toolPermissionLevel: @escaping @Sendable (ToolPermissionScope) async -> ToolPermissionLevel
     ) {
         self.storage = storage
         self.scope = scope
@@ -74,7 +74,7 @@ actor MacLibrary {
         embeddings: (any MemoryEmbeddingService)? = nil, directory: URL, expectedLibraryID: UUID? = nil,
         notifications: any LocalNotificationPort, credentials: any MacCredentialStore,
         modules: @escaping ModuleFactory, environment: RuntimeEnvironment = .init(),
-        toolPermissionLevel: @escaping @Sendable () async -> ToolPermissionLevel = { await ToolPermissionPreferences.shared.level }
+        toolPermissionLevel: @escaping @Sendable (ToolPermissionScope) async -> ToolPermissionLevel = { @MainActor scope in ToolPermissionPreferences.shared.level(for: scope) }
     ) async throws -> MacLibrary {
         let storage = try await MacLibraryStorage.open(
             embeddings: embeddings, directory: directory, expectedLibraryID: expectedLibraryID, environment: environment)
