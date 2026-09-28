@@ -19,6 +19,8 @@ Structural invariants remain: strict clock/calendar/time-zone resolution, reject
 - `xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -disableAutomaticPackageResolution -only-testing:MiraHostTests/LocalizationTests/testTaskStateAndReminderExplanationSwitchWithLocale test`: passed, one test; also built the final Debug app. The new invalid-command diagnostic resolves in both languages.
 - `xcodegen generate`, language policy (2,445 bilingual strings) and `git diff --check`: passed.
 
+The first broad package run reported one failure among 1,130 tests: a Responses protocol fixture still sent the removed `quote` argument. Its command was updated to the current schema; `--filter OpenAIResponsesProtocolTests` then passed all 21 tests. No production code changed in this correction.
+
 Broad regression is delegated to the PR's selected CI checks before merge rather than repeated locally. The PR check history records the final revision and result.
 
 ## Native synthetic verification
