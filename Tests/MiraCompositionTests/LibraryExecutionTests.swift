@@ -10,7 +10,7 @@ struct LibraryExecutionTests {
             let quote = "create a task to review notes"
             let arguments = JSONValue.object([
                 "operation": .string("create"), "title": .string("review notes"),
-                "quote": .string(quote), "remind": .bool(false),
+                "remind": .bool(false),
             ])
             let model = CompositionModel(outputs: [
                 [

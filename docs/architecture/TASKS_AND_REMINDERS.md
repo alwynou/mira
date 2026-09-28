@@ -48,7 +48,9 @@ flowchart TB
 
 原始证据是来源定位，不是当前权限。库访问租约保护读取和实际工作生命周期；业务事务再次检查库身份、授权代次及待执行维护记录。工具事务同时复核当前工作区出站策略、连接白名单、冻结路线各层身份与版本，以及任务目标修订号。模型参数不能授予权限。
 
-`task.change` 的 quote 必须与完整接纳消息一致。只有明确、来源中可定位标题／备注及时间的受支持命令才直接提交；模糊意图或需要澄清的时间保存独立提案。现有任务必须提供当前工作区内的 ID 和修订号；工具说明要求先通过 `task.list` 查询。过期目标不会覆盖新修订。
+`task.change` 接收模型结合可见对话解释后的结构化字段。工具不使用固定句式、否定词正则、标题／备注逐字匹配或原文时间重解析来再次判定语义，也不要求补充日期的消息重复整个任务。模型负责结合上下文判断用户意图、指代与自然语言日期；不清楚时先询问，不能把引用、假设、否定或外部工具内容当作用户命令。循环／条件提醒不在能力范围内，模型须明确说明，不能降级为一次性提醒。
+
+宿主从当前已接纳的调用消息直接构造 `TaskEvidence`；工具参数不接受 `quote`、`time_quote` 或模型指定的来源身份。当前消息与先前上下文可从该会话的 journal 追溯，短回复的来源仍是实际调用消息。来源／会话生命周期授权、库访问代次和工作区政策由宿主复核，与自然语言判断分开。现有任务仍必须提供当前工作区内的 ID 和修订号；工具说明要求先通过 `task.list` 查询。过期目标不会覆盖新修订。
 
 Task context sources refer to exact retained immutable revisions. The source authority requires the current task to remain accessible in the requested workspace and resolves the referenced revision directly through `TaskReadStore.taskRevision`; it does not search the latest-100 revision list. This allows `task.list` → `task.change` → final reply to retain the original list evidence after the mutation creates a new revision. Missing revisions and cross-workspace references remain unauthorized. `TaskListTool` still checks freshness before returning its captured list, and mutation preparation/SQL commit still require an exact current target revision. Historical read authority never grants stale write authority.
 
@@ -91,11 +93,15 @@ flowchart TD
 
 ## 时间解释
 
-相对日期与时区来自 journal 的最初接纳，不取工具运行时间或审核时机器的当前时区。`task.list` 返回这个 reference_time 与 time_zone；`task.change` 接受本地 HH:mm，以及 YYYY-MM-DD 或相对 day_offset 之一。
+相对日期与时区来自 journal 的最初接纳，不取工具运行时间或审核时机器的当前时区。`task.list` 即使列表为空，也返回这个 reference_time 与 time_zone；模型应使用该时钟，不为确定提醒日期调用 Bash 或猜测工作目录。`task.change` 接受本地 HH:mm，以及 YYYY-MM-DD 或相对 day_offset 之一。
 
-`TaskTimeResolver` 使用严格 Gregorian 匹配，比较夏令时重叠的两种可能值。无效日期、DST 空隙或重叠要求审核，不静默选择一次发生。直接提交还要将原文时间表达式与模型参数核对。现有英文／中文规则覆盖常见今天、明天、数字时刻和整点上下午；其他表述保留待审核提案。循环与条件提醒明确不支持，不降级为一次性通知。
+`TaskTimeResolver` 只验证模型提交的结构化日期和时刻，使用严格 Gregorian 匹配，比较夏令时重叠的两种可能值。无效日期、DST 空隙或重叠要求审核，不静默选择一次发生。日期与相对天数不能同时提供。模型可以把下周、半点、中文数字等自然表达归一化，工具不限制某种语法，也不要求归一化的日期字符串逐字出现在原文中。
 
-未确定提醒时间的提案，必须由用户选择确切未来时间后才可接受。编辑过去的提醒也需要新的未来时间。`TaskIntentPatterns.json` 中的中文是有意保留的用户语言识别数据，不是本地化提示词；代码标识、工具说明和诊断保持英文。
+仅给出时刻而未提供日期／相对天数时，按原始调用消息时区的当天解释。提醒时刻必须晚于原始消息时间和实际提交时间；已过期进入审核，不自动顺延到明天。跨午夜重试仍锚定原始调用消息日期。独立后续消息是新的调用，可以结合对话中的先前事项和当前补充信息创建任务。
+
+待审核工具结果包含有界 `review_reason` 和可操作的英文消息，区分缺失／无效／歧义时间（`timeUnclear`）与时间已过期（`timeElapsed`）。消息明确没有提交任务或通知，模型据此说明下一步。提醒的时间类失败同步设置 `requires_time_clarification`，接受时要求显式修正；仅截止日期的提案不因此自动启用提醒。原因属于当前工具结果，不增加第二份持久提案或改变存储格式。
+
+未确定提醒时间的提案，必须由用户选择确切未来时间后才可接受。编辑过去的提醒也需要新的未来时间。模型的语义判断质量需要独立评估；结构化工具测试不宣称能判断一切自然语言授权。工具描述、实现标识与诊断保持英文。
 
 ## 系统调度与工作所有权
 

@@ -116,7 +116,7 @@ private struct UnexpectedReceiptSourceRead: AgentSourceAuthorizer {
 private func withReceiptWorkflow(_ body: (TaskWorkflowFixture, AgentExecutionAddress) async throws -> Void) async throws
 {
     let quote = "add a task to review notes"
-    try await withTaskWorkflow(outputs: taskReplies(taskArguments(quote: quote))) { fixture in
+    try await withTaskWorkflow(outputs: taskReplies(taskArguments())) { fixture in
         let address = try await fixture.run(quote)
         _ = await fixture.runtime.shutdown()
         try await fixture.business.close()

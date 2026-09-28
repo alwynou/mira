@@ -1,8 +1,8 @@
 # 结构化记录产品规范
 
-**文档版本：** v1.3
-**更新日期：** 2026-09-07
-**状态：** M6 的一次性本地 Task / Reminder 能力与当前 macOS Tasks 管理界面正在实现；发布质量与原生验收仍待完成。当前实现与边界见 [Tasks and local reminders implementation](../architecture/TASKS_AND_REMINDERS.md)，计划验证记录见 [Task management verification](../engineering/TASK_MANAGEMENT_VERIFICATION.md)。
+**文档版本：** v1.4
+**更新日期：** 2026-09-28
+**状态：** M6 的一次性本地 Task / Reminder 能力与当前 macOS Tasks 管理界面已实现；本次原生检查已完成，更广泛发布质量仍待验收。当前实现与边界见 [Tasks and local reminders implementation](../architecture/TASKS_AND_REMINDERS.md)，原生验证记录见 [Task management verification](../engineering/TASK_MANAGEMENT_VERIFICATION.md)。
 
 定义事件、任务、提醒、日程和轻量财务记录的业务含义及 Apple 发布体验；当前实现的详细技术契约见 [Tasks and local reminders implementation](../architecture/TASKS_AND_REMINDERS.md)，版本范围由 MVP 决定。
 
@@ -40,6 +40,10 @@ FinancialTransaction
 当前实现的是 M6 的最小纵向路径：Task 可属于 Inbox 或一个 Workspace，包含标题、备注、可选到期时间、状态和修订历史；每个 Task 最多带一个确定时刻的一次性本地 Reminder。结构化记录的其他对象仍属于设计范围，未因 Task 实现而提前开放。
 
 Tasks 管理界面按 Inbox 或单一 Workspace 精确筛选，提供标题／备注的规范化字面搜索、all／active 状态筛选、列表分页和详情。列表与详情采用响应式布局；详情保留编辑器中的修订草稿，冲突时要求刷新。详情可查看来源与分页历史，Needs review 单独显示待审核 Proposal；接受前重新读取新鲜来源证据，含糊时间必须由用户确认精确时刻。来自对话的明确 Task / Reminder 命令仍使用 `task.list` 与 `task.change`；提案不会因界面状态而自动批准。通知的“已保存”与“已由系统确认排程”仍分开记录，并如实显示权限、重试、暂停、恢复和已过期状态。
+
+模型结合对话上下文理解 Task / Reminder 请求，再调用结构化工具。用户可以先说事项，再补充“今天”“七点半”等信息，不必把整个任务重说一遍；标题也可由模型整理。工具校验日期时区、目标版本及写入条件，不再用固定句式或逐字匹配重复判断用户意图。意图、对象或时间确实不清楚时，模型先作简短澄清。
+
+只给出时刻而省略日期时，默认使用调用消息所在时区的当天。提醒时刻已过、日期非法或遇到夏令时歧义，则保存待审核提案并说明原因，不能悄悄改成明天。需要修正提醒时间的提案必须确认未来时刻后才可接受。已有待审核提案不会因软件更新而自动批准。修复证据见 [Task time intent verification](../engineering/TASK_TIME_INTENT_VERIFICATION.md)。
 
 <a id="s15-02"></a>
 

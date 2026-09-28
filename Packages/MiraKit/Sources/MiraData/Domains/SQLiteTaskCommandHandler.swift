@@ -54,13 +54,13 @@ public struct SQLiteTaskCommandHandler: SQLiteBusinessCommandHandler, SQLiteBusi
         var proposal = try interpretation(input, context: effect.context, at: date)
         let current = try proposal.taskID.map { try SQLiteTaskStore.readTask($0, workspaceID: proposal.workspaceID, in: db) }
         if let current, [.complete, .cancel].contains(proposal.operation) { proposal.draft = current.draft }
-        let direct = TaskCommandInterpreter.canCommitDirectly(proposal, current: current, arguments: input)
-            && !proposal.requiresTimeClarification
-            && ([TaskOperation.complete, .cancel].contains(proposal.operation) || (proposal.draft.reminderAt.map { $0 > date } ?? true))
-        if direct {
+        let reason = TaskCommandInterpreter.reviewReason(proposal, arguments: input, at: date)
+        guard let reason else {
             let task = try SQLiteTaskStore.applyTaskProposal(proposal, draft: proposal.draft, actor: "agent", at: date, in: db)
             return .object(["record_saved": .bool(true), "task": try TaskTools.summary(task)])
         }
+        proposal.requiresTimeClarification = proposal.requiresTimeClarification
+            || (input["remind"] == .bool(true) && reason.requiresTimeClarification)
         guard try Int.fetchOne(db, sql: "SELECT count(*) FROM task_proposals WHERE state = 'pending'") ?? 0 < 100 else {
             throw MiraError(.outputLimit, "Review pending task proposals before creating more.")
         }
@@ -68,18 +68,17 @@ public struct SQLiteTaskCommandHandler: SQLiteBusinessCommandHandler, SQLiteBusi
         return .object([
             "record_saved": .bool(false), "proposal_id": .string(proposal.id.uuidString.lowercased()),
             "requires_review": .bool(true), "requires_time_clarification": .bool(proposal.requiresTimeClarification),
-            "message": .string("A proposal requires review. No task change or notification has been committed.")
+            "review_reason": .string(reason.rawValue), "message": .string(reason.message)
         ])
     }
 
     private func arguments(_ effect: AgentResolvedEffect) throws -> JSONValue {
         guard effect.proposal.effect == .localWrite, effect.proposal.businessNamespace == namespace,
-              effect.proposal.descriptor.revision == 1,
+              effect.proposal.descriptor.revision == 2,
               effect.proposal.descriptor.definition == TaskTools.mutationDefinition else {
             throw SQLiteTaskStore.taskUnauthorized
         }
         let input = try ToolSchemaValidator.decode(try effect.proposal.plan.input.jsonString(), schema: TaskTools.mutationDefinition.inputSchema)
-        guard input["quote"]?.stringValue == effect.context.evidence.text else { throw SQLiteTaskStore.taskUnauthorized }
         return input
     }
     private func interpretation(_ input: JSONValue, context: AgentToolContext, at date: Date) throws -> TaskProposal {

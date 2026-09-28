@@ -90,6 +90,20 @@ public struct TaskRevision: Codable, Sendable, Identifiable {
 public enum TaskProposalState: String, Codable, Sendable { case pending, accepted, rejected }
 public enum TaskOperation: String, Codable, Sendable, CaseIterable { case create, update, complete, cancel }
 
+/// A bounded explanation for the current tool result, not a second persisted proposal.
+public enum TaskReviewReason: String, Sendable, CaseIterable {
+    case timeUnclear, timeElapsed
+
+    public var requiresTimeClarification: Bool { true }
+
+    public var message: String {
+        switch self {
+        case .timeUnclear: "Choose an exact future date and time in Tasks. The reminder time is missing, invalid, or ambiguous. No task change or notification has been committed."
+        case .timeElapsed: "Choose a new future date and time in Tasks. The requested time has passed; a date-omitted time is not rolled forward to tomorrow. No task change or notification has been committed."
+        }
+    }
+}
+
 /// A frozen interpretation, independent of memory candidates and foreground execution lifetime.
 public struct TaskProposal: Identifiable, Codable, Sendable, Equatable {
     public var id: UUID

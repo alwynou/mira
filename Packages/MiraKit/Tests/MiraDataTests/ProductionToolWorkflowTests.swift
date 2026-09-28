@@ -46,7 +46,7 @@ struct ProductionToolWorkflowTests {
             case "source.open": arguments = .object(["source_id": .string(source.source.id.rawValue.uuidString)])
             case "source.read_chunk": arguments = .object(["chunk_id": .string(chunk.id.rawValue.uuidString)])
             case "task.list": arguments = .object([:])
-            default: arguments = taskArguments(title: "brew green tea", quote: text)
+            default: arguments = taskArguments(title: "brew green tea")
             }
             await f.model.append([
                 modelToolStream([.init(id: "tested-tool", name: name, arguments: try arguments.jsonString())]),

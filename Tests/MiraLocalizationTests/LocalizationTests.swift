@@ -67,6 +67,9 @@ final class LocalizationTests: XCTestCase {
     }
 
     func testTaskStateAndReminderExplanationSwitchWithLocale() {
+        let error = MiraError(.invalidInput, "The task command has missing or invalid fields.")
+        XCTAssertEqual(L10n.error(error, locale: AppLanguage.english.locale, bundle: resources), error.message)
+        XCTAssertEqual(L10n.error(error, locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "任务指令缺少字段或包含无效字段。") // i18n-fixture: Expected structured task command diagnostic.
         XCTAssertEqual(L10n.string("Add task", locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "添加任务") // i18n-fixture: Expected native toolbar and create-sheet title translation.
         XCTAssertEqual(L10n.string("Completed", locale: AppLanguage.english.locale, bundle: resources), "Completed")
         XCTAssertEqual(L10n.string("Completed", locale: AppLanguage.simplifiedChinese.locale, bundle: resources), "已完成") // i18n-fixture: Expected task status translation.

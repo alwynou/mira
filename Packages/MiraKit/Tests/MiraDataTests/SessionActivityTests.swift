@@ -30,7 +30,7 @@ struct SessionActivityTests {
     }
 
     @Test func returnsOrderedModelRoundsAndFullToolPayloads() async throws {
-        let arguments = try taskArguments(quote: "Question").jsonString()
+        let arguments = try taskArguments().jsonString()
         let rounds: [[AgentModelStreamEvent]] = (0..<9).map { index in
             let call = CanonicalToolCall(id: "task-\(index)", name: "task.change", arguments: arguments)
             return [.blockStarted(.init(id: "thinking-\(index)", content: .thinking("Plan \(index)"))),
@@ -59,7 +59,7 @@ struct SessionActivityTests {
                       case .available(let result) = try #require(tools.first).result else {
                     Issue.record("Tool arguments or result was not available."); return
                 }
-                #expect(arguments == (try taskArguments(quote: "Question").jsonString()))
+                #expect(arguments == (try taskArguments().jsonString()))
                 let state = try await fixture.runtime.sessionSnapshot(id: address.sessionID)
                 let reference = try #require(state.invocations[tools[0].id]?.resolution?.result)
                 let original = try SessionCodec.decode(JSONValue.self, from: await fixture.library.read(reference))
@@ -70,7 +70,7 @@ struct SessionActivityTests {
     }
 
     @Test func byteBudgetReturnsAbsentWithoutReadingOversizedPreview() async throws {
-        try await withTaskWorkflow(outputs: try taskReplies(taskArguments(quote: "Question"))) { fixture in
+        try await withTaskWorkflow(outputs: try taskReplies(taskArguments())) { fixture in
             let address = try await fixture.run("Question")
             let probe = ActivityPayloadProbe(base: fixture.library)
             try await withActivity(fixture, reader: probe, maximumPageBytes: 1) { query in

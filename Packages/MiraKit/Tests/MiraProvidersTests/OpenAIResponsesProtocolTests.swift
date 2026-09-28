@@ -74,7 +74,7 @@ struct OpenAIResponsesProtocolTests {
         #expect(tools[1]["parameters"]?["required"] == KnowledgeTools.openDefinition.inputSchema["required"])
 
         let taskArguments = try ToolSchemaValidator.decode(
-            "{\"operation\":\"create\",\"title\":\"Buy milk\",\"quote\":\"Please remind me\",\"remind\":false}",
+            "{\"operation\":\"create\",\"title\":\"Buy milk\",\"remind\":false}",
             schema: TaskTools.mutationDefinition.inputSchema)
         let sourceArguments = try ToolSchemaValidator.decode(
             "{\"source_id\":\"00000000-0000-0000-0000-000000000000\"}",

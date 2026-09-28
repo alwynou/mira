@@ -279,14 +279,15 @@ func taskEventually(_ predicate: @Sendable () async throws -> Bool) async throws
         try await Task.sleep(for: .milliseconds(1))
     }
 }
-func taskArguments(title: String = "review notes", quote: String, remind: Bool = false,
-                   timeQuote: String? = nil, time: String? = nil, dayOffset: Int? = nil) -> JSONValue {
-    var result: [String: JSONValue] = ["operation": .string("create"), "title": .string(title), "quote": .string(quote), "remind": .bool(remind)]
-    if let timeQuote { result["time_quote"] = .string(timeQuote) }
+func taskArguments(title: String = "review notes", remind: Bool = false,
+                   time: String? = nil, dayOffset: Int? = nil, date: String? = nil) -> JSONValue {
+    var result: [String: JSONValue] = ["operation": .string("create"), "title": .string(title), "remind": .bool(remind)]
     if let time { result["time"] = .string(time) }
     if let dayOffset { result["day_offset"] = .number(Double(dayOffset)) }
+    if let date { result["date"] = .string(date) }
     return .object(result)
 }
+
 func taskReplies(_ arguments: JSONValue, count: Int = 1) throws -> [[AgentModelStreamEvent]] {
     let calls = try (0..<count).map { CanonicalToolCall(id: "task-\($0)", name: "task.change", arguments: try arguments.jsonString()) }
     return [modelToolStream(calls), [.blockStarted(.init(id: "text", content: .text("Task processed"))), .blockFinished(id: "text"), .finished(.stop)]]

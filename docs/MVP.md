@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The [conversational task command correction](engineering/TASK_TIME_INTENT_VERIFICATION.md) removes duplicate natural-language gating from task tools. Models interpret visible conversational context, including brief follow-ups; the host binds source evidence and validates structured times, target revisions and durable writes. Synthetic bilingual, multi-turn, tool-pipeline and native evidence remains separate from live-provider quality.
+
 The [Tasks management increment](engineering/TASK_MANAGEMENT_VERIFICATION.md) restores native task and one-time reminder management, exact scope and bounded search/history, manual editing and status changes, source-bound proposal review, and explicit reminder recovery. Focused synthetic tests and English/light plus Chinese/dark native checks passed; platform notification delivery and broader M6 release gates remain separate.
 
 The [conversation permission scope correction](engineering/CONVERSATION_TOOL_PERMISSIONS_VERIFICATION.md) separates each existing conversation’s consent from the global new-conversation default. First submission captures the default, later composer changes remain local, and runtime checks use the invoking conversation identity.
