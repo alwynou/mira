@@ -120,3 +120,8 @@ Provider model badges respect the saved invocation’s effective capability and 
 ## Bounded Markdown code blocks
 
 Code blocks grow naturally up to `MiraTheme.Markdown.maximumCodeBlockHeight` (320 pt including the fixed language/copy toolbar). Taller blocks scroll vertically inside that viewport; long lines scroll horizontally without forced wrapping. Line numbers track the vertical document offset. Native scrollbar clearance keeps the final line readable while a horizontal scrollbar is visible. Short blocks retain their natural height. The same rule applies to answers and expanded process content. The native transcript yields wheel input to overflowing code regions.
+
+
+## Tool permission controls
+
+The composer places the global tool permission selector at the lower-left of its action row. Its compact icon and current-level label open a native popover with three selectable rows, descriptions and a checkmark. General settings reuses the same option rows and shared preference. These controls use existing system typography, spacing and `MiraRowButtonStyle`; they do not define new palette tokens. Full access uses system orange as the user-requested semantic emphasis from the supplied reference, alongside an exclamation-shield symbol and explicit wording. The choice remains understandable without color. Native buttons, keyboard focus, Escape dismissal and selected accessibility traits remain available. The popover describes shared scope and pending-review behavior; General settings also explains retained domain and macOS restrictions.

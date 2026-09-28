@@ -1,5 +1,7 @@
 # Mira MVP 范围与实施计划
 
+The user-approved [Bash and global tool permission increment](engineering/TOOL_PERMISSIONS_VERIFICATION.md) adds noninteractive macOS command execution and one persisted three-level approval setting in General settings and the composer. The host governs all risky tools, including conversational memory deletion, while ordinary memory/task operations retain domain checks. Focused process/runtime tests and the complete hostless target passed; native bilingual checks and remaining platform limits are recorded in the evidence.
+
 The [memory save retry correction](engineering/MEMORY_SAVE_RETRY_VERIFICATION.md) addresses a name-only fact left current after an independent retry saved a fuller profile. Foreground save guidance now searches specific facts, retains compatible overlapping targets and avoids bypassing a failed consolidation with an independent duplicate. Kind mismatches have actionable diagnostics. Focused synthetic regression tests pass; live-model compliance and retrospective cleanup of existing personal records remain unqualified.
 
 The [quiet memory presentation correction](engineering/QUIET_MEMORY_PRESENTATION.md) removes memory references and badges from ordinary replies and guides brief save acknowledgments without internal IDs. Streaming, interrupted and reopened assistant text share a presentation filter while raw evidence and Knowledge citations remain intact. Focused package/host tests and English/light plus Chinese/dark native fixtures passed; live-provider wording and broader memory quality remain unqualified.
@@ -130,6 +132,7 @@ The [appearance transition fix](engineering/APPEARANCE_TRANSITIONS.md) removes c
 
 | 工具 | 输入 / 输出范围 | 副作用与阶段 |
 |---|---|---|
+| `bash` | Noninteractive command, absolute working directory and bounded timeout; separate bounded stdout/stderr and exit status | External effect; global permission policy, user-approved increment |
 | `memory.search` | query、受限数量与过滤；返回当前 Scope 内可发送的有界结果及引用 | 只读；M3 |
 | `memory.get` | Memory ID；返回通过 Scope / Privacy 校验的指定版本正文与来源 | 只读；M3 |
 | `memory.remember` | 当前用户原文引用、内容、主体和 Scope；返回已提交 Memory 或明确失败 | 内部写入；明确保存无需额外确认，M3 |
@@ -315,7 +318,7 @@ The first composer focus no longer initializes the macOS OTP AutoFill panel. The
 | Graph / Entity 高级关系 / Synthesis | 真实使用证实探索或综合价值，不以模块预留作为建设理由 |
 | Apple 单向发布 | 本地提醒交付可靠，已准备 EventKit 权限、失败核对与通知切换测试 |
 | iOS / 同步 / Handoff | macOS 核心稳定，单独确定数据共享范围与冲突策略 |
-| Shell / 自动化 / Helper / 第三方工具 | 明确用户场景、分发能力矩阵、权限和取消 / 副作用审计后重新设计 |
+| Interactive Shell / 自动化 / Helper / 第三方工具 | Noninteractive Bash is now an explicit user-approved increment; persistent terminals, automation, helpers and third-party tools remain deferred pending a concrete scenario and capability review. |
 | 应用级加密 / 安全擦除 | 明确威胁模型、密钥恢复和备份策略后单独设计，不能仅增加布尔字段 |
 
 ## 5. 开发前条件与发布前条件

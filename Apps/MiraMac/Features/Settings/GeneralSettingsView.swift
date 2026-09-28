@@ -10,6 +10,7 @@ struct GeneralSettingsView: View {
             // Keep sections as direct Form children so native grouped Form semantics,
             // separators, keyboard navigation, and accessibility remain intact.
             Group {
+                ToolPermissionSettings()
                 MiraSettingsSection("Language") {
                     MiraSettingsRow("Display Language", subtitle: "Changes apply immediately to all Mira windows and are saved for the next launch. Conversation content and model response language are not changed. macOS manages the language of system menus and file dialogs.") {
                         MiraSettingsSelect(

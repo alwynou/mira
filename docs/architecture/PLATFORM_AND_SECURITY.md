@@ -231,7 +231,7 @@ RequestSnapshot 记录内容类别和来源；UI 可显示：
 ### 3.4 Tool Sandbox
 
 - 文件工具限制在授权 Scope；
-- Shell 默认逐次确认；
+- Shell 默认逐次确认；用户可通过全局工具权限切换为自动批准已识别的低风险操作或完全访问，契约见 [Bash 与工具权限](BASH_AND_TOOL_PERMISSIONS.md)；
 - 删除操作显示具体目标；
 - 自动化不能继承比用户授权更大的权限；
 - Tool Result 中的指令不改变 Tool Policy。

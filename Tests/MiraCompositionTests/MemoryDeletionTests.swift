@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Conversational memory deletion", .timeLimit(.minutes(1)))
 struct MemoryDeletionTests {
-    @Test(arguments: [DeletionScenario.complete, .stale, .reopen, .maintenanceInterrupted, .purgeInterrupted])
+    @Test(arguments: [DeletionScenario.complete, .stale, .reopen, .maintenanceInterrupted, .purgeInterrupted, .denied])
     func libraryOwnsDeferredPurgeAndDurableOutcome(scenario: DeletionScenario) async throws {
         try await withDirectory { directory in
             let model = DeletionModel()
@@ -20,7 +20,7 @@ struct MemoryDeletionTests {
             await model.setTarget(memory)
             let modules: MacLibrary.ModuleFactory = { [DeletionModule(registry: $0, model: model)] }
             let library = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
-                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules)
+                notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { .ask })
             let command = AgentSubmitCommand(id: UUID(), sessionID: .init(), executionID: .init(),
                 input: .message(id: .init(), text: "Delete my green tea memory", timeZoneIdentifier: "UTC"),
                 options: .init(instructions: ConversationInstructions.default, route: route),
@@ -28,10 +28,28 @@ struct MemoryDeletionTests {
             do {
                 let group = try await library.workloads()
                 let generation = await library.status().generation
+                let approvals = await group.approvals.snapshots()
+                var reviews = approvals.makeAsyncIterator()
+                _ = await reviews.next()
                 try committed(await group.application.submit(command))
+                var pendingReview: RuntimeApprovalRequest?
+                while pendingReview == nil, let snapshot = await reviews.next() { pendingReview = snapshot.first }
+                let review = try #require(pendingReview)
+                #expect(review.prompt.contains(memory.id.rawValue.uuidString.lowercased()))
+                #expect(try await group.memories.detail(memory.id, workspaceID: nil).memory.draft != nil)
+                try await group.approvals.resolve(id: review.id, proposalHash: review.proposalHash,
+                    authorizationEpoch: review.authorizationEpoch, decision: scenario == .denied ? .denied : .approved)
                 try await eventually { await model.replyStarted }
                 let pending = try await group.memories.deletionRequests(sessionID: command.sessionID,
                     executionIDs: [command.executionID], workspaceID: nil)
+                if scenario == .denied {
+                    #expect(pending.isEmpty)
+                    #expect(try await group.memories.detail(memory.id, workspaceID: nil).memory.draft != nil)
+                    await model.release()
+                    try committed(await group.application.waitForExecution(id: command.executionID, sessionID: command.sessionID))
+                    #expect(await library.close().isSettled)
+                    return
+                }
                 #expect(pending.count == 1)
                 #expect(pending.first?.state == .pending)
                 #expect(await library.status().generation == generation)
@@ -62,7 +80,7 @@ struct MemoryDeletionTests {
                         } catch { _ = await interrupted.close(); throw error }
                     }
                     let reopened = try await MacLibrary.open(embeddings: OfflineMemoryEmbedding(), directory: directory,
-                        notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules)
+                        notifications: CompositionNotifications(), credentials: CompositionCredentials(), modules: modules, toolPermissionLevel: { .ask })
                     do {
                         try await expectOutcome(reopened, command: command, memory: memory, state: .completed)
                         #expect(await model.calls == 2)
@@ -114,7 +132,7 @@ struct MemoryDeletionTests {
     }
 }
 
-enum DeletionScenario: Sendable { case complete, stale, reopen, maintenanceInterrupted, purgeInterrupted }
+enum DeletionScenario: Sendable { case complete, stale, reopen, maintenanceInterrupted, purgeInterrupted, denied }
 
 private struct DeletionModule: RuntimeModule {
     let id = "tests.deletion"

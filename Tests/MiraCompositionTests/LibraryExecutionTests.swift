@@ -130,7 +130,7 @@ struct LibraryExecutionTests {
     }
 }
 
-private struct CompositionModelModule: RuntimeModule {
+struct CompositionModelModule: RuntimeModule {
     let id = "tests.composition"
     let dependencies: Set<String> = []
     let registry: RuntimeRegistry<AgentCapability>
@@ -140,7 +140,7 @@ private struct CompositionModelModule: RuntimeModule {
     }
 }
 
-private actor CompositionModel: AgentModelAdapter {
+actor CompositionModel: AgentModelAdapter {
     nonisolated let identity = AgentAdapterIdentity(id: "tests.composition", revision: 1)
     private var outputs: [[AgentModelStreamEvent]]
     var inputs: [AgentModelInput] = []
