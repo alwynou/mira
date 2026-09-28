@@ -2,6 +2,12 @@
 
 The `Swift checks` workflow selects checks from the complete pull request diff. It runs for every PR, including documentation changes, and supports manual full verification through `workflow_dispatch`. It does not run again after every merge. New commits cancel superseded runs for the same PR.
 
+## Place in the development workflow
+
+Use [focused local verification](DEVELOPMENT.md#verification-workflow) while implementation is in progress. Open the routine PR after implementation and focused checks are complete, so CI's broader automated suites serve as pre-merge verification. Draft PRs also trigger this workflow; draft status is not a focused-testing mode. Manual full dispatch is reserved for final pre-merge verification when needed.
+
+The conservative routing below governs hosted pre-merge checks, not which local commands to repeat after every edit. Reuse applicable successful CI evidence instead of duplicating complete suites locally. A later correction needs affected local checks and successful required CI for the updated revision. Do not bypass failing checks or branch protections. Post-merge synchronization alone does not require another full test run, and this automated workflow does not require unrelated manual language, appearance, model-display or live-provider checks.
+
 ## Check selection
 
 `scripts/ci_plan.py` compares the event's base and head commits with a three-dot Git diff. Checkout fetches history so the merge base is available. Rename detection is disabled: both the removed and added paths contribute to the plan. Every commit in the PR is considered, rather than only the latest push. Mixed changes take the union of required checks.

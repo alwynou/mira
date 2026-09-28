@@ -29,17 +29,18 @@
 - After changing tokens, run `python3 scripts/export_design_tokens.py` and update the owning design document and affected consumers together. `designs/mira-ui/tokens.json` is a generated export; do not maintain it independently or duplicate token values in these contributor instructions.
 - Add or update relevant examples in `Apps/MiraMac/DesignSystem/MiraComponentPreview.swift` when changing shared components. Keep previews self-contained and independent of databases, credentials, and provider requests.
 - Preserve native macOS window controls, menus, keyboard navigation, focus, and accessibility semantics. Visual changes must preserve conversation behavior, including thinking, citations, reading position, cancellation, and recovery.
-- Verify affected screens in the native app with synthetic data. Cover light/dark appearance, the minimum supported window size, English/Chinese layout, and relevant interaction states as applicable to the change. Record evidence and unverified checks in `docs/engineering`; a successful build alone is not visual verification.
+- For changes that affect visible behavior, verify the affected screens and states in the native app with synthetic data. Select light/dark appearance, minimum window size, English/Chinese layout and accessibility checks only when the change can affect those dimensions; do not repeat the entire visual matrix for every edit or for non-UI work. Record applicable evidence and unverified checks in `docs/engineering`; a successful build alone is not visual verification.
 
 ## Verification
 
-- Keep verification scoped to the changed behavior and its directly affected boundaries. Do not run unrelated tests or full suites by default; select focused tests and the build needed for the changed targets.
-
-- Package: `swift test --package-path Packages/MiraKit`.
-- App: `xcodebuild -project Mira.xcodeproj -scheme Mira -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/xcode -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO build`.
+- During implementation, run only tests for the changed behavior and its affected callers/contracts, plus the build needed for changed targets. Use package `--filter` and Xcode `-only-testing:` selectors. Do not run unfiltered package, host or composition suites after each edit. The selection rules and command examples are in `docs/engineering/DEVELOPMENT.md#verification-workflow`.
+- Reserve broad automated regression for the completed change immediately before merging into `main`. Open the routine PR after focused verification, let CI select the required checks, and reuse its results instead of repeating the same complete suites locally. Documentation-only changes keep lightweight checks; a full run is not mandatory for every PR.
+- Rerun a passing check only when a later edit, dependency/environment change or failure invalidates its evidence. After a final-stage correction, rerun the affected local tests and allow required CI checks to complete for the updated revision. Do not bypass failing checks or protections; do not repeat full regression after merge merely to synchronize local `main`.
+- Presentation-model/model-display tests, language policy/localization tests, light/dark appearance, bilingual layout and live-model evaluations are conditional checks, not a default checklist. Run them when the changed behavior or a dependent shared component affects them, or the user explicitly requests them. Live-provider evaluation still requires its own authorization. CI's conservative pre-merge selection remains mandatory.
+- Documentation-only work needs document/link review and `git diff --check`, not an app build or native, language, appearance or model evaluation run.
 - Regenerate project after file/target changes: `xcodegen generate`; keep `project.yml` and the generated project consistent.
 - Use isolated temporary databases and synthetic transport fixtures. CI must not require credentials or call paid model endpoints.
-- Verify failure boundaries (atomicity, interrupted streams, cancellation, recovery, privacy), not just happy paths. Report exact evidence and remaining gaps; compiling for macOS 15 is not a macOS 15 runtime test.
+- Verify relevant failure boundaries (atomicity, interrupted streams, cancellation, recovery, privacy), not just happy paths; do not rerun unrelated boundary suites. Report selected checks, results and remaining applicable gaps; distinguish out-of-scope checks from unverified acceptance. Compiling for macOS 15 is not a macOS 15 runtime test.
 
 ## Language and localization
 
@@ -47,7 +48,7 @@
 - Supported app languages are `en` and `zh-CN` (Apple resource locale `zh-Hans`). Keep English source keys and both translations in `Apps/MiraMac/Resources/Localizable.xcstrings`. Resolve app-owned dynamic messages at display time with the current SwiftUI locale.
 - Preserve user-authored text, model output, provider identifiers, request evidence, and historical data verbatim. Localize UI labels around them. Model replies follow the user's requested language, otherwise the language of their message.
 - Non-English exceptions are translation resources, original third-party source/notices under `Vendor`, and documented Unicode/search fixtures. Explain each exception in English and keep it narrowly scoped. Existing product/design documents may retain their original language; new engineering instructions use English.
-- Run `python3 scripts/check_language_policy.py` and the `MiraHostTests` hostless target tests for language changes. The policy check rejects untranslated catalog entries, format-placeholder mismatches, and unexplained non-English source text.
+- For language changes, run `python3 scripts/check_language_policy.py` and the affected localization cases in `MiraHostTests` using `-only-testing:`; do not run the entire host target during implementation. Select native bilingual checks when copy, formatting, layout or locale resolution is affected. The policy check rejects untranslated catalog entries, format-placeholder mismatches, and unexplained non-English source text.
 
 ## Delegation and documentation
 
